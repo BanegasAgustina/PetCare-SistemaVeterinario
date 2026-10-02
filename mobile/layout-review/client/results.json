@@ -1,0 +1,286 @@
+{
+  "results": [
+    {
+      "screen": "home",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "dark",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "dark",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "dark",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "dark",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "dark",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "dark",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "dark",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "dark",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "dark",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "dark",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "light",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "light",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "light",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "light",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "light",
+      "width": 360,
+      "height": 800,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "screen": "home",
+      "theme": "light",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "pets",
+      "theme": "light",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "appointments",
+      "theme": "light",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "store",
+      "theme": "light",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    },
+    {
+      "screen": "profile",
+      "theme": "light",
+      "width": 412,
+      "height": 915,
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "source": "MySQL/API real; sesión preparada para QA, sin probar contraseña de login"
+}

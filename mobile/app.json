@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "web": {
+      "favicon": "./src/assets/petcare-icon.png"
+    },
+    "version": "0.1.0",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "name": "PetCare",
+    "orientation": "portrait",
+    "slug": "petcare",
+    "scheme": "petcare",
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#def1ea",
+        "foregroundImage": "./src/assets/petcare-icon.png"
+      },
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "icon": "./src/assets/petcare-icon.png",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ]
+  }
+}

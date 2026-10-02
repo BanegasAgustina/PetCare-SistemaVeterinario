@@ -1,0 +1,11 @@
+# Dependencias, compilaciones y archivos locales de desarrollo.
+node_modules/
+dist/
+.expo/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

@@ -1,0 +1,16 @@
+export type CatalogItem={id:string;name:string};
+export type Pet={id:string;name:string;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null};
+export type PetValues={name:string;speciesId:string;breedId:string;birthDate:string;microchipNumber:string;photoUrl:string;weightKg:string};
+export type PetCatalog={species:CatalogItem[];breeds:(CatalogItem&{speciesId:string})[]};
+export type Appointment={id:string;status:string;isUpcoming:boolean;petId:string;petName:string;startsAt:string;endsAt:string;service:string;veterinarian:string};
+export type AppointmentCatalog={services:(CatalogItem&{specialtyId:string|null})[];specialties:CatalogItem[];veterinarians:CatalogItem[]};
+export type Slot={id:string;startsAt:string;endsAt:string;veterinarianId:string;veterinarian:string};
+export type ClinicalKind='medical-history'|'vaccines'|'prescriptions'|'recommendations';
+export type ClinicalRecord={id:string;petId:string;petName:string;title:string;content:string;occurredAt:string;nextDueAt:string|null;veterinarian:string};
+export type Product={id:string;name:string;description:string|null;imageUrl:string|null;categoryId:string|null;category:string|null;stock:number;isActive:boolean;priceCents:number;regularPriceCents:number};
+export type CartItem=Product&{quantity:number;subtotalCents:number};
+export type Cart={items:CartItem[];totalCents:number;checkoutKey:string};
+export type Order={id:string;status:string;totalCents:number;createdAt:string};
+export type OrderDetail=Order&{items:{productId:string;name:string;quantity:number;priceCents:number;subtotalCents:number}[]};
+export type Notification={id:string;title:string;body:string;readAt:string|null;createdAt:string};
+export type Home={pets:Pet[];nextAppointment:Appointment|null;featuredProducts:Product[];unreadNotifications:number};

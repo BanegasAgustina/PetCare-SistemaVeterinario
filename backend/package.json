@@ -1,0 +1,47 @@
+{
+  "name": "petcare-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API REST de PetCare: estructura y persistencia inicial MySQL 8",
+  "scripts": {
+    "admin:promote": "tsx src/database/promote-super-admin.ts",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json",
+    "lint": "eslint src tests",
+    "test": "tsx --test tests/*.test.ts",
+    "test:db": "tsx --test tests/integration/*.test.ts",
+    "test:client:readonly": "tsx tests/client-readonly.ts",
+    "db:create": "tsx src/database/cli.ts create",
+    "db:check": "tsx src/database/cli.ts check",
+    "db:migrate": "tsx src/database/cli.ts migrate",
+    "db:migrate:client": "tsx src/database/client-migrate.ts",
+    "db:seed:client:reference": "tsx src/database/client-reference-seed.ts",
+    "db:seed": "tsx src/database/cli.ts seed"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.15.3",
+    "nodemailer": "^10.0.13",
+    "validator": "^13.15.35"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/validator": "^13.15.10",
+    "eslint": "^9.39.0",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.46.0"
+  }
+}
