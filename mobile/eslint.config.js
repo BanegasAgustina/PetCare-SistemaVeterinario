@@ -1,7 +1,7 @@
 // Configuración oficial de Expo para revisar TypeScript y componentes React Native.
 const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');
-module.exports = defineConfig([expoConfig, { ignores: ['dist/**'] }, {
+module.exports = defineConfig([expoConfig, { ignores: ['dist/**', 'src-backups/**'] }, {
   files: ['src/**/*.{ts,tsx}'],
   rules: {
     // La regla de UX es global: los errores usan inline, las confirmaciones modal y el feedback toast.

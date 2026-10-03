@@ -24,10 +24,13 @@ function ThemedNavigation() {
   else content = <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
     <Stack.Screen name="index" />
     <Stack.Screen name="activate-vet" />
+    <Stack.Screen name="activate-account" />
     <Stack.Protected guard={!auth.user}><Stack.Screen name="login" /><Stack.Screen name="register" /></Stack.Protected>
     <Stack.Protected guard={Boolean(auth.user)&&auth.user?.role!=='CLIENT'}><Stack.Screen name="account" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='CLIENT'}><Stack.Screen name="client" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='VETERINARIAN'}><Stack.Screen name="vet" /></Stack.Protected>
+    <Stack.Protected guard={auth.user?.role==='GROOMER'}><Stack.Screen name="professional" /></Stack.Protected>
+    <Stack.Protected guard={auth.user?.role==='SECRETARY'}><Stack.Screen name="secretary" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN'}><Stack.Screen name="admin" /></Stack.Protected>
   </Stack>;
   return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{content}

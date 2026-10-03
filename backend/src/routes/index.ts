@@ -4,6 +4,8 @@ import { getHealth } from '../controllers/health.controller';
 import { createDatabaseHealthHandler } from '../controllers/database-health.controller';
 import { authRouter } from './auth.routes';
 import { clientRouter } from './client.routes';
+import { adminRouter } from './admin.routes';
+import { clinicRouter } from './clinic.routes';
 import { veterinarianAdminRouter, invitationRouter, specialtiesAdminRouter, veterinarianPanelRouter } from './veterinarian.routes';
 
 export const apiRouter = Router();
@@ -12,6 +14,9 @@ apiRouter.get('/health/database', createDatabaseHealthHandler());
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/admin/veterinarians', veterinarianAdminRouter);
 apiRouter.use('/admin/specialties', specialtiesAdminRouter);
+apiRouter.use('/admin', adminRouter);
 apiRouter.use('/auth/veterinarian-invitations', invitationRouter);
+apiRouter.use('/auth/invitations', invitationRouter);
 apiRouter.use('/vet', veterinarianPanelRouter);
 apiRouter.use('/client', clientRouter);
+apiRouter.use('/clinic', clinicRouter);

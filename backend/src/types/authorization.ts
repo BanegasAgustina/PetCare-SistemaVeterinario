@@ -5,3 +5,6 @@ export type VetProfile = { id: string; licenseNumber: string; specialties: Speci
 export function effectivePermission(inherited: boolean, override: boolean | null): boolean {
   return override === null ? inherited : override;
 }
+export function effectiveRolePermission(role:string,critical:boolean,inherited:boolean,override:boolean|null):boolean {
+  return (!critical||['ADMIN','SUPER_ADMIN'].includes(role))&&effectivePermission(inherited,override);
+}

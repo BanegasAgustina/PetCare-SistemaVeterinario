@@ -434,3 +434,8 @@ Pruebas: `npm test`, `npm run typecheck`, `npm run lint` en backend/mobile. `NOD
 
 `npm run test:db` prepara exclusivamente MySQL local terminado en _test y arranca SMTP loopback efímero de prueba: captura mensajes en memoria, no envía a terceros y no requiere credenciales SMTP reales. Genera secretos de prueba en memoria y limpia usuarios. Comprueba expiración, hash, cooldown, intentos, cuota, invalidación, concurrencia/uso único, fallo de entrega, pending Login y regresión JWT/health/migraciones/seeds. Pruebas unitarias de máscara/validador/hash en `npm test`. Resultados: [../INFORME_VERIFICACION_EMAIL.md](../INFORME_VERIFICACION_EMAIL.md).
 
+
+
+## Clínica compartida, Secretaría y reservas
+
+PETCARE NO PROCESA PAGOS. La tienda usa client_orders/client_order_items como reservas para retiro. Profesional, especialidades, peluquería, servicios, disponibilidad, agenda, clínica, stock, estados, notificaciones y administración comparten MySQL y permisos efectivos. Ver [modelo, endpoints, migración nueva y verificaciones](../AMPLIACION_CLINICA_PETCARE.md). Aplicar manualmente clinic-migrations/001_connected_clinic.sql antes de desplegar la ampliación. No ejecutar SQL dos veces ni crear registros para llenar pantallas.

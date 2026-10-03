@@ -1,0 +1,8 @@
+import { useState } from 'react';
+import { router } from 'expo-router';
+import { useAuth } from '../../../hooks/useAuth';
+import { PetCareScreen,PetCareHeader,PetCareCard,PetCareAction } from '../../../components/client/PetCareUI';
+import { AppText } from '../../../components/ui/AppText';
+import { AppButton } from '../../../components/ui/AppButton';
+import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+export default function ProfileScreen(){const auth=useAuth();const [logout,setLogout]=useState(false);return <PetCareScreen><PetCareHeader title="Mi perfil" subtitle="Un espacio para vos"/><PetCareCard><AppText variant="subtitle">{auth.user?.firstName} {auth.user?.lastName}</AppText><AppText>{auth.user?.email}</AppText><AppText muted>{auth.user?.phone??'Sin teléfono registrado'}</AppText></PetCareCard><PetCareAction title="Mis datos" icon="person-outline" onPress={()=>router.push('/client/profile/edit')}/><PetCareAction title="Seguridad" icon="lock-closed-outline" onPress={()=>router.push('/client/profile/security')}/><PetCareAction title="Mis pedidos" icon="receipt-outline" onPress={()=>router.push('/client/orders')}/><PetCareAction title="Notificaciones" icon="notifications-outline" onPress={()=>router.push('/client/notifications')}/><PetCareAction title="Apariencia" icon="contrast-outline" onPress={()=>router.push('/client/profile/appearance')}/><AppButton label="Cerrar sesión" variant="secondary" onPress={()=>setLogout(true)}/><ConfirmModal visible={logout} title="Cerrar sesión" message="Podés volver a ingresar cuando quieras." confirmLabel="Cerrar sesión" onCancel={()=>setLogout(false)} onConfirm={auth.signOut}/></PetCareScreen>;}

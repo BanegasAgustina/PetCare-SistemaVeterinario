@@ -5,6 +5,7 @@
   "description": "API REST de PetCare: estructura y persistencia inicial MySQL 8",
   "scripts": {
     "admin:promote": "tsx src/database/promote-super-admin.ts",
+    "create:super-admin": "tsx src/database/create-super-admin.ts",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
@@ -17,18 +18,25 @@
     "db:check": "tsx src/database/cli.ts check",
     "db:migrate": "tsx src/database/cli.ts migrate",
     "db:migrate:client": "tsx src/database/client-migrate.ts",
+    "db:migrate:pet-form": "tsx src/database/pet-form-migrate.ts",
     "db:seed:client:reference": "tsx src/database/client-reference-seed.ts",
-    "db:seed": "tsx src/database/cli.ts seed"
+    "db:seed": "tsx src/database/cli.ts seed",
+    "db:migrate:clinic": "tsx src/database/clinic-migrate.ts",
+    "test:clinic:db": "tsx --test tests/integration/clinic.test.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/s3-request-presigner": "^3.1146.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.15.3",
     "nodemailer": "^10.0.13",
+    "sharp": "^0.35.5",
     "validator": "^13.15.35"
   },
   "devDependencies": {

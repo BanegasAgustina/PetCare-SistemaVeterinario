@@ -1,6 +1,6 @@
 /** Cadena: authenticate -> requireRole -> requirePermission -> scope -> controller.
  * La UI solo mejora UX. Estas comprobaciones utilizan permisos obtenidos de MySQL en authenticate.
- * Los permisos críticos requieren además SUPER_ADMIN: nunca basta un override malicioso.
+ * Los permisos administrativos requieren rol administrativo y grants efectivos de MySQL.
  */
 import type { RequestHandler } from 'express';
 import type { AuthUser, RoleCode } from '../types/auth';
@@ -21,14 +21,17 @@ export function requirePermission(...codes: string[]): RequestHandler {
     next(user && codes.every(code => user.permissions?.includes(code)) ? undefined : new AppError('FORBIDDEN',403,'No tenés permiso para esta acción.'));
   };
 }
+export function requireAnyPermission(...codes:string[]):RequestHandler {
+  return (_req,res,next)=>{const user=res.locals.authenticatedUser as AuthUser|undefined;next(user&&codes.some(code=>user.permissions?.includes(code))?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para esta acción.'));};
+}
 /** Reutilizable por futuras rutas clínicas. No confía en un veterinarianId enviado por el cliente. */
 export function requirePatientScope(parameter = 'petId'): RequestHandler {
   return async (request,response,next) => {
     try {
       const user = response.locals.authenticatedUser as AuthUser;
-      if (user.role === 'SUPER_ADMIN') { next(); return; }
-      if (user.role !== 'VETERINARIAN') throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
+      if (!['VETERINARIAN','ADMIN','SUPER_ADMIN'].includes(user.role)) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
       if (user.permissions?.includes('pets.view_all')) { next(); return; }
+      if (user.role !== 'VETERINARIAN') throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
       if (!user.permissions?.includes('pets.view_assigned')) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
       const id = request.params[parameter];
       if (typeof id !== 'string' || !/^[1-9]\d{0,19}$/.test(id)) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');

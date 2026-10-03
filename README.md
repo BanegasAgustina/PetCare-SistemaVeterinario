@@ -1,6 +1,6 @@
 # PetCare
 
-Experiencia CLIENT implementada con cinco pestañas, mascotas, turnos, clínica, tienda/carrito/pedidos, notificaciones y perfil. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
+PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. **PETCARE NO PROCESA PAGOS:** la Tienda funciona mediante reservas para retiro/gestión en la veterinaria. Ver [ampliación conectada, SQL manual y pruebas](AMPLIACION_CLINICA_PETCARE.md). El código nuevo requiere aplicar la migración documentada antes de habilitar estos módulos en Railway. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
 
 Aplicación móvil para la gestión integral de una veterinaria. Busca conectar clientes, veterinarios y administradores mediante una experiencia accesible, con prioridad en celulares Android.
 
@@ -10,7 +10,7 @@ Resultados y límites de verificación en [INFORME_FASE_3.md](INFORME_FASE_3.md)
 
 Implementado: Login con logo original, temas claro/oscuro con Context API, Expo Router desde mobile/src/app, API REST con health, pool MySQL 8, comprobación de conexión, cuatro migraciones SQL y seeds mínimos idempotentes. Se conservaron la interfaz de autenticación y el contrato health.
 
-Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Access Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. La clínica completa, turnos, tienda, OAuth y refresh tokens todavía están pendientes.
+Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Access Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica, turnos y reservas tienen implementación compartida en esta ampliación; su habilitación requiere la nueva migración y las verificaciones documentadas. OAuth y refresh tokens renovables no formaban parte del sistema implementado.
 
 ## AUTORIZACIÓN Y PERMISOS
 

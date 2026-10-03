@@ -24,7 +24,8 @@ export default function VeterinarianEditor() {
   const [catalog,setCatalog]=useState<VetCatalog|null>(null);const [detail,setDetail]=useState<VetDetail|null>(null);
   const [values,setValues]=useState<VetValues>(empty);const [errors,setErrors]=useState<Partial<Record<keyof VetValues,string>>>({});
   const [loadError,setLoadError]=useState<string|null>(null);const [retry,setRetry]=useState(0);const [deactivate,setDeactivate]=useState(false);const [review,setReview]=useState(false);
-  const canEdit=auth.user?.permissions?.includes('permissions.manage') ?? false;
+  const canEdit=auth.hasPermission('veterinarians.manage');
+  const canEditPermissions=auth.hasPermission('permissions.manage');
   const fill=(vet:VetDetail)=>{setDetail(vet);setValues({firstName:vet.firstName,lastName:vet.lastName,email:vet.email,phone:vet.phone??'',licenseNumber:vet.licenseNumber,isActive:vet.isActive,
     specialtyIds:vet.specialties.map(s=>s.id),overrides:vet.permissions.filter(p=>p.override!==null).map(p=>({code:p.code,allowed:p.override}))});};
   useEffect(()=>{
@@ -89,9 +90,9 @@ export default function VeterinarianEditor() {
         <AppText variant="subtitle">{catalog.permissions.find(p=>p.module===module)?.moduleName}</AppText>
         {catalog.permissions.filter(p=>p.module===module).map(p=>{
           const override=values.overrides.find(item=>item.code===p.code)?.allowed ?? null;
-          return <View key={p.code} style={styles.section}><SelectionRow label={p.name} hint={p.critical?'Reservado a Super Admin':`${override===null?'Heredado del rol':'Personalizado'} · ${p.description}`}
-            checked={p.critical?false:override??p.inherited} disabled={p.critical||!canEdit||action.loading} onPress={()=>togglePermission(p.code,p.inherited)} />
-            {override!==null && !p.critical && canEdit && <AppButton compact label="Restaurar herencia" variant="secondary" disabled={action.loading} onPress={()=>change('overrides',values.overrides.filter(item=>item.code!==p.code))} />}</View>;
+          return <View key={p.code} style={styles.section}><SelectionRow label={p.name} hint={p.critical?'Reservado a cuentas administrativas':`${override===null?'Heredado del rol':'Personalizado'} · ${p.description}`}
+            checked={p.critical?false:override??p.inherited} disabled={p.critical||!canEditPermissions||!auth.hasPermission(p.code)||action.loading} onPress={()=>togglePermission(p.code,p.inherited)} />
+            {override!==null && !p.critical && canEditPermissions && auth.hasPermission(p.code) && <AppButton compact label="Restaurar herencia" variant="secondary" disabled={action.loading} onPress={()=>change('overrides',values.overrides.filter(item=>item.code!==p.code))} />}</View>;
         })}
       </View>)}
       <FormNotice error message={action.error} />

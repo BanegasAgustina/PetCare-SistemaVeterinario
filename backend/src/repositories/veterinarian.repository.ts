@@ -9,12 +9,15 @@ import { runDatabaseOperation } from '../utils/database-error';
 import type { VetInput } from '../validators/veterinarian.validator';
 import { readPermissions, readVetProfile } from './authorization.repository';
 import { invitationUrl, saveInvitation, deliverInvitation } from '../services/invitation.service';
+import { freshAdmin } from './admin.repository';
+import { assertAdminPermission,assertDelegation } from '../utils/admin-authorization';
+import { withDatabaseLock } from '../database/lock';
+import type { AuthUser } from '../types/auth';
 
 async function transaction<T>(operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
   return runDatabaseOperation(async () => {
     const connection = await databasePool.getConnection();
-    try { await connection.beginTransaction(); const result = await operation(connection); await connection.commit(); return result; }
-    catch(error) { await connection.rollback(); throw error; } finally { connection.release(); }
+    try {return await withDatabaseLock(connection,async()=>{await connection.beginTransaction();try {const result=await operation(connection);await connection.commit();return result;}catch(error){await connection.rollback();throw error;}});} finally { connection.release(); }
   });
 }
 export async function vetCatalog() {
@@ -73,7 +76,10 @@ export async function vetList(query: Record<string, unknown>) {
       page,pageSize:limit,total:Number(count[0].total),hasMore:page*limit<Number(count[0].total) };
   });
 }
-async function replaceOverrides(connection: PoolConnection,userId: string,overrides: VetInput['overrides']) {
+async function replaceOverrides(connection: PoolConnection,userId: string,overrides: VetInput['overrides'],actor:AuthUser) {
+  const current=await readPermissions(userId,connection);
+  const changed=current.filter(p=>p.override!==(overrides.find(o=>o.code===p.code)?.allowed??null)).map(p=>p.code);
+  if(changed.length){assertAdminPermission(actor,'permissions.manage');assertDelegation(actor,changed);}
   // Validar incluso allowed=null: un código crítico no puede modificarse a través de este recurso.
   const [catalog] = await connection.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
   for (const item of overrides) {
@@ -97,10 +103,11 @@ async function lockVet(connection: PoolConnection,id: string) {
   if (!rows[0]) throw new AppError('NOT_FOUND',404,'Veterinario no encontrado.');
   return rows[0];
 }
-export async function createVet(input: VetInput) {
+export async function createVet(input: VetInput,identity:AuthUser) {
   invitationUrl();
   const hash = await bcrypt.hash(randomBytes(48).toString('base64'),env.bcryptSaltRounds);
   const result = await transaction(async connection => {
+    const actor=await freshAdmin(connection,identity,'veterinarians.manage');
     const [roles] = await connection.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='VETERINARIAN'");
     if (!roles[0]) throw new AppError('AUTH_UNAVAILABLE',503,'El rol veterinario no está configurado.');
     await connection.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active) VALUES (?,?,?,?,?,?,?)',
@@ -110,20 +117,21 @@ export async function createVet(input: VetInput) {
     await connection.execute('INSERT INTO veterinarians (user_id,license_number) VALUES (?,?)',[userId,input.licenseNumber]);
     const [profiles] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
     const id = profiles[0].id as string;
-    await replaceSpecialties(connection,id,input.specialtyIds); await replaceOverrides(connection,userId,input.overrides);
+    await replaceSpecialties(connection,id,input.specialtyIds); await replaceOverrides(connection,userId,input.overrides,actor);
     return { id,token:input.isActive ? await saveInvitation(connection,userId) : null };
   });
   return { veterinarian:await vetDetail(result.id),delivery:result.token ? await deliverInvitation(input.email,result.token) : 'pending' };
 }
-export async function updateVet(id: string,input: VetInput) {
+export async function updateVet(id: string,input: VetInput,identity:AuthUser) {
   const hash = await bcrypt.hash(randomBytes(48).toString('base64'),env.bcryptSaltRounds);
   await transaction(async connection => {
+    const actor=await freshAdmin(connection,identity,'veterinarians.manage');
     const user = await lockVet(connection,id); const emailChanged = user.email !== input.email;
     await connection.execute(`UPDATE users SET first_name=?,last_name=?,email=?,phone=?,is_active=?,
       session_version=session_version+?,email_verified_at=IF(?,NULL,email_verified_at),password_hash=IF(?,?,password_hash) WHERE id=?`,
       [input.firstName,input.lastName,input.email,input.phone,input.isActive,emailChanged || Boolean(user.is_active)!==input.isActive ? 1:0,emailChanged,emailChanged,hash,user.id]);
     await connection.execute('UPDATE veterinarians SET license_number=? WHERE id=?',[input.licenseNumber,id]);
-    await replaceSpecialties(connection,id,input.specialtyIds); await replaceOverrides(connection,String(user.id),input.overrides);
+    await replaceSpecialties(connection,id,input.specialtyIds); await replaceOverrides(connection,String(user.id),input.overrides,actor);
     if (emailChanged || !input.isActive) {
       await connection.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[user.id]);
       await connection.execute('DELETE FROM email_verifications WHERE user_id=?',[user.id]);
@@ -131,12 +139,13 @@ export async function updateVet(id: string,input: VetInput) {
   });
   return vetDetail(id);
 }
-export async function updateVetPermissions(id: string,overrides: VetInput['overrides']) {
-  await transaction(async connection => { const user = await lockVet(connection,id);await replaceOverrides(connection,String(user.id),overrides); });
+export async function updateVetPermissions(id: string,overrides: VetInput['overrides'],identity:AuthUser) {
+  await transaction(async connection => {const actor=await freshAdmin(connection,identity,'veterinarians.manage','permissions.manage'); const user = await lockVet(connection,id);await replaceOverrides(connection,String(user.id),overrides,actor); });
   return vetDetail(id);
 }
-export async function updateVetStatus(id: string,isActive: boolean) {
+export async function updateVetStatus(id: string,isActive: boolean,identity:AuthUser) {
   await transaction(async connection => {
+    await freshAdmin(connection,identity,'veterinarians.manage');
     const user = await lockVet(connection,id);
     await connection.execute('UPDATE users SET is_active=?,session_version=session_version+1 WHERE id=?',[isActive,user.id]);
     if (!isActive) {

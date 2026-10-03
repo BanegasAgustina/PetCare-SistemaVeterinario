@@ -10,7 +10,7 @@ export async function sendInvitationEmail(email: string, url: string): Promise<v
     socketTimeout: 5000, dnsTimeout: 5000, logger: false, debug: false, disableFileAccess: true, disableUrlAccess: true });
   try {
     const result = await transport.sendMail({ from: { name: 'PetCare', address: from }, to: email,
-      subject: 'Configurá tu cuenta veterinaria de PetCare',
+      subject: 'Configurá tu cuenta de PetCare',
       text: `Abrí este enlace para configurar tu contraseña y verificar tu correo:\n${url}\n\nVence en 24 horas y puede usarse una sola vez. No lo compartas. Si no esperabas este correo, ignoralo.` });
     if (!result.accepted.length) throw new Error('Destinatario no aceptado');
   } catch { throw new AppError('EMAIL_DELIVERY_FAILED',503,'No pudimos enviar la invitación.'); }

@@ -36,7 +36,7 @@ export default function VeterinariansScreen() {
     <AppText variant="subtitle">Especialidad</AppText>
     <SelectionRow label="Todas" checked={!specialty} onPress={()=>{setSpecialty('');setPage(1);}} />
     {catalog?.specialties.map(item=><SelectionRow key={item.id} label={item.name} checked={specialty===item.id} onPress={()=>{setSpecialty(item.id);setPage(1);}} />)}
-    {auth.user?.permissions?.includes('permissions.manage') && <AppButton label="+ Crear veterinario" onPress={()=>router.push('/admin/veterinarians/new')} />}
+    {auth.hasPermission('veterinarians.manage') && <AppButton label="+ Crear veterinario" onPress={()=>router.push('/admin/veterinarians/new')} />}
     <FormNotice error message={error} />
     {error && <AppButton label="Reintentar" onPress={load} />}
     {loading && <AppText muted>Consultando veterinarios…</AppText>}
@@ -50,7 +50,7 @@ export default function VeterinariansScreen() {
     {result && !result.items.length && <AppText muted>No hay veterinarios para estos filtros.</AppText>}
     <AppButton label="Página anterior" variant="secondary" disabled={loading||page===1} onPress={()=>setPage(page-1)} />
     <AppButton label="Página siguiente" variant="secondary" disabled={loading||!result?.hasMore} onPress={()=>setPage(page+1)} />
-    {auth.user?.permissions?.includes('specialties.manage') && <AppButton label="Gestionar especialidades" variant="secondary" onPress={()=>router.push('/admin/veterinarians/specialties')} />}
+    {auth.hasPermission('specialties.manage') && <AppButton label="Gestionar especialidades" variant="secondary" onPress={()=>router.push('/admin/specialties')} />}
   </ScreenContainer>;
 }
 const styles=StyleSheet.create({row:{flexDirection:'row',gap:6},flex:{flex:1},card:{padding:18,borderWidth:1,borderRadius:20,gap:12}});

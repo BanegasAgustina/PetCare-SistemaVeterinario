@@ -6,7 +6,11 @@ export function clientService(request:ClientRequest){
   const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/client${path}`,{method,body});
   return {
     home:()=>get<Home>('/home'),pets:()=>get<Pet[]>('/pets'),pet:(id:string)=>get<Pet>(`/pets/${encodeURIComponent(id)}`),petCatalog:()=>get<PetCatalog>('/pets/catalog'),
-    savePet:(values:PetValues,id?:string)=>send<Pet>(id?`/pets/${encodeURIComponent(id)}`:'/pets',id?'PUT':'POST',values),deactivatePet:(id:string)=>send(`/pets/${encodeURIComponent(id)}/deactivate`,'PATCH',{}),
+    savePet:(values:PetValues,id?:string)=>send<Pet>(id?`/pets/${encodeURIComponent(id)}`:'/pets',id?'PUT':'POST',{
+      ...values,name:values.name.trim(),breedName:values.breedName?.trim()||null,
+      microchipNumber:values.microchipNumber.trim()||null,birthDate:values.birthDate||null,
+      photoUrl:values.photoUrl||null,weightKg:values.weightKg||null,
+    }),deactivatePet:(id:string)=>send(`/pets/${encodeURIComponent(id)}/deactivate`,'PATCH',{}),
     appointments:()=>get<Appointment[]>('/appointments'),appointmentCatalog:()=>get<AppointmentCatalog>('/appointments/catalog'),
     slots:(serviceId:string,veterinarianId?:string)=>get<Slot[]>(`/appointments/slots?${new URLSearchParams({serviceId,...(veterinarianId?{veterinarianId}:{})})}`),
     requestAppointment:(petId:string,slotId:string)=>send('/appointments','POST',{petId,slotId}),

@@ -14,7 +14,7 @@ export const authenticate: RequestHandler = async (request, response, next) => {
     const user = await findUserById(verifyAccessToken(match[1]));
     if (!user || !user.isActive || user.sessionVersion !== accessTokenSessionVersion(match[1])) throw new AppError('INVALID_TOKEN', 401, 'La sesión no es válida. Iniciá sesión nuevamente.');
     if (!user.emailVerifiedAt) throw new AppError('EMAIL_NOT_VERIFIED', 403, 'Tu correo todavía no está verificado.');
-    response.locals.authenticatedUser = { ...publicUser(user), ...await authorizationData(user.id) };
+    response.locals.authenticatedUser = { ...publicUser(user), ...await authorizationData(user.id,user.role) };
     next();
   } catch (error) { next(error); }
 };

@@ -7,7 +7,7 @@ import { readVerification } from './verification.service';
 function readUser(value: unknown): AuthUser {
   if (typeof value !== 'object' || !value) throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la respuesta de PetCare.');
   const user = value as AuthUser;
-  if (typeof user.id !== 'string' || !/^[1-9]\d*$/.test(user.id) || typeof user.firstName !== 'string' || typeof user.lastName !== 'string' || typeof user.email !== 'string' || (user.phone !== null && typeof user.phone !== 'string') || !['CLIENT', 'VETERINARIAN', 'ADMIN', 'SUPER_ADMIN'].includes(user.role) || (user.permissions !== undefined && (!Array.isArray(user.permissions) || user.permissions.some(code=>typeof code!=='string')))) {
+  if (typeof user.id !== 'string' || !/^[1-9]\d*$/.test(user.id) || typeof user.firstName !== 'string' || typeof user.lastName !== 'string' || typeof user.email !== 'string' || (user.phone !== null && typeof user.phone !== 'string') || !['CLIENT', 'VETERINARIAN', 'GROOMER', 'SECRETARY', 'ADMIN', 'SUPER_ADMIN'].includes(user.role) || (user.permissions !== undefined && (!Array.isArray(user.permissions) || user.permissions.some(code=>typeof code!=='string')))) {
     throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la respuesta de PetCare.');
   }
   if (user.veterinarian!==undefined && user.veterinarian!==null) {
@@ -16,7 +16,8 @@ function readUser(value: unknown): AuthUser {
       throw new ApiError('INVALID_RESPONSE','No pudimos validar el perfil veterinario de PetCare.');
     }
   }
-  return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, role: user.role,permissions:user.permissions ?? [],veterinarian:user.veterinarian ?? null,
+  if(user.professional!==undefined&&user.professional!==null){const p=user.professional;if(typeof p.typeId!=='string'||typeof p.name!=='string'||typeof p.isClinical!=='boolean'||!Array.isArray(p.serviceIds)||p.serviceIds.some(s=>typeof s!=='string'))throw new ApiError('INVALID_RESPONSE','No pudimos validar el perfil profesional.');}
+  return { professional:user.professional??null,id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, role: user.role,permissions:user.permissions ?? [],veterinarian:user.veterinarian ?? null,
     ...(typeof user.roleName==='string'?{roleName:user.roleName}:{}) };
 }
 

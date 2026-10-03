@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { useTheme } from '../../hooks/useTheme';
-export function SelectionRow({ label,hint,checked,disabled=false,onPress }: { label:string;hint?:string;checked:boolean;disabled?:boolean;onPress:()=>void }) {
+export function SelectionRow({ label,hint,checked,disabled=false,onPress,radio=false }: { label:string;hint?:string;checked:boolean;disabled?:boolean;onPress:()=>void;radio?:boolean }) {
   const { colors }=useTheme();
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled}} disabled={disabled} onPress={onPress}
+  return <Pressable accessibilityRole={radio?'radio':'checkbox'} accessibilityLabel={label} accessibilityState={{checked,disabled}} disabled={disabled} onPress={onPress}
     style={[styles.row,{borderColor:colors.border,backgroundColor:colors.surface,opacity:disabled?0.6:1}]}>
-    <Ionicons name={checked?'checkbox-outline':'square-outline'} size={22} color={colors.primary} accessible={false}/>
+    <Ionicons name={radio?(checked?'radio-button-on':'radio-button-off'):(checked?'checkbox-outline':'square-outline')} size={22} color={colors.primary} accessible={false}/>
     <View style={styles.text}><AppText>{label}</AppText>{Boolean(hint) && <AppText variant="caption" muted>{hint}</AppText>}</View>
   </Pressable>;
 }

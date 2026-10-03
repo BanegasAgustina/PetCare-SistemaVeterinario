@@ -3,7 +3,7 @@
  * Los locks y la versión de sesión impiden replay y revocan sesiones previas al cambiar contraseña.
  */
 import { createHash, randomBytes } from 'node:crypto';
-import bcrypt from 'bcrypt';
+import { hashPassword } from './password.service';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { env } from '../config/env';
@@ -12,15 +12,16 @@ import { sendInvitationEmail } from './mail.service';
 import { AppError } from '../utils/app-error';
 import { runDatabaseOperation } from '../utils/database-error';
 import { validateInvitation } from '../validators/veterinarian.validator';
+import { withDatabaseLock } from '../database/lock';
 
-export function invitationUrl(): URL {
+export function invitationUrl(kind:'veterinarian'|'account'='veterinarian'): URL {
   getMailConfiguration();
   try {
-    const url = new URL(process.env.VETERINARIAN_INVITATION_URL ?? '');
+    const url = new URL((kind==='account'?process.env.ACCOUNT_INVITATION_URL?.trim():undefined) || process.env.VETERINARIAN_INVITATION_URL || '');
     const local = env.nodeEnvironment !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname);
     if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
     return url;
-  } catch { throw new AppError('INVITATION_UNAVAILABLE',503,'Configurá la URL segura de activación de veterinarios.'); }
+  } catch { throw new AppError('INVITATION_UNAVAILABLE',503,'Configurá la URL segura de activación de cuentas.'); }
 }
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex'); }
 export async function saveInvitation(connection: PoolConnection,userId: string): Promise<string> {
@@ -30,8 +31,8 @@ export async function saveInvitation(connection: PoolConnection,userId: string):
     ON DUPLICATE KEY UPDATE token_hash=VALUES(token_hash),expires_at=VALUES(expires_at),consumed_at=NULL,sent_at=VALUES(sent_at),delivery='pending'`,[userId,tokenHash(token)]);
   return token;
 }
-export async function deliverInvitation(email: string,token: string): Promise<'sent' | 'failed'> {
-  const url = invitationUrl();
+export async function deliverInvitation(email: string,token: string,kind:'veterinarian'|'account'='veterinarian'): Promise<'sent' | 'failed'> {
+  const url = invitationUrl(kind);
   // Fragmento: evita incluir el secreto en logs HTTP del servidor web. La pantalla lo lee en el dispositivo.
   url.hash = `token=${token}`;
   let delivery:'sent'|'failed';
@@ -42,26 +43,35 @@ export async function deliverInvitation(email: string,token: string): Promise<'s
   return delivery;
 }
 export async function renewInvitation(vetId: string): Promise<{ delivery: 'sent' | 'failed' }> {
-  invitationUrl();
+  return renew(vetId,true);
+}
+export async function renewUserInvitation(userId:string,authorize:(c:PoolConnection,target:{id:string;role:string})=>Promise<void>):Promise<{delivery:'sent'|'failed'}> {
+  return renew(userId,false,authorize);
+}
+async function renew(id:string,veterinarian:boolean,authorize?:(c:PoolConnection,target:{id:string;role:string})=>Promise<void>):Promise<{delivery:'sent'|'failed'}> {
+  const kind=veterinarian?'veterinarian':'account';invitationUrl(kind);
   const invitation = await runDatabaseOperation(async () => {
     const connection = await databasePool.getConnection();
-    try {
+    try {return await withDatabaseLock(connection,async()=>{
       await connection.beginTransaction();
-      const [users] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.email,u.is_active FROM users u
-        JOIN veterinarians v ON v.user_id=u.id JOIN roles r ON r.id=u.role_id WHERE v.id=? AND r.code='VETERINARIAN' FOR UPDATE`,[vetId]);
-      if (!users[0]) throw new AppError('NOT_FOUND',404,'Veterinario no encontrado.');
+      try {const [users] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.email,u.is_active,r.code AS role FROM users u
+        ${veterinarian?'JOIN veterinarians v ON v.user_id=u.id':''} JOIN roles r ON r.id=u.role_id
+        WHERE ${veterinarian?"v.id=? AND r.code='VETERINARIAN'":'u.id=?'} FOR UPDATE`,[id]);
+      if (!users[0]) throw new AppError('NOT_FOUND',404,'Cuenta no encontrada.');
+      await authorize?.(connection,{id:String(users[0].id),role:users[0].role});
       if (!users[0].is_active) throw new AppError('ACCOUNT_INACTIVE',409,'Activá la cuenta antes de enviar una invitación.');
       const [rows] = await connection.execute<RowDataPacket[]>('SELECT sent_at > TIMESTAMPADD(SECOND,-60,UTC_TIMESTAMP(3)) AS cooldown FROM veterinarian_invitations WHERE user_id=? FOR UPDATE',[users[0].id]);
       if (rows[0]?.cooldown) throw new AppError('INVITATION_COOLDOWN',429,'Esperá un minuto antes de reenviar.');
       const token = await saveInvitation(connection,String(users[0].id));
       await connection.commit(); return { token,email: users[0].email as string };
-    } catch(error) { await connection.rollback(); throw error; } finally { connection.release(); }
+      }catch(error){await connection.rollback();throw error;}
+    });} finally { connection.release(); }
   });
-  return { delivery: await deliverInvitation(invitation.email,invitation.token) };
+  return { delivery: await deliverInvitation(invitation.email,invitation.token,kind) };
 }
 export async function acceptInvitation(value: unknown): Promise<void> {
   const input = validateInvitation(value);
-  const hash = await bcrypt.hash(input.password,env.bcryptSaltRounds);
+  const hash = await hashPassword(input.password);
   await runDatabaseOperation(async () => {
     const connection = await databasePool.getConnection();
     try {
@@ -71,7 +81,7 @@ export async function acceptInvitation(value: unknown): Promise<void> {
       if (!lookup[0]) throw invalid();
       // Orden de locks consistente con edición/reenviar: primero users, después invitation.
       const [users] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.is_active FROM users u JOIN roles r ON r.id=u.role_id
-        JOIN veterinarians v ON v.user_id=u.id WHERE u.id=? AND r.code='VETERINARIAN' FOR UPDATE`,[lookup[0].user_id]);
+        WHERE u.id=? AND (r.code<>'VETERINARIAN' OR EXISTS(SELECT 1 FROM veterinarians v WHERE v.user_id=u.id)) FOR UPDATE`,[lookup[0].user_id]);
       if (!users[0]?.is_active) throw invalid();
       const [rows] = await connection.execute<RowDataPacket[]>(`SELECT user_id FROM veterinarian_invitations
         WHERE user_id=? AND token_hash=? AND consumed_at IS NULL AND expires_at>UTC_TIMESTAMP(3) FOR UPDATE`,[users[0].id,tokenHash(input.token)]);

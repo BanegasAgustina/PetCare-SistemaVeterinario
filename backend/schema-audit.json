@@ -1,0 +1,230 @@
+{
+  "tables": {
+    "breeds": "CREATE TABLE `breeds` (\n  `id` int unsigned NOT NULL AUTO_INCREMENT,\n  `species_id` smallint unsigned NOT NULL,\n  `name` varchar(100) NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_breeds_species_name` (`species_id`,`name`),\n  CONSTRAINT `fk_breeds_species` FOREIGN KEY (`species_id`) REFERENCES `species` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,\n  CONSTRAINT `chk_breeds_canonical_name` CHECK ((`name` = trim(`name`)))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_appointment_slots": "CREATE TABLE `client_appointment_slots` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `service_id` bigint unsigned NOT NULL,\n  `veterinarian_id` bigint unsigned NOT NULL,\n  `starts_at` datetime NOT NULL,\n  `ends_at` datetime NOT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT '1',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `veterinarian_start` (`veterinarian_id`,`starts_at`),\n  KEY `service_id` (`service_id`),\n  CONSTRAINT `client_appointment_slots_ibfk_1` FOREIGN KEY (`service_id`) REFERENCES `client_services` (`id`),\n  CONSTRAINT `client_appointment_slots_ibfk_2` FOREIGN KEY (`veterinarian_id`) REFERENCES `veterinarians` (`id`),\n  CONSTRAINT `client_appointment_slots_chk_1` CHECK ((`ends_at` > `starts_at`))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_appointments": "CREATE TABLE `client_appointments` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `owner_id` bigint unsigned NOT NULL,\n  `pet_id` bigint unsigned NOT NULL,\n  `slot_id` bigint unsigned NOT NULL,\n  `status` enum('REQUESTED','CONFIRMED','COMPLETED','CANCELLED') NOT NULL DEFAULT 'REQUESTED',\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `slot_id` (`slot_id`),\n  KEY `pet_id` (`pet_id`),\n  KEY `owner_appointments` (`owner_id`,`created_at`),\n  CONSTRAINT `client_appointments_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),\n  CONSTRAINT `client_appointments_ibfk_2` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`),\n  CONSTRAINT `client_appointments_ibfk_3` FOREIGN KEY (`slot_id`) REFERENCES `client_appointment_slots` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_cart_items": "CREATE TABLE `client_cart_items` (\n  `owner_id` bigint unsigned NOT NULL,\n  `product_id` bigint unsigned NOT NULL,\n  `quantity` smallint unsigned NOT NULL,\n  PRIMARY KEY (`owner_id`,`product_id`),\n  KEY `product_id` (`product_id`),\n  CONSTRAINT `client_cart_items_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),\n  CONSTRAINT `client_cart_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `client_products` (`id`),\n  CONSTRAINT `client_cart_items_chk_1` CHECK ((`quantity` between 1 and 99))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_clinical_records": "CREATE TABLE `client_clinical_records` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `pet_id` bigint unsigned NOT NULL,\n  `veterinarian_id` bigint unsigned NOT NULL,\n  `kind` enum('medical-history','vaccines','prescriptions','recommendations') NOT NULL,\n  `title` varchar(200) NOT NULL,\n  `content` text NOT NULL,\n  `occurred_at` datetime NOT NULL,\n  `next_due_at` datetime DEFAULT NULL,\n  PRIMARY KEY (`id`),\n  KEY `veterinarian_id` (`veterinarian_id`),\n  KEY `pet_kind` (`pet_id`,`kind`,`occurred_at`),\n  CONSTRAINT `client_clinical_records_ibfk_1` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`),\n  CONSTRAINT `client_clinical_records_ibfk_2` FOREIGN KEY (`veterinarian_id`) REFERENCES `veterinarians` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_notifications": "CREATE TABLE `client_notifications` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `owner_id` bigint unsigned NOT NULL,\n  `title` varchar(200) NOT NULL,\n  `body` text NOT NULL,\n  `read_at` datetime DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `owner_notifications` (`owner_id`,`created_at`),\n  CONSTRAINT `client_notifications_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_order_items": "CREATE TABLE `client_order_items` (\n  `order_id` bigint unsigned NOT NULL,\n  `product_id` bigint unsigned NOT NULL,\n  `product_name` varchar(200) NOT NULL,\n  `quantity` smallint unsigned NOT NULL,\n  `price_cents` int unsigned NOT NULL,\n  PRIMARY KEY (`order_id`,`product_id`),\n  KEY `product_id` (`product_id`),\n  CONSTRAINT `client_order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `client_orders` (`id`),\n  CONSTRAINT `client_order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `client_products` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_orders": "CREATE TABLE `client_orders` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `owner_id` bigint unsigned NOT NULL,\n  `request_key` char(36) NOT NULL,\n  `total_cents` bigint unsigned NOT NULL,\n  `status` enum('PLACED','PROCESSING','READY','COMPLETED','CANCELLED') NOT NULL DEFAULT 'PLACED',\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `owner_request` (`owner_id`,`request_key`),\n  KEY `owner_orders` (`owner_id`,`created_at`),\n  CONSTRAINT `client_orders_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_pet_details": "CREATE TABLE `client_pet_details` (\n  `pet_id` bigint unsigned NOT NULL,\n  `photo_url` varchar(2048) DEFAULT NULL,\n  `weight_kg` decimal(6,2) DEFAULT NULL,\n  `breed_name` varchar(100) DEFAULT NULL,\n  PRIMARY KEY (`pet_id`),\n  CONSTRAINT `client_pet_details_ibfk_1` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_product_categories": "CREATE TABLE `client_product_categories` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `name` varchar(100) NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `name` (`name`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_products": "CREATE TABLE `client_products` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `category_id` bigint unsigned DEFAULT NULL,\n  `name` varchar(200) NOT NULL,\n  `description` text,\n  `image_url` varchar(2048) DEFAULT NULL,\n  `price_cents` int unsigned NOT NULL,\n  `stock` int unsigned NOT NULL DEFAULT '0',\n  `is_active` tinyint(1) NOT NULL DEFAULT '1',\n  `is_featured` tinyint(1) NOT NULL DEFAULT '0',\n  PRIMARY KEY (`id`),\n  KEY `category_id` (`category_id`),\n  CONSTRAINT `client_products_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `client_product_categories` (`id`),\n  CONSTRAINT `client_products_chk_1` CHECK ((`price_cents` <= 100000000))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_promotions": "CREATE TABLE `client_promotions` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `product_id` bigint unsigned NOT NULL,\n  `name` varchar(200) NOT NULL,\n  `price_cents` int unsigned NOT NULL,\n  `starts_at` datetime NOT NULL,\n  `ends_at` datetime NOT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT '1',\n  PRIMARY KEY (`id`),\n  KEY `product_id` (`product_id`),\n  CONSTRAINT `client_promotions_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `client_products` (`id`),\n  CONSTRAINT `client_promotions_chk_1` CHECK ((`ends_at` > `starts_at`)),\n  CONSTRAINT `client_promotions_chk_2` CHECK ((`price_cents` <= 100000000))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_schema_migrations": "CREATE TABLE `client_schema_migrations` (\n  `version` varchar(255) NOT NULL,\n  `checksum` char(64) NOT NULL,\n  `state` enum('running','applied') NOT NULL,\n  PRIMARY KEY (`version`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "client_services": "CREATE TABLE `client_services` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `name` varchar(100) NOT NULL,\n  `description` text,\n  `specialty_id` int unsigned DEFAULT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT '1',\n  PRIMARY KEY (`id`),\n  KEY `specialty_id` (`specialty_id`),\n  CONSTRAINT `client_services_ibfk_1` FOREIGN KEY (`specialty_id`) REFERENCES `specialties` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "email_verifications": "CREATE TABLE `email_verifications` (\n  `user_id` bigint unsigned NOT NULL,\n  `token_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `proof_expires_at` datetime(3) NOT NULL,\n  `code_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,\n  `expires_at` datetime(3) DEFAULT NULL,\n  `attempts` tinyint unsigned NOT NULL DEFAULT '0',\n  `send_count` tinyint unsigned NOT NULL DEFAULT '0',\n  `send_window_started_at` datetime(3) NOT NULL,\n  `next_send_at` datetime(3) NOT NULL,\n  `delivery` enum('pending','sent','failed') COLLATE utf8mb4_0900_as_ci NOT NULL DEFAULT 'pending',\n  `consumed_at` datetime(3) DEFAULT NULL,\n  PRIMARY KEY (`user_id`),\n  UNIQUE KEY `uq_verification_token` (`token_hash`),\n  CONSTRAINT `fk_verification_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,\n  CONSTRAINT `chk_verification_attempts` CHECK ((`attempts` <= 5)),\n  CONSTRAINT `chk_verification_send_count` CHECK ((`send_count` <= 5))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci",
+    "permission_modules": "CREATE TABLE `permission_modules` (\n  `code` varchar(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `name` varchar(100) NOT NULL,\n  `sort_order` smallint unsigned NOT NULL DEFAULT '0',\n  PRIMARY KEY (`code`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "permissions": "CREATE TABLE `permissions` (\n  `id` int unsigned NOT NULL AUTO_INCREMENT,\n  `code` varchar(80) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `name` varchar(100) NOT NULL,\n  `description` varchar(255) NOT NULL,\n  `module_code` varchar(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `is_critical` tinyint(1) NOT NULL DEFAULT '0',\n  `opens_module` tinyint(1) NOT NULL DEFAULT '0',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_permission_code` (`code`),\n  KEY `fk_permission_module` (`module_code`),\n  CONSTRAINT `fk_permission_module` FOREIGN KEY (`module_code`) REFERENCES `permission_modules` (`code`) ON DELETE RESTRICT,\n  CONSTRAINT `chk_permission_critical` CHECK ((`is_critical` in (0,1))),\n  CONSTRAINT `chk_permission_opens_module` CHECK ((`opens_module` in (0,1)))\n) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "pets": "CREATE TABLE `pets` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `owner_id` bigint unsigned NOT NULL,\n  `name` varchar(100) NOT NULL,\n  `species_id` smallint unsigned NOT NULL,\n  `breed_id` int unsigned DEFAULT NULL,\n  `sex` enum('FEMALE','MALE','UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',\n  `birth_date` date DEFAULT NULL,\n  `microchip_number` varchar(32) DEFAULT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT '1',\n  `created_at` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),\n  `updated_at` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_pets_microchip` (`microchip_number`),\n  KEY `idx_pets_owner_active` (`owner_id`,`is_active`),\n  KEY `fk_pets_species` (`species_id`),\n  KEY `fk_pets_breed` (`breed_id`),\n  CONSTRAINT `fk_pets_breed` FOREIGN KEY (`breed_id`) REFERENCES `breeds` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,\n  CONSTRAINT `fk_pets_owner` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,\n  CONSTRAINT `fk_pets_species` FOREIGN KEY (`species_id`) REFERENCES `species` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,\n  CONSTRAINT `chk_pets_canonical_microchip` CHECK (((`microchip_number` is null) or (`microchip_number` = trim(`microchip_number`))))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "role_permissions": "CREATE TABLE `role_permissions` (\n  `role_id` smallint unsigned NOT NULL,\n  `permission_id` int unsigned NOT NULL,\n  PRIMARY KEY (`role_id`,`permission_id`),\n  KEY `fk_role_permission_permission` (`permission_id`),\n  CONSTRAINT `fk_role_permission_permission` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE RESTRICT,\n  CONSTRAINT `fk_role_permission_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE RESTRICT\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "roles": "CREATE TABLE `roles` (\n  `id` smallint unsigned NOT NULL AUTO_INCREMENT,\n  `code` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `name` varchar(60) NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_roles_code` (`code`),\n  CONSTRAINT `chk_roles_canonical_code` CHECK ((`code` = upper(trim(`code`)))),\n  CONSTRAINT `chk_roles_canonical_name` CHECK ((`name` = trim(`name`)))\n) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "specialties": "CREATE TABLE `specialties` (\n  `id` int unsigned NOT NULL AUTO_INCREMENT,\n  `name` varchar(100) COLLATE utf8mb4_0900_as_ci NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_specialty_name` (`name`),\n  CONSTRAINT `chk_specialty_name` CHECK ((char_length(trim(`name`)) > 0))\n) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci",
+    "species": "CREATE TABLE `species` (\n  `id` smallint unsigned NOT NULL AUTO_INCREMENT,\n  `code` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `name` varchar(100) NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_species_code` (`code`),\n  UNIQUE KEY `uq_species_name` (`name`),\n  CONSTRAINT `chk_species_canonical_code` CHECK ((`code` = upper(trim(`code`)))),\n  CONSTRAINT `chk_species_canonical_name` CHECK ((`name` = trim(`name`)))\n) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "user_permissions": "CREATE TABLE `user_permissions` (\n  `user_id` bigint unsigned NOT NULL,\n  `permission_id` int unsigned NOT NULL,\n  `allowed` tinyint(1) NOT NULL,\n  PRIMARY KEY (`user_id`,`permission_id`),\n  KEY `fk_user_permission_permission` (`permission_id`),\n  CONSTRAINT `fk_user_permission_permission` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE RESTRICT,\n  CONSTRAINT `fk_user_permission_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT,\n  CONSTRAINT `chk_user_permission_allowed` CHECK ((`allowed` in (0,1)))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "users": "CREATE TABLE `users` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `role_id` smallint unsigned NOT NULL,\n  `email` varchar(254) NOT NULL,\n  `password_hash` varchar(255) NOT NULL,\n  `first_name` varchar(100) NOT NULL,\n  `last_name` varchar(100) NOT NULL,\n  `phone` varchar(32) DEFAULT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT '1',\n  `created_at` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),\n  `updated_at` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),\n  `email_verified_at` datetime(3) DEFAULT NULL,\n  `session_version` int unsigned NOT NULL DEFAULT '0',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_users_email` (`email`),\n  KEY `idx_users_role_active_name` (`role_id`,`is_active`,`last_name`,`first_name`),\n  CONSTRAINT `fk_users_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT\n) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "veterinarian_invitations": "CREATE TABLE `veterinarian_invitations` (\n  `user_id` bigint unsigned NOT NULL,\n  `token_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,\n  `expires_at` datetime(3) NOT NULL,\n  `consumed_at` datetime(3) DEFAULT NULL,\n  `sent_at` datetime(3) NOT NULL,\n  `delivery` enum('pending','sent','failed') NOT NULL DEFAULT 'pending',\n  PRIMARY KEY (`user_id`),\n  UNIQUE KEY `uq_veterinarian_invitation_token` (`token_hash`),\n  CONSTRAINT `fk_veterinarian_invitation_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "veterinarian_patients": "CREATE TABLE `veterinarian_patients` (\n  `veterinarian_id` bigint unsigned NOT NULL,\n  `pet_id` bigint unsigned NOT NULL,\n  PRIMARY KEY (`veterinarian_id`,`pet_id`),\n  KEY `idx_patient_vet` (`pet_id`,`veterinarian_id`),\n  CONSTRAINT `fk_veterinarian_patient_pet` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`) ON DELETE RESTRICT,\n  CONSTRAINT `fk_veterinarian_patient_veterinarian` FOREIGN KEY (`veterinarian_id`) REFERENCES `veterinarians` (`id`) ON DELETE RESTRICT\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "veterinarian_specialties": "CREATE TABLE `veterinarian_specialties` (\n  `veterinarian_id` bigint unsigned NOT NULL,\n  `specialty_id` int unsigned NOT NULL,\n  PRIMARY KEY (`veterinarian_id`,`specialty_id`),\n  KEY `idx_specialty_vet` (`specialty_id`,`veterinarian_id`),\n  CONSTRAINT `fk_vet_specialty_specialty` FOREIGN KEY (`specialty_id`) REFERENCES `specialties` (`id`) ON DELETE RESTRICT,\n  CONSTRAINT `fk_vet_specialty_veterinarian` FOREIGN KEY (`veterinarian_id`) REFERENCES `veterinarians` (`id`) ON DELETE RESTRICT\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+    "veterinarians": "CREATE TABLE `veterinarians` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `user_id` bigint unsigned NOT NULL,\n  `license_number` varchar(80) COLLATE utf8mb4_0900_as_ci NOT NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_veterinarian_user` (`user_id`),\n  UNIQUE KEY `uq_veterinarian_license` (`license_number`),\n  CONSTRAINT `fk_vet_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT,\n  CONSTRAINT `chk_vet_license` CHECK ((char_length(trim(`license_number`)) > 0))\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci"
+  },
+  "roles": [
+    {
+      "id": 1,
+      "code": "CLIENT",
+      "name": "Cliente"
+    },
+    {
+      "id": 2,
+      "code": "VETERINARIAN",
+      "name": "Veterinario"
+    },
+    {
+      "id": 3,
+      "code": "ADMIN",
+      "name": "Administrador"
+    },
+    {
+      "id": 4,
+      "code": "SUPER_ADMIN",
+      "name": "Super administrador"
+    }
+  ],
+  "permissions": [
+    {
+      "id": 1,
+      "code": "pets.view_assigned",
+      "name": "Ver pacientes asignados",
+      "is_critical": 0
+    },
+    {
+      "id": 2,
+      "code": "pets.view_all",
+      "name": "Ver todos los pacientes",
+      "is_critical": 0
+    },
+    {
+      "id": 3,
+      "code": "pets.view_information",
+      "name": "Ver información de mascotas",
+      "is_critical": 0
+    },
+    {
+      "id": 4,
+      "code": "appointments.view_own",
+      "name": "Ver sus turnos",
+      "is_critical": 0
+    },
+    {
+      "id": 5,
+      "code": "appointments.view_all",
+      "name": "Ver todos los turnos",
+      "is_critical": 0
+    },
+    {
+      "id": 6,
+      "code": "appointments.update_own",
+      "name": "Actualizar sus turnos",
+      "is_critical": 0
+    },
+    {
+      "id": 7,
+      "code": "medical_records.view",
+      "name": "Ver historial médico",
+      "is_critical": 0
+    },
+    {
+      "id": 8,
+      "code": "medical_records.create",
+      "name": "Crear consultas",
+      "is_critical": 0
+    },
+    {
+      "id": 9,
+      "code": "medical_records.update_own",
+      "name": "Editar sus consultas",
+      "is_critical": 0
+    },
+    {
+      "id": 10,
+      "code": "medical_records.update_all",
+      "name": "Editar consultas ajenas",
+      "is_critical": 0
+    },
+    {
+      "id": 11,
+      "code": "medical_records.diagnose",
+      "name": "Registrar diagnóstico",
+      "is_critical": 0
+    },
+    {
+      "id": 12,
+      "code": "medical_records.treat",
+      "name": "Registrar tratamiento",
+      "is_critical": 0
+    },
+    {
+      "id": 13,
+      "code": "vaccines.view",
+      "name": "Ver vacunas",
+      "is_critical": 0
+    },
+    {
+      "id": 14,
+      "code": "vaccines.create",
+      "name": "Registrar vacunas",
+      "is_critical": 0
+    },
+    {
+      "id": 15,
+      "code": "prescriptions.view",
+      "name": "Ver recetas",
+      "is_critical": 0
+    },
+    {
+      "id": 16,
+      "code": "prescriptions.create",
+      "name": "Crear recetas",
+      "is_critical": 0
+    },
+    {
+      "id": 17,
+      "code": "recommendations.create",
+      "name": "Crear recomendaciones",
+      "is_critical": 0
+    },
+    {
+      "id": 18,
+      "code": "users.view_basic",
+      "name": "Ver propietario",
+      "is_critical": 0
+    },
+    {
+      "id": 19,
+      "code": "users.update_client",
+      "name": "Editar información del cliente",
+      "is_critical": 0
+    },
+    {
+      "id": 20,
+      "code": "products.view",
+      "name": "Ver productos",
+      "is_critical": 0
+    },
+    {
+      "id": 21,
+      "code": "products.recommend",
+      "name": "Recomendar productos",
+      "is_critical": 0
+    },
+    {
+      "id": 22,
+      "code": "products.update",
+      "name": "Modificar productos",
+      "is_critical": 0
+    },
+    {
+      "id": 23,
+      "code": "products.update_price",
+      "name": "Modificar precios",
+      "is_critical": 0
+    },
+    {
+      "id": 24,
+      "code": "products.update_stock",
+      "name": "Modificar stock",
+      "is_critical": 0
+    },
+    {
+      "id": 25,
+      "code": "users.manage",
+      "name": "Gestionar usuarios",
+      "is_critical": 1
+    },
+    {
+      "id": 26,
+      "code": "veterinarians.manage",
+      "name": "Gestionar veterinarios",
+      "is_critical": 1
+    },
+    {
+      "id": 27,
+      "code": "permissions.manage",
+      "name": "Modificar permisos",
+      "is_critical": 1
+    },
+    {
+      "id": 28,
+      "code": "roles.manage",
+      "name": "Gestionar roles",
+      "is_critical": 1
+    },
+    {
+      "id": 29,
+      "code": "specialties.manage",
+      "name": "Gestionar especialidades",
+      "is_critical": 1
+    }
+  ]
+}

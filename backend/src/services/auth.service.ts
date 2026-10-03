@@ -12,6 +12,7 @@ import { createVerificationProof, hashVerificationToken, resendVerification } fr
 import type { VerificationChallenge } from '../types/verification';
 import { authorizationData } from '../repositories/authorization.repository';
 import { registerStage } from '../utils/register-diagnostics';
+import { hashPassword } from './password.service';
 
 let dummyHash: Promise<string> | undefined;
 function getDummyHash(): Promise<string> {
@@ -31,7 +32,7 @@ export async function registerUser(body: unknown): Promise<{ user: AuthUser; ver
   if (await findUserByEmail(input.email)) throw new AppError('EMAIL_ALREADY_EXISTS', 409, 'Ya existe una cuenta con ese email.');
   registerStage('existing_email_checked');
   registerStage('password_hashing');
-  const passwordHash = await bcrypt.hash(input.password, env.bcryptSaltRounds);
+  const passwordHash = await hashPassword(input.password);
   registerStage('password_hashed');
   const verificationToken = randomBytes(32).toString('hex');
   const user = await createClientUser(input, passwordHash, hashVerificationToken(verificationToken));
@@ -47,5 +48,5 @@ export async function loginUser(body: unknown): Promise<AccessSession> {
   const passwordMatches = await bcrypt.compare(input.password, user?.passwordHash ?? fallbackHash);
   if (!user || !user.isActive || !passwordMatches) throw new AppError('INVALID_CREDENTIALS', 401, 'Email o contraseña incorrectos.');
   if (!user.emailVerifiedAt) throw new AppError('EMAIL_NOT_VERIFIED', 403, 'Tu correo todavía no está verificado.', await createVerificationProof(user.id));
-  return { user: { ...publicUser(user), ...await authorizationData(user.id) }, ...createAccessToken(user.id, user.sessionVersion), tokenType: 'Bearer' };
+  return { user: { ...publicUser(user), ...await authorizationData(user.id,user.role) }, ...createAccessToken(user.id, user.sessionVersion), tokenType: 'Bearer' };
 }

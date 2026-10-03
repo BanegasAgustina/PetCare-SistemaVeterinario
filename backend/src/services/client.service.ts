@@ -4,6 +4,7 @@ import { findUserById } from '../repositories/user.repository';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { env } from '../config/env';
+import { storePetPhoto,removePetPhoto } from './pet-photo.service';
 import { readName,readPhone,readPassword } from '../validators/auth.validator';
 import { clientBody,clientId,petInput,cartQuantity,requestKey,text,invalid } from '../validators/client.validator';
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
@@ -11,12 +12,27 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
   return runDatabaseOperation(async()=>{
     switch(operation){
       case 'home': {const [pets,appointments,products,notifications]=await Promise.all([repository.pets(owner),repository.appointments(owner),repository.products('',undefined,true),repository.notifications(owner)]);
-        return {pets,nextAppointment:appointments.filter(a=>a.isUpcoming).sort((a,b)=>a.startsAt.localeCompare(b.startsAt))[0]??null,featuredProducts:products,unreadNotifications:notifications.filter(n=>!n.readAt).length};}
+        return {pets,nextAppointment:appointments.filter(a=>a.isUpcoming).sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt)))[0]??null,featuredProducts:products,unreadNotifications:notifications.filter(n=>!n.readAt).length};}
       case 'pets':return repository.pets(owner);
       case 'pet-catalog':return repository.petCatalog();
       case 'pet':return repository.pet(owner,clientId(id));
-      case 'create-pet':return repository.savePet(owner,petInput(body));
-      case 'update-pet':return repository.savePet(owner,petInput(body),clientId(id));
+      case 'create-pet':
+      case 'update-pet': {
+        const petId=operation==='update-pet'?clientId(id):undefined;
+        if(petId)await repository.pet(owner,petId);
+        const input=petInput(body);
+        const values=body as Record<string,unknown>;
+        const photo=values.photoBase64===undefined?undefined:await storePetPhoto(owner,values.photoBase64);
+        if(photo)input.photoUrl=photo.url;
+        // Una URL de visualización enviada por el cliente solo significa conservar.
+        // La referencia real se lee bajo lock; nunca se persiste una URL temporal.
+        if(!petId&&!photo&&input.photoUrl)invalid('Seleccioná una foto de la galería.');
+        let saved:Awaited<ReturnType<typeof repository.savePet>>;
+        try {saved=await repository.savePet(owner,input,petId,!photo&&(values.photoUrl===undefined||Boolean(input.photoUrl)));}
+        catch(error){await photo?.remove().catch(()=>console.error('No se pudo limpiar una foto sin referencia.'));throw error;}
+        if(saved.previousPhoto&&saved.previousPhoto!==saved.pet.photoUrl)await removePetPhoto(owner,saved.previousPhoto).catch(()=>console.error('No se pudo eliminar la foto anterior del bucket.'));
+        return saved.pet;
+      }
       case 'deactivate-pet':clientBody(body,[]);return repository.deactivatePet(owner,clientId(id));
       case 'appointments':return repository.appointments(owner);
       case 'appointment-catalog':return repository.appointmentCatalog();

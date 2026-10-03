@@ -3,6 +3,15 @@ export class ApiError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown) { super(message); this.name = 'ApiError'; }
 }
 const messages: Record<string, string> = {
+  VET_PROFILE_REQUIRED: 'Gestioná ese usuario desde Veterinarios para conservar su matrícula y especialidades.',
+  PHOTO_STORAGE_UNAVAILABLE: 'El almacenamiento de fotos todavía no está configurado. Podés guardar la mascota sin foto.',
+  PHOTO_REFERENCE_UNSUPPORTED: 'Esta foto pertenece al almacenamiento anterior. Debe volver a subirse al bucket privado.',
+  SCHEMA_UPDATE_REQUIRED: 'Este módulo requiere actualizar el esquema de la clínica. No se pudo consultar sus datos.',
+  INVALID_TRANSITION: 'El estado cambió o esa acción no está permitida. Actualizá la consulta.',
+  PRESCRIPTION_REQUIRED: 'Seleccioná una receta vigente para este producto y mascota.',
+  STOCK_CONFLICT: 'El stock reservado requiere revisión administrativa.',
+  RESERVATION_ONLY: 'PetCare funciona mediante reservas para retiro. No procesa compras.',
+  PAYLOAD_TOO_LARGE: 'La imagen supera el tamaño permitido. Elegí una foto más pequeña.',
   STOCK_UNAVAILABLE: 'No hay stock suficiente. Actualizá el carrito para revisar disponibilidad.',
   SLOT_UNAVAILABLE: 'El horario ya no está disponible. Elegí otro horario.',
   PET_HAS_APPOINTMENTS: 'La mascota tiene turnos pendientes y no puede desactivarse.',

@@ -6,8 +6,11 @@ import { ApiError, friendlyError, apiRequest } from '../services/api';
 import { clearSession, readSession, saveSession } from '../services/session-store';
 import type { AuthUser, LoginValues, RegisterValues, StoredSession, VerificationChallenge } from '../types/auth';
 import { readVerification } from '../services/verification.service';
+import { hasRole,hasPermission } from '../utils/authorization';
 
 type AuthContextValue = {
+  hasRole: (...roles:AuthUser['role'][])=>boolean;
+  hasPermission: (...codes:string[])=>boolean;
   request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; body?: unknown }) => Promise<T>;
   user: AuthUser | null; restoring: boolean; restoreError: string | null; notice: string | null; registeredEmail: string;
   signIn: (values: LoginValues) => Promise<void>; register: (values: RegisterValues) => Promise<void>;
@@ -84,9 +87,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       throw error;
     }
     if (attempt !== generation.current) return;
+    const currentUser=await authApi.getCurrentUser(result.accessToken);
+    if(attempt!==generation.current)return;
     const stored = { accessToken: result.accessToken, expiresAt: Date.now() + result.expiresIn * 1000 };
     await saveSession(stored);
-    if (attempt === generation.current) { session.current = stored; setUser(result.user); setExpiresAt(stored.expiresAt); setNotice(null); setRestoreError(null); setRegisteredEmail(''); setPendingVerification(null); setVerificationOpen(false); }
+    if (attempt === generation.current) { session.current = stored; setUser(currentUser); setExpiresAt(stored.expiresAt); setNotice(null); setRestoreError(null); setRegisteredEmail(''); setPendingVerification(null); setVerificationOpen(false); }
   }, []);
 
   const register = useCallback(async (values: RegisterValues) => {
@@ -135,6 +140,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
   // Verificar email no inicia sesión: el flujo existente continúa con credenciales en Login.
   const finishVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice(null); };
   const leaveVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice('Volvé a iniciar sesión para retomar la verificación de tu correo.'); };
-  return <AuthContext.Provider value={{ request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
+  return <AuthContext.Provider value={{ hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
     pendingVerification, verificationOpen, openVerification, updateVerification, finishVerification, verificationFromLogin, leaveVerification }}>{children}</AuthContext.Provider>;
 }

@@ -1,4 +1,4 @@
-/** Solo SUPER_ADMIN puede gestionar profesionales; el rol se verifica además del permiso crítico. */
+/** ADMIN/SUPER_ADMIN requieren grants efectivos para gestionar profesionales. */
 import { Router, type RequestHandler, type Request, type Response } from 'express';
 import type { RowDataPacket } from 'mysql2/promise';
 import { authenticate } from '../middlewares/auth.middleware';
@@ -7,6 +7,7 @@ import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware
 import { vetCatalog,vetList,vetDetail,createVet,updateVet,updateVetStatus,updateVetPermissions } from '../repositories/veterinarian.repository';
 import { identifier,validateVet,objectBody,permissionOverrides,textField } from '../validators/veterinarian.validator';
 import { acceptInvitation,renewInvitation } from '../services/invitation.service';
+import * as clinic from '../repositories/clinic.repository';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import { runDatabaseOperation } from '../utils/database-error';
@@ -20,19 +21,19 @@ function handler(operation: (request: Request,response: Response) => Promise<unk
 }
 export const veterinarianAdminRouter = Router();
 veterinarianAdminRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
-veterinarianAdminRouter.use(authenticate,requireRole('SUPER_ADMIN'),requirePermission('veterinarians.manage'));
+veterinarianAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('veterinarians.manage'));
 veterinarianAdminRouter.get('/catalog',handler(async ()=>vetCatalog()));
 veterinarianAdminRouter.get('/',handler(async req=>vetList(req.query)));
 veterinarianAdminRouter.get('/:id',handler(async req=>vetDetail(identifier(req.params.id))));
-veterinarianAdminRouter.post('/',requirePermission('permissions.manage'),createAuthRateLimiter(),handler(async req=>createVet(validateVet(req.body)),201));
-veterinarianAdminRouter.put('/:id',requirePermission('permissions.manage'),handler(async req=>updateVet(identifier(req.params.id),validateVet(req.body))));
-veterinarianAdminRouter.put('/:id/permissions',requirePermission('permissions.manage'),handler(async req=> {
-  const body=objectBody(req.body,['overrides']);return updateVetPermissions(identifier(req.params.id),permissionOverrides(body.overrides));
+veterinarianAdminRouter.post('/',createAuthRateLimiter(),handler(async(req,res)=>createVet(validateVet(req.body),res.locals.authenticatedUser as AuthUser),201));
+veterinarianAdminRouter.put('/:id',handler(async(req,res)=>updateVet(identifier(req.params.id),validateVet(req.body),res.locals.authenticatedUser as AuthUser)));
+veterinarianAdminRouter.put('/:id/permissions',requirePermission('permissions.manage'),handler(async(req,res)=> {
+  const body=objectBody(req.body,['overrides']);return updateVetPermissions(identifier(req.params.id),permissionOverrides(body.overrides),res.locals.authenticatedUser as AuthUser);
 }));
-veterinarianAdminRouter.patch('/:id/status',handler(async req=> {
+veterinarianAdminRouter.patch('/:id/status',handler(async(req,res)=> {
   const body=objectBody(req.body,['isActive']);
   if (typeof body.isActive!=='boolean') throw new AppError('VALIDATION_ERROR',400,'Indicá el estado de la cuenta.');
-  return updateVetStatus(identifier(req.params.id),body.isActive);
+  return updateVetStatus(identifier(req.params.id),body.isActive,res.locals.authenticatedUser as AuthUser);
 }));
 veterinarianAdminRouter.post('/:id/invitation',createAuthRateLimiter(),handler(async req=>renewInvitation(identifier(req.params.id))));
 
@@ -40,7 +41,7 @@ export const invitationRouter = Router();
 invitationRouter.post('/accept',createAuthRateLimiter(),handler(async req=> { await acceptInvitation(req.body);return { accepted:true }; }));
 
 export const specialtiesAdminRouter = Router();
-specialtiesAdminRouter.use(authenticate,requireRole('SUPER_ADMIN'),requirePermission('specialties.manage'));
+specialtiesAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('specialties.manage'));
 specialtiesAdminRouter.get('/',handler(async ()=> (await vetCatalog()).specialties));
 specialtiesAdminRouter.post('/',handler(async req=>runDatabaseOperation(async ()=> {
   const body=objectBody(req.body,['name']); const name=textField(body.name,'La especialidad',100);
@@ -69,13 +70,13 @@ async function accessibleModules(user: AuthUser) {
 }
 veterinarianPanelRouter.get('/home',handler(async (_req,res)=> {
   const user=res.locals.authenticatedUser as AuthUser;
-  // Clínica pendiente: no devolver valores que aparenten una consulta sin resultados.
+  // Compatibilidad del panel existente sobre la clínica compartida.
   return { veterinarian:user.veterinarian,modules:await accessibleModules(user),
-    clinicalAvailable:false };
+    clinicalAvailable:true,...await clinic.home(user) };
 }));
 veterinarianPanelRouter.get('/modules/:module',handler(async (req,res)=> {
   const modules=await accessibleModules(res.locals.authenticatedUser as AuthUser);
   const module=modules.find(item=>item.code===req.params.module);
   if (!module) throw new AppError('FORBIDDEN',403,'No tenés permiso para acceder a este módulo.');
-  return { module,clinicalAvailable:false,message:'El módulo clínico está preparado para una próxima etapa.' };
+  return { module,clinicalAvailable:true };
 }));
