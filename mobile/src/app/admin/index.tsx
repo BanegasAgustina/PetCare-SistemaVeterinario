@@ -1,3 +1,6 @@
+/**
+ * Pantalla de inicio del panel para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ */
 import { router } from 'expo-router';
 import { AppText } from '../../components/ui/AppText';
 import { AppButton } from '../../components/ui/AppButton';

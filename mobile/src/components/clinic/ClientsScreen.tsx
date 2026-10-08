@@ -1,3 +1,6 @@
+/**
+ * Listado y detalle de clientes para personal con permisos. Usa solicitudes autenticadas a /clinic/clients; el backend exige permisos separados para datos, turnos y reservas.
+ */
 import { useCallback,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';

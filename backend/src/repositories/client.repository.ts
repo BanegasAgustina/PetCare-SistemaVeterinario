@@ -27,6 +27,7 @@ export async function petCatalog() {
 async function transaction<T>(operation:(connection:PoolConnection)=>Promise<T>):Promise<T> {
   return runDatabaseOperation(async()=>{const c=await databasePool.getConnection();try{await c.beginTransaction();const result=await operation(c);await c.commit();return result;}catch(error){await c.rollback();throw error;}finally{c.release();}});
 }
+/** Comprueba ownership bajo lock y conserva la clave de foto previa para reemplazarla después del commit. */
 export async function savePet(owner:string,input:PetInput,id?:string,preservePhoto=false) {
   return transaction(async c=>{
     const [species]=await c.execute<RowDataPacket[]>('SELECT id FROM species WHERE id=?',[input.speciesId]);if(!species.length)invalid('La especie no existe.');

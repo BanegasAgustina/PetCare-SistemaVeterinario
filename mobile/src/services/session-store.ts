@@ -36,6 +36,7 @@ export async function readSession(): Promise<StoredSession | null> {
   try {
     const session = JSON.parse(raw) as StoredSession;
     if (typeof session.accessToken !== 'string' || session.accessToken.length === 0 || session.accessToken.length > 4096 || !Number.isFinite(session.expiresAt)) throw new Error();
-    return { accessToken: session.accessToken, expiresAt: session.expiresAt };
+    if (session.refreshToken !== undefined && (typeof session.refreshToken !== 'string' || !/^[a-f0-9]{64}$/.test(session.refreshToken))) throw new Error();
+    return { accessToken: session.accessToken, expiresAt: session.expiresAt, ...(session.refreshToken ? {refreshToken:session.refreshToken} : {}) };
   } catch { await clearSession(); return null; }
 }

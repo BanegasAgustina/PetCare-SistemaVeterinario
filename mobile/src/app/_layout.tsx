@@ -13,6 +13,7 @@ import { FormNotice } from '../components/ui/FormNotice';
 import { AppButton } from '../components/ui/AppButton';
 import { FeedbackProvider } from '../contexts/FeedbackContext';
 import { VerificationCodeModal } from '../components/ui/VerificationCodeModal';
+import { OAuthRegistrationModal } from '../components/forms/OAuthRegistrationModal';
 
 function ThemedNavigation() {
   const { mode, colors } = useTheme();
@@ -25,6 +26,7 @@ function ThemedNavigation() {
     <Stack.Screen name="index" />
     <Stack.Screen name="activate-vet" />
     <Stack.Screen name="activate-account" />
+    <Stack.Screen name="oauth" />
     <Stack.Protected guard={!auth.user}><Stack.Screen name="login" /><Stack.Screen name="register" /></Stack.Protected>
     <Stack.Protected guard={Boolean(auth.user)&&auth.user?.role!=='CLIENT'}><Stack.Screen name="account" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='CLIENT'}><Stack.Screen name="client" /></Stack.Protected>
@@ -35,6 +37,7 @@ function ThemedNavigation() {
   </Stack>;
   return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{content}
     {auth.verificationOpen && auth.pendingVerification && <VerificationCodeModal key={auth.pendingVerification.verificationToken} challenge={auth.pendingVerification} autoSend={auth.verificationFromLogin} />}
+    {auth.oauthPending && <OAuthRegistrationModal key={auth.oauthPending.ticket}/>}
   </>;
 }
 export default function RootLayout() {

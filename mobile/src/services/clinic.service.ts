@@ -1,3 +1,6 @@
+/**
+ * Centraliza los endpoints /clinic y recibe request autenticado como dependencia. Serializa filtros y cambios; no contiene catálogos ni respuestas de negocio locales.
+ */
 import type { Product,Slot } from '../types/client';
 import type { ClientRequest } from './client.service';
 import type { ClinicRow,ClinicCatalog,Reservation } from '../types/clinic';

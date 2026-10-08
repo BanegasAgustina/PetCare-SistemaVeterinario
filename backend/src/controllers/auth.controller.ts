@@ -12,6 +12,7 @@ export const login: RequestHandler = async (request, response, next) => {
   try { response.status(200).json({ success: true, data: await loginUser(request.body) }); }
   catch (error) { next(error); }
 };
+/** authenticate ya releyó identidad, rol y permisos en MySQL; no devuelve claims sin revalidarlos. */
 export const getCurrentUser: RequestHandler = (_request, response) => {
   const user = response.locals.authenticatedUser as AuthUser;
   response.status(200).json({ success: true, data: { user } });

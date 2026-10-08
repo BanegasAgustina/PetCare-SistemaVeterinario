@@ -9,4 +9,4 @@ export type AuthUser = {
 export type StoredUser = AuthUser & { passwordHash: string; isActive: boolean; emailVerifiedAt: string | null; sessionVersion: number };
 export type RegisterInput = { firstName: string; lastName: string; email: string; phone: string | null; password: string };
 export type LoginInput = { email: string; password: string };
-export type AccessSession = { user: AuthUser; accessToken: string; tokenType: 'Bearer'; expiresIn: number };
+export type AccessSession = { user: AuthUser; accessToken: string; tokenType: 'Bearer'; expiresIn: number; refreshToken: string };

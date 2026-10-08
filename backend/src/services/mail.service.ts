@@ -4,6 +4,7 @@ import { getMailConfiguration } from '../config/mail';
 import { AppError } from '../utils/app-error';
 import { registerDiagnosticFailure } from '../utils/register-diagnostics';
 
+/** Envía el enlace de un uso ya preparado por el servicio; aceptación SMTP no asegura entrega en Inbox. */
 export async function sendInvitationEmail(email: string, url: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -17,6 +18,7 @@ export async function sendInvitationEmail(email: string, url: string): Promise<v
   finally { transport.close(); }
 }
 
+/** Envía un código real sin logs ni acceso a archivos/URLs externos; los límites viven en verificación. */
 export async function sendVerificationEmail(email: string, code: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,

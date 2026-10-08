@@ -9,3 +9,11 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+# Credenciales de proveedores y firma nativa: almacenar fuera del repositorio.
+client_secret*.json
+credentials.json
+*.jks
+*.keystore
+*.p12
+*.p8
+*.pem

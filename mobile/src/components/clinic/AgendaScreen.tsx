@@ -1,3 +1,6 @@
+/**
+ * Agenda compartida por profesionales, secretaría y administración. Consulta /clinic/appointments con filtros reales; el backend determina si el actor ve agenda propia o completa.
+ */
 import { useCallback,useState } from 'react';
 import { router } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';

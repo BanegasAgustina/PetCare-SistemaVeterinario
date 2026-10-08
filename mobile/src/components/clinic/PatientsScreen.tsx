@@ -1,3 +1,6 @@
+/**
+ * Listado, detalle y edición clínica de pacientes reales mediante /clinic/patients. Los guards y permisos de /me presentan acciones; el backend restringe pacientes y autoría veterinaria.
+ */
 import { useCallback,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';

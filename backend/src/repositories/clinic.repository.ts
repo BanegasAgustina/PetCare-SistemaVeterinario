@@ -44,6 +44,7 @@ export async function slots(service:string,professional?:string,c:Connection=dat
  return rows(`SELECT s.id,s.service_id AS serviceId,s.professional_user_id AS professionalId,s.starts_at AS startsAt,s.ends_at AS endsAt,CONCAT(u.first_name,' ',u.last_name) AS veterinarian,s.professional_user_id AS veterinarianId FROM client_appointment_slots s ${compatible} AND s.service_id=? AND s.starts_at>UTC_TIMESTAMP()
  AND NOT EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots occupied ON occupied.id=a.slot_id WHERE occupied.professional_user_id=u.id AND a.status<>'CANCELLED' AND occupied.starts_at<s.ends_at AND occupied.ends_at>s.starts_at) ${professional?'AND u.id=?':''} ORDER BY s.starts_at LIMIT 200`,professional?[service,professional]:[service],c);
 }
+/** Serializa por profesional y relee disponibilidad para impedir turnos solapados en solicitudes concurrentes. */
 export async function requestAppointment(owner:string,petId:string,slotId:string) {
  const actor={id:owner} as AuthUser;
  return transaction(actor,async(c,fresh)=>{if(fresh.role!=='CLIENT')forbidden();

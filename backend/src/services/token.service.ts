@@ -3,10 +3,16 @@ import jwt from 'jsonwebtoken';
 import { getJwtConfiguration } from '../config/env';
 import { AppError } from '../utils/app-error';
 
-export function createAccessToken(userId: string, sessionVersion = 0): { accessToken: string; expiresIn: number } {
+/** Firma identidad y versión/familia de sesión; los permisos no se congelan en el JWT. */
+export function createAccessToken(userId: string, sessionVersion = 0, family?:string): { accessToken: string; expiresIn: number } {
   const config = getJwtConfiguration();
-  const accessToken = jwt.sign({ sessionVersion }, config.secret, { algorithm: 'HS256', subject: userId, issuer: config.issuer, audience: config.audience, expiresIn: config.expiresIn });
+  const accessToken = jwt.sign({ sessionVersion,...(family?{sessionId:family}:{}) }, config.secret, { algorithm: 'HS256', subject: userId, issuer: config.issuer, audience: config.audience, expiresIn: config.expiresIn });
   return { accessToken, expiresIn: config.expiresIn };
+}
+/** Leer solo después de verificar firma. Tokens anteriores sin familia vencen con su TTL original. */
+export function accessTokenFamily(token:string):string|null{
+  const payload=jwt.decode(token);if(!payload||typeof payload==='string'||payload.sessionId===undefined)return null;
+  if(typeof payload.sessionId!=='string'||!/^[a-f0-9-]{36}$/.test(payload.sessionId))throw new AppError('INVALID_TOKEN',401,'La sesión no es válida.');return payload.sessionId;
 }
 
 /** Solo leer la versión después de verificar firma/issuer/audience con verifyAccessToken. */
@@ -16,6 +22,7 @@ export function accessTokenSessionVersion(token: string): number {
   return payload.sessionVersion === undefined ? 0 : Number.isSafeInteger(payload.sessionVersion) ? payload.sessionVersion : -1;
 }
 
+/** Restringe algoritmo, emisor, audiencia y rango BIGINT antes de usar el subject como identidad. */
 export function verifyAccessToken(token: string): string {
   const config = getJwtConfiguration();
   try {

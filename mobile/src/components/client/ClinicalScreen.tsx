@@ -1,3 +1,6 @@
+/**
+ * Muestra registros clínicos del tipo recibido en kind para mascotas del cliente. Consulta clientService y diferencia carga, error y resultado vacío; nunca permite editar información clínica como cliente.
+ */
 import { useCallback,useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { useClient } from '../../hooks/useClient';

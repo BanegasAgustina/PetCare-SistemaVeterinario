@@ -1,3 +1,6 @@
+/**
+ * Valida formularios, IDs y filtros del cliente antes de consultar MySQL. Restringe campos y tamaños; la validación frontend es ayuda de UX y no sustituye estos controles.
+ */
 import { AppError } from '../utils/app-error';
 export function invalid(message='Revisá los datos ingresados.'): never { throw new AppError('VALIDATION_ERROR',400,message); }
 export function clientId(value:unknown):string { if(typeof value!=='string'||!/^[1-9]\d{0,19}$/.test(value)||BigInt(value)>18446744073709551615n)invalid();return value; }

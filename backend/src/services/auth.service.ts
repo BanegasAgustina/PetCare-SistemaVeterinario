@@ -2,15 +2,14 @@
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'node:crypto';
 import { env, getJwtConfiguration } from '../config/env';
-import { createClientUser, findUserByEmail, publicUser } from '../repositories/user.repository';
+import { createClientUser, findUserByEmail } from '../repositories/user.repository';
 import type { AccessSession, AuthUser } from '../types/auth';
 import { AppError } from '../utils/app-error';
 import { validateLogin, validateRegister } from '../validators/auth.validator';
-import { createAccessToken } from './token.service';
+import { sessionForUser } from './session.service';
 import { getMailConfiguration, getVerificationSecret } from '../config/mail';
 import { createVerificationProof, hashVerificationToken, resendVerification } from './verification.service';
 import type { VerificationChallenge } from '../types/verification';
-import { authorizationData } from '../repositories/authorization.repository';
 import { registerStage } from '../utils/register-diagnostics';
 import { hashPassword } from './password.service';
 
@@ -21,6 +20,7 @@ function getDummyHash(): Promise<string> {
   return dummyHash;
 }
 
+/** Crea CLIENT pendiente y prepara código SMTP; no emite sesión hasta verificar el email. */
 export async function registerUser(body: unknown): Promise<{ user: AuthUser; verification: VerificationChallenge }> {
   registerStage('validation');
   const input = validateRegister(body);
@@ -40,6 +40,7 @@ export async function registerUser(body: unknown): Promise<{ user: AuthUser; ver
   return { user, verification };
 }
 
+/** Compara bcrypt incluso si la cuenta no existe para reducir diferencias de tiempo observables. */
 export async function loginUser(body: unknown): Promise<AccessSession> {
   const input = validateLogin(body);
   getJwtConfiguration();
@@ -48,5 +49,5 @@ export async function loginUser(body: unknown): Promise<AccessSession> {
   const passwordMatches = await bcrypt.compare(input.password, user?.passwordHash ?? fallbackHash);
   if (!user || !user.isActive || !passwordMatches) throw new AppError('INVALID_CREDENTIALS', 401, 'Email o contraseña incorrectos.');
   if (!user.emailVerifiedAt) throw new AppError('EMAIL_NOT_VERIFIED', 403, 'Tu correo todavía no está verificado.', await createVerificationProof(user.id));
-  return { user: { ...publicUser(user), ...await authorizationData(user.id,user.role) }, ...createAccessToken(user.id, user.sessionVersion), tokenType: 'Bearer' };
+  return sessionForUser(user);
 }

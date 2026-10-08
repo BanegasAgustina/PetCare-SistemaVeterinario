@@ -1,3 +1,6 @@
+/**
+ * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos mediante useClient, selecciona foto con ImagePicker y envía cambios al backend; los errores se muestran inline.
+ */
 import { useCallback,useRef,useState } from 'react';
 import { Image,View,StyleSheet,Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

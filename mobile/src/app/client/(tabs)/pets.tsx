@@ -1,3 +1,6 @@
+/**
+ * Pantalla de mascotas propias para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ */
 import { router } from 'expo-router';
 import { useClient } from '../../../hooks/useClient';
 import { useClientQuery } from '../../../hooks/useClientQuery';

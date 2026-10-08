@@ -1,3 +1,6 @@
+/**
+ * Pantalla de roles para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ */
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';

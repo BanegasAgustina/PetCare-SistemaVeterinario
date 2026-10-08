@@ -1,3 +1,6 @@
+/**
+ * Adapta las operaciones del cliente a HTTP y presenta fotos autorizadas. Obtiene owner desde el usuario validado por JWT y delega al servicio; no acepta identidad libre del body.
+ */
 import type { RequestHandler } from 'express';
 import type { AuthUser } from '../types/auth';
 import { clientOperation } from '../services/client.service';

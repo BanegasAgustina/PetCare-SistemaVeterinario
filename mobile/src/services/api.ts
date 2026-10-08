@@ -3,6 +3,12 @@ export class ApiError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown) { super(message); this.name = 'ApiError'; }
 }
 const messages: Record<string, string> = {
+  OAUTH_UNAVAILABLE:'Este proveedor todavía no está configurado.',
+  OAUTH_INVALID_STATE:'La solicitud OAuth venció o ya fue usada. Iniciá el proceso nuevamente.',
+  OAUTH_INVALID_PROOF:'La solicitud OAuth venció o no pertenece a este dispositivo.',
+  OAUTH_PROVIDER_ERROR:'El proveedor no pudo verificar tu identidad. Volvé a intentar.',
+  OAUTH_ACCOUNT_CONFLICT:'Esta identidad ya está vinculada a otra cuenta.',
+  OAUTH_LINK_REQUIRED:'Ese email ya tiene una cuenta. Iniciá sesión con contraseña y vinculá el proveedor desde tu perfil.',
   VET_PROFILE_REQUIRED: 'Gestioná ese usuario desde Veterinarios para conservar su matrícula y especialidades.',
   PHOTO_STORAGE_UNAVAILABLE: 'El almacenamiento de fotos todavía no está configurado. Podés guardar la mascota sin foto.',
   PHOTO_REFERENCE_UNSUPPORTED: 'Esta foto pertenece al almacenamiento anterior. Debe volver a subirse al bucket privado.',

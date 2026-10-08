@@ -16,6 +16,7 @@ import { AppButton } from '../components/ui/AppButton';
 import { useAuth } from '../hooks/useAuth';
 import { validateLoginForm } from '../utils/auth-validation';
 import type { LoginValues } from '../types/auth';
+import { useAsyncAction } from '../hooks/useAsyncAction';
 
 const fields: AuthField<LoginValues>[] = [
   { key: 'email', label: 'Correo electrónico', icon: 'mail-outline', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, placeholder: 'ejemplo@email.com', maxLength: 254 } },
@@ -23,6 +24,7 @@ const fields: AuthField<LoginValues>[] = [
 ];
 export default function LoginScreen() {
   const auth = useAuth();
+  const social=useAsyncAction();
   const { colors } = useTheme();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -37,8 +39,8 @@ export default function LoginScreen() {
     <View style={styles.socialSection}>
       <View style={styles.divider}><View style={[styles.line, { backgroundColor: colors.border }]} /><AppText variant="caption" muted>o</AppText><View style={[styles.line, { backgroundColor: colors.border }]} /></View>
       <View style={styles.socialTitle}><AppText variant="caption" muted>Continuar con</AppText></View>
-      {/* OAuth aún no existe: los proveedores quedan preparados y explícitamente indisponibles. */}
-      <View style={styles.providers}><SocialLoginButton provider="Google" /><SocialLoginButton provider="Facebook" /><SocialLoginButton provider="X" /></View>
+      <FormNotice message={social.error} error />
+      <View style={styles.providers}><SocialLoginButton provider="Google" disabled={social.loading} onPress={()=>void social.run(()=>auth.socialSignIn('google'))}/><SocialLoginButton provider="Facebook" disabled={social.loading} onPress={()=>void social.run(()=>auth.socialSignIn('facebook'))}/><SocialLoginButton provider="X" disabled={social.loading} onPress={()=>void social.run(()=>auth.socialSignIn('x'))}/></View>
     </View>
     <Pressable accessibilityRole="link" accessibilityLabel="Registrate" onPress={() => router.push('/register')} style={styles.registerLink}>
       <AppText variant="caption" muted style={{ textAlign: 'center' }}>¿Todavía no tenés cuenta? <AppText variant="caption" style={[styles.registerText, { color: colors.primary }]}>Registrate</AppText></AppText>

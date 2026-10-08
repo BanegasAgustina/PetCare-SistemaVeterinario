@@ -1,3 +1,6 @@
+/**
+ * Gestiona especialidades reales mediante /admin/specialties. AuthContext y los guards controlan acceso visual; el backend exige specialties.manage para guardar cambios.
+ */
 import { useCallback,useEffect,useState } from 'react';
 import { router } from 'expo-router';
 import { View } from 'react-native';

@@ -1,5 +1,7 @@
 # PetCare Backend — fase 3
 
+> **Actualización:** la instalación vigente está en [CONFIGURACION_COMPLETA.md](../CONFIGURACION_COMPLETA.md). Esta versión implementa OAuth Google/Facebook/X, refresh rotativo y revocación de familias. Para DB nueva: `npm run db:bootstrap` → `npm run db:migrate:auth` → `npm run create:super-admin`. Para DB existente: revisión/backup antes de extensiones; nunca bootstrap encima. Las secciones de fase 3 se conservan como referencia histórica y no acreditan la presencia de los SQL originales ausentes.
+
 El módulo `/api/client` incorpora mascotas, turnos, clínica, tienda, carrito, pedidos, notificaciones y perfil con JWT/ownership. Ver [contratos, migración aditiva y verificación](../IMPLEMENTACION_CLIENTE.md).
 
 ## Autenticación tradicional

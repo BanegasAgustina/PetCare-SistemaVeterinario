@@ -1,3 +1,6 @@
+/**
+ * Expone /api/clinic con filtros de rol y permisos efectivos. Los repositories repiten controles dentro de las transacciones para evitar operar con privilegios desactualizados.
+ */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
 import { requireRole,requireAnyPermission,requirePermission } from '../middlewares/permission.middleware';

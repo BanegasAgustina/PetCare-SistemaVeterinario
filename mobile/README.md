@@ -1,10 +1,12 @@
 # PetCare Mobile — fase 3
 
+> **Configuración vigente:** [CONFIGURACION_COMPLETA.md](../CONFIGURACION_COMPLETA.md). Login ahora conecta Google/Facebook/X; Perfil/Mi cuenta permite vínculo explícito. AuthContext rota refresh tokens y comparte verificación de email. OAuth nativo requiere un build propio con scheme `petcare`; Expo Go no registra ese retorno. Los detalles visuales de fase 3 se conservan como referencia de su evolución.
+
 La experiencia Cliente está en `src/app/client`, con cinco pestañas y services autenticados. Ver [rutas, componentes, datos y pruebas](../IMPLEMENTACION_CLIENTE.md).
 
 React Native con Expo SDK 57, TypeScript y Expo Router. Login, Registro y perfil protegido con logo real, temas claro/oscuro y sesión mediante AuthContext.
 
-Se conserva toda la arquitectura en src y las imágenes originales. No se implementan OAuth ni gestión de mascotas.
+Se conserva la arquitectura en src y las imágenes originales. OAuth y gestión de mascotas utilizan servicios del backend y datos reales.
 
 ## Ejecutar
 
@@ -42,7 +44,7 @@ src/assets/petcare-logo.png copia imagenes/logo grande.png; src/assets/petcare-i
 
 El Login usa src/assets/login-pets.png, copia intacta de imagenes/iniciodesesion.png. LoginPets mide el espacio restante y escala la composición completa; solo queda fuera la transparencia superior del recurso. LoginLayout ocupa la altura disponible sin scroll con teclado cerrado y habilita desplazamiento con teclado o alturas menores a 540 px. A 700 px o menos se compactan campos y espacios, conservando áreas táctiles. LoginBrand muestra el PNG transparente sin panel y añade un contorno fino en oscuro manteniendo el logo original encima. Los iconos usan la librería instalada @expo/vector-icons.
 
-Google, Facebook y X/Twitter se muestran únicamente como logos en círculos de 48 px, sin nombres debajo ni mensajes de disponibilidad. X usa el icono x-twitter de FontAwesome6 ya incluido; no se agregó ninguna dependencia. OAuth aún no existe: los botones están deshabilitados y SocialLoginButton admite un callback para conexión futura. Sus nombres permanecen como etiquetas accesibles para lectores de pantalla. «¿Olvidaste tu contraseña?» conserva el aviso y «Registrate» la navegación real. La corrección posterior añade el flujo de verificación documentado abajo.
+Google, Facebook y X/Twitter se muestran únicamente como logos en círculos de 48 px, sin nombres debajo ni mensajes de disponibilidad. X usa el icono x-twitter de FontAwesome6 ya incluido; no se agregó ninguna dependencia. En la versión actual, SocialLoginButton recibe callbacks de AuthContext y muestra errores/carga del flujo OAuth; requiere proveedores configurados. Sus nombres permanecen como etiquetas accesibles para lectores de pantalla. «¿Olvidaste tu contraseña?» conserva el aviso y «Registrate» la navegación real. La corrección posterior añade el flujo de verificación documentado abajo.
 
 Otros recursos originales (paleta, isotipo y fotografías) se conservan; no se eliminan archivos funcionales ni se descargan animales externos.
 

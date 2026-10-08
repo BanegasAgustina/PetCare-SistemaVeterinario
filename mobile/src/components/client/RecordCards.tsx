@@ -1,3 +1,6 @@
+/**
+ * Tarjetas que reciben mascotas, turnos y productos obtenidos de la API. Presentan sus campos y disparan navegación; no mantienen otra copia persistida de esos registros.
+ */
 import { View,StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { PetCareCard,PetCareBadge,PetImage,money,dateTime,statusLabel } from './PetCareUI';

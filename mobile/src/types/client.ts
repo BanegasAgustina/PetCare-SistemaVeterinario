@@ -1,3 +1,6 @@
+/**
+ * Define mascotas, turnos, productos y registros reales de /client. Los valores nullable representan ausencia de un campo, sin crear entidades para completar la interfaz.
+ */
 export type CatalogItem={id:string;name:string};
 export type Pet={id:string;name:string;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null};
 export type PetValues={name:string;speciesId:string;breedId:string;breedName?:string;birthDate:string;microchipNumber:string;photoUrl:string;weightKg:string;photoBase64?:string};

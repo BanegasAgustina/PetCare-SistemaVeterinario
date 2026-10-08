@@ -1,3 +1,6 @@
+/**
+ * Componentes visuales compartidos del panel cliente: Safe Area, tarjetas y estados de consulta. Reciben contenido y acciones por props, usan ThemeContext y no generan registros de negocio.
+ */
 import { useState,type PropsWithChildren,type ReactNode } from 'react';
 import { Image,Pressable,ScrollView,StyleSheet,View,KeyboardAvoidingView,Platform } from 'react-native';
 import { SafeAreaView,useSafeAreaInsets } from 'react-native-safe-area-context';

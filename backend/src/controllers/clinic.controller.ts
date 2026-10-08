@@ -1,3 +1,6 @@
+/**
+ * Adapta solicitudes de clínica al servicio y al contrato JSON. Pasa el actor autenticado y los parámetros; los permisos y el alcance se controlan antes de consultar o modificar datos.
+ */
 import type { RequestHandler } from 'express';
 import { clinicOperation } from '../services/clinic.service';
 import type { AuthUser } from '../types/auth';

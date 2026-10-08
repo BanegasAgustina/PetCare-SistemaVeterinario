@@ -1,3 +1,6 @@
+/**
+ * Inicio compartido del personal autenticado. Consulta /clinic/home para agenda y contadores reales y presenta módulos según permisos de /me; no inventa cifras ante errores.
+ */
 import { useCallback,useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';

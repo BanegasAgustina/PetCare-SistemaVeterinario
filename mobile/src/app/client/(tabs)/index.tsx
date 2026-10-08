@@ -1,3 +1,6 @@
+/**
+ * Pantalla de inicio del panel para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ */
 import { router } from 'expo-router';
 import { useAuth } from '../../../hooks/useAuth';
 import { useClient } from '../../../hooks/useClient';

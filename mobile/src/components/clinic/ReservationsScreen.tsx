@@ -1,3 +1,6 @@
+/**
+ * Lista y muestra reservas para retiro desde /clinic/reservations. CLIENT consulta las propias; el personal necesita permisos. Las transiciones y liberación de stock pertenecen al backend.
+ */
 import { useCallback,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';

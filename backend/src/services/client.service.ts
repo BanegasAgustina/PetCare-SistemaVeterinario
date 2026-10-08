@@ -1,3 +1,6 @@
+/**
+ * Coordina validación y operaciones del cliente usando su identidad autenticada. Delega persistencia al repository y fotos a S3; un error de consulta nunca se reemplaza por datos de muestra.
+ */
 import bcrypt from 'bcrypt';
 import * as repository from '../repositories/client.repository';
 import { findUserById } from '../repositories/user.repository';

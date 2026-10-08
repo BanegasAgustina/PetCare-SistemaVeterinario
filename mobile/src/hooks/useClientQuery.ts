@@ -1,3 +1,6 @@
+/**
+ * Gestiona carga, error y resultado de una consulta real. Reconsulta al recibir foco e ignora respuestas antiguas; solo una consulta exitosa permite interpretar un resultado vacío.
+ */
 import { useCallback,useRef,useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { friendlyError } from '../services/api';

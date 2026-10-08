@@ -1,3 +1,6 @@
+/**
+ * Navegador del módulo client/(tabs), para CLIENT autenticado. Organiza las rutas; el backend comprueba nuevamente autorización y ownership.
+ */
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

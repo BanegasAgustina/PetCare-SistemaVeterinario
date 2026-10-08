@@ -14,6 +14,7 @@ export async function detail(actor:AuthUser,id:string) {
  const own=actor.role==='CLIENT';if(!own)db.permit(actor,'reservations.view_all');const result=await db.one(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id WHERE o.id=? ${own?'AND o.owner_id=?':''}`,own?[id,actor.id]:[id]);
  return {...result,id:String(result.id),status:String(result.status),items:await db.rows('SELECT i.product_id AS productId,i.product_name AS name,i.quantity,i.price_cents AS priceCents,i.pet_id AS petId,p.name AS petName,i.prescription_id AS prescriptionId FROM client_order_items i LEFT JOIN pets p ON p.id=i.pet_id WHERE i.order_id=?',[id])};
 }
+/** Reserva stock bajo lock y usa requestKey para evitar duplicados por reintentos de la misma solicitud. */
 export async function create(actor:AuthUser,value:unknown) {
  if(actor.role!=='CLIENT')forbidden();const body=v.body(value,['productId','quantity','petId','prescriptionId','requestKey']);const productId=v.id(body.productId),quantity=v.integer(body.quantity,1,99),petId=v.optionalId(body.petId),prescriptionId=v.optionalId(body.prescriptionId);
  const key=body.requestKey===undefined?randomUUID():v.text(body.requestKey,36)!;if(!/^[a-f0-9-]{36}$/i.test(key))v.invalid();
@@ -33,6 +34,7 @@ export async function create(actor:AuthUser,value:unknown) {
   await c.execute('UPDATE client_products SET reserved_stock=reserved_stock+? WHERE id=?',[quantity,productId]);return String(order.id);
  });return detail(actor,id);
 }
+/** Valida la transición y actualiza stock reservado/físico una sola vez al cancelar o completar el retiro. */
 export async function change(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['status']);const status=v.text(body.status,20)!;
  await db.transaction(actor,async(c,fresh)=>{db.permit(fresh,'reservations.manage');const order=await db.one('SELECT id,owner_id AS ownerId,status FROM client_orders WHERE id=? FOR UPDATE',[id],c);assertTransition(String(order.status),status,'reservation');

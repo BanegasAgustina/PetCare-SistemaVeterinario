@@ -1,3 +1,6 @@
+/**
+ * Gestiona el catálogo indicado por kind mediante /clinic/admin. Obtiene entradas reales y envía formularios; el backend limita entidades y comprueba el permiso de cada catálogo.
+ */
 import { useCallback,useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';

@@ -1,3 +1,6 @@
+/**
+ * Selector nativo de fecha de nacimiento que recibe valor, cambio y estado disabled del formulario. Convierte la selección a fecha civil; no persiste ni calcula edad médica.
+ */
 import { useState } from 'react';
 import { Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';

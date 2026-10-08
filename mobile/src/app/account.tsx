@@ -9,6 +9,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import { router } from 'expo-router';
 import { roleHome } from '../utils/role-home';
+import { OAuthLinks } from '../components/ui/OAuthLinks';
 
 export default function AccountScreen() {
   const auth = useAuth();
@@ -26,6 +27,7 @@ export default function AccountScreen() {
       <AppText variant="caption">{auth.user.roleName ?? auth.user.role}</AppText>
     </View>
     <FormNotice message={action.error} error />
+    <OAuthLinks />
     <AppButton label="Volver a mi panel" variant="secondary" onPress={()=>router.replace(roleHome(auth.user))} />
     <AppButton label={action.loading ? 'Procesando…' : 'Volver a consultar mis datos'} loading={action.loading} onPress={() => void action.run(auth.refreshProfile)} />
     <AppButton label="Cerrar sesión" variant="secondary" disabled={action.loading} onPress={() => void action.run(auth.signOut)} />

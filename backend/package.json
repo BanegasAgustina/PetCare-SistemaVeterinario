@@ -4,6 +4,9 @@
   "private": true,
   "description": "API REST de PetCare: estructura y persistencia inicial MySQL 8",
   "scripts": {
+    "oauth:callbacks": "tsx src/database/oauth-callbacks.ts",
+    "db:bootstrap": "tsx src/database/bootstrap.ts",
+    "db:migrate:auth": "tsx src/database/auth-migrate.ts",
     "admin:promote": "tsx src/database/promote-super-admin.ts",
     "create:super-admin": "tsx src/database/create-super-admin.ts",
     "dev": "tsx watch src/server.ts",
@@ -22,6 +25,7 @@
     "db:seed:client:reference": "tsx src/database/client-reference-seed.ts",
     "db:seed": "tsx src/database/cli.ts seed",
     "db:migrate:clinic": "tsx src/database/clinic-migrate.ts",
+    "db:reconcile:clinic": "tsx src/database/clinic-reconcile.ts",
     "test:clinic:db": "tsx --test tests/integration/clinic.test.ts"
   },
   "dependencies": {

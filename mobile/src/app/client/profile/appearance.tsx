@@ -1,3 +1,7 @@
+/**
+ * Permite al CLIENT cambiar la preferencia claro/oscuro/sistema en ThemeContext.
+ * Es una configuración visual local: no consulta catálogos ni modifica datos clínicos en la API.
+ */
 import { useTheme } from '../../../hooks/useTheme';
 import { PetCareScreen,PetCareHeader,PetCareCard } from '../../../components/client/PetCareUI';
 import { SelectionRow } from '../../../components/ui/SelectionRow';

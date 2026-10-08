@@ -1,3 +1,6 @@
+/**
+ * Pantalla de detalle de usuario para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ */
 import { useCallback,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
 import { View,Switch } from 'react-native';

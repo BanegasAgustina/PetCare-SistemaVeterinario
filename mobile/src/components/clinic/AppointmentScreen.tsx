@@ -1,3 +1,6 @@
+/**
+ * Muestra el turno identificado por parámetros de ruta y permite cambios autorizados. Usa /clinic/appointments; el backend controla estados, permisos y disponibilidad bajo locks.
+ */
 import { useCallback,useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';

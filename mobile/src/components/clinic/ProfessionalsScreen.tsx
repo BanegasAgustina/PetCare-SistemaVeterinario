@@ -1,3 +1,6 @@
+/**
+ * Asigna tipos profesionales y servicios reales desde /clinic/professionals. Requiere professionals.manage; la compatibilidad entre rol, tipo y servicio se valida en MySQL/backend.
+ */
 import { useCallback,useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';

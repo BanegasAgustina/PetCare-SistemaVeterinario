@@ -1,3 +1,6 @@
+/**
+ * Gestiona horarios y bloqueos reales mediante /clinic/availability. Requiere schedule.manage; el backend valida intervalos y evita invalidar turnos pendientes.
+ */
 import { useCallback,useState } from 'react';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';

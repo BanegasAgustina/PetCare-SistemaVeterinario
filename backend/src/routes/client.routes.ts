@@ -1,3 +1,6 @@
+/**
+ * Expone /api/client para CLIENT autenticados. El controller deriva ownership del JWT y el servicio consulta MySQL; estas rutas no deben aceptar un owner enviado por la app.
+ */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/permission.middleware';
