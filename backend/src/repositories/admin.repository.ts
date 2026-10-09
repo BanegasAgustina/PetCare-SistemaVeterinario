@@ -12,6 +12,7 @@ import { assertAdminPermission,assertDelegation,assertTarget,assertRoleAssignmen
 import { objectBody,identifier,textField,permissionOverrides } from '../validators/veterinarian.validator';
 import { readName,readPhone,normalizeEmail } from '../validators/auth.validator';
 import { invitationUrl,saveInvitation,deliverInvitation,renewUserInvitation } from '../services/invitation.service';
+import * as clinicValidation from '../validators/clinic.validator';
 import type { AuthUser,RoleCode } from '../types/auth';
 
 export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
@@ -45,10 +46,12 @@ export async function adminCatalog(actor:AuthUser) {
     permissions:permissions.map(p=>({...p,id:String(p.id),critical:Boolean(p.critical),canDelegate:actor.permissions?.includes(p.code)??false}))};
 }
 export async function adminUsers(query:Record<string,unknown>) {
-  const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';
-  if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
-  const page=Number(pageText);const params=search?[`%${search}%`,`%${search}%`,`%${search}%`]:[];
-  const from=`FROM users u JOIN roles r ON r.id=u.role_id ${search?'WHERE u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?':''}`;
+  const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';const status=query.status??'all';
+  if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText)||!['all','active','inactive'].includes(String(status)))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
+  const page=Number(pageText);const filters:string[]=[];const params:(string|number)[]=[];
+  if(search){filters.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)');params.push(...Array<string>(3).fill(`%${search}%`));}
+  if(status!=='all'){filters.push('u.is_active=?');params.push(status==='active'?1:0);}
+  const from=`FROM users u JOIN roles r ON r.id=u.role_id ${filters.length?`WHERE ${filters.join(' AND ')}`:''}`;
   const [count]=await databasePool.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total ${from}`,params);
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns} ${from} ORDER BY u.last_name,u.first_name,u.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
   return {items:rows.map(mapUser),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
@@ -125,19 +128,26 @@ export async function inviteAdminUser(identity:AuthUser,id:string) {
 }
 export async function adminProducts(query:Record<string,unknown>) {
   const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';
-  if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
-  const page=Number(pageText);const where=search?'WHERE name LIKE ?':'';const params=search?[`%${search}%`]:[];
-  const [count]=await databasePool.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM client_products ${where}`,params);
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT id,name,description,price_cents AS priceCents,stock,is_active AS isActive FROM client_products ${where} ORDER BY name,id LIMIT 20 OFFSET ${(page-1)*20}`,params);
+  const status=query.status??'all',stock=query.stock??'all',sort=query.sort??'name';
+  if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText)||!['all','active','inactive'].includes(String(status))||!['all','available','out'].includes(String(stock))||!['name','price_low','price_high','stock_low','stock_high'].includes(String(sort)))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
+  const filters:string[]=[];const params:(string|number)[]=[];if(search){filters.push('p.name LIKE ?');params.push(`%${search}%`);}if(status!=='all'){filters.push('p.is_active=?');params.push(status==='active'?1:0);}if(stock!=='all')filters.push(stock==='available'?'p.stock>p.reserved_stock':'p.stock<=p.reserved_stock');
+  if(query.categoryId){filters.push('p.category_id=?');params.push(clinicValidation.id(query.categoryId));}
+  const where=filters.length?`WHERE ${filters.join(' AND ')}`:'';const page=Number(pageText);
+  const ordering:Record<string,string>={name:'p.name ASC,p.id',price_low:'p.price_cents ASC,p.name',price_high:'p.price_cents DESC,p.name',stock_low:'(p.stock-p.reserved_stock) ASC,p.name',stock_high:'(p.stock-p.reserved_stock) DESC,p.name'};
+  const [count]=await databasePool.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM client_products p ${where}`,params);
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,p.price_cents AS priceCents,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.is_active AS isActive FROM client_products p LEFT JOIN client_product_categories c ON c.id=p.category_id ${where} ORDER BY ${ordering[String(sort)]},p.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
   return {items:rows.map(p=>({...p,id:String(p.id),isActive:Boolean(p.isActive)})),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
 }
 export async function updateAdminProduct(identity:AuthUser,id:string,value:unknown) {
-  const body=objectBody(value,['name','description','isActive','priceCents','stock']);
+  const body=objectBody(value,['name','description','imageUrl','categoryId','isActive','priceCents','stock']);
   if(!Object.keys(body).length)throw new AppError('VALIDATION_ERROR',400,'No hay cambios para guardar.');
   const assignments:string[]=[];const parameters:(string|number|boolean|null)[]=[];const required=new Set<string>();
   if(body.name!==undefined){assignments.push('name=?');parameters.push(textField(body.name,'El nombre',200));required.add('products.update');}
   if(body.description!==undefined){if(body.description!==null&&(typeof body.description!=='string'||body.description.length>10000))throw new AppError('VALIDATION_ERROR',400,'Revisá la descripción.');assignments.push('description=?');parameters.push(typeof body.description==='string'?body.description.trim()||null:null);required.add('products.update');}
+  if(body.imageUrl!==undefined){assignments.push('image_url=?');parameters.push(clinicValidation.imageUrl(body.imageUrl));required.add('products.update');}
+  const categoryId=body.categoryId===undefined?undefined:clinicValidation.optionalId(body.categoryId);
+  if(body.categoryId!==undefined){assignments.push('category_id=?');parameters.push(categoryId??null);required.add('products.update');}
   if(body.isActive!==undefined){if(typeof body.isActive!=='boolean')throw new AppError('VALIDATION_ERROR',400,'Indicá el estado del producto.');assignments.push('is_active=?');parameters.push(body.isActive);required.add('products.update');}
   for(const field of ['priceCents','stock'] as const)if(body[field]!==undefined){const number=body[field];if(typeof number!=='number'||!Number.isSafeInteger(number)||number<0||number>(field==='priceCents'?100000000:4294967295))throw new AppError('VALIDATION_ERROR',400,'Precio o stock inválido.');assignments.push(`${field==='priceCents'?'price_cents':'stock'}=?`);parameters.push(number);required.add(field==='priceCents'?'products.update_price':'products.update_stock');}
-  return transaction(async c=>{await freshAdmin(c,identity,...required);const [rows]=await c.execute<RowDataPacket[]>('SELECT id,reserved_stock AS reservedStock FROM client_products WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');if(body.stock!==undefined&&Number(body.stock)<Number(rows[0].reservedStock))throw new AppError('VALIDATION_ERROR',400,'El stock físico no puede ser menor al reservado.');await c.execute(`UPDATE client_products SET ${assignments.join(',')} WHERE id=?`,[...parameters,id]);return {updated:true};});
+  return transaction(async c=>{await freshAdmin(c,identity,...required);if(categoryId){const [categories]=await c.execute<RowDataPacket[]>('SELECT id FROM client_product_categories WHERE id=?',[categoryId]);if(!categories[0])throw new AppError('VALIDATION_ERROR',400,'La categoría seleccionada ya no existe.');}const [rows]=await c.execute<RowDataPacket[]>('SELECT id,reserved_stock AS reservedStock FROM client_products WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');if(body.stock!==undefined&&Number(body.stock)<Number(rows[0].reservedStock))throw new AppError('VALIDATION_ERROR',400,'El stock físico no puede ser menor al reservado.');await c.execute(`UPDATE client_products SET ${assignments.join(',')} WHERE id=?`,[...parameters,id]);return {updated:true};});
 }

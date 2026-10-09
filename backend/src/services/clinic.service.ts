@@ -17,7 +17,7 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'appointments':return clinic.appointments(actor,query);
  case 'appointment-update':return clinic.changeAppointment(actor,v.id(id),value);
  case 'patient':return clinic.patient(actor,v.id(id));
- case 'patients':return clinic.patients(actor,v.text(query.search,100,true)??'');
+ case 'patients':return clinic.patients(actor,v.text(query.search,100,true)??'',v.text(query.sort,20,true)??'recent');
  case 'clinical':return clinic.clinical(actor,v.id(id),kind!);
  case 'clinical-create':return clinic.saveClinical(actor,v.id(id),kind!,value);
  case 'clients':return clinic.clients(actor,v.text(query.search,100,true)??'');

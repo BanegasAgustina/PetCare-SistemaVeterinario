@@ -7,8 +7,11 @@ import { AppError } from '../utils/app-error';
 import { assertTransition } from '../utils/clinic-rules';
 import { forbidden } from '../utils/admin-authorization';
 export async function list(actor:AuthUser,query:Record<string,unknown>={}) {
- const own=actor.role==='CLIENT';if(!own)db.permit(actor,'reservations.view_all');const args:unknown[]=own?[actor.id]:[];let where=own?'WHERE o.owner_id=?':'WHERE 1=1';if(query.status){where+=' AND o.status=?';args.push(v.text(query.status,20));}
- return db.rows(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id ${where} ORDER BY o.id DESC LIMIT 100 OFFSET ${(v.queryPage(query)-1)*100}`,args);
+ const own=actor.role==='CLIENT';if(!own)db.permit(actor,'reservations.view_all');const args:unknown[]=own?[actor.id]:[];let where=own?'WHERE o.owner_id=?':'WHERE 1=1';
+ if(query.status){where+=' AND o.status=?';args.push(v.text(query.status,20));}
+ if(query.search){const search=v.text(query.search,100)!;where+=" AND (CAST(o.id AS CHAR) LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)";args.push(...Array(3).fill(`%${search}%`));}
+ for(const [key,operator] of [['fromDate','>=' ],['toDate','<=']] as const)if(query[key]){const date=v.text(query[key],10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();where+=` AND DATE(o.created_at)${operator}?`;args.push(date);}
+ return db.rows(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id ${where} ORDER BY o.created_at DESC,o.id DESC LIMIT 100 OFFSET ${(v.queryPage(query)-1)*100}`,args);
 }
 export async function detail(actor:AuthUser,id:string) {
  const own=actor.role==='CLIENT';if(!own)db.permit(actor,'reservations.view_all');const result=await db.one(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id WHERE o.id=? ${own?'AND o.owner_id=?':''}`,own?[id,actor.id]:[id]);

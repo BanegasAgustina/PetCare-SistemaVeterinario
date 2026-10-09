@@ -4,8 +4,8 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { authenticate } from '../middlewares/auth.middleware';
 import { requireRole,requirePermission } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
-import { vetCatalog,vetList,vetDetail,createVet,updateVet,updateVetStatus,updateVetPermissions } from '../repositories/veterinarian.repository';
-import { identifier,validateVet,objectBody,permissionOverrides,textField } from '../validators/veterinarian.validator';
+import { vetCatalog,vetList,vetDetail,createVet,updateVet,updateVetStatus } from '../repositories/veterinarian.repository';
+import { identifier,validateVet,objectBody,textField } from '../validators/veterinarian.validator';
 import { acceptInvitation,renewInvitation } from '../services/invitation.service';
 import * as clinic from '../repositories/clinic.repository';
 import { databasePool } from '../config/database';
@@ -27,9 +27,6 @@ veterinarianAdminRouter.get('/',handler(async req=>vetList(req.query)));
 veterinarianAdminRouter.get('/:id',handler(async req=>vetDetail(identifier(req.params.id))));
 veterinarianAdminRouter.post('/',createAuthRateLimiter(),handler(async(req,res)=>createVet(validateVet(req.body),res.locals.authenticatedUser as AuthUser),201));
 veterinarianAdminRouter.put('/:id',handler(async(req,res)=>updateVet(identifier(req.params.id),validateVet(req.body),res.locals.authenticatedUser as AuthUser)));
-veterinarianAdminRouter.put('/:id/permissions',requirePermission('permissions.manage'),handler(async(req,res)=> {
-  const body=objectBody(req.body,['overrides']);return updateVetPermissions(identifier(req.params.id),permissionOverrides(body.overrides),res.locals.authenticatedUser as AuthUser);
-}));
 veterinarianAdminRouter.patch('/:id/status',handler(async(req,res)=> {
   const body=objectBody(req.body,['isActive']);
   if (typeof body.isActive!=='boolean') throw new AppError('VALIDATION_ERROR',400,'Indicá el estado de la cuenta.');

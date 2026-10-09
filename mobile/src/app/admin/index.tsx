@@ -1,11 +1,22 @@
-/**
- * Pantalla de inicio del panel para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
- */
-import { router } from 'expo-router';
-import { AppText } from '../../components/ui/AppText';
-import { AppButton } from '../../components/ui/AppButton';
 import { useAuth } from '../../hooks/useAuth';
-import { useAdmin } from '../../hooks/useAdmin';
-import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHeader,PetCareCard,PetCareAction,QueryState } from '../../components/client/PetCareUI';
-export default function AdminHome(){const {user}=useAuth();const api=useAdmin();const query=useClientQuery(api.home);return <PetCareScreen><PetCareHeader title="Gestión PetCare" subtitle={user?.roleName}/><PetCareCard><AppText variant="subtitle">Hola, {user?.firstName}</AppText><AppText muted>Administrá la misma información que utiliza toda la clínica.</AppText></PetCareCard><QueryState {...query}/>{query.data?.modules.map(module=><PetCareAction key={module.code} title={module.name} icon="settings-outline" onPress={()=>router.push(module.path)}/>)}{query.data&&!query.data.modules.length&&<PetCareCard><AppText muted>Tu cuenta no tiene permisos para los módulos administrativos disponibles.</AppText></PetCareCard>}<AppButton label="Mi cuenta" variant="secondary" onPress={()=>router.push('/account')}/></PetCareScreen>;}
+import { useAdminModules } from '../../components/layout/GlobalNavigation';
+import { AppText } from '../../components/ui/AppText';
+import { PetCareAction, PetCareScreen } from '../../components/client/PetCareUI';
+import { router } from 'expo-router';
+
+export default function AdminHome() {
+  const { user } = useAuth();
+  const modules = useAdminModules();
+  const agenda = modules.find(module => module.path === '/admin/agenda');
+  const reservations = modules.find(module => module.path === '/admin/reservations');
+
+  return <PetCareScreen>
+    <AppText variant="caption" muted>PETCARE · GESTIÓN</AppText>
+    <AppText variant="title">{user?.role === 'SUPER_ADMIN' ? 'Administrador principal' : 'Administración'}</AppText>
+    <AppText muted>Hola, {user?.firstName}. Revisá la actividad de tu clínica.</AppText>
+    {(agenda || reservations) && <AppText variant="subtitle">Actividad</AppText>}
+    {agenda && <PetCareAction title="Ver turnos" icon="calendar-outline" onPress={() => router.push(agenda.path as never)}/>}
+    {reservations && <PetCareAction title="Reservas" icon="bag-handle-outline" onPress={() => router.push(reservations.path as never)}/>}
+    {!agenda && !reservations && <AppText muted>Consultá las secciones disponibles desde el menú.</AppText>}
+  </PetCareScreen>;
+}

@@ -17,7 +17,7 @@ import { validateIdentityForm } from '../../../utils/auth-validation';
 import { friendlyError } from '../../../services/api';
 import type { VetCatalog,VetDetail,VetValues } from '../../../types/veterinarian';
 
-const empty:VetValues={firstName:'',lastName:'',email:'',phone:'',licenseNumber:'',isActive:true,specialtyIds:[],overrides:[]};
+const empty:VetValues={firstName:'',lastName:'',email:'',phone:'',licenseNumber:'',isActive:true,specialtyIds:[]};
 export default function VeterinarianEditor() {
   const {id}=useLocalSearchParams<{id:string}>();const creating=id==='new';
   const auth=useAuth();const {request}=auth;const {colors}=useTheme();const action=useAsyncAction();const {showToast}=useFeedback();
@@ -25,9 +25,8 @@ export default function VeterinarianEditor() {
   const [values,setValues]=useState<VetValues>(empty);const [errors,setErrors]=useState<Partial<Record<keyof VetValues,string>>>({});
   const [loadError,setLoadError]=useState<string|null>(null);const [retry,setRetry]=useState(0);const [deactivate,setDeactivate]=useState(false);const [review,setReview]=useState(false);
   const canEdit=auth.hasPermission('veterinarians.manage');
-  const canEditPermissions=auth.hasPermission('permissions.manage');
   const fill=(vet:VetDetail)=>{setDetail(vet);setValues({firstName:vet.firstName,lastName:vet.lastName,email:vet.email,phone:vet.phone??'',licenseNumber:vet.licenseNumber,isActive:vet.isActive,
-    specialtyIds:vet.specialties.map(s=>s.id),overrides:vet.permissions.filter(p=>p.override!==null).map(p=>({code:p.code,allowed:p.override}))});};
+    specialtyIds:vet.specialties.map(s=>s.id)});};
   useEffect(()=>{
     let active=true;
     void Promise.all([request<VetCatalog>('/admin/veterinarians/catalog'),creating?Promise.resolve(null):request<VetDetail>(`/admin/veterinarians/${id}`)])
@@ -35,10 +34,6 @@ export default function VeterinarianEditor() {
     return ()=>{active=false;};
   },[request,id,creating,retry]);
   function change<K extends keyof VetValues>(key:K,value:VetValues[K]) {setValues(current=>({...current,[key]:value}));setErrors(current=>({...current,[key]:undefined}));setReview(false);}
-  const togglePermission=(code:string,inherited:boolean)=>{
-    const current=values.overrides.find(p=>p.code===code)?.allowed ?? inherited;
-    change('overrides',[...values.overrides.filter(p=>p.code!==code),{code,allowed:!current}]);
-  };
   const prepare=()=>{
     const identity=validateIdentityForm(values);
     const next:Partial<Record<keyof VetValues,string>>={firstName:identity.firstName,lastName:identity.lastName,email:identity.email,phone:identity.phone};
@@ -84,25 +79,14 @@ export default function VeterinarianEditor() {
         {values.email!==detail.email&&<AppText muted>Guardá el nuevo correo antes de enviar una invitación.</AppText>}
         <AppButton label={detail.emailVerified?'Enviar restablecimiento de contraseña':'Enviar / reenviar invitación'} variant="secondary" loading={action.loading} disabled={!detail.isActive||values.email!==detail.email}
           onPress={()=>void action.run(async()=>{const result=await auth.request<{delivery:string}>(`/admin/veterinarians/${id}/invitation`,{method:'POST'});showToast(result.delivery==='sent'?'Correo enviado':'Falló el envío. Podés reintentar en un minuto.',result.delivery==='sent'?'success':'error');setDetail(await request<VetDetail>(`/admin/veterinarians/${id}`));})} /></>}
-      <AppText variant="subtitle">4. Permisos y accesos</AppText>
-      <AppText muted>Los permisos se heredan del rol. Un cambio crea una excepción para este profesional.</AppText>
-      {[...new Set(catalog.permissions.map(p=>p.module))].map(module=><View key={module} style={styles.section}>
-        <AppText variant="subtitle">{catalog.permissions.find(p=>p.module===module)?.moduleName}</AppText>
-        {catalog.permissions.filter(p=>p.module===module).map(p=>{
-          const override=values.overrides.find(item=>item.code===p.code)?.allowed ?? null;
-          return <View key={p.code} style={styles.section}><SelectionRow label={p.name} hint={p.critical?'Reservado a cuentas administrativas':`${override===null?'Heredado del rol':'Personalizado'} · ${p.description}`}
-            checked={p.critical?false:override??p.inherited} disabled={p.critical||!canEditPermissions||!auth.hasPermission(p.code)||action.loading} onPress={()=>togglePermission(p.code,p.inherited)} />
-            {override!==null && !p.critical && canEditPermissions && auth.hasPermission(p.code) && <AppButton compact label="Restaurar herencia" variant="secondary" disabled={action.loading} onPress={()=>change('overrides',values.overrides.filter(item=>item.code!==p.code))} />}</View>;
-        })}
-      </View>)}
       <FormNotice error message={action.error} />
-      {canEdit && <AppButton label="5. Revisar cambios" disabled={action.loading} onPress={prepare} />}
+      {canEdit && <AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} />}
       {review && <View style={[styles.review,{backgroundColor:colors.surface,borderColor:colors.border}]}>
         <AppText variant="subtitle">Revisar y {creating?'crear':'guardar'}</AppText>
         <AppText>{values.firstName} {values.lastName} · {values.email}</AppText><AppText>Matrícula {values.licenseNumber} · Cuenta {values.isActive?'activa':'inactiva'}</AppText>
         <AppText muted>{catalog.specialties.filter(s=>values.specialtyIds.includes(s.id)).map(s=>s.name).join(' · ')}</AppText>
-        <AppText muted>{values.overrides.filter(p=>p.allowed!==null).length} excepciones de permisos. Cada profesional configura su contraseña por correo.</AppText>
-        <AppButton label={creating?'Crear veterinario':'Guardar datos y permisos'} loading={action.loading} onPress={()=>void action.run(save)} />
+        <AppText muted>Cada profesional configura su contraseña por correo.</AppText>
+        <AppButton label={creating?'Crear veterinario':'Guardar datos'} loading={action.loading} onPress={()=>void action.run(save)} />
       </View>}
     </>}
     <ConfirmModal visible={deactivate} title="Desactivar veterinario" confirmLabel="Desactivar" destructive

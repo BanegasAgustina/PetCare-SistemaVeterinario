@@ -47,7 +47,7 @@ export async function exchangeOAuth(value:unknown){
 /** No fusionar por email. El alta exige contraseña propia y código SMTP, también para X. */
 export async function registerOAuth(value:unknown){
   const body=object(value),input=validateRegister(body.profile);getMailConfiguration();getVerificationSecret();
-  if(await findUserByEmail(input.email))throw new AppError('OAUTH_LINK_REQUIRED',409,'Ese email ya tiene una cuenta. Iniciá sesión con contraseña y vinculá el proveedor desde Mi cuenta.');
+  if(await findUserByEmail(input.email))throw new AppError('OAUTH_LINK_REQUIRED',409,'Ese email ya tiene una cuenta. Iniciá sesión con contraseña y vinculá el proveedor desde tu perfil.');
   const hash=await hashPassword(input.password),proof=randomBytes(32).toString('hex');
   await repo.withTicket(body.ticket,body.proof,async(c,a)=>{
     if(a.link_user_id)throw new AppError('VALIDATION_ERROR',400,'Esta solicitud es de vinculación.');const [roles]=await c.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='CLIENT'");if(!roles[0])throw new AppError('AUTH_UNAVAILABLE',503,'El rol cliente no está configurado.');

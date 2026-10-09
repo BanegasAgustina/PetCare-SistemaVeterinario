@@ -14,6 +14,7 @@ import { AppButton } from '../components/ui/AppButton';
 import { FeedbackProvider } from '../contexts/FeedbackContext';
 import { VerificationCodeModal } from '../components/ui/VerificationCodeModal';
 import { OAuthRegistrationModal } from '../components/forms/OAuthRegistrationModal';
+import { GlobalNavigation } from '../components/layout/GlobalNavigation';
 
 function ThemedNavigation() {
   const { mode, colors } = useTheme();
@@ -35,7 +36,7 @@ function ThemedNavigation() {
     <Stack.Protected guard={auth.user?.role==='SECRETARY'}><Stack.Screen name="secretary" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN'}><Stack.Screen name="admin" /></Stack.Protected>
   </Stack>;
-  return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{content}
+  return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{auth.user ? <GlobalNavigation>{content}</GlobalNavigation> : content}
     {auth.verificationOpen && auth.pendingVerification && <VerificationCodeModal key={auth.pendingVerification.verificationToken} challenge={auth.pendingVerification} autoSend={auth.verificationFromLogin} />}
     {auth.oauthPending && <OAuthRegistrationModal key={auth.oauthPending.ticket}/>}
   </>;

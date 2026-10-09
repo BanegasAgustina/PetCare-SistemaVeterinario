@@ -13,9 +13,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import type { Specialty } from '../../types/veterinarian';
+import { SelectionRow } from '../ui/SelectionRow';
+import { FilterDisclosure } from '../ui/FilterDisclosure';
 export default function SpecialtiesScreen() {
   const auth=useAuth();const {request}=auth;const action=useAsyncAction();const {run}=action;const {showToast}=useFeedback();
-  const [items,setItems]=useState<Specialty[]|null>(null);const [name,setName]=useState('');const [editing,setEditing]=useState<string|null>(null);const [error,setError]=useState<string|null>(null);
+  const [items,setItems]=useState<Specialty[]|null>(null);const [name,setName]=useState('');const [editing,setEditing]=useState<string|null>(null);const [error,setError]=useState<string|null>(null);const [search,setSearch]=useState('');const [sort,setSort]=useState<'az'|'za'>('az');
   const load=useCallback(async()=>{
     setItems(null);
     setItems(await request<Specialty[]>('/admin/specialties'));
@@ -33,9 +35,10 @@ export default function SpecialtiesScreen() {
       }} />
       {editing&&<AppButton label="Cancelar edición" variant="secondary" onPress={()=>{setEditing(null);setName('');}} />}
       <AppButton label="Actualizar catálogo" variant="secondary" loading={action.loading} onPress={()=>void action.run(load)} />
+      <View style={{flexDirection:'row',alignItems:'flex-end',gap:8,flexWrap:'wrap'}}><View style={{flex:1,minWidth:180}}><AppInput label="Buscar especialidad" placeholder="Nombre" value={search} onChangeText={setSearch}/></View><FilterDisclosure activeCount={sort==='az'?0:1} onApply={()=>void action.run(load)} onClear={()=>setSort('az')}><AppText variant="subtitle">Ordenar por nombre</AppText><SelectionRow radio label="A-Z" checked={sort==='az'} onPress={()=>setSort('az')}/><SelectionRow radio label="Z-A" checked={sort==='za'} onPress={()=>setSort('za')}/></FilterDisclosure></View>
       {action.loading && items===null && <AppText muted>Consultando especialidades…</AppText>}
       {items!==null && !items.length && <AppText muted>No hay especialidades registradas. Podés crear una desde este formulario.</AppText>}
-      {items?.map(item=><View key={item.id} style={{gap:10}}><AppText>{item.name}</AppText><AppButton label={`Editar ${item.name}`} variant="secondary" disabled={action.loading} onPress={()=>{setEditing(item.id);setName(item.name);}} /></View>)}
+      {items?.filter(item=>item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).sort((a,b)=>sort==='az'?a.name.localeCompare(b.name,'es'):b.name.localeCompare(a.name,'es')).map(item=><View key={item.id} style={{gap:10}}><AppText>{item.name}</AppText><AppButton label={`Editar ${item.name}`} variant="secondary" disabled={action.loading} onPress={()=>{setEditing(item.id);setName(item.name);}} /></View>)}
     </>}
   </ScreenContainer>;
 }

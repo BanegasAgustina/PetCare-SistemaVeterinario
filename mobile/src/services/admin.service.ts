@@ -4,7 +4,7 @@ import type { AdminCatalog,AdminHome,AdminUserDetail,AdminUserPage } from '../ty
 export function adminService(request:ClientRequest) {
   return {
     home:()=>request<AdminHome>('/admin/home'),catalog:()=>request<AdminCatalog>('/admin/catalog'),
-    users:(search:string,page:number)=>request<AdminUserPage>(`/admin/users?${new URLSearchParams({search,page:String(page)})}`),
+    users:(search:string,page:number,status='all')=>request<AdminUserPage>(`/admin/users?${new URLSearchParams({search,page:String(page),status})}`),
     user:(id:string)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}`),
     createUser:(body:unknown)=>request<{user:AdminUserDetail;delivery:string}>('/admin/users',{method:'POST',body}),
     updateUser:(id:string,body:unknown)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}`,{method:'PUT',body}),

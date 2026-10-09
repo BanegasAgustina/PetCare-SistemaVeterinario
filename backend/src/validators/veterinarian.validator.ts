@@ -3,8 +3,9 @@ import { AppError } from '../utils/app-error';
 import { normalizeEmail, readName, readPhone, readPassword } from './auth.validator';
 export type VetInput = {
   firstName: string; lastName: string; email: string; phone: string | null; licenseNumber: string;
-  isActive: boolean; specialtyIds: string[]; overrides: { code: string; allowed: boolean | null }[];
+  isActive: boolean; specialtyIds: string[];
 };
+export type PermissionOverride = { code: string; allowed: boolean | null };
 export function objectBody(value: unknown, fields: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !fields.includes(key))) {
     throw new AppError('VALIDATION_ERROR',400,'La solicitud contiene campos no permitidos.');
@@ -23,7 +24,7 @@ export function textField(value: unknown, label: string, max: number): string {
   }
   return value.trim().normalize('NFC');
 }
-export function permissionOverrides(value: unknown): VetInput['overrides'] {
+export function permissionOverrides(value: unknown): PermissionOverride[] {
   if (!Array.isArray(value) || value.length > 100) throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos.');
   const seen = new Set<string>();
   return value.map(item => {
@@ -34,14 +35,14 @@ export function permissionOverrides(value: unknown): VetInput['overrides'] {
   });
 }
 export function validateVet(value: unknown): VetInput {
-  const body = objectBody(value,['firstName','lastName','email','phone','licenseNumber','isActive','specialtyIds','overrides']);
+  const body = objectBody(value,['firstName','lastName','email','phone','licenseNumber','isActive','specialtyIds']);
   // Reutiliza las mismas reglas de identidad sin crear ni conservar una contraseña de administrador.
   if (typeof body.isActive !== 'boolean') throw new AppError('VALIDATION_ERROR',400,'Indicá el estado de la cuenta.');
   if (!Array.isArray(body.specialtyIds) || !body.specialtyIds.length || body.specialtyIds.length > 50) throw new AppError('VALIDATION_ERROR',400,'Seleccioná al menos una especialidad.');
   const specialtyIds = body.specialtyIds.map(identifier);
   if (new Set(specialtyIds).size !== specialtyIds.length) throw new AppError('VALIDATION_ERROR',400,'Especialidad repetida.');
   return { firstName: readName(body.firstName,'El nombre'),lastName: readName(body.lastName,'El apellido'),email: normalizeEmail(body.email),phone: readPhone(body.phone),
-    licenseNumber: textField(body.licenseNumber,'La matrícula',80),isActive: body.isActive,specialtyIds,overrides: permissionOverrides(body.overrides) };
+    licenseNumber: textField(body.licenseNumber,'La matrícula',80),isActive: body.isActive,specialtyIds };
 }
 export function validateInvitation(value: unknown) {
   const body = objectBody(value,['token','password']);

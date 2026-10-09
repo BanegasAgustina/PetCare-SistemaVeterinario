@@ -17,7 +17,8 @@
         "backgroundColor": "#def1ea",
         "foregroundImage": "./src/assets/petcare-icon.png"
       },
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.anonymous.petcare"
     },
     "icon": "./src/assets/petcare-icon.png",
     "plugins": [

@@ -1,5 +1,7 @@
 /**
- * Pantalla de detalle de usuario para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ * Pantalla de detalle de usuario para ADMIN/SUPER_ADMIN con los permisos exigidos.
+ * Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación);
+ * no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
 import { useCallback,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
@@ -19,6 +21,7 @@ import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import { useFeedback } from '../../../contexts/FeedbackContext';
 import { validateIdentityForm } from '../../../utils/auth-validation';
 import type { AdminUserDetail } from '../../../types/admin';
+import { roleLabel } from '../../../utils/role-label';
 const empty={firstName:'',lastName:'',email:'',phone:'',roleId:'',isActive:true};
 export default function UserEditor() {
   const {id}=useLocalSearchParams<{id:string}>();const creating=id==='new';const auth=useAuth();const api=useAdmin();const action=useAsyncAction();const {showToast}=useFeedback();
@@ -46,7 +49,7 @@ export default function UserEditor() {
         {user&&<AppText muted>Correo {user.emailVerified?'verificado':'sin verificar'}. Las contraseñas se establecen mediante invitación.</AppText>}
       </PetCareCard>
       <PetCareCard><AppText variant="subtitle">Rol</AppText><FormNotice error message={errors.roleId??null}/>
-        {query.data.catalog.roles.map(role=><SelectionRow radio key={role.id} label={role.name} hint={role.code==='VETERINARIAN'?'Los perfiles profesionales se gestionan desde Veterinarios':!role.canAssign?'Asignación no disponible con tus permisos':undefined} checked={values.roleId===role.id} disabled={blocked||self||user?.role==='VETERINARIAN'||!role.canAssign||action.loading} onPress={()=>change('roleId',role.id)}/>)}
+        {query.data.catalog.roles.map(role=><SelectionRow radio key={role.id} label={roleLabel(role.code,role.name)} hint={role.code==='VETERINARIAN'?'Los perfiles profesionales se gestionan desde Veterinarios':!role.canAssign?'Asignación no disponible con tus permisos':undefined} checked={values.roleId===role.id} disabled={blocked||self||user?.role==='VETERINARIAN'||!role.canAssign||action.loading} onPress={()=>change('roleId',role.id)}/>)}
         {user?.role==='VETERINARIAN'&&<AppButton variant="secondary" label="Ir a Veterinarios" onPress={()=>router.push('/admin/veterinarians')}/>}
         {!creating&&<View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><AppText>Cuenta activa</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={blocked||self||action.loading} onValueChange={v=>change('isActive',v)}/></View>}
       </PetCareCard>
