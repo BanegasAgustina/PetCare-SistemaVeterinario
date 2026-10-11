@@ -1,6 +1,6 @@
 # PetCare Backend — fase 3
 
-> **Actualización:** la instalación vigente está en [CONFIGURACION_COMPLETA.md](../CONFIGURACION_COMPLETA.md). Esta versión implementa OAuth Google/Facebook/X, refresh rotativo y revocación de familias. Para DB nueva: `npm run db:bootstrap` → `npm run db:migrate:auth` → `npm run create:super-admin`. Para DB existente: revisión/backup antes de extensiones; nunca bootstrap encima. Las secciones de fase 3 se conservan como referencia histórica y no acreditan la presencia de los SQL originales ausentes.
+> **Actualización:** la instalación vigente está en [guía OAuth y EAS de mobile](../mobile/README.md). Esta versión implementa OAuth Google/Facebook/X, refresh rotativo y revocación de familias. Para DB nueva: `npm run db:bootstrap` → `npm run db:migrate:auth` → `npm run create:super-admin`. Para DB existente: revisión/backup antes de extensiones; nunca bootstrap encima. Las secciones de fase 3 se conservan como referencia histórica y no acreditan la presencia de los SQL originales ausentes.
 
 El módulo `/api/client` incorpora mascotas, turnos, clínica, tienda, carrito, pedidos, notificaciones y perfil con JWT/ownership. Ver [contratos, migración aditiva y verificación](../IMPLEMENTACION_CLIENTE.md).
 
@@ -59,9 +59,9 @@ Las respuestas omiten password_hash, secretos y detalles internos. Usuario inexi
 | 503 | AUTH_UNAVAILABLE / DB_UNAVAILABLE | Configuración o dependencia no disponible |
 | 500 | INTERNAL_ERROR / DB_ERROR | Fallo interno seguro |
 
-Formato de error: `{"success":false,"error":{"code":"INVALID_CREDENTIALS","message":"Email o contraseña incorrectos."}}`. Auth responde Cache-Control: no-store. Access Token vence sin refresh; se requiere nuevo login. Logout mobile borra su sesión local: un token emitido conserva validez hasta expirar salvo desactivación o cambio de versión de sesión. Esta versión incluye permisos y restablecimiento iniciado por Super Admin para veterinarios mediante invitación; OAuth y recuperación pública de clientes siguen pendientes.
+Formato de error: `{"success":false,"error":{"code":"INVALID_CREDENTIALS","message":"Email o contraseña incorrectos."}}`. Auth responde Cache-Control: no-store. Access Token se renueva con refresh rotativo; hace falta volver a iniciar sesión si la familia vence o se revoca. Logout mobile borra su sesión local: un token emitido conserva validez hasta expirar salvo desactivación o cambio de versión de sesión. Esta versión incluye permisos y restablecimiento iniciado por Super Admin para veterinarios mediante invitación. OAuth Google/Facebook/X está implementado; requiere las credenciales/callbacks externos documentados en ../mobile/README.md.
 
-API REST Express 5 y TypeScript con MySQL 8 y autenticación tradicional mediante bcrypt/JWT. Conserva health, modelo normalizado y comandos DB. No implementa OAuth, refresh tokens ni gestión de mascotas.
+API REST Express 5 y TypeScript con MySQL 8 y autenticación tradicional mediante bcrypt/JWT. Conserva health, modelo normalizado y comandos DB. Implementa OAuth Google/Facebook/X, refresh tokens y gestión de mascotas.
 
 ## Requisitos e instalación
 

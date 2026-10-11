@@ -2,7 +2,7 @@
 
 ## Configuración vigente
 
-Empezar por [CONFIGURACION_COMPLETA.md](CONFIGURACION_COMPLETA.md): instalación desde cero, Railway/MySQL/Bucket/SMTP, Google/Facebook/X, renovación de sesión, EAS y comentarios del código. OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap` y `db:migrate:auth`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
+La guía de OAuth, configuración de proveedores y builds Android con EAS está en [mobile/README.md](mobile/README.md). OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap` y `db:migrate:auth`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
 
 PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. **PETCARE NO PROCESA PAGOS:** la Tienda funciona mediante reservas para retiro/gestión en la veterinaria. Ver [ampliación conectada, SQL manual y pruebas](AMPLIACION_CLINICA_PETCARE.md). El código nuevo requiere aplicar la migración documentada antes de habilitar estos módulos en Railway. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
 
@@ -14,7 +14,7 @@ Resultados y límites de verificación en [INFORME_FASE_3.md](INFORME_FASE_3.md)
 
 Implementado: Login con logo original, temas claro/oscuro con Context API, Expo Router desde mobile/src/app, API REST con health, pool MySQL 8, comprobación de conexión, cuatro migraciones SQL y seeds mínimos idempotentes. Se conservaron la interfaz de autenticación y el contrato health.
 
-Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Access Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica, turnos y reservas tienen implementación compartida en esta ampliación; su habilitación requiere la nueva migración y las verificaciones documentadas. OAuth y refresh tokens renovables no formaban parte del sistema implementado.
+Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Access Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica, turnos y reservas tienen implementación compartida en esta ampliación; su habilitación requiere la nueva migración y las verificaciones documentadas. OAuth Google/Facebook/X y refresh tokens rotativos están implementados; su activación en producción requiere credenciales y callbacks externos. Ver mobile/README.md.
 
 ## AUTORIZACIÓN Y PERMISOS
 

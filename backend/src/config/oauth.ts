@@ -15,20 +15,39 @@ export function backendOrigin(): string {
   } catch { throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend.'); }
 }
 export function oauthConfig(provider: OAuthProvider) {
-  const prefix = provider.toUpperCase();
-  const clientId = process.env[`${prefix}_CLIENT_ID`]?.trim();
-  const clientSecret = process.env[`${prefix}_CLIENT_SECRET`]?.trim();
+  const { clientId, clientSecret } = providerCredentials(provider);
   const facebookVersion = process.env.FACEBOOK_GRAPH_VERSION?.trim();
   if (!clientId || !clientSecret || (provider === 'facebook' && !/^v\d+\.\d+$/.test(facebookVersion ?? ''))) throw new AppError('OAUTH_UNAVAILABLE',503,'Este proveedor todavía no está configurado.');
   return { clientId, clientSecret, callback: `${backendOrigin()}/api/auth/oauth/${provider}/callback`, facebookVersion };
 }
-/** Permite informar disponibilidad sin error HTTP cuando faltan credenciales opcionales. */
-export function oauthConfigured(provider: OAuthProvider): boolean {
+/** X usa X_* en configuración nueva y mantiene compatibilidad con despliegues TWITTER_* previos. */
+function providerCredentials(provider: OAuthProvider) {
   const prefix = provider.toUpperCase();
-  if (!process.env[`${prefix}_CLIENT_ID`]?.trim() || !process.env[`${prefix}_CLIENT_SECRET`]?.trim()) return false;
+  const clientId = process.env[`${prefix}_CLIENT_ID`]?.trim() || (provider === 'x' ? process.env.TWITTER_CLIENT_ID?.trim() : undefined);
+  const clientSecret = process.env[`${prefix}_CLIENT_SECRET`]?.trim() || (provider === 'x' ? process.env.TWITTER_CLIENT_SECRET?.trim() : undefined);
+  return { clientId, clientSecret };
+}
+/** Permite informar disponibilidad sin error HTTP cuando faltan credenciales opcionales. */
+export function oauthConfigured(provider: OAuthProvider, returnUrl?: unknown): boolean {
+  const { clientId, clientSecret } = providerCredentials(provider);
+  if (!clientId || !clientSecret) return false;
   if (provider === 'facebook' && !/^v\d+\.\d+$/.test(process.env.FACEBOOK_GRAPH_VERSION?.trim() ?? '')) return false;
-  if (!(process.env.OAUTH_RETURN_URLS ?? '').split(',').some(value => value.trim())) return false;
+  const allowedReturnUrls = (process.env.OAUTH_RETURN_URLS ?? '').split(',').map(value => value.trim()).filter(Boolean);
+  if (!allowedReturnUrls.length) return false;
+  // Report the provider unavailable to this client when its precise web/native
+  // return target is not allowlisted; otherwise start would fail later with 400.
+  if (returnUrl !== undefined && (typeof returnUrl !== 'string' || !allowedReturnUrls.includes(returnUrl))) return false;
   try { backendOrigin(); return true; } catch { return false; }
+}
+/** Diagnóstico acotado para el cliente: nunca devuelve valores de configuración. */
+export function oauthConfigurationIssue(provider: OAuthProvider, returnUrl?: unknown): string | null {
+  const { clientId, clientSecret } = providerCredentials(provider);
+  if (!clientId || !clientSecret) return 'CREDENTIALS_MISSING';
+  if (provider === 'facebook' && !/^v\d+\.\d+$/.test(process.env.FACEBOOK_GRAPH_VERSION?.trim() ?? '')) return 'PROVIDER_SETTINGS_INVALID';
+  const allowed = (process.env.OAUTH_RETURN_URLS ?? '').split(',').map(value => value.trim()).filter(Boolean);
+  if (!allowed.length || (returnUrl !== undefined && (typeof returnUrl !== 'string' || !allowed.includes(returnUrl)))) return 'RETURN_URL_NOT_ALLOWED';
+  try { backendOrigin(); } catch { return 'BACKEND_URL_INVALID'; }
+  return null;
 }
 /** Lista exacta: no aceptar destinos arbitrarios evita redirecciones abiertas y robo de tickets. */
 export function oauthReturnUrl(value: unknown): string {

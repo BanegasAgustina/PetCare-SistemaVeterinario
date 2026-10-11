@@ -23,7 +23,7 @@ export default function RegisterScreen() {
   const auth = useAuth(); const { colors } = useTheme();
   return <LoginLayout scrollable>
     <LoginBrand title="Creá tu cuenta" subtitle="Cuidamos a quienes más querés" />
-    <AuthForm compact dense fields={fields} initialValues={{ fullName: '', email: '', phone: '', password: '', confirmPassword: '' }} validate={validateRegistrationForm}
+    <AuthForm compact dense centerSubmitButton fields={fields} initialValues={{ fullName: '', email: '', phone: '', password: '', confirmPassword: '' }} validate={validateRegistrationForm}
       onSubmit={async values => { await auth.register(registrationPayload(values)); }} submitLabel="CREAR CUENTA" loadingLabel="Creando tu cuenta…" />
     <Pressable accessibilityRole="link" onPress={() => router.replace('/login')} style={styles.link}><AppText variant="caption" style={{ color: colors.primary, textAlign: 'center' }}>¿Ya tenés cuenta? Iniciar sesión</AppText></Pressable>
 

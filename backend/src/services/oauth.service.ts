@@ -1,7 +1,7 @@
 /** Coordina OAuth, vínculo explícito y alta con email verificado. MySQL decide el rol. */
 import { createHash,randomBytes } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
-import { oauthConfig,oauthConfigured,oauthReturnUrl,type OAuthProvider } from '../config/oauth';
+import { oauthConfig,oauthConfigured,oauthConfigurationIssue,oauthReturnUrl,type OAuthProvider } from '../config/oauth';
 import * as repo from '../repositories/oauth.repository';
 import { authorizationUrl,providerIdentity } from './oauth-provider.service';
 import { findUserById,findUserByEmail } from '../repositories/user.repository';
@@ -14,7 +14,7 @@ import { AppError } from '../utils/app-error';
 function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'La solicitud debe ser JSON.');return value as Record<string,unknown>;}
 /** Guarda state aleatorio, PKCE del proveedor y prueba del dispositivo en un intento limitado a diez minutos. */
 export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:string,linkFamily?:string){
-  const body=object(value);if(!oauthConfigured(provider))return {configured:false as const};oauthConfig(provider);if(typeof body.challenge!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(body.challenge))throw new AppError('VALIDATION_ERROR',400,'La prueba OAuth no es válida.');
+  const body=object(value);if(!oauthConfigured(provider,body.returnUrl)){const reason=oauthConfigurationIssue(provider,body.returnUrl);console.warn(JSON.stringify({event:'oauth.start_unavailable',provider,reason}));return {configured:false as const,reason};}oauthConfig(provider);if(typeof body.challenge!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(body.challenge))throw new AppError('VALIDATION_ERROR',400,'La prueba OAuth no es válida.');
   const returnUrl=oauthReturnUrl(body.returnUrl),user=linkId?await findUserById(linkId):null;
   if(linkId&&(!user||!user.isActive||!user.emailVerifiedAt||!linkFamily))throw new AppError('INVALID_TOKEN',401,'Volvé a iniciar sesión antes de vincular un proveedor.');
   const a=await repo.createAttempt(provider,body.challenge,returnUrl,user?{id:user.id,version:user.sessionVersion,family:linkFamily!}:undefined);return {configured:true as const,url:authorizationUrl(provider,a.state,createHash('sha256').update(a.verifier).digest('base64url'))};
@@ -22,7 +22,11 @@ export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:st
 /** Reclama state una sola vez y devuelve un ticket breve; nunca redirige access/refresh tokens. */
 export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:unknown,error:unknown):Promise<string>{
   const a=await repo.claimCallback(provider,state),destination=new URL(a.return_url);
-  try{if(error||typeof code!=='string'||!code||code.length>4096)throw new Error();destination.searchParams.set('ticket',await repo.saveCallback(state as string,await providerIdentity(provider,code,a.provider_verifier)));}catch{destination.searchParams.set('error','OAUTH_FAILED');}return destination.toString();
+  if(error){console.warn(JSON.stringify({event:'oauth.provider_denied',provider}));destination.searchParams.set('error','OAUTH_PROVIDER_DENIED');return destination.toString();}
+  if(typeof code!=='string'||!code||code.length>4096){console.warn(JSON.stringify({event:'oauth.callback_code_missing',provider}));destination.searchParams.set('error','OAUTH_CODE_MISSING');return destination.toString();}
+  try{const identity=await providerIdentity(provider,code,a.provider_verifier);destination.searchParams.set('ticket',await repo.saveCallback(state as string,identity));}
+  catch(cause){const stage=cause instanceof AppError&&cause.code==='OAUTH_PROVIDER_ERROR'?'provider_exchange_or_profile':'callback_persistence';console.error(JSON.stringify({event:'oauth.callback_failed',provider,stage,code:cause instanceof AppError?cause.code:'INTERNAL_ERROR'}));destination.searchParams.set('error',stage==='callback_persistence'?'OAUTH_CALLBACK_FAILED':'OAUTH_PROVIDER_ERROR');}
+  return destination.toString();
 }
 /** Exige prueba del dispositivo para vincular o iniciar sesión; una identidad nueva solicita completar el alta. */
 export async function exchangeOAuth(value:unknown){

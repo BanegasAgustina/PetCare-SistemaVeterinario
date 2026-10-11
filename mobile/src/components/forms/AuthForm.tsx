@@ -16,11 +16,12 @@ type AuthFormProps<T extends Record<string, string>> = {
   onSubmit: (values: T) => Promise<void>; submitLabel: string; loadingLabel: string;
   secondaryAction?: (loading: boolean) => ReactNode;
   compact?: boolean;
+  centerSubmitButton?: boolean;
   /** Solo Login de poca altura; Registro mantiene sus medidas predeterminadas. */
   dense?: boolean;
 };
 
-export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, dense = false }: AuthFormProps<T>) {
+export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false }: AuthFormProps<T>) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
   const inputs = useRef<Partial<Record<keyof T, TextInput | null>>>({});
@@ -51,7 +52,7 @@ export function AuthForm<T extends Record<string, string>>({ fields, initialValu
     {/* El Login puede insertar recuperación; validación, foco y envío siguen compartidos. */}
     {secondaryAction?.(action.loading)}
     <FormNotice message={action.error} error />
-    <AppButton compact={dense} label={action.loading ? loadingLabel : submitLabel} loading={action.loading} onPress={() => void submit()} />
+    <AppButton compact={dense} centered={centerSubmitButton} label={action.loading ? loadingLabel : submitLabel} loading={action.loading} onPress={() => void submit()} />
   </View>;
 }
 const styles = StyleSheet.create({ form: { width: '100%', gap: 18 }, compact: { gap: 12 } });

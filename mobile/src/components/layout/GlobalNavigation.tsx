@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Animated, Image, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import type { PropsWithChildren } from 'react';
@@ -42,7 +42,6 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const auth = useAuth();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
@@ -88,7 +87,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 
   return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><View style={[styles.root, { backgroundColor: colors.background }]}>
     <SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 6) }]}>
+      <View style={styles.topBar}>
         <Pressable accessibilityRole="button" accessibilityLabel={desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? setDesktopExpanded(value => !value) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
           <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
         </Pressable>
@@ -108,7 +107,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { height: 54, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 58, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   menuButton: { width: 40, height: 40, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600' }, profileButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, desktopDrawer: { width: 252, paddingHorizontal: 15, paddingVertical: 18 }, mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
   brand: { minHeight: 66, justifyContent: 'center', gap: 3, marginBottom: 12 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, item: { minHeight: 44, paddingHorizontal: 11, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, spacer: { flex: 1 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },

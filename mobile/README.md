@@ -1,16 +1,16 @@
 # PetCare Mobile — fase 3
 
-> **Configuración vigente:** [CONFIGURACION_COMPLETA.md](../CONFIGURACION_COMPLETA.md). Login ahora conecta Google/Facebook/X; Perfil/Mi cuenta permite vínculo explícito. AuthContext rota refresh tokens y comparte verificación de email. OAuth nativo requiere un build propio con scheme `petcare`; Expo Go no registra ese retorno. Los detalles visuales de fase 3 se conservan como referencia de su evolución.
+> Login tradicional y OAuth Google/Facebook/X pasan por el backend PetCare. Perfil/Mi cuenta permite vinculación explícita; las cuentas no se fusionan por correo. El retorno OAuth usa `petcare://oauth`, disponible en un build propio y no en Expo Go.
 
 La experiencia Cliente está en `src/app/client`, con cinco pestañas y services autenticados. Ver [rutas, componentes, datos y pruebas](../IMPLEMENTACION_CLIENTE.md).
 
-React Native con Expo SDK 57, TypeScript y Expo Router. Login, Registro y perfil protegido con logo real, temas claro/oscuro y sesión mediante AuthContext.
+React Native con Expo SDK 58, React 19.3, React Native 0.88.0-rc.3, TypeScript y Expo Router. Login, Registro y perfil protegido con logo real, temas claro/oscuro y sesión mediante AuthContext.
 
 Se conserva la arquitectura en src y las imágenes originales. OAuth y gestión de mascotas utilizan servicios del backend y datos reales.
 
 ## Ejecutar
 
-Requisitos: Node.js >= 22.13 y Expo Go compatible con SDK 57.
+Requisitos: Node.js >= 22.13 y Expo Go compatible con SDK 58.
 
 ```bash
 cd mobile
@@ -89,3 +89,51 @@ Login pendiente recibe EMAIL_NOT_VERIFIED, muestra aviso y «Verificar ahora». 
 
 Regla global en ../AGENTS.md y eslint.config.js. Informe: [../INFORME_VERIFICACION_EMAIL.md](../INFORME_VERIFICACION_EMAIL.md).
 
+
+## Login social y builds Android con EAS
+
+Google, Facebook y X usan OAuth Authorization Code en el backend. Google y X usan PKCE; Facebook usa un cliente confidencial del backend y `state`. Los secretos OAuth solo se configuran en el backend. PetCare verifica la identidad con cada proveedor, crea la sesión existente y devuelve un ticket de un solo uso que la app canjea por POST. Las cuentas nuevas completan el registro y verifican el email. Si el email ya pertenece a una cuenta, inicia sesión en esa cuenta y vincula el proveedor desde Perfil/Mi cuenta; no se fusionan usuarios automáticamente por email.
+
+### Expo Go
+
+Expo Go sirve para abrir la app durante desarrollo y probar las pantallas o el login tradicional si `EXPO_PUBLIC_API_URL` apunta a una API alcanzable por el teléfono. El OAuth social actual no puede completar el retorno `petcare://oauth` dentro de Expo Go porque Expo Go no registra el esquema nativo de PetCare. Usa una Development Build para probar OAuth. No guardes client secrets en Expo ni en el frontend de Vercel.
+
+### Preparar EAS
+
+1. Instala Node.js 22.13 o superior y, desde `mobile/`, inicia sesión en Expo: `npx eas-cli@latest login`.
+2. Si el proyecto aún no está vinculado a EAS, ejecuta `npx eas-cli@latest init` y conserva el `projectId` que EAS agregue a la configuración. No cambies `android.package` sin actualizar los registros externos que dependan de él.
+3. En la configuración de entorno de EAS para preview/production, define `EXPO_PUBLIC_API_URL` con la URL HTTPS pública real de la API, incluyendo `/api`. No uses localhost ni una IP privada en un APK distribuido.
+
+### Development Build
+
+Desde `mobile/`, genera un APK de desarrollo:
+
+```bash
+npx eas-cli@latest build --platform android --profile development
+```
+
+Instala el APK del enlace de EAS. Para cargar el bundle de JavaScript desde tu computadora, ejecuta `npx expo start --dev-client`. El esquema `petcare` ya está en `app.json`; cualquier cambio exige reconstruir la app.
+
+### APK independiente de prueba
+
+El perfil `preview` genera un APK independiente instalable:
+
+```bash
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Descarga el APK desde EAS y ábrelo en Android para instalarlo. No requiere Expo Go ni un servidor de desarrollo. Que compile no confirma que un proveedor OAuth acepte las credenciales o callbacks.
+
+### Configurar y verificar OAuth
+
+En el backend desplegado configura `BACKEND_URL` como el origen HTTPS real de la API, credenciales privadas de proveedores, `OAUTH_RETURN_URLS` con `https://petcare-sistemaveterinario-mobile.vercel.app/oauth` y `petcare://oauth`, y `CORS_ALLOWED_ORIGINS` con `https://petcare-sistemaveterinario-mobile.vercel.app`. En Vercel, configura `EXPO_PUBLIC_API_URL` con el origen de API confirmado y `/api`. La URL no debe ser una IP LAN. El frontend tiene `mobile/vercel.json` para exportar Expo web y enviar rutas como `/oauth` a la SPA. En Vercel configura `Root Directory` como `mobile` para que ese archivo y el build se apliquen.
+
+Obtén los callbacks exactos de cada proveedor ejecutando desde `backend/`: `npm run oauth:callbacks`. Registra en cada consola el callback HTTPS de ese proveedor, formado con el origen real del backend y `/api/auth/oauth/{proveedor}/callback`. No registres `/oauth` ni `petcare://oauth` como callback del proveedor: son destinos finales a los que redirige PetCare después del callback del proveedor.
+
+- **Google Cloud Console:** cliente OAuth web con el callback HTTPS de Google. Comprueba pantalla de consentimiento, dominios autorizados y publicación. El flujo actual con navegador/backend no requiere cliente Android nativo ni SHA de firma.
+- **Meta for Developers:** añade Facebook Login, habilita OAuth web y registra el callback HTTPS de Facebook. Completa la información de publicación y revisión de permisos que solicite Meta. El flujo actual no usa el SDK Android de Meta, así que no necesita package name ni key hashes de Facebook. Si se cambia a SDK nativo, serán necesarios el package `com.anonymous.petcare` y los hashes de las firmas debug/release del APK.
+- **X Developer Portal:** habilita OAuth 2.0 Authorization Code with PKCE, registra el callback HTTPS de X y concede `users.read`/`tweet.read`. El client secret permanece solo en el backend.
+
+Prueba cada proveedor en la web y en el APK instalado: cancelar consentimiento, acceder con una identidad ya vinculada, registrar una identidad nueva y verificar el correo, renovar la sesión y vincularlo explícitamente desde una cuenta existente. X no entrega email en este flujo, por lo que el alta pide un correo al usuario.
+
+Las versiones de `package.json` corresponden a Expo SDK 58, React 19.3 y React Native 0.88.0-rc.3. No se actualizaron dependencias para preparar EAS. Expo Go puede usarse para desarrollo general compatible con SDK 58, pero no para el retorno `petcare://oauth` de este flujo.

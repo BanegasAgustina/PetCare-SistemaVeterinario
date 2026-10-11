@@ -20,16 +20,16 @@ export function LoginLayout({ children, scrollable = false }: PropsWithChildren<
   const tight = availableHeight < 640;
   const [mainHeight, setMainHeight] = useState(0);
   const artworkHeight = width * 0.72;
-  const scale = scrollable || keyboardOpen || !mainHeight ? 1 : Math.min(1, Math.max(0.4, (availableHeight - artworkHeight) / mainHeight));
-  const allowScroll = scrollable || keyboardOpen;
+  const contentOverflows = mainHeight > 0 && mainHeight + artworkHeight > availableHeight;
+  const allowScroll = scrollable || keyboardOpen || contentOverflows;
   return <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: colors.background }]}>
     <View style={[styles.shape, { backgroundColor: colors.accent }]} />
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView scrollEnabled={allowScroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, !allowScroll && styles.fullHeight]}>
         {/* El espacio disponible queda arriba del bloque, acercando Registro al artwork. */}
-        <View style={{ height: mainHeight ? mainHeight * scale : undefined }}>
-        <View onLayout={({ nativeEvent }) => setMainHeight(nativeEvent.layout.height)} style={[styles.main, { width: width / scale, alignSelf: 'center', paddingHorizontal: 24 / scale, transform: [{ scale }], transformOrigin: 'top center' }, { gap: tight ? 0 : compact ? 4 : 10, paddingTop: keyboardOpen ? 8 : tight ? 8 : compact ? 16 : 32, paddingBottom: 6 }]}>
+        <View style={{ height: mainHeight || undefined }}>
+        <View onLayout={({ nativeEvent }) => setMainHeight(nativeEvent.layout.height)} style={[styles.main, { width, alignSelf: 'center', paddingHorizontal: 24 }, { gap: tight ? 0 : compact ? 4 : 10, paddingTop: keyboardOpen ? 8 : tight ? 8 : compact ? 16 : 32, paddingBottom: 6 }]}>
           {children}
         </View>
         </View>

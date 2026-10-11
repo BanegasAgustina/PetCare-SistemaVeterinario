@@ -2,8 +2,7 @@
 import { router } from 'expo-router';
 import { AuthForm, type AuthField } from '../components/forms/AuthForm';
 import { useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { LoginLayout } from '../components/layout/LoginLayout';
 import { LoginBrand } from '../components/layout/LoginBrand';
 
@@ -26,14 +25,12 @@ export default function LoginScreen() {
   const auth = useAuth();
   const social=useAsyncAction();
   const { colors } = useTheme();
-  const { height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   return <LoginLayout>
     <LoginBrand />
     <FormNotice message={auth.notice} />
     {/* Se conservan validación, email de registro, errores/loading y la llamada original al AuthContext. */}
-    <AuthForm compact dense={height - insets.top - insets.bottom <= 700} fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={auth.signIn} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
+    <AuthForm compact fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={auth.signIn} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
       secondaryAction={(loading) => <Pressable disabled={loading} accessibilityRole="button" onPress={() => { Keyboard.dismiss(); setRecoveryVisible(true); }} style={styles.recovery}><AppText variant="caption" style={{ color: colors.primary }}>¿Olvidaste tu contraseña?</AppText></Pressable>} />
     {auth.pendingVerification && <AppButton compact label="Verificar ahora" variant="secondary" onPress={() => { Keyboard.dismiss(); auth.openVerification(); }} />}
     <View style={styles.socialSection}>
