@@ -1,5 +1,5 @@
 # PetCare Mobile — fase 3
-
+AAAAAA
 > Login tradicional y OAuth Google/Facebook/X pasan por el backend PetCare. Perfil/Mi cuenta permite vinculación explícita; las cuentas no se fusionan por correo. El retorno OAuth usa `petcare://oauth`, disponible en un build propio y no en Expo Go.
 
 La experiencia Cliente está en `src/app/client`, con cinco pestañas y services autenticados. Ver [rutas, componentes, datos y pruebas](../IMPLEMENTACION_CLIENTE.md).
