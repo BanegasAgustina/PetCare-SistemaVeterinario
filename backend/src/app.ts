@@ -13,6 +13,8 @@ import { petPhotoUrl } from './services/pet-photo.service';
 import { clientId } from './validators/client.validator';
 
 export const app = express();
+// Vercel detecta este archivo como la entrada Express cuando recibe un default export.
+export default app;
 app.disable('x-powered-by');
 app.use(helmet({strictTransportSecurity:process.env.NODE_ENV==='production'?undefined:false,contentSecurityPolicy:false}));
 const photoUploadLimiter=createAuthRateLimiter();
