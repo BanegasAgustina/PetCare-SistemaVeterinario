@@ -31,6 +31,17 @@ if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
   throw new Error('NODE_ENV debe ser development, test o production.');
 }
 
+// Orígenes web conocidos de PetCare; la variable puede añadir otros entornos propios.
+const petcareWebOrigins = [
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+  'http://localhost:8082',
+  'http://127.0.0.1:8082',
+  'https://petcare-sistemaveterinario-mobile.vercel.app',
+  'https://petcare-sistemaveterinario-mobile-drpos021a.vercel.app',
+];
+const configuredCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
+
 export const env = {
   nodeEnvironment,
   port: readPort('PORT', 3000),
@@ -44,7 +55,7 @@ export const env = {
   databaseConnectionLimit: readPositiveInteger('DB_CONNECTION_LIMIT', 10, 100),
   databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 5000, 60000),
   bcryptSaltRounds: readPositiveInteger('BCRYPT_SALT_ROUNDS', 12, 14),
-  corsAllowedOrigins: (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
+  corsAllowedOrigins: [...new Set([...petcareWebOrigins, ...configuredCorsOrigins])],
 };
 
 if (env.bcryptSaltRounds < 10) throw new Error('BCRYPT_SALT_ROUNDS debe estar entre 10 y 14.');

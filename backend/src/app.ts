@@ -16,10 +16,10 @@ export const app = express();
 // Vercel detecta este archivo como la entrada Express cuando recibe un default export.
 export default app;
 app.disable('x-powered-by');
-app.use(helmet({strictTransportSecurity:process.env.NODE_ENV==='production'?undefined:false,contentSecurityPolicy:false}));
-const photoUploadLimiter=createAuthRateLimiter();
 // Solo se habilitan orígenes web explícitos. El cliente React Native no necesita CORS.
 app.use(cors({ origin: (origin, callback) => callback(null, !origin || env.corsAllowedOrigins.includes(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(helmet({strictTransportSecurity:process.env.NODE_ENV==='production'?undefined:false,contentSecurityPolicy:false}));
+const photoUploadLimiter=createAuthRateLimiter();
 // El cuerpo de fotos se procesa solo tras autenticar; el resto conserva su límite.
 app.use(/^\/api\/client\/pets(?:\/\d+)?$/, (req,res,next)=> {
   if(!['POST','PUT'].includes(req.method))return next();
