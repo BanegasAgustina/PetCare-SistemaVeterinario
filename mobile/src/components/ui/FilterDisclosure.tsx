@@ -5,11 +5,11 @@ import { useTheme } from '../../hooks/useTheme';
 import { AppText } from './AppText';
 import { AppButton } from './AppButton';
 
-export function FilterDisclosure({ children, activeCount = 0, onApply, onClear }: PropsWithChildren<{ activeCount?: number; onApply: () => void; onClear: () => void }>) {
+export function FilterDisclosure({ children, activeCount = 0, onApply, onClear, fullWidth = false }: PropsWithChildren<{ activeCount?: number; onApply: () => void; onClear: () => void; fullWidth?: boolean }>) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   return <View style={styles.wrap}>
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(value => !value)} style={[styles.trigger, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(value => !value)} style={[styles.trigger, fullWidth&&styles.fullTrigger, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Ionicons name="options-outline" size={18} color={colors.primary}/><AppText>Filtros</AppText>
       {activeCount > 0 && <View style={[styles.badge, { backgroundColor: colors.primary }]}><AppText variant="caption" style={{ color: colors.onPrimary }}>{activeCount}</AppText></View>}
       <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted}/>
@@ -20,4 +20,4 @@ export function FilterDisclosure({ children, activeCount = 0, onApply, onClear }
     </View>}
   </View>;
 }
-const styles = StyleSheet.create({ wrap: { gap: 8, minWidth: 0, maxWidth: '100%' }, trigger: { minHeight: 42, paddingHorizontal: 11, borderWidth: 1, borderRadius: 6, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 }, badge: { minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, panel: { width: '100%', maxWidth: 560, maxHeight: 460, padding: 14, borderWidth: 1, borderRadius: 7, gap: 12 }, options: { flexShrink: 1, minHeight: 0 }, optionsContent: { gap: 10 }, actions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 } });
+const styles = StyleSheet.create({ wrap: { gap: 8, minWidth: 0, maxWidth: '100%' }, trigger: { minHeight: 42, paddingHorizontal: 11, borderWidth: 1, borderRadius: 6, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },fullTrigger:{alignSelf:'stretch'}, badge: { minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, panel: { width: '100%', maxWidth: 560, maxHeight: 460, padding: 14, borderWidth: 1, borderRadius: 7, gap: 12 }, options: { flexShrink: 1, minHeight: 0 }, optionsContent: { gap: 10 }, actions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 } });

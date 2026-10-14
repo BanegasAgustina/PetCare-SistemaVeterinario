@@ -14,6 +14,7 @@ import { readName,readPhone,normalizeEmail } from '../validators/auth.validator'
 import { invitationUrl,saveInvitation,deliverInvitation,renewUserInvitation } from '../services/invitation.service';
 import * as clinicValidation from '../validators/clinic.validator';
 import type { AuthUser,RoleCode } from '../types/auth';
+import { isProfilePhotoKey,profilePhotoUrl } from '../services/pet-photo.service';
 
 export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
   const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
@@ -27,7 +28,7 @@ async function transaction<T>(operation:(c:PoolConnection)=>Promise<T>) {
     try{return await withDatabaseLock(c,async()=>{await c.beginTransaction();try{const result=await operation(c);await c.commit();return result;}catch(error){await c.rollback();throw error;}});}finally{c.release();}
   });
 }
-const userColumns='u.id,u.first_name AS firstName,u.last_name AS lastName,u.email,u.phone,u.role_id AS roleId,r.code AS role,r.name AS roleName,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified';
+const userColumns='u.id,u.first_name AS firstName,u.last_name AS lastName,u.email,u.phone,u.profile_photo_url AS profilePhotoUrl,u.role_id AS roleId,r.code AS role,r.name AS roleName,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified';
 const mapUser=(row:RowDataPacket)=>({...row,id:String(row.id),roleId:String(row.roleId),isActive:Boolean(row.isActive),emailVerified:Boolean(row.emailVerified)});
 export async function adminHome(actor:AuthUser) {
   // Este mapa describe rutas implementadas, no otorga permisos ni contiene datos de negocio.
@@ -54,12 +55,26 @@ export async function adminUsers(query:Record<string,unknown>) {
   const from=`FROM users u JOIN roles r ON r.id=u.role_id ${filters.length?`WHERE ${filters.join(' AND ')}`:''}`;
   const [count]=await databasePool.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total ${from}`,params);
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns} ${from} ORDER BY u.last_name,u.first_name,u.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
-  return {items:rows.map(mapUser),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
+  return {items:await Promise.all(rows.map(async row=>({...mapUser(row),profilePhotoUrl:await profilePhotoUrl(row.profilePhotoUrl)}))),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
 }
 export async function adminUser(id:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=?`,[id]);
   if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
-  return {...mapUser(rows[0]),permissions:await readPermissions(id)};
+  return {...mapUser(rows[0]),profilePhotoUrl:await profilePhotoUrl(rows[0].profilePhotoUrl),permissions:await readPermissions(id)};
+}
+export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:string|null) {
+  let previous:unknown=null;
+  await transaction(async c=>{
+    const actor=await freshAdmin(c,identity,'users.manage');
+    const [rows]=await c.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS profilePhotoUrl,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE",[id]);
+    if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
+    assertTarget(actor,{id,role:rows[0].role});
+    if(!['VETERINARIAN','GROOMER','SECRETARY'].includes(String(rows[0].role)))throw new AppError('VALIDATION_ERROR',400,'La foto de perfil solo está habilitada para el personal de la clínica.');
+    previous=rows[0].profilePhotoUrl;
+    if(key!==null&&!isProfilePhotoKey(key))throw new AppError('VALIDATION_ERROR',400,'La referencia de la foto no es válida.');
+    await c.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,id]);
+  });
+  return {previous};
 }
 async function roleGrants(c:PoolConnection,id:string) {
   const [roles]=await c.execute<RowDataPacket[]>('SELECT id,code FROM roles WHERE id=?',[id]);if(!roles[0])throw new AppError('VALIDATION_ERROR',400,'El rol no existe.');
@@ -144,10 +159,10 @@ export async function updateAdminProduct(identity:AuthUser,id:string,value:unkno
   const assignments:string[]=[];const parameters:(string|number|boolean|null)[]=[];const required=new Set<string>();
   if(body.name!==undefined){assignments.push('name=?');parameters.push(textField(body.name,'El nombre',200));required.add('products.update');}
   if(body.description!==undefined){if(body.description!==null&&(typeof body.description!=='string'||body.description.length>10000))throw new AppError('VALIDATION_ERROR',400,'Revisá la descripción.');assignments.push('description=?');parameters.push(typeof body.description==='string'?body.description.trim()||null:null);required.add('products.update');}
-  if(body.imageUrl!==undefined){assignments.push('image_url=?');parameters.push(clinicValidation.imageUrl(body.imageUrl));required.add('products.update');}
+  if(body.imageUrl!==undefined){assignments.push('image_url=?');parameters.push(clinicValidation.productImage(body.imageUrl));required.add('products.update');}
   const categoryId=body.categoryId===undefined?undefined:clinicValidation.optionalId(body.categoryId);
   if(body.categoryId!==undefined){assignments.push('category_id=?');parameters.push(categoryId??null);required.add('products.update');}
   if(body.isActive!==undefined){if(typeof body.isActive!=='boolean')throw new AppError('VALIDATION_ERROR',400,'Indicá el estado del producto.');assignments.push('is_active=?');parameters.push(body.isActive);required.add('products.update');}
   for(const field of ['priceCents','stock'] as const)if(body[field]!==undefined){const number=body[field];if(typeof number!=='number'||!Number.isSafeInteger(number)||number<0||number>(field==='priceCents'?100000000:4294967295))throw new AppError('VALIDATION_ERROR',400,'Precio o stock inválido.');assignments.push(`${field==='priceCents'?'price_cents':'stock'}=?`);parameters.push(number);required.add(field==='priceCents'?'products.update_price':'products.update_stock');}
-  return transaction(async c=>{await freshAdmin(c,identity,...required);if(categoryId){const [categories]=await c.execute<RowDataPacket[]>('SELECT id FROM client_product_categories WHERE id=?',[categoryId]);if(!categories[0])throw new AppError('VALIDATION_ERROR',400,'La categoría seleccionada ya no existe.');}const [rows]=await c.execute<RowDataPacket[]>('SELECT id,reserved_stock AS reservedStock FROM client_products WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');if(body.stock!==undefined&&Number(body.stock)<Number(rows[0].reservedStock))throw new AppError('VALIDATION_ERROR',400,'El stock físico no puede ser menor al reservado.');await c.execute(`UPDATE client_products SET ${assignments.join(',')} WHERE id=?`,[...parameters,id]);return {updated:true};});
+  return transaction(async c=>{await freshAdmin(c,identity,...required);if(categoryId){const [categories]=await c.execute<RowDataPacket[]>('SELECT id FROM client_product_categories WHERE id=?',[categoryId]);if(!categories[0])throw new AppError('VALIDATION_ERROR',400,'La categoría seleccionada ya no existe.');}const [rows]=await c.execute<RowDataPacket[]>('SELECT id,reserved_stock AS reservedStock,image_url AS imageUrl FROM client_products WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');if(body.stock!==undefined&&Number(body.stock)<Number(rows[0].reservedStock))throw new AppError('VALIDATION_ERROR',400,'El stock físico no puede ser menor al reservado.');await c.execute(`UPDATE client_products SET ${assignments.join(',')} WHERE id=?`,[...parameters,id]);return {updated:true,previousImage:rows[0].imageUrl};});
 }

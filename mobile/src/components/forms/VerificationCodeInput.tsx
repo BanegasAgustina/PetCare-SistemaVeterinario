@@ -1,12 +1,13 @@
 /** Un input numérico con seis casillas visuales: foco, avance, borrado y pegado coherentes. */
 import { useRef, useState } from 'react';
+import type { ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 
 export function VerificationCodeInput({ value, onChange, disabled, invalid }: { value: string; onChange: (value: string) => void; disabled?: boolean; invalid?: boolean }) {
   const { colors } = useTheme();
-  const input = useRef<TextInput>(null);
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
   const [focused, setFocused] = useState(false);
   return <View style={styles.root}>
     <Pressable onPress={() => input.current?.focus()} disabled={disabled} accessible={false} style={styles.cells}>

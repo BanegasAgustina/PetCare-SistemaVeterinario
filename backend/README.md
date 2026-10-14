@@ -441,3 +441,16 @@ Pruebas: `npm test`, `npm run typecheck`, `npm run lint` en backend/mobile. `NOD
 ## Clínica compartida, Secretaría y reservas
 
 PETCARE NO PROCESA PAGOS. La tienda usa client_orders/client_order_items como reservas para retiro. Profesional, especialidades, peluquería, servicios, disponibilidad, agenda, clínica, stock, estados, notificaciones y administración comparten MySQL y permisos efectivos. Ver [modelo, endpoints, migración nueva y verificaciones](../AMPLIACION_CLINICA_PETCARE.md). Aplicar manualmente clinic-migrations/001_connected_clinic.sql antes de desplegar la ampliación. No ejecutar SQL dos veces ni crear registros para llenar pantallas.
+## Recuperación de contraseña
+
+`POST /api/auth/password-reset/request` acepta `{ "email": "..." }` y evita confirmar si existe una cuenta. Para usuarios activos y verificados genera 256 bits aleatorios, conserva solo SHA-256 en `password_resets` y envía un enlace por SMTP. El token vence a los 30 minutos; `POST /api/auth/password-reset/confirm` acepta `{ "token": "...", "password": "..." }`, aplica las mismas reglas y bcrypt del registro, consume los tokens pendientes y aumenta `session_version` para revocar sesiones previas. Se limita la solicitud a 5 intentos por IP y el uso del token a 10 por IP en 15 minutos.
+
+La migración es aditiva y separada del historial SQL histórico que no está presente en este checkout. Aplicarla una vez sobre el MySQL activo, después de confirmar que el esquema de autenticación ya está preparado: `npm run db:migrate:password-reset`. No modifica cuentas existentes. La app debe publicarse con una ruta accesible `/reset-password`; configurar `PASSWORD_RESET_URL` con la URL pública completa de esa pantalla, por ejemplo `https://petcare-sistemaveterinario-mobile.vercel.app/reset-password`. La instancia local usa el mismo valor con su origen Expo web. Configurar SMTP con las variables de verificación de email ya documentadas; `EMAIL_CODE_SECRET` debe ser estable y tener al menos 32 bytes. No se debe publicar el token ni las credenciales.
+
+La aceptación por SMTP indica que el servidor de correo aceptó el mensaje, no garantiza su llegada a la bandeja. Si el token vence o ya se usó, el backend rechaza el cambio.
+
+## Fotos persistentes
+
+Las fotos se procesan en memoria y se guardan como WebP en un bucket privado de Railway Object Storage (API compatible con S3); MySQL conserva la clave estable (`pets/...`, `products/...` o `profiles/...`), no el Base64 ni una URL temporal. La lectura genera URLs firmadas por 15 minutos. El backend valida tipo real de imagen, tamaño de hasta 5 MB y máximo de 25 megapíxeles; cuando se reemplaza una foto se elimina la clave anterior después de guardar correctamente la nueva referencia.
+
+Configurar exclusivamente en el backend, tanto local como en Railway/Vercel: `BUCKET`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`, `REGION`, `ENDPOINT` y `PET_PHOTO_S3_URL_STYLE` (`virtual` por defecto; usar `path` si así lo indica Credentials del bucket). En Railway crear un bucket, abrir Credentials y copiar endpoint, región, bucket y credenciales S3 al entorno del backend. No pegar estos valores en variables `EXPO_PUBLIC_*`. Las referencias antiguas que no correspondan a las claves nuevas se conservan; las fotos locales históricas no se migran ni borran automáticamente y deben volver a cargarse para pasar al bucket.

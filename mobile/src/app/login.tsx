@@ -19,7 +19,7 @@ import { useAsyncAction } from '../hooks/useAsyncAction';
 
 const fields: AuthField<LoginValues>[] = [
   { key: 'email', label: 'Correo electrónico', icon: 'mail-outline', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, placeholder: 'ejemplo@email.com', maxLength: 254 } },
-  { key: 'password', label: 'Contraseña', icon: 'lock-closed-outline', password: true, inputProps: { autoComplete: 'current-password', textContentType: 'password', autoCorrect: false, placeholder: 'Ingresá tu contraseña' } },
+  { key: 'password', label: 'Contraseña', password: true, inputProps: { autoComplete: 'current-password', textContentType: 'password', autoCorrect: false, placeholder: 'Ingresá tu contraseña' } },
 ];
 export default function LoginScreen() {
   const auth = useAuth();

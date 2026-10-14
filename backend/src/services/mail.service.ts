@@ -33,3 +33,17 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     throw new AppError('EMAIL_DELIVERY_FAILED', 503, 'No pudimos enviar el código. Intentá reenviarlo.');
   } finally { transport.close(); }
 }
+
+/** Envía enlace de recuperación; el token solo viaja en el enlace y no se registra. */
+export async function sendPasswordResetEmail(email: string, url: string): Promise<void> {
+  const { from, ...configuration } = getMailConfiguration();
+  const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
+    socketTimeout: 5000, dnsTimeout: 5000, logger: false, debug: false, disableFileAccess: true, disableUrlAccess: true });
+  try {
+    const result = await transport.sendMail({ from: { name: 'PetCare', address: from }, to: email,
+      subject: 'Restablecé tu contraseña de PetCare',
+      text: `Abrí este enlace para elegir una contraseña nueva:\n${url}\n\nVence en 30 minutos y puede usarse una sola vez. Si no solicitaste este cambio, ignorá este correo.` });
+    if (!result.accepted.length) throw new Error('Destinatario no aceptado');
+  } catch { throw new AppError('EMAIL_DELIVERY_FAILED', 503, 'No pudimos enviar el correo. Intentá nuevamente más tarde.'); }
+  finally { transport.close(); }
+}

@@ -7,10 +7,14 @@ import { AppError } from '../utils/app-error';
 import { clientId, invalid } from '../validators/client.validator';
 export const PHOTO_URL_TTL_SECONDS=900;
 const keyPattern=/^pets\/([1-9]\d{0,19})\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+const productKeyPattern=/^products\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+const profileKeyPattern=/^profiles\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
 export function isPetPhotoKey(value:unknown,owner?:string):value is string {
   if(typeof value!=='string')return false;
   const match=keyPattern.exec(value);return Boolean(match&&(!owner||match[1]===owner));
 }
+export function isProductPhotoKey(value:unknown):value is string {return typeof value==='string'&&productKeyPattern.test(value);}
+export function isProfilePhotoKey(value:unknown):value is string {return typeof value==='string'&&profileKeyPattern.test(value);}
 /** Construye S3 con credenciales privadas del backend; virtual/path debe coincidir con Railway Credentials. */
 export function photoStorage() {
   const bucket=process.env.BUCKET?.trim(),accessKeyId=process.env.ACCESS_KEY_ID?.trim(),secretAccessKey=process.env.SECRET_ACCESS_KEY?.trim(),region=process.env.REGION?.trim(),endpoint=process.env.ENDPOINT?.trim();
@@ -51,11 +55,46 @@ export async function petPhotoUrl(owner:string,key:unknown):Promise<string|null>
   if(!isPetPhotoKey(key,owner))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto anterior debe volver a subirse al almacenamiento privado.');
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
 }
+/** Las fotos de producto usan el mismo bucket privado; MySQL conserva una clave estable en image_url. */
+export async function storeProductPhoto(value:unknown) {
+  const image=await optimizePetPhoto(value);const storage=photoStorage();const key=`products/${randomUUID()}.webp`;
+  try {await storage.client.send(new PutObjectCommand({Bucket:storage.bucket,Key:key,Body:image,ContentType:'image/webp',CacheControl:'private, max-age=900'}));}
+  catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la imagen del producto. Intentá nuevamente.');}
+  finally {storage.client.destroy();}
+  return {url:key,remove:()=>removeProductPhoto(key)};
+}
+export async function removeProductPhoto(key:unknown) {
+  if(!isProductPhotoKey(key))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
+}
+export async function productPhotoUrl(key:unknown):Promise<string|null> {
+  if(!key)return null;if(!isProductPhotoKey(key))return String(key);
+  const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
+}
+/** Fotos de perfiles profesionales: solo el backend escribe, las respuestas usan URL firmada. */
+export async function storeProfilePhoto(value:unknown) {
+  const image=await optimizePetPhoto(value);const storage=photoStorage();const key=`profiles/${randomUUID()}.webp`;
+  try {await storage.client.send(new PutObjectCommand({Bucket:storage.bucket,Key:key,Body:image,ContentType:'image/webp',CacheControl:'private, max-age=900'}));}
+  catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la foto de perfil. Intentá nuevamente.');}
+  finally {storage.client.destroy();}
+  return {url:key,remove:()=>removeProfilePhoto(key)};
+}
+export async function removeProfilePhoto(key:unknown) {
+  if(!isProfilePhotoKey(key))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
+}
+export async function profilePhotoUrl(key:unknown):Promise<string|null> {
+  if(!key)return null;if(!isProfilePhotoKey(key))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto de perfil anterior debe volver a subirse al almacenamiento privado.');
+  const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
+}
 /** Se aplica únicamente a resultados de consultas autorizadas por ownership. */
 export async function presentPetPhotos(owner:string,value:unknown):Promise<unknown> {
   if(Array.isArray(value))return Promise.all(value.map(item=>presentPetPhotos(owner,item)));
   if(!value||typeof value!=='object')return value;
   const result:Record<string,unknown>={};
-  for(const [key,item] of Object.entries(value))result[key]=key==='photoUrl'?await petPhotoUrl(owner,item):await presentPetPhotos(owner,item);
+  for(const [key,item] of Object.entries(value))result[key]=key==='photoUrl'?await petPhotoUrl(owner,item):key==='imageUrl'?await productPhotoUrl(item):await presentPetPhotos(owner,item);
   return result;
+}
+export async function presentProductImages(value:unknown):Promise<unknown> {
+  if(Array.isArray(value))return Promise.all(value.map(presentProductImages));
+  if(!value||typeof value!=='object')return value;
+  const result:Record<string,unknown>={};for(const [key,item] of Object.entries(value))result[key]=key==='imageUrl'?await productPhotoUrl(item):await presentProductImages(item);return result;
 }

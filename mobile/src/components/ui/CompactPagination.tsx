@@ -5,6 +5,7 @@ import { AppText } from './AppText';
 
 export function CompactPagination({ page, canPrevious, canNext, onPrevious, onNext, summary }: { page: number; canPrevious: boolean; canNext: boolean; onPrevious: () => void; onNext: () => void; summary?: string }) {
   const { colors } = useTheme();
+  if (page <= 1 && !canNext) return null;
   return <View style={styles.row}>
     {summary && <AppText muted style={styles.summary}>{summary}</AppText>}
     <View style={styles.controls}>

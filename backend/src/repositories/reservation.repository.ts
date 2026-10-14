@@ -11,7 +11,7 @@ export async function list(actor:AuthUser,query:Record<string,unknown>={}) {
  if(query.status){where+=' AND o.status=?';args.push(v.text(query.status,20));}
  if(query.search){const search=v.text(query.search,100)!;where+=" AND (CAST(o.id AS CHAR) LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)";args.push(...Array(3).fill(`%${search}%`));}
  for(const [key,operator] of [['fromDate','>=' ],['toDate','<=']] as const)if(query[key]){const date=v.text(query[key],10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();where+=` AND DATE(o.created_at)${operator}?`;args.push(date);}
- return db.rows(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id ${where} ORDER BY o.created_at DESC,o.id DESC LIMIT 100 OFFSET ${(v.queryPage(query)-1)*100}`,args);
+ return db.rows(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id ${where} ORDER BY o.created_at DESC,o.id DESC LIMIT 101 OFFSET ${(v.queryPage(query)-1)*100}`,args);
 }
 export async function detail(actor:AuthUser,id:string) {
  const own=actor.role==='CLIENT';if(!own)db.permit(actor,'reservations.view_all');const result=await db.one(`SELECT o.id,o.owner_id AS ownerId,o.status,o.total_cents AS totalCents,o.created_at AS createdAt ${own?'':",CONCAT(u.first_name,' ',u.last_name) AS clientName,u.phone,u.email"} FROM client_orders o JOIN users u ON u.id=o.owner_id WHERE o.id=? ${own?'AND o.owner_id=?':''}`,own?[id,actor.id]:[id]);
@@ -45,6 +45,6 @@ export async function change(actor:AuthUser,id:string,value:unknown) {
   if(['CANCELLED','COMPLETED'].includes(status)){for(const item of items){if(Number(item.reservedStock)<Number(item.quantity))throw new AppError('STOCK_CONFLICT',409,'El stock reservado requiere revisión administrativa.');
    await c.execute(status==='COMPLETED'?'UPDATE client_products SET stock=stock-?,reserved_stock=reserved_stock-? WHERE id=?':'UPDATE client_products SET reserved_stock=reserved_stock-? WHERE id=?',status==='COMPLETED'?[item.quantity,item.quantity,item.productId]:[item.quantity,item.productId]);
   }}
-  await c.execute('UPDATE client_orders SET status=? WHERE id=?',[status,id]);await db.notify(c,order.ownerId,status==='READY'?'Reserva lista para retirar':'Tu reserva fue actualizada',`La clínica actualizó la reserva ${id}. Consultá Mis reservas para ver su estado.`);
+  await c.execute('UPDATE client_orders SET status=? WHERE id=?',[status,id]);await db.notify(c,order.ownerId,status==='READY'?'Reserva lista para retirar':'Tu reserva fue actualizada',`La clínica actualizó el pedido ${id}. Consultá Mis pedidos para ver su estado.`);
  });return detail(actor,id);
 }

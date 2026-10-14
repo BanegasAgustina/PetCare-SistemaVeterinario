@@ -5,11 +5,11 @@ import { router } from 'expo-router';
 import { useAuth } from '../../../hooks/useAuth';
 import { useClient } from '../../../hooks/useClient';
 import { useClientQuery } from '../../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHeader,PetCareIconButton,PetCareSection,PetCareEmptyState,PetCareAction,QueryState,PetCareBadge } from '../../../components/client/PetCareUI';
+import { PetCareScreen,PetCareHeader,PetCareSection,PetCareEmptyState,PetCareAction,QueryState,PetCareBadge } from '../../../components/client/PetCareUI';
 import { AppointmentCard,PetCard,ProductCard } from '../../../components/client/RecordCards';
 import { AppButton } from '../../../components/ui/AppButton';
 export default function ClientHome(){const {user}=useAuth();const api=useClient();const query=useClientQuery(api.home);return <PetCareScreen>
-  <PetCareHeader title={`¡Hola, ${user?.firstName??''}!`} subtitle="Qué bueno acompañarte por acá" right={<PetCareIconButton icon="notifications-outline" label="Notificaciones" onPress={()=>router.push('/client/notifications')}/>}/>
+  <PetCareHeader title={`¡Hola, ${user?.firstName??''}!`} subtitle="Qué bueno acompañarte por acá"/>
   <QueryState {...query}/>
   {query.data&&<>{query.data.unreadNotifications>0&&<PetCareBadge label={`${query.data.unreadNotifications} notificaciones sin leer`}/>}
     <PetCareSection title="Próximo turno">{query.data.nextAppointment?<AppointmentCard appointment={query.data.nextAppointment}/>:<PetCareEmptyState title="No tenés próximos turnos" message="Elegí un horario disponible para cuidar su salud." icon="calendar-outline" label="Solicitar turno" action={()=>router.push('/client/appointments/request')}/>}</PetCareSection>

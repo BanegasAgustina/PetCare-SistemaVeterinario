@@ -8,6 +8,7 @@ import { AppError } from '../utils/app-error';
 import { forbidden } from '../utils/admin-authorization';
 import { assertTransition } from '../utils/clinic-rules';
 import { petPhotoUrl } from '../services/pet-photo.service';
+import { profilePhotoUrl } from '../services/pet-photo.service';
 import * as v from '../validators/clinic.validator';
 export type Connection=Pick<PoolConnection,'execute'>;
 export type SqlValue=string|number|boolean|null;
@@ -26,7 +27,7 @@ export async function transaction<T>(actor:AuthUser,operation:(c:PoolConnection,
 export async function rows(sql:string,args:unknown[]=[],c:Connection=databasePool):Promise<Data[]> {const [r]=await c.execute<RowDataPacket[]>(sql,args as SqlValue[]);return r.map(map);}
 export async function one(sql:string,args:unknown[],c:Connection=databasePool) {const r=await rows(sql,args,c);if(!r[0])throw new AppError('NOT_FOUND',404,'Registro no encontrado.');return r[0];}
 export async function notify(c:Connection,owner:unknown,title:string,content:string) {await c.execute('INSERT INTO client_notifications(owner_id,title,body) VALUES (?,?,?)',[String(owner),title,content]);}
-export async function professionals(activeOnly=false) {return rows(`SELECT u.id,CONCAT(u.first_name,' ',u.last_name) AS name,u.created_at AS createdAt,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified,pt.id AS typeId,pt.name AS typeName,pt.is_clinical AS isClinical,v.id AS veterinarianId FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians v ON v.user_id=u.id ${activeOnly?'WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL':''} ORDER BY u.created_at DESC,u.last_name,u.first_name`);}
+export async function professionals(activeOnly=false) {const result=await rows(`SELECT u.id,CONCAT(u.first_name,' ',u.last_name) AS name,u.profile_photo_url AS profilePhotoUrl,u.created_at AS createdAt,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified,pt.id AS typeId,pt.name AS typeName,pt.is_clinical AS isClinical,v.id AS veterinarianId FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians v ON v.user_id=u.id ${activeOnly?'WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL':''} ORDER BY u.created_at DESC,u.last_name,u.first_name`);return Promise.all(result.map(async person=>({...person,profilePhotoUrl:await profilePhotoUrl(person.profilePhotoUrl)})));}
 export async function catalog(actor?:AuthUser) {
  const admin=actor&&['ADMIN','SUPER_ADMIN'].includes(actor.role);
  return {types:await rows('SELECT pt.id,pt.name,pt.role_id AS roleId,pt.is_clinical AS isClinical FROM professional_types pt ORDER BY pt.name'),
@@ -66,7 +67,7 @@ export async function appointments(actor:AuthUser,query:Record<string,unknown>={
  if(query.search){const search=v.text(query.search,100)!;clauses.push('(p.name LIKE ? OR sv.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)');params.push(...Array(4).fill(`%${search}%`));}
  if(query.date){const date=v.text(query.date,10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push("DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=?");params.push(date);}
  for(const [key,operator] of [['fromDate','>=' ],['toDate','<=']] as const)if(query[key]){const date=v.text(query[key],10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push(`DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))${operator}?`);params.push(date);}
- return rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY s.starts_at DESC LIMIT 200 OFFSET ${(v.queryPage(query)-1)*200}`,params);
+ return rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY s.starts_at DESC LIMIT 201 OFFSET ${(v.queryPage(query)-1)*200}`,params);
 }
 export async function changeAppointment(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['status','slotId']);return transaction(actor,async(c,fresh)=>{

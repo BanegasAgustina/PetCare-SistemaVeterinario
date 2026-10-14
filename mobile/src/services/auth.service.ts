@@ -33,6 +33,12 @@ export async function login(values: LoginValues): Promise<AccessSession> {
   const result = await apiRequest<AccessSession>('/auth/login', { method: 'POST', body: { email: normalizeEmail(values.email), password: values.password } });
   return readAccessSession(result);
 }
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiRequest('/auth/password-reset/request',{method:'POST',body:{email:normalizeEmail(email)}});
+}
+export async function resetPassword(token: string,password: string): Promise<void> {
+  await apiRequest('/auth/password-reset/confirm',{method:'POST',body:{token,password}});
+}
 /** Valida todas las entradas de sesión, incluyendo OAuth y renovación, antes de persistirlas. */
 export function readAccessSession(result: AccessSession): AccessSession {
   if (typeof result.accessToken !== 'string' || !result.accessToken || result.accessToken.length > 4096 || result.tokenType !== 'Bearer' || !Number.isInteger(result.expiresIn) || result.expiresIn <= 0 || result.expiresIn > 3600) {

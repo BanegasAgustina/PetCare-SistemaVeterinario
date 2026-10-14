@@ -1,6 +1,8 @@
 /** Validación estricta y conversión explícita de fechas con zona a UTC para MySQL. */
 import { clientBody,clientId,text,invalid,imageUrl } from './client.validator';
 export { clientBody as body,clientId as id,text,invalid,imageUrl };
+const productImageKey=/^products\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+export function productImage(value:unknown):string|null {return typeof value==='string'&&productImageKey.test(value)?value:imageUrl(value);}
 export function integer(value:unknown,min=0,max=100000000):number {if(typeof value!=='number'||!Number.isInteger(value)||value<min||value>max)invalid('Revisá el valor numérico.');return value;}
 export function bool(value:unknown):boolean {if(typeof value!=='boolean')invalid();return value;}
 export function optionalId(value:unknown):string|null {return value===null||value===''||value===undefined?null:clientId(value);}

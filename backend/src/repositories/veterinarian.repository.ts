@@ -12,6 +12,7 @@ import { invitationUrl, saveInvitation, deliverInvitation } from '../services/in
 import { freshAdmin } from './admin.repository';
 import { withDatabaseLock } from '../database/lock';
 import type { AuthUser } from '../types/auth';
+import { isProfilePhotoKey,profilePhotoUrl } from '../services/pet-photo.service';
 
 async function transaction<T>(operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
   return runDatabaseOperation(async () => {
@@ -27,7 +28,7 @@ export async function vetCatalog() {
 }
 export async function vetDetail(id: string) {
   return runDatabaseOperation(async () => {
-    const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT u.id AS user_id,u.first_name,u.last_name,u.email,u.phone,u.is_active,u.email_verified_at,
+    const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT u.id AS user_id,u.first_name,u.last_name,u.email,u.phone,u.profile_photo_url AS profilePhotoUrl,u.is_active,u.email_verified_at,
       i.consumed_at,i.delivery,i.expires_at>UTC_TIMESTAMP(3) AS invitation_valid
       FROM veterinarians v JOIN users u ON u.id=v.user_id JOIN roles r ON r.id=u.role_id
       LEFT JOIN veterinarian_invitations i ON i.user_id=u.id WHERE v.id=? AND r.code='VETERINARIAN'`,[id]);
@@ -35,7 +36,7 @@ export async function vetDetail(id: string) {
     const row = rows[0];
     const profile = await readVetProfile(String(row.user_id));
     return { id, userId:String(row.user_id),firstName:row.first_name as string,lastName:row.last_name as string,
-      email:row.email as string,phone:row.phone as string | null,isActive:Boolean(row.is_active),emailVerified:Boolean(row.email_verified_at),
+      email:row.email as string,phone:row.phone as string | null,profilePhotoUrl:await profilePhotoUrl(row.profilePhotoUrl),isActive:Boolean(row.is_active),emailVerified:Boolean(row.email_verified_at),
       invitationStatus: row.consumed_at ? 'accepted' : row.invitation_valid ? row.delivery==='failed'?'failed':'pending' : 'expired',
       licenseNumber:profile?.licenseNumber ?? '',specialties:profile?.specialties ?? [] };
   });
@@ -59,16 +60,28 @@ export async function vetList(query: Record<string, unknown>) {
     // ORDER viene de una lista blanca; límite/offset son enteros calculados, nunca texto del usuario.
     const direction = sort === 'za' || sort === 'oldest' ? 'DESC' : 'ASC';
     const ordering = sort === 'recent' || sort === 'oldest' ? `u.created_at ${direction},` : '';
-    const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT v.id,u.first_name,u.last_name,u.email,u.is_active,v.license_number ${from}
+    const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT v.id,u.first_name,u.last_name,u.email,u.profile_photo_url AS profilePhotoUrl,u.is_active,v.license_number ${from}
       ORDER BY ${ordering}u.last_name ${direction},u.first_name ${direction},v.id ${direction} LIMIT ${limit} OFFSET ${(page-1)*limit}`,parameters);
     const ids = rows.map(row=>String(row.id));
     const [specialties] = ids.length ? await databasePool.execute<RowDataPacket[]>(`SELECT vs.veterinarian_id,s.id,s.name FROM veterinarian_specialties vs
       JOIN specialties s ON s.id=vs.specialty_id WHERE vs.veterinarian_id IN (${ids.map(()=>'?').join(',')}) ORDER BY s.name`,ids) : [[]];
-    return { items: rows.map(row=>({ id:String(row.id),firstName:row.first_name as string,lastName:row.last_name as string,email:row.email as string,
-      isActive:Boolean(row.is_active),licenseNumber:row.license_number as string,
-      specialties:specialties.filter(s=>String(s.veterinarian_id)===String(row.id)).map(s=>({id:String(s.id),name:s.name as string})) })),
+    return { items: await Promise.all(rows.map(async row=>({ id:String(row.id),firstName:row.first_name as string,lastName:row.last_name as string,email:row.email as string,
+      profilePhotoUrl:await profilePhotoUrl(row.profilePhotoUrl),isActive:Boolean(row.is_active),licenseNumber:row.license_number as string,
+      specialties:specialties.filter(s=>String(s.veterinarian_id)===String(row.id)).map(s=>({id:String(s.id),name:s.name as string})) }))),
       page,pageSize:limit,total:Number(count[0].total),hasMore:page*limit<Number(count[0].total) };
   });
+}
+export async function updateVetPhoto(id:string,key:string|null,identity:AuthUser) {
+  let previous:unknown=null;
+  await transaction(async connection=>{
+    await freshAdmin(connection,identity,'veterinarians.manage');
+    const [rows]=await connection.execute<RowDataPacket[]>('SELECT u.id,u.profile_photo_url AS profilePhotoUrl FROM users u JOIN veterinarians v ON v.user_id=u.id WHERE v.id=? FOR UPDATE',[id]);
+    if(!rows[0])throw new AppError('NOT_FOUND',404,'Veterinario no encontrado.');
+    if(key!==null&&!isProfilePhotoKey(key))throw new AppError('VALIDATION_ERROR',400,'La referencia de la foto no es válida.');
+    previous=rows[0].profilePhotoUrl;
+    await connection.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,rows[0].id]);
+  });
+  return {previous,veterinarian:await vetDetail(id)};
 }
 async function replaceSpecialties(connection: PoolConnection,vetId: string,ids: string[]) {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT id FROM specialties WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);

@@ -1,5 +1,5 @@
 /** Motor pequeño de formularios: errores por campo, foco siguiente y un único envío activo. */
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Keyboard, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { AppInput } from './AppInput';
 import { AppButton } from '../ui/AppButton';
@@ -24,7 +24,7 @@ type AuthFormProps<T extends Record<string, string>> = {
 export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false }: AuthFormProps<T>) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
-  const inputs = useRef<Partial<Record<keyof T, TextInput | null>>>({});
+  const inputs = useRef<Partial<Record<keyof T, ComponentRef<typeof TextInput> | null>>>({});
   const action = useAsyncAction();
   const submit = async () => {
     if (action.loading) return;

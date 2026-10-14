@@ -7,6 +7,7 @@ import * as admin from '../repositories/clinic-admin.repository';
 import * as v from '../validators/clinic.validator';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
+import { isProductPhotoKey,removeProductPhoto,storeProductPhoto } from './pet-photo.service';
 export async function clinicOperation(actor:AuthUser,operation:string,id:unknown,value:unknown,query:Record<string,unknown>,kind?:string) {
  return runDatabaseOperation(async()=>{switch(operation){
  case 'slots':return clinic.slots(v.id(query.serviceId),query.professionalId?v.id(query.professionalId):undefined);
@@ -30,7 +31,15 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'professional-type':return admin.assignType(actor,v.id(id),value);
  case 'professional-services':return admin.assignServices(actor,v.id(id),value);
  case 'admin-list':return admin.list(actor,admin.entity(kind!),query);
- case 'admin-save':return admin.save(actor,admin.entity(kind!),id===undefined?undefined:v.id(id),value);
+ case 'admin-save':{
+  const entity=admin.entity(kind!);const record=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
+  if(entity!=='products'||!record)return admin.save(actor,entity,id===undefined?undefined:v.id(id),value);
+  if(record.photoBase64===undefined){const saved=await admin.save(actor,entity,id===undefined?undefined:v.id(id),value);const previous=(saved as {previousImage?:unknown}).previousImage;if(record.imageUrl!==undefined&&record.imageUrl!==previous&&isProductPhotoKey(previous))await removeProductPhoto(previous).catch(()=>console.error('No se pudo limpiar la imagen anterior del producto.'));return {saved:true};}
+  if(!actor.permissions?.includes('products.update'))throw new AppError('FORBIDDEN',403,'No tenés permiso para modificar imágenes de productos.');
+  const {photoBase64,...fields}=record;const image=await storeProductPhoto(photoBase64);
+  try {const saved=await admin.save(actor,entity,id===undefined?undefined:v.id(id),{...fields,imageUrl:image.url});const previous=(saved as {previousImage?:unknown}).previousImage;if(previous!==image.url&&isProductPhotoKey(previous))await removeProductPhoto(previous).catch(()=>console.error('No se pudo limpiar la imagen anterior del producto.'));return {saved:true};}
+  catch(error){await image.remove().catch(()=>console.error('No se pudo limpiar una imagen de producto sin referencia.'));throw error;}
+ }
  case 'availability':return admin.availability(actor,query);
  case 'availability-save':return admin.saveAvailability(actor,value);
  case 'availability-disable':return admin.disableAvailability(actor,kind!,v.id(id));

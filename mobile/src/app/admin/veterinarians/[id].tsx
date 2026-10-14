@@ -4,6 +4,7 @@ import { router,useLocalSearchParams } from 'expo-router';
 import { View,StyleSheet,Switch } from 'react-native';
 import { ScreenContainer } from '../../../components/layout/ScreenContainer';
 import { AppInput } from '../../../components/forms/AppInput';
+import { ProfilePhotoInput,type PickedProfilePhoto } from '../../../components/forms/ProfilePhotoInput';
 import { AppText } from '../../../components/ui/AppText';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FormNotice } from '../../../components/ui/FormNotice';
@@ -24,6 +25,7 @@ export default function VeterinarianEditor() {
   const [catalog,setCatalog]=useState<VetCatalog|null>(null);const [detail,setDetail]=useState<VetDetail|null>(null);
   const [values,setValues]=useState<VetValues>(empty);const [errors,setErrors]=useState<Partial<Record<keyof VetValues,string>>>({});
   const [loadError,setLoadError]=useState<string|null>(null);const [retry,setRetry]=useState(0);const [deactivate,setDeactivate]=useState(false);const [review,setReview]=useState(false);
+  const [photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const [removePhoto,setRemovePhoto]=useState(false);
   const canEdit=auth.hasPermission('veterinarians.manage');
   const fill=(vet:VetDetail)=>{setDetail(vet);setValues({firstName:vet.firstName,lastName:vet.lastName,email:vet.email,phone:vet.phone??'',licenseNumber:vet.licenseNumber,isActive:vet.isActive,
     specialtyIds:vet.specialties.map(s=>s.id)});};
@@ -44,10 +46,14 @@ export default function VeterinarianEditor() {
   const save=async()=>{
     if (creating) {
       const result=await auth.request<{veterinarian:VetDetail;delivery:string}>('/admin/veterinarians',{method:'POST',body:values});
-      showToast(result.delivery==='sent'?'Veterinario creado. Invitación enviada.':result.delivery==='failed'?'Veterinario creado. Falló el envío; reenviá la invitación.':'Veterinario creado con cuenta inactiva.',result.delivery==='failed'?'info':'success');
-      router.replace({pathname:'/admin/veterinarians/[id]',params:{id:result.veterinarian.id}});
+      const created=result.veterinarian;let photoFailed=false;
+      if(photo){try{await auth.request<VetDetail>(`/admin/veterinarians/${created.id}/photo`,{method:'PUT',body:{photoBase64:photo.base64}});}catch{photoFailed=true;}}
+      showToast(photoFailed?'Veterinario creado; no se pudo guardar la foto. Podés reintentar en el perfil.':result.delivery==='sent'?'Veterinario creado. Invitación enviada.':result.delivery==='failed'?'Veterinario creado. Falló el envío; reenviá la invitación.':'Veterinario creado con cuenta inactiva.',photoFailed||result.delivery==='failed'?'info':'success');
+      router.replace({pathname:'/admin/veterinarians/[id]',params:{id:created.id}});
     } else {
-      const vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}`,{method:'PUT',body:values});fill(vet);setReview(false);
+      let vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}`,{method:'PUT',body:values});
+      if(photo||removePhoto){try{vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}/photo`,{method:'PUT',body:photo?{photoBase64:photo.base64}:{removePhoto:true}});setPhoto(null);setRemovePhoto(false);}catch{fill(vet);setReview(false);showToast('Los datos se guardaron; no se pudo actualizar la foto. Podés reintentar desde este perfil.','error');return;}}
+      fill(vet);setReview(false);
       showToast('Datos y permisos actualizados','success');
     }
   };
@@ -59,6 +65,7 @@ export default function VeterinarianEditor() {
     {!catalog && !loadError && <AppText muted>Cargando catálogos…</AppText>}
     {catalog && (!creating || canEdit) && <>
       <AppText variant="subtitle">1. Datos personales</AppText>
+      <ProfilePhotoInput currentUri={removePhoto?null:detail?.profilePhotoUrl??null} photo={photo} disabled={!canEdit||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);setReview(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);setReview(false);}}/>
       <AppInput label="Nombre" value={values.firstName} error={errors.firstName} editable={canEdit&&!action.loading} onChangeText={v=>change('firstName',v)} />
       <AppInput label="Apellido" value={values.lastName} error={errors.lastName} editable={canEdit&&!action.loading} onChangeText={v=>change('lastName',v)} />
       <AppInput label="Correo electrónico" value={values.email} error={errors.email} keyboardType="email-address" editable={canEdit&&!action.loading} onChangeText={v=>change('email',v)} />

@@ -13,10 +13,6 @@ export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuida
   const logoWidth = Math.min(availableHeight < 640 ? 200 : compact ? 242 : 290, width - 64);
   return <View style={styles.header}>
     <View style={[styles.logoRow, { height: logoWidth / 3 }]}>
-      {/* Contorno de un píxel detrás del PNG; el logo original se dibuja intacto encima. */}
-      {mode === 'dark' && [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([x, y], index) =>
-        <Image key={index} accessible={false} source={require('../../assets/petcare-logo.png')} resizeMode="contain" tintColor={colors.text}
-          style={{ position: 'absolute', width: logoWidth, height: logoWidth / 3, transform: [{ translateX: x }, { translateY: y }] }} />)}
       <Image source={require('../../assets/petcare-logo.png')} resizeMode="contain" style={{ width: logoWidth, height: logoWidth / 3 }} accessibilityLabel="Logo oficial de PetCare" />
       <Pressable accessibilityRole="button" accessibilityLabel={mode === 'dark' ? 'Usar modo claro' : 'Usar modo oscuro'} onPress={() => setPreference(mode === 'dark' ? 'light' : 'dark')}
         style={({ pressed }) => [styles.theme, { opacity: pressed ? 0.7 : 1 }]}>

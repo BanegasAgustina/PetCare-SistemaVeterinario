@@ -12,6 +12,8 @@ import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import { runDatabaseOperation } from '../utils/database-error';
 import type { AuthUser } from '../types/auth';
+import { isProfilePhotoKey,removeProfilePhoto,storeProfilePhoto } from '../services/pet-photo.service';
+import { updateVetPhoto } from '../repositories/veterinarian.repository';
 
 function handler(operation: (request: Request,response: Response) => Promise<unknown>,status=200): RequestHandler {
   return async (request,response,next) => {
@@ -27,6 +29,13 @@ veterinarianAdminRouter.get('/',handler(async req=>vetList(req.query)));
 veterinarianAdminRouter.get('/:id',handler(async req=>vetDetail(identifier(req.params.id))));
 veterinarianAdminRouter.post('/',createAuthRateLimiter(),handler(async(req,res)=>createVet(validateVet(req.body),res.locals.authenticatedUser as AuthUser),201));
 veterinarianAdminRouter.put('/:id',handler(async(req,res)=>updateVet(identifier(req.params.id),validateVet(req.body),res.locals.authenticatedUser as AuthUser)));
+veterinarianAdminRouter.put('/:id/photo',handler(async(req,res)=>{
+  const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
+  if(Object.keys(body).some(key=>!['photoBase64','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&body.photoBase64!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
+  const remove=body.removePhoto===true;const image=remove?null:await storeProfilePhoto(body.photoBase64);
+  try {const result=await updateVetPhoto(identifier(req.params.id),image?.url??null,res.locals.authenticatedUser as AuthUser);if(isProfilePhotoKey(result.previous)&&result.previous!==image?.url)await removeProfilePhoto(result.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del veterinario.'));return result.veterinarian;}
+  catch(error){if(image)await image.remove().catch(()=>console.error('No se pudo limpiar una foto de veterinario sin referencia.'));throw error;}
+}));
 veterinarianAdminRouter.patch('/:id/status',handler(async(req,res)=> {
   const body=objectBody(req.body,['isActive']);
   if (typeof body.isActive!=='boolean') throw new AppError('VALIDATION_ERROR',400,'Indicá el estado de la cuenta.');
