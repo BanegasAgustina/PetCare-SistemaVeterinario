@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   try {
     switch (process.argv[2]) {
       case 'create': await createDatabase(); console.info('Base preparada. No se eliminaron datos existentes.'); break;
-      case 'check': await checkDatabaseConnection(); console.info('Conexión MySQL 8 disponible.'); break;
+      case 'check': await checkDatabaseConnection(); console.info('Conexión con motor de base de datos compatible disponible.'); break;
       case 'migrate': console.info(`Migraciones aplicadas: ${await runMigrations()}.`); break;
       case 'seed': await runSeeds(); console.info('Catálogos mínimos preparados.'); break;
       default: console.error('Comando inválido. Usá db:create, db:check, db:migrate o db:seed.'); process.exitCode = 1;

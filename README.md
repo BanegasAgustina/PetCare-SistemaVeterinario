@@ -4,7 +4,7 @@
 
 La guía de OAuth, configuración de proveedores y builds Android con EAS está en [mobile/README.md](mobile/README.md). OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap` y `db:migrate:auth`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
 
-PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. **PETCARE NO PROCESA PAGOS:** la Tienda funciona mediante reservas para retiro/gestión en la veterinaria. Ver [ampliación conectada, SQL manual y pruebas](AMPLIACION_CLINICA_PETCARE.md). El código nuevo requiere aplicar la migración documentada antes de habilitar estos módulos en Railway. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
+PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. **PETCARE NO PROCESA PAGOS:** la Tienda funciona mediante reservas para retiro/gestión en la veterinaria. Ver [ampliación conectada, SQL manual y pruebas](AMPLIACION_CLINICA_PETCARE.md). El código nuevo requiere aplicar la migración documentada antes de habilitar estos módulos en Layerbase. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
 
 Aplicación móvil para la gestión integral de una veterinaria. Busca conectar clientes, veterinarios y administradores mediante una experiencia accesible, con prioridad en celulares Android.
 

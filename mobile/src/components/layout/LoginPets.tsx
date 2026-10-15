@@ -7,10 +7,13 @@ export function LoginPets({ registration = false }: { registration?: boolean }) 
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const scale = width / visibleWidth;
-  if (!registration) return <View accessible={false} style={[styles.frame, { width, height: width * 0.4 }]}>
-    <View style={[styles.shape, { backgroundColor: colors.accent }]} />
-    <Image source={require('../../assets/login-full-pets.png')} resizeMode="contain" style={{ position: 'absolute', top: -width * 6 / 1152, width, height: width * 994 / 1152 }} />
-  </View>;
+  if (!registration) {
+    const imageHeight = width * 994 / 1152;
+    return <View accessible={false} style={[styles.frame, { width, height: imageHeight }]}>
+      <View style={[styles.shape, { backgroundColor: colors.accent }]} />
+      <Image source={require('../../assets/login-full-pets.png')} resizeMode="contain" style={{ position: 'absolute', top: 0, width, height: imageHeight }} />
+    </View>;
+  }
   return <View accessible={false} style={[styles.frame, { width, height: 609 * scale }]}>
     <View style={[styles.shape, { backgroundColor: colors.accent }]} />
     <Image source={artwork} resizeMode="contain" style={{ position: 'absolute', left: -73 * scale, top: -109 * scale, width: 2110 * scale, height: 745 * scale }} />

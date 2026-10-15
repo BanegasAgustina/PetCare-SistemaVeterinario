@@ -1,9 +1,10 @@
 /** Logo transparente sin panel; conserva colores y mejora su contorno en oscuro. */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
+import { PetCareLogo } from './PetCareLogo';
 export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuidamos a quienes más querés' }: { title?: string; subtitle?: string }) {
   const { colors, mode, setPreference } = useTheme();
   const { height, width } = useWindowDimensions();
@@ -13,7 +14,7 @@ export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuida
   const logoWidth = Math.min(availableHeight < 640 ? 200 : compact ? 242 : 290, width - 64);
   return <View style={styles.header}>
     <View style={[styles.logoRow, { height: logoWidth / 3 }]}>
-      <Image source={require('../../assets/petcare-logo.png')} resizeMode="contain" style={{ width: logoWidth, height: logoWidth / 3 }} accessibilityLabel="Logo oficial de PetCare" />
+      <PetCareLogo style={{ width: logoWidth, height: logoWidth / 3 }} accessibilityLabel="Logo oficial de PetCare" />
       <Pressable accessibilityRole="button" accessibilityLabel={mode === 'dark' ? 'Usar modo claro' : 'Usar modo oscuro'} onPress={() => setPreference(mode === 'dark' ? 'light' : 'dark')}
         style={({ pressed }) => [styles.theme, { opacity: pressed ? 0.7 : 1 }]}>
         <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.primary} accessible={false} />

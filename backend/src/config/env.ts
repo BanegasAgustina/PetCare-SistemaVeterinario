@@ -31,6 +31,19 @@ if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
   throw new Error('NODE_ENV debe ser development, test o production.');
 }
 
+const databaseHost = process.env.DB_HOST ?? '127.0.0.1';
+if (/(?:^|\.)(?:railway\.internal|rlwy\.net|railway\.app)$/i.test(databaseHost)) {
+  throw new Error('DB_HOST todavía apunta a Railway. Configurá el host vigente de Layerbase en DB_HOST.');
+}
+const isLayerbaseHost = /layerbase/i.test(databaseHost);
+const databaseSslMode = (process.env.DB_SSL_MODE ?? (isLayerbaseHost || nodeEnvironment === 'production' ? 'required' : 'disabled')).toLowerCase();
+if (!['disabled', 'required', 'verify_identity'].includes(databaseSslMode)) {
+  throw new Error('DB_SSL_MODE debe ser disabled, required o verify_identity.');
+}
+if (databaseSslMode === 'disabled' && (isLayerbaseHost || nodeEnvironment === 'production')) {
+  throw new Error('La conexión remota/producción requiere TLS. Configurá DB_SSL_MODE=required o verify_identity.');
+}
+
 // Orígenes web conocidos de PetCare; la variable puede añadir otros entornos propios.
 const petcareWebOrigins = [
   'http://localhost:8081',
@@ -46,14 +59,15 @@ export const env = {
   nodeEnvironment,
   port: readPort('PORT', 3000),
   database: {
-    host: process.env.DB_HOST ?? '127.0.0.1',
+    host: databaseHost,
     port: readPort('DB_PORT', 3306),
     database: databaseName,
     user: process.env.DB_USER ?? 'petcare',
     password: process.env.DB_PASSWORD ?? '',
+    ssl: databaseSslMode === 'disabled' ? undefined : databaseSslMode === 'verify_identity' ? { verifyIdentity: true } : { rejectUnauthorized: false },
   },
-  databaseConnectionLimit: readPositiveInteger('DB_CONNECTION_LIMIT', 10, 100),
-  databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 5000, 60000),
+  databaseConnectionLimit: readPositiveInteger('DB_CONNECTION_LIMIT', 5, 100),
+  databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 30000, 60000),
   bcryptSaltRounds: readPositiveInteger('BCRYPT_SALT_ROUNDS', 12, 14),
   corsAllowedOrigins: [...new Set([...petcareWebOrigins, ...configuredCorsOrigins])],
 };

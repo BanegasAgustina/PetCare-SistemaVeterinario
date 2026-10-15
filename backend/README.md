@@ -65,7 +65,7 @@ API REST Express 5 y TypeScript con MySQL 8 y autenticación tradicional mediant
 
 ## Requisitos e instalación
 
-Node.js >= 22.13, npm y MySQL 8.0.16+ o MySQL 8.4. No usar MariaDB, MySQL 5.7, PostgreSQL, Supabase o MongoDB. La comprobación central valida versión y conectividad; desde MySQL 8.0.16 las restricciones CHECK se aplican efectivamente. Ver [documentación MySQL CHECK](https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html).
+Node.js >= 22.13, npm y MySQL 8.0.16+ / 9.x o MariaDB 11.8.x. La rama MariaDB 11.8 fue verificada contra el esquema y consultas usadas por PetCare; no se consideran compatibles otras ramas MariaDB sin repetir la auditoría. Se rechazan MySQL anterior a 8.0.16, MariaDB fuera de 11.8 y motores no identificados. PetCare depende de restricciones CHECK aplicadas, columnas generadas, InnoDB, bloqueos nombrados y colaciones utf8mb4; el guard de versión conserva una lista explícita de motores y versiones admitidos.
 
 ```bash
 cd backend
@@ -117,10 +117,15 @@ Después ejecutar migraciones, seeds y comprobación con las credenciales locale
 | DB_NAME | petcare | Base específica del proyecto; nombre validado |
 | DB_USER | petcare | Cuenta autorizada localmente |
 | DB_PASSWORD | vacío | Completar contraseña real solo en .env |
-| DB_CONNECTION_LIMIT | 10 | Conexiones del pool, entero de 1 a 100 |
-| DB_CONNECT_TIMEOUT_MS | 5000 | Tiempo al abrir conexión, de 1 a 60000 ms |
+| DB_SSL_MODE | `disabled` en local; `required` para Layerbase y produccion | TLS: `disabled`, `required` o `verify_identity` |
+| DB_CONNECTION_LIMIT | 5 | Conexiones del pool, entero de 1 a 100 |
+| DB_CONNECT_TIMEOUT_MS | 30000 | Tiempo al abrir conexion, de 1 a 60000 ms |
 
-DB_CONNECT_TIMEOUT_MS limita la apertura de una conexión, no es un timeout de consultas ni de espera en la cola. El pool tiene cola máxima de 50 y multipleStatements=false. BIGINT se devuelve como string para evitar pérdida de precisión en JavaScript. `.env` está ignorado por Git; nunca copiar DB_* al bundle mobile.
+Layerbase entrega host, puerto asignado, esquema, usuario y contrasena en Quick Connect. Configurar esos valores en `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD`; PetCare usa el pool `mysql2` existente y no necesita un driver especifico ni una URL Layerbase. El codigo ignora `MYSQL_PUBLIC_URL`; no conservar esa variable si apunta a otra conexion. El host Railway se rechaza para evitar volver a conectar al proveedor anterior.
+
+Layerbase requiere TLS. `DB_SSL_MODE=required` cifra la conexion del puerto pooler; su certificado no es de confianza publica, por lo que la verificacion estricta falla en ese endpoint. Si Quick Connect selecciona el endpoint directo, usar `verify_identity` para validar el certificado y el nombre del host. En MySQL local se puede usar `disabled`; no se permite desactivar TLS para Layerbase ni en produccion. El timeout predeterminado de 30 s contempla el despertar de una base hibernada. `DB_CONNECT_TIMEOUT_MS` limita solo la apertura de conexion, no las consultas ni la espera de cola. El pool tiene cola maxima de 50 y `multipleStatements=false`. BIGINT se devuelve como string para evitar perdida de precision. `.env` esta ignorado por Git; nunca copiar DB_* al bundle mobile.
+
+El repositorio contiene `mobile/vercel.json` para el frontend. El backend Express esta en `backend/src/app.ts`; Vercel puede reconocer esa entrada si el proyecto de backend usa `backend` como `Root Directory`. El proyecto de Vercel de mobile no despliega ni configura el backend. En el proyecto que aloje el backend, cargar alli las variables `DB_*` de Quick Connect; no cargarlas en el proyecto Expo. Esta revision no cambia variables del panel ni confirma un deploy remoto.
 
 ## Ejecutar la API
 
@@ -142,7 +147,7 @@ Iniciar HTTP no crea tablas ni ejecuta seeds/migraciones automáticamente. La AP
 - src/app.ts y src/server.ts: Express, escucha y liberación del pool.
 - src/config: validación de entorno y único pool reutilizable.
 - src/database: CLI, creación de base, historial SQL, migraciones y seeds.
-- src/services/database.service.ts: checkDatabaseConnection y validación de MySQL 8.
+- src/services/database.service.ts: checkDatabaseConnection y validación explícita de versiones compatibles de MySQL/MariaDB.
 - src/controllers y src/routes: liveness y readiness.
 - src/middlewares/error.middleware.ts: respuesta uniforme sin detalles internos.
 - src/utils/database-error.ts: normalización central de errores DB y runDatabaseOperation.
@@ -368,7 +373,7 @@ Todas las nuevas FKs usan `ON DELETE RESTRICT`. Los IDs BIGINT se transportan co
 
 ### Resolución y límites de seguridad
 
-`effective = override ?? inherited`; una denegación explícita gana a la herencia. PUT de permisos reemplaza el conjunto de excepciones completo; `allowed:null` o ausencia restaura la herencia. Un permiso crítico nunca es efectivo fuera de SUPER_ADMIN, aun si una carga SQL errónea lo concede. La API rechaza códigos desconocidos, duplicados y cualquier modificación de permisos críticos en veterinarios. La UI los muestra bloqueados. Nadie puede modificar sus propios privilegios mediante estas rutas porque solo aceptan objetivos con rol VETERINARIAN.
+`effective = override  inherited`; una denegación explícita gana a la herencia. PUT de permisos reemplaza el conjunto de excepciones completo; `allowed:null` o ausencia restaura la herencia. Un permiso crítico nunca es efectivo fuera de SUPER_ADMIN, aun si una carga SQL errónea lo concede. La API rechaza códigos desconocidos, duplicados y cualquier modificación de permisos críticos en veterinarios. La UI los muestra bloqueados. Nadie puede modificar sus propios privilegios mediante estas rutas porque solo aceptan objetivos con rol VETERINARIAN.
 
 Cada request protegido ejecuta `authenticate`: firma/issuer/audience/expiración JWT → usuario activo y verificado → versión de sesión → permisos y perfil de MySQL. El JWT solo identifica usuario y versión; no contiene rol ni permisos. Sigue `requireRole` → `requirePermission` → scope cuando corresponde → controlador. Las siguientes solicitudes ven las modificaciones de permisos sin reemitir JWT; no se garantiza cancelar una solicitud que ya estaba en ejecución. `Cache-Control: no-store` en datos de autenticación y paneles.
 

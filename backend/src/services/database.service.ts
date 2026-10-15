@@ -1,4 +1,4 @@
-/** Comprobación centralizada de conectividad y compatibilidad con MySQL 8/9. */
+/** Comprobación centralizada de conectividad y compatibilidad con MySQL/MariaDB soportados. */
 import type { Pool, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
@@ -6,10 +6,15 @@ import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 type VersionRow = RowDataPacket & { version: string; connection_status: number };
 
 export function assertSupportedMysqlVersion(version: string): void {
-  const match = /^([89])\.(\d+)\.(\d+)/.exec(version);
-  // CHECK se aplica realmente desde MySQL 8.0.16; MariaDB y otras versiones se rechazan.
-  if (!match || version.toLowerCase().includes('mariadb') || (Number(match[1]) === 8 && Number(match[2]) === 0 && Number(match[3]) < 16)) {
-    throw new DatabaseError('DB_VERSION_UNSUPPORTED', 503, 'La base de datos requiere MySQL 8.0.16 o posterior de las ramas 8/9.');
+  const normalized = version.trim();
+  const maria = /^(\d+)\.(\d+)\.(\d+)(?:[-+.]|\s|$).*mariadb/i.exec(normalized);
+  // La compatibilidad MariaDB está auditada y probada para la serie 11.8 LTS.
+  // No aceptar otras ramas por compartir el protocolo: no están verificadas.
+  const mariaSupported = maria && Number(maria[1]) === 11 && Number(maria[2]) === 8;
+  const mysql = /^([89])\.(\d+)\.(\d+)/.exec(normalized);
+  const mysqlSupported = mysql && !(Number(mysql[1]) === 8 && Number(mysql[2]) === 0 && Number(mysql[3]) < 16);
+  if (!mariaSupported && !mysqlSupported) {
+    throw new DatabaseError('DB_VERSION_UNSUPPORTED', 503, 'Se requiere MySQL 8.0.16+ / 9.x o MariaDB 11.8.x; otras versiones no están verificadas.');
   }
 }
 // Alias conserva los imports existentes sin cambiar contratos de creación de base.

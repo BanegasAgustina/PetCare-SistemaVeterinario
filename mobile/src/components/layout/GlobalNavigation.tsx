@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Animated, Image, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
@@ -8,6 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { AppText } from '../ui/AppText';
 import type { IconName } from '../client/PetCareUI';
+import { PetCareLogo } from './PetCareLogo';
 
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
 type AdminModule = { code: string; name: string; path: string };
@@ -99,7 +100,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
         {!isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? setDesktopExpanded(value => !value) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
           <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
         </Pressable>}
-        {isClient || isAdmin ? <Image source={require('../../assets/petcare-logo.png')} style={[isClient ? styles.clientTopLogo : styles.topLogo, { tintColor: colors.text }]} resizeMode="contain" accessibilityLabel="PetCare"/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
+        {isClient || isAdmin ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {isClient ? <Pressable accessibilityRole="button" accessibilityLabel={`Notificaciones${unreadNotifications ? `, ${unreadNotifications} sin leer` : ''}`} onPress={() => router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.danger??'#d84343'}]}/>}</Pressable> : <Pressable accessibilityRole="button" accessibilityLabel="Perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>
@@ -125,7 +126,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 58, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuButton: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{width:152,height:44,flex:1,alignSelf:'center'}, profileButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
+  menuButton: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
   adminPageBar:{minHeight:76,paddingHorizontal:18,paddingVertical:11,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:1},backButton:{width:40,height:40,borderRadius:20,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:1},adminPageTitle:{fontSize:19,fontWeight:'600'},
   body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, desktopDrawer: { width: 252, paddingHorizontal: 15, paddingVertical: 18 }, mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
   brand: { minHeight: 66, justifyContent: 'center', gap: 3, marginBottom: 12 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupLabel:{paddingHorizontal:11,paddingTop:12,paddingBottom:4,textTransform:'uppercase',letterSpacing:0.8},groupItem:{marginLeft:6},item: { minHeight: 44, paddingHorizontal: 11, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, spacer: { flex: 1 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },
