@@ -28,7 +28,7 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
-  return <LoginLayout>
+  return <LoginLayout showDesktopImage>
     <LoginBrand />
     <FormNotice message={auth.notice} />
     {/* Se conservan validación, email de registro, errores/loading y la llamada original al AuthContext. */}
