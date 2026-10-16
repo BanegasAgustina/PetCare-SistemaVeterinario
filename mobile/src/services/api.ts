@@ -63,7 +63,9 @@ function getApiUrl(): string {
     if (!value) throw new Error();
     const url = new URL(value);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error();
-    return value.replace(/\/+$/, '');
+    const path = url.pathname.replace(/\/+$/, '');
+    if (!/\/api$/i.test(path)) url.pathname = `${path}/api`;
+    return url.toString().replace(/\/+$/, '');
   } catch { throw new ApiError('API_NOT_CONFIGURED', 'La conexión con PetCare todavía no está configurada.'); }
 }
 
