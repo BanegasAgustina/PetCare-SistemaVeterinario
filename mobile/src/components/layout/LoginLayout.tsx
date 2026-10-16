@@ -21,8 +21,7 @@ export function LoginLayout({ children, scrollable = false, showDesktopImage = f
   const tight = availableHeight < 640;
   // El login permanece fijo aunque aparezca el teclado; Registro sí necesita scroll.
   const main = <View style={[styles.main, { width: responsiveWeb ? Math.min(showDesktopImage && !keyboardOpen ? width * 0.46 : width - 48, 560) : width, alignSelf: 'center', paddingHorizontal: responsiveWeb ? 32 : 24 }, responsiveWeb && !showDesktopImage && [styles.webPanel, { backgroundColor: colors.surface, borderColor: colors.border }], showDesktopImage && responsiveWeb && styles.desktopCardPanel, { gap: tight ? 0 : compact ? 4 : 10, paddingTop: keyboardOpen ? 4 : tight ? 4 : compact ? 10 : 24, paddingBottom: 4 }]}>{children}</View>;
-  const artwork = !keyboardOpen && <LoginPets registration={scrollable} />;
-  const desktopArtwork = responsiveWeb && showDesktopImage ? artwork : null;
+  const artwork = !keyboardOpen && !responsiveWeb && <LoginPets registration={scrollable} />;
   const desktopImage = responsiveWeb && showDesktopImage && !keyboardOpen && <View style={styles.desktopImageFrame}>
     <Image source={require('../../assets/img1.jpg')} resizeMode="cover" accessibilityLabel="Veterinario atendiendo a un cachorro" style={styles.desktopImage} />
   </View>;
@@ -31,13 +30,12 @@ export function LoginLayout({ children, scrollable = false, showDesktopImage = f
   </View>;
   return <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: colors.background }]}>
     <View style={[styles.shape, { backgroundColor: colors.accent }]} />
-    {desktopArtwork && <View pointerEvents="none" style={styles.desktopArtwork}>{desktopArtwork}</View>}
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {scrollable ? <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, responsiveWeb && styles.webScrollContent, responsiveWeb && showDesktopImage && styles.desktopScrollContent, keyboardOpen && styles.keyboardScrollContent]}>
-        {desktopCard ?? <>{desktopImage}{main}</>}{!responsiveWeb && artwork}
+        {desktopCard ?? <>{desktopImage}{main}</>}{artwork}
       </ScrollView> : <View style={[styles.fixedContent, responsiveWeb && styles.desktopFixedContent]}>
         {desktopCard ?? <>{desktopImage}{main}</>}
-        {!responsiveWeb && artwork && <View pointerEvents="none" style={styles.bottomArtwork}>{artwork}</View>}
+        {artwork && <View pointerEvents="none" style={styles.bottomArtwork}>{artwork}</View>}
       </View>}
     </KeyboardAvoidingView>
   </SafeAreaView>;
@@ -50,8 +48,7 @@ const styles = StyleSheet.create({
   keyboardScrollContent: { justifyContent: 'flex-start' },
   fixedContent: { flex: 1, overflow: 'hidden' },
   desktopFixedContent: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24, paddingHorizontal: 32 },
-  desktopArtwork: { position: 'absolute', left: 0, right: 0, bottom: -50, alignItems: 'center', zIndex: 0 },
-  desktopCard: { flexDirection: 'row', alignItems: 'stretch', width: '94%', maxWidth: 1180, borderWidth: 1, borderRadius: 26, overflow: 'hidden', zIndex: 1 },
+  desktopCard: { flexDirection: 'row', alignItems: 'stretch', width: '94%', maxWidth: 1180, borderWidth: 1, borderRadius: 26, overflow: 'hidden' },
   desktopImageFrame: { width: '50%', flexGrow: 0, flexShrink: 0, overflow: 'hidden' },
   desktopImage: { width: '100%', height: '100%' },
   desktopCardPanel: { width: '50%', flexGrow: 0, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 24 },
