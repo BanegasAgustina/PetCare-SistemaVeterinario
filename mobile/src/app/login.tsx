@@ -28,9 +28,10 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
-  return <LoginLayout scrollable showDesktopImage>
+  return <LoginLayout showDesktopImage>
     <LoginBrand />
-    <FormNotice message={auth.notice} />
+    <FormNotice message={auth.restoreError ?? auth.notice} error={Boolean(auth.restoreError)} />
+    {auth.restoreError && <AppButton compact variant="secondary" label="Reintentar conexión" onPress={() => void auth.restoreSession()} />}
     {/* Se conservan validación, email de registro, errores/loading y la llamada original al AuthContext. */}
     <AuthForm compact fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={submitLogin} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
       secondaryAction={(loading) => <Pressable disabled={loading} accessibilityRole="button" onPress={() => { Keyboard.dismiss(); setRecoveryVisible(true); }} style={styles.recovery}><AppText variant="caption" style={{ color: colors.primary }}>¿Olvidaste tu contraseña?</AppText></Pressable>} />
