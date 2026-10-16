@@ -1,5 +1,9 @@
 # PetCare
 
+## Requisitos académicos y entregables
+
+La correspondencia entre los requisitos del trabajo y su implementación está documentada en [README_REQUISITOS.md](README_REQUISITOS.md). Incluye los límites actuales y los pasos pendientes para configuración externa y generación del APK.
+
 ## Configuración vigente
 
 La guía de OAuth, configuración de proveedores y builds Android con EAS está en [mobile/README.md](mobile/README.md). OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap`, `db:migrate:auth` y `db:migrate:employee-password`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
