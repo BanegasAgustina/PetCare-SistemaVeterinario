@@ -137,3 +137,13 @@ Obtén los callbacks exactos de cada proveedor ejecutando desde `backend/`: `npm
 Prueba cada proveedor en la web y en el APK instalado: cancelar consentimiento, acceder con una identidad ya vinculada, registrar una identidad nueva y verificar el correo, renovar la sesión y vincularlo explícitamente desde una cuenta existente. X no entrega email en este flujo, por lo que el alta pide un correo al usuario.
 
 Las versiones de `package.json` corresponden a Expo SDK 58, React 19.3 y React Native 0.88.0-rc.3. No se actualizaron dependencias para preparar EAS. Expo Go puede usarse para desarrollo general compatible con SDK 58, pero no para el retorno `petcare://oauth` de este flujo.
+
+## Error de React Native: texto fuera de `<Text>`
+
+**Síntoma:** la app muestra `Text strings must be rendered within a <Text> component` y la traza puede señalar `ScrollView` aunque el origen esté en una pantalla que usa `PetCareScreen`.
+
+**Causa:** una condición JSX como `{valorOpcional && <AppText>...</AppText>}` devuelve `""` cuando `valorOpcional` es una cadena vacía. React Native recibe esa cadena como hijo directo de un contenedor (`View` o `ScrollView`) y falla al renderizar.
+
+**Solución aplicada:** comprobar valores opcionales con un booleano antes de renderizar, por ejemplo `{Boolean(valorOpcional) && <AppText>...</AppText>}`. Para valores numéricos opcionales, comprobar `valor !== null && valor !== undefined` para admitir también el valor cero. Se aplicó el criterio en Reservas, Turnos, Pacientes, Profesionales, Servicios, Clientes, formularios y componentes compartidos de estados y encabezados. No se modificaron pantallas de rutas `src/app/client` ni su presentación.
+
+**Comprobación:** `npm run typecheck` y `npm run lint` completan correctamente. `npm test` completa, pero el proyecto no contiene pruebas automatizadas (`0 tests`).

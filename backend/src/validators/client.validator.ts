@@ -17,12 +17,14 @@ export function imageUrl(value:unknown):string|null {
   try { const url=new URL(result);if(url.protocol!=='https:'||url.username||url.password)invalid('La foto requiere una URL HTTPS pública.'); } catch {invalid('La foto requiere una URL HTTPS pública.');}return result;
 }
 export function petInput(value:unknown) {
-  const body=clientBody(value,['name','speciesId','breedId','breedName','birthDate','microchipNumber','photoUrl','photoBase64','weightKg']);
+  const body=clientBody(value,['name','sex','speciesId','breedId','breedName','birthDate','microchipNumber','photoUrl','photoBase64','weightKg']);
+  const sex=text(body.sex,10)!;
+  if(!['FEMALE','MALE','UNKNOWN'].includes(sex))invalid('Seleccioná el sexo de la mascota.');
   const birthDate=text(body.birthDate,10,true);
   if(birthDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)||!Number.isFinite(Date.parse(birthDate))||new Date(birthDate).toISOString().slice(0,10)!==birthDate||birthDate>new Date().toISOString().slice(0,10)))invalid('Revisá la fecha de nacimiento.');
   const weightKg=body.weightKg===null||body.weightKg===undefined||body.weightKg===''?null:Number(body.weightKg);
   if(weightKg!==null&&(!Number.isFinite(weightKg)||weightKg<=0||weightKg>9999.99||Math.abs(weightKg*100-Math.round(weightKg*100))>0.000001))invalid('Revisá el peso.');
-  return {name:text(body.name,100)!,speciesId:clientId(body.speciesId),breedId:body.breedId?clientId(body.breedId):null,birthDate,
+  return {name:text(body.name,100)!,sex:sex as 'FEMALE'|'MALE'|'UNKNOWN',speciesId:clientId(body.speciesId),breedId:body.breedId?clientId(body.breedId):null,birthDate,
     breedName:text(typeof body.breedName==='string'?body.breedName.trim():body.breedName,100,true),
     microchipNumber:text(typeof body.microchipNumber==='string'?body.microchipNumber.trim():body.microchipNumber,32,true),photoUrl:imageUrl(body.photoUrl),weightKg};
 }

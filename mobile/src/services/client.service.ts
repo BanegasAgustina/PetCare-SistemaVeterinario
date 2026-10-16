@@ -15,7 +15,7 @@ export function clientService(request:ClientRequest){
     slots:(serviceId:string,veterinarianId?:string)=>get<Slot[]>(`/appointments/slots?${new URLSearchParams({serviceId,...(veterinarianId?{veterinarianId}:{})})}`),
     requestAppointment:(petId:string,slotId:string)=>send('/appointments','POST',{petId,slotId}),
     clinical:(kind:ClinicalKind,petId?:string)=>get<ClinicalRecord[]>(`/clinical/${kind}${petId?`?petId=${encodeURIComponent(petId)}`:''}`),
-    products:(search='',categoryId?:string)=>get<Product[]>(`/store/products?${new URLSearchParams({search,...(categoryId?{categoryId}:{})})}`),
+    products:(search='',categoryId?:string,productType?:'MEDICINE'|'ACCESSORY')=>get<Product[]>(`/store/products?${new URLSearchParams({search,...(categoryId?{categoryId}:{}),...(productType?{productType}:{})})}`),
     product:(id:string)=>get<Product>(`/store/products/${encodeURIComponent(id)}`),categories:()=>get<CatalogItem[]>('/store/categories'),
     cart:()=>get<Cart>('/cart'),updateCart:(id:string,quantity:number)=>send<Cart>(`/cart/${encodeURIComponent(id)}`,'PUT',{quantity}),
     checkout:(requestKey:string)=>send<OrderDetail>('/orders','POST',{requestKey}),orders:()=>get<Order[]>('/orders'),order:(id:string)=>get<OrderDetail>(`/orders/${encodeURIComponent(id)}`),

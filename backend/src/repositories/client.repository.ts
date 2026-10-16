@@ -8,10 +8,18 @@ import type { AuthUser } from '../types/auth';
 import { randomUUID } from 'node:crypto';
 import { invalid, type petInput } from '../validators/client.validator';
 type PetInput=ReturnType<typeof petInput>;
-const petColumns=`p.id,p.name,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.species_id AS speciesId,
- p.breed_id AS breedId,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.photo_url AS photoUrl,d.weight_kg AS weightKg`;
+function normalizePetSex(value:unknown):'FEMALE'|'MALE'|'UNKNOWN'|null {
+  if(value===null||value===undefined||value==='')return null;
+  const sex=String(value).trim().toUpperCase();
+  if(['FEMALE','F','HEMBRA','FEMENINO'].includes(sex))return 'FEMALE';
+  if(['MALE','M','MACHO','MASCULINO'].includes(sex))return 'MALE';
+  if(['UNKNOWN','UNSPECIFIED','NO LO SE','NO SÉ','DESCONOCIDO'].includes(sex))return 'UNKNOWN';
+  return null;
+}
+const petColumns=`p.id,p.name,p.sex,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,p.species_id AS speciesId,
+ p.breed_id AS breedId,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg`;
 const petJoins='FROM pets p JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id';
-const mapPet=(p:RowDataPacket)=>({...p,id:String(p.id),photoUrl:p.photoUrl as string|null,speciesId:String(p.speciesId),breedId:p.breedId===null?null:String(p.breedId)});
+const mapPet=(p:RowDataPacket)=>({...p,id:String(p.id),sex:normalizePetSex(p.sex),photoUrl:p.photoUrl as string|null,speciesId:String(p.speciesId),breedId:p.breedId===null?null:String(p.breedId)});
 export async function pets(owner:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns} ${petJoins} WHERE p.owner_id=? AND p.is_active=1 ORDER BY p.name,p.id`,[owner]);return rows.map(mapPet);
 }
@@ -27,19 +35,25 @@ export async function petCatalog() {
 async function transaction<T>(operation:(connection:PoolConnection)=>Promise<T>):Promise<T> {
   return runDatabaseOperation(async()=>{const c=await databasePool.getConnection();try{await c.beginTransaction();const result=await operation(c);await c.commit();return result;}catch(error){await c.rollback();throw error;}finally{c.release();}});
 }
-/** Comprueba ownership bajo lock y conserva la clave de foto previa para reemplazarla después del commit. */
+/** La foto se vincula solo después de bloquear la mascota cuya propietaria coincide con el JWT. */
+export async function updateOwnedPetPhoto(connection:Pick<PoolConnection,'execute'>,owner:string,id:string,nextPhoto:string|null,preservePhoto=false):Promise<string|null> {
+  const [rows]=await connection.execute<RowDataPacket[]>('SELECT photo_url FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);
+  if(!rows[0])throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
+  const previous=rows[0].photo_url as string|null;
+  if(!preservePhoto&&nextPhoto!==previous)await connection.execute('UPDATE pets SET photo_url=? WHERE id=? AND owner_id=? AND is_active=1',[nextPhoto,id,owner]);
+  return previous;
+}
+/** Comprueba ownership bajo lock y conserva la URL previa para reemplazarla después del commit. */
 export async function savePet(owner:string,input:PetInput,id?:string,preservePhoto=false) {
   return transaction(async c=>{
     const [species]=await c.execute<RowDataPacket[]>('SELECT id FROM species WHERE id=?',[input.speciesId]);if(!species.length)invalid('La especie no existe.');
     if(input.breedId){const [breed]=await c.execute<RowDataPacket[]>('SELECT id FROM breeds WHERE id=? AND species_id=?',[input.breedId,input.speciesId]);if(!breed.length)invalid('La raza no pertenece a la especie.');}
     let result=id;let previousPhoto:string|null=null;
-    if(id){const [rows]=await c.execute<RowDataPacket[]>('SELECT id FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
-      const [details]=await c.execute<RowDataPacket[]>('SELECT photo_url FROM client_pet_details WHERE pet_id=? FOR UPDATE',[id]);
-      previousPhoto=details[0]?.photo_url??null;
+    if(id){previousPhoto=await updateOwnedPetPhoto(c,owner,id,input.photoUrl,preservePhoto);
       if(preservePhoto)input.photoUrl=previousPhoto;
-      await c.execute('UPDATE pets SET name=?,species_id=?,breed_id=?,birth_date=?,microchip_number=? WHERE id=? AND owner_id=?',[input.name,input.speciesId,input.breedId,input.birthDate,input.microchipNumber,id,owner]);
-    }else{await c.execute('INSERT INTO pets (owner_id,name,species_id,breed_id,birth_date,microchip_number) VALUES (?,?,?,?,?,?)',[owner,input.name,input.speciesId,input.breedId,input.birthDate,input.microchipNumber]);const [rows]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');result=rows[0].id as string;}
-    await c.execute('INSERT INTO client_pet_details (pet_id,photo_url,weight_kg,breed_name) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE photo_url=?,weight_kg=?,breed_name=?',[result!,input.photoUrl,input.weightKg,input.breedName,input.photoUrl,input.weightKg,input.breedName]);
+      await c.execute('UPDATE pets SET name=?,sex=?,species_id=?,breed_id=?,birth_date=?,microchip_number=? WHERE id=? AND owner_id=?',[input.name,input.sex,input.speciesId,input.breedId,input.birthDate,input.microchipNumber,id,owner]);
+    }else{await c.execute('INSERT INTO pets (owner_id,name,sex,species_id,breed_id,birth_date,microchip_number,photo_url) VALUES (?,?,?,?,?,?,?,?)',[owner,input.name,input.sex,input.speciesId,input.breedId,input.birthDate,input.microchipNumber,input.photoUrl]);const [rows]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');result=rows[0].id as string;}
+    await c.execute('INSERT INTO client_pet_details (pet_id,weight_kg,breed_name) VALUES (?,?,?) ON DUPLICATE KEY UPDATE weight_kg=?,breed_name=?',[result!,input.weightKg,input.breedName,input.weightKg,input.breedName]);
     const [saved]=await c.execute<RowDataPacket[]>(`SELECT ${petColumns} ${petJoins} WHERE p.id=? AND p.owner_id=?`,[result!,owner]);
     return {pet:mapPet(saved[0]),previousPhoto};
   });
@@ -60,17 +74,19 @@ export async function slots(service:string,professional?:string) {return clinic.
 export async function createAppointment(owner:string,petId:string,slotId:string) {return clinic.requestAppointment(owner,petId,slotId);}
 export async function clinical(owner:string,kind:string,petId?:string) {
   if(petId)await pet(owner,petId);
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT r.id,r.pet_id AS petId,p.name AS petName,r.title,r.content,r.product_id AS productId,r.valid_until AS validUntil,(r.occurred_at<=UTC_TIMESTAMP() AND r.valid_until>UTC_TIMESTAMP()) AS isValid,r.reason,r.diagnosis,r.treatment,r.weight_kg AS weightKg,r.occurred_at AS occurredAt,r.next_due_at AS nextDueAt,
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT r.id,r.pet_id AS petId,p.name AS petName,r.title,r.content,r.product_id AS productId,r.valid_until AS validUntil,(r.occurred_at<=UTC_TIMESTAMP() AND r.valid_until>UTC_TIMESTAMP()) AS isValid,r.dose,r.frequency,r.duration,r.weight_kg AS weightKg,r.occurred_at AS occurredAt,r.next_due_at AS nextDueAt,
     CONCAT(u.first_name,' ',u.last_name) AS veterinarian FROM client_clinical_records r JOIN pets p ON p.id=r.pet_id
     JOIN veterinarians v ON v.id=r.veterinarian_id JOIN users u ON u.id=v.user_id WHERE p.owner_id=? AND r.kind=? ${petId?'AND p.id=?':''} ORDER BY r.occurred_at DESC`,petId?[owner,kind,petId]:[owner,kind]);
   return rows.map(r=>({...r,id:String(r.id),petId:String(r.petId),isValid:Boolean(r.isValid),productId:r.productId?String(r.productId):null,validUntil:r.validUntil?utcDate(r.validUntil):null,occurredAt:utcDate(r.occurredAt),nextDueAt:r.nextDueAt?utcDate(r.nextDueAt):null}));
 }
-const productSelect=`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.requires_prescription AS requiresPrescription,p.species_id AS speciesId,p.is_active AS isActive,p.price_cents AS regularPriceCents,
+// La tienda consulta exclusivamente el catálogo propio y su disponibilidad reservable.
+const productSelect=`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.requires_prescription AS requiresPrescription,p.species_id AS speciesId,p.product_type AS productType,p.is_active AS isActive,p.price_cents AS regularPriceCents,
  COALESCE((SELECT MIN(pr.price_cents) FROM client_promotions pr WHERE pr.product_id=p.id AND pr.is_active=1 AND pr.starts_at<=UTC_TIMESTAMP() AND pr.ends_at>UTC_TIMESTAMP() AND pr.price_cents<p.price_cents),p.price_cents) AS priceCents
  FROM client_products p LEFT JOIN client_product_categories c ON c.id=p.category_id`;
 const mapProduct=(r:RowDataPacket)=>({...r,id:String(r.id),isActive:Boolean(r.isActive),requiresPrescription:Boolean(r.requiresPrescription),speciesId:r.speciesId===null?null:String(r.speciesId),stock:Number(r.stock),categoryId:r.categoryId===null?null:String(r.categoryId),priceCents:Number(r.priceCents),regularPriceCents:Number(r.regularPriceCents)});
-export async function products(search='',category?:string,featured=false) {
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.is_active=1 AND (c.id IS NULL OR c.is_active=1) AND p.name LIKE ? ${category?'AND p.category_id=?':''} ${featured?'AND p.is_featured=1':''} ORDER BY p.name LIMIT 200`,category?[`%${search}%`,category]:[`%${search}%`]);return rows.map(mapProduct);
+export async function products(search='',category?:string,featured=false,productType?:string) {
+  const args:unknown[]=[`%${search}%`];let typeClause='';if(category){typeClause+=' AND p.category_id=?';args.push(category);}if(productType){typeClause+=' AND p.product_type=?';args.push(productType);}if(featured)typeClause+=' AND p.is_featured=1';
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.is_active=1 AND (c.id IS NULL OR c.is_active=1) AND p.name LIKE ?${typeClause} ORDER BY p.name LIMIT 200`,args as (string|number)[]);return rows.map(mapProduct);
 }
 export async function product(id:string) {const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.id=? AND p.is_active=1 AND (c.id IS NULL OR c.is_active=1)`,[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');return {...mapProduct(rows[0]),reservationKey:randomUUID()};}
 export async function categories(){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM client_product_categories WHERE is_active=1 ORDER BY name');return rows.map(r=>({...r,id:String(r.id)}));}

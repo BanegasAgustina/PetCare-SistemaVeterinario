@@ -1,18 +1,16 @@
 /** Gestión transaccional sin borrar profesionales. Identificadores BIGINT siempre como texto. */
-import bcrypt from 'bcrypt';
-import { randomBytes } from 'node:crypto';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
-import { env } from '../config/env';
 import { AppError } from '../utils/app-error';
 import { runDatabaseOperation } from '../utils/database-error';
 import type { VetInput } from '../validators/veterinarian.validator';
 import { readVetProfile } from './authorization.repository';
-import { invitationUrl, saveInvitation, deliverInvitation } from '../services/invitation.service';
 import { freshAdmin } from './admin.repository';
 import { withDatabaseLock } from '../database/lock';
+import { hashPassword } from '../services/password.service';
 import type { AuthUser } from '../types/auth';
 import { isProfilePhotoKey,profilePhotoUrl } from '../services/pet-photo.service';
+import { catalogName } from '../utils/catalog-presentation';
 
 async function transaction<T>(operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
   return runDatabaseOperation(async () => {
@@ -23,7 +21,7 @@ async function transaction<T>(operation: (connection: PoolConnection) => Promise
 export async function vetCatalog() {
   return runDatabaseOperation(async () => {
     const [specialties] = await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM specialties ORDER BY name');
-    return { specialties: specialties.map(s=>({ id: String(s.id),name: s.name as string })) };
+    return { specialties: specialties.map(s=>({ id: String(s.id),name: catalogName(s.name as string) })) };
   });
 }
 export async function vetDetail(id: string) {
@@ -67,7 +65,7 @@ export async function vetList(query: Record<string, unknown>) {
       JOIN specialties s ON s.id=vs.specialty_id WHERE vs.veterinarian_id IN (${ids.map(()=>'?').join(',')}) ORDER BY s.name`,ids) : [[]];
     return { items: await Promise.all(rows.map(async row=>({ id:String(row.id),firstName:row.first_name as string,lastName:row.last_name as string,email:row.email as string,
       profilePhotoUrl:await profilePhotoUrl(row.profilePhotoUrl),isActive:Boolean(row.is_active),licenseNumber:row.license_number as string,
-      specialties:specialties.filter(s=>String(s.veterinarian_id)===String(row.id)).map(s=>({id:String(s.id),name:s.name as string})) }))),
+      specialties:specialties.filter(s=>String(s.veterinarian_id)===String(row.id)).map(s=>({id:String(s.id),name:catalogName(s.name as string)})) }))),
       page,pageSize:limit,total:Number(count[0].total),hasMore:page*limit<Number(count[0].total) };
   });
 }
@@ -81,7 +79,18 @@ export async function updateVetPhoto(id:string,key:string|null,identity:AuthUser
     previous=rows[0].profilePhotoUrl;
     await connection.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,rows[0].id]);
   });
-  return {previous,veterinarian:await vetDetail(id)};
+  return {previous:previous as string|null};
+}
+/** El veterinario solo puede editar la foto de la cuenta ligada a su propio JWT. */
+export async function updateOwnVetPhoto(userId:string,key:string|null) {
+  let previous:string|null=null;
+  await transaction(async connection=>{
+    const [rows]=await connection.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS previous,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id JOIN veterinarians v ON v.user_id=u.id WHERE u.id=? FOR UPDATE",[userId]);
+    if(!rows[0]||rows[0].role!=='VETERINARIAN')throw new AppError('FORBIDDEN',403,'Solo el veterinario puede actualizar su foto de perfil.');
+    previous=rows[0].previous as string|null;
+    await connection.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,userId]);
+  });
+  return {previous};
 }
 async function replaceSpecialties(connection: PoolConnection,vetId: string,ids: string[]) {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT id FROM specialties WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);
@@ -96,13 +105,12 @@ async function lockVet(connection: PoolConnection,id: string) {
   return rows[0];
 }
 export async function createVet(input: VetInput,identity:AuthUser) {
-  invitationUrl();
-  const hash = await bcrypt.hash(randomBytes(48).toString('base64'),env.bcryptSaltRounds);
+  const hash = await hashPassword('empleadoPetCare1234');
   const result = await transaction(async connection => {
     await freshAdmin(connection,identity,'veterinarians.manage');
     const [roles] = await connection.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='VETERINARIAN'");
     if (!roles[0]) throw new AppError('AUTH_UNAVAILABLE',503,'El rol veterinario no está configurado.');
-    await connection.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active) VALUES (?,?,?,?,?,?,?)',
+    await connection.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,?,1)',
       [roles[0].id,input.email,hash,input.firstName,input.lastName,input.phone,input.isActive]);
     const [users] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
     const userId = users[0].id as string;
@@ -110,18 +118,19 @@ export async function createVet(input: VetInput,identity:AuthUser) {
     const [profiles] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
     const id = profiles[0].id as string;
     await replaceSpecialties(connection,id,input.specialtyIds);
-    return { id,token:input.isActive ? await saveInvitation(connection,userId) : null };
+    return { id };
   });
-  return { veterinarian:await vetDetail(result.id),delivery:result.token ? await deliverInvitation(input.email,result.token) : 'pending' };
+  return { veterinarian:await vetDetail(result.id) };
 }
 export async function updateVet(id: string,input: VetInput,identity:AuthUser) {
-  const hash = await bcrypt.hash(randomBytes(48).toString('base64'),env.bcryptSaltRounds);
   await transaction(async connection => {
-    await freshAdmin(connection,identity,'veterinarians.manage');
+    const actor=await freshAdmin(connection,identity,'veterinarians.manage');
     const user = await lockVet(connection,id); const emailChanged = user.email !== input.email;
+    if(Boolean(user.is_active)!==input.isActive&&actor.role!=='SUPER_ADMIN')throw new AppError('FORBIDDEN',403,'Solo el administrador principal puede activar o desactivar veterinarios.');
+    if(String(user.id)===actor.id&&!input.isActive)throw new AppError('FORBIDDEN',403,'No podés desactivar tu propia cuenta.');
     await connection.execute(`UPDATE users SET first_name=?,last_name=?,email=?,phone=?,is_active=?,
-      session_version=session_version+?,email_verified_at=IF(?,NULL,email_verified_at),password_hash=IF(?,?,password_hash) WHERE id=?`,
-      [input.firstName,input.lastName,input.email,input.phone,input.isActive,emailChanged || Boolean(user.is_active)!==input.isActive ? 1:0,emailChanged,emailChanged,hash,user.id]);
+      session_version=session_version+?,email_verified_at=IF(?,NULL,email_verified_at) WHERE id=?`,
+      [input.firstName,input.lastName,input.email,input.phone,input.isActive,emailChanged || Boolean(user.is_active)!==input.isActive ? 1:0,emailChanged,user.id]);
     await connection.execute('UPDATE veterinarians SET license_number=? WHERE id=?',[input.licenseNumber,id]);
     await replaceSpecialties(connection,id,input.specialtyIds);
     if (emailChanged || !input.isActive) {
@@ -133,8 +142,10 @@ export async function updateVet(id: string,input: VetInput,identity:AuthUser) {
 }
 export async function updateVetStatus(id: string,isActive: boolean,identity:AuthUser) {
   await transaction(async connection => {
-    await freshAdmin(connection,identity,'veterinarians.manage');
+    const actor=await freshAdmin(connection,identity,'veterinarians.manage');
     const user = await lockVet(connection,id);
+    if(actor.role!=='SUPER_ADMIN')throw new AppError('FORBIDDEN',403,'Solo el administrador principal puede activar o desactivar veterinarios.');
+    if(String(user.id)===actor.id&&!isActive)throw new AppError('FORBIDDEN',403,'No podés desactivar tu propia cuenta.');
     await connection.execute('UPDATE users SET is_active=?,session_version=session_version+1 WHERE id=?',[isActive,user.id]);
     if (!isActive) {
       await connection.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[user.id]);

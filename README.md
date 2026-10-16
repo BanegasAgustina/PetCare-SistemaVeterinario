@@ -2,7 +2,7 @@
 
 ## Configuración vigente
 
-La guía de OAuth, configuración de proveedores y builds Android con EAS está en [mobile/README.md](mobile/README.md). OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap` y `db:migrate:auth`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
+La guía de OAuth, configuración de proveedores y builds Android con EAS está en [mobile/README.md](mobile/README.md). OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap`, `db:migrate:auth` y `db:migrate:employee-password`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
 
 PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. **PETCARE NO PROCESA PAGOS:** la Tienda funciona mediante reservas para retiro/gestión en la veterinaria. Ver [ampliación conectada, SQL manual y pruebas](AMPLIACION_CLINICA_PETCARE.md). El código nuevo requiere aplicar la migración documentada antes de habilitar estos módulos en Layerbase. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
 
@@ -149,3 +149,51 @@ Configurar EMAIL_CODE_SECRET (independiente de JWT) y SMTP_HOST, SMTP_PORT, SMTP
 
 Ejecutar `npm run db:migrate` desde backend para aplicar 003_email_verification.sql. Usuarios anteriores también deben verificar: no se inventan fechas de verificación. Esquema, preparación y endpoints están en backend/README.md. Informe de esta corrección: [INFORME_VERIFICACION_EMAIL.md](INFORME_VERIFICACION_EMAIL.md).
 
+# Fotos persistentes de veterinarios y mascotas
+
+Las fotos de perfil, mascotas y productos se convierten a WebP en memoria con `sharp` y se suben desde el backend a Cloudinary usando el SDK oficial de Node.js. El servidor no escribe archivos permanentes, por lo que el flujo funciona en funciones serverless de Vercel. El cliente Expo solo envía Base64 dentro de una solicitud autenticada al backend; no recibe ni conoce la clave secreta de Cloudinary. Se validan los bytes reales (JPEG, PNG o WebP), límite de 5 MB y 25 megapíxeles. MySQL conserva la URL HTTPS `secure_url` devuelta por Cloudinary; los productos la guardan en `client_products.image_url`, columna que ya existe en el esquema activo.
+
+## Configuración
+
+1. Creá una cuenta en [Cloudinary](https://cloudinary.com/users/register/free) y abrí el Dashboard de la cuenta.
+2. Copiá **Cloud name**, **API Key** y **API Secret**. No compartas ni publiques el API Secret.
+3. En `backend/.env` (local), definí `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`. `backend/.env.example` muestra los nombres sin valores reales. Reiniciá el backend después de cambiar las variables.
+4. En producción, agregá esas tres variables en el panel del proyecto que ejecuta el backend (Vercel: **Project → Settings → Environment Variables**). Elegí los entornos necesarios y redeployá para que las funciones reciban la configuración. No las agregues al proyecto Expo ni a variables `EXPO_PUBLIC_*`. En este checkout `mobile/vercel.json` configura la exportación del frontend, pero no hay un `backend/vercel.json`; el repositorio por sí solo no permite confirmar el proveedor ni proyecto donde está desplegada la API. Verificá ese destino antes de cargar variables.
+
+Si falta una variable, el backend responde con un error de almacenamiento configurado sin exponer valores. La conexión Layerbase/MySQL existente no se modifica. Las cargas nuevas de productos usan Cloudinary. S3 solo se consulta para referencias antiguas guardadas como claves `products/...`; si no se puede acceder a ese bucket, esas fotos aparecen vacías hasta volver a subirlas.
+
+## Esquema y persistencia
+
+- Perfil de veterinario: el código usa `users.profile_photo_url` (espera `VARCHAR(2048) NULL`). La presencia y definición en Layerbase no se pudo confirmar; verificála con la consulta de abajo antes de usar o migrar. El veterinario puede cambiar su foto desde el inicio del panel y `/auth/me` devuelve la URL persistida.
+- Mascotas: los modelos, el CRUD y la relación de propiedad del código actual usan `pets` y `pets.owner_id`; `client_pet_details` aparece como tabla auxiliar en las consultas de peso y raza. La foto ahora se lee/escribe en `pets.photo_url`, pero este campo y el modelo desplegado en Layerbase no se pudieron confirmar. Preparé una migración aditiva condicionada a verificar primero el esquema real.
+- La conexión de solo lectura desde este entorno devolvió `DB_UNAVAILABLE`; por eso el esquema de producción sigue sin confirmar. Ejecutá esta consulta en Layerbase antes de migrar:
+
+```sql
+SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME IN ('pets', 'users', 'client_pet_details')
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+```
+
+La consulta de abajo es de solo lectura. Confirmá que `pets` y `users` son las tablas reales y revisá la relación `pets.owner_id` y `users.profile_photo_url`; compará también `client_pet_details` con el esquema desplegado. El código actual y la migración preparada esperan `pets.id`, `owner_id` y `microchip_number`; el script se niega a continuar si esa forma no coincide. Solo después de verificarlo, y si falta la columna, ejecutá `cd backend && npm run db:migrate:pet-photo`. No ejecuté esta migración. Si `pets.photo_url` ya existe, el script comprueba que sea `VARCHAR(2048) NULL` y no la duplica. No ejecutes esta migración si Layerbase muestra otra tabla/modelo: primero hay que adaptar el código al esquema confirmado.
+
+## Primera subida y comprobación
+
+1. Con Cloudinary configurado, iniciá el backend y una sesión móvil de veterinario. En **Mi perfil**, elegí una foto. El endpoint autenticado `PUT /api/vet/profile/photo` solo acepta el ID derivado de la sesión.
+2. En MySQL, comprobá la persistencia con `SELECT id, profile_photo_url FROM users WHERE id = '<ID del veterinario>';`. Contrastá la URL HTTPS con la imagen visible en Cloudinary Media Library, dentro de `profiles/`.
+3. Tras aplicar la migración de mascotas, desde la app del cliente elegí una foto al crear o editar su ficha. Comprobá `SELECT id, owner_id, photo_url FROM pets WHERE id = '<ID de la mascota>';`; las imágenes se organizan en `pets/<ID del propietario>/`.
+4. Cerrá la sesión y volvé a iniciar, o abrí la cuenta desde otro dispositivo. La API vuelve a entregar las URLs persistidas y la app muestra esas imágenes con un marcador predeterminado si una URL falla.
+5. `GET /api/health` verifica que la API responda, no valida credenciales de Cloudinary. La primera subida autenticada es la comprobación funcional. No se agregó un endpoint público de diagnóstico del proveedor.
+
+Al reemplazar una foto se sube primero una nueva imagen con identificador único; después se guarda la URL en MySQL y recién entonces se intenta eliminar el objeto anterior. Si la escritura SQL falla, se intenta limpiar el nuevo objeto. Los fallos de limpieza se registran sin secretos; puede quedar un objeto huérfano en Cloudinary, pero nunca se borra la referencia vigente. Las fotos antiguas en el bucket S3 siguen siendo legibles hasta que se reemplacen; no se migran automáticamente. No borres manualmente objetos antiguos mientras sus URLs sigan almacenadas.
+
+## Diagnóstico y tareas manuales
+
+- `El almacenamiento de fotos todavía no está configurado`: verificá que las tres variables existan en el entorno del backend y reiniciá/redeployá.
+- `No pudimos subir la foto`: revisá estado de Cloudinary, límites de cuenta, conectividad de salida y Cloud Name/API Key. Nunca copies el API Secret a logs o al cliente.
+- Imagen rechazada: elegí JPEG, PNG o WebP de hasta 5 MB y 25 megapíxeles; imágenes animadas/multiframe no se aceptan.
+- Foto no visible: confirmá que MySQL tenga una URL `https://res.cloudinary.com/...`, que el recurso exista en Media Library y que el dispositivo tenga conexión.
+- Error al guardar: revisá Layerbase y que exista la fila propietaria. Para mascotas, cada foto se guarda en `pets.photo_url`; el backend verifica `pets.id` y `pets.owner_id` bajo transacción.
+
+Para productos, el flujo existente usa `client_products.image_url` (VARCHAR de URL HTTPS), por lo que no requiere una migración SQL. La primera subida desde el formulario administrativo confirma el funcionamiento de punta a punta. Las fotos históricas que solo existan en un bucket S3 no se migran automáticamente; al reemplazarlas desde la app pasan a Cloudinary.

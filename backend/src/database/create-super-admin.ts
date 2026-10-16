@@ -23,12 +23,12 @@ async function readInput():Promise<unknown> {
   }
   try {
     const firstName=await ask('Nombre: ');const lastName=await ask('Apellido: ');
-    const email=await ask('Email: ');const phone=await ask('Teléfono (opcional): ');
+    const email=await ask('Correo electrónico: ');const phone=await ask('Teléfono (opcional): ');
     const password=await ask('Contraseña (oculta): ',true);const repeat=await ask('Repetir contraseña (oculta): ',true);
     if(password!==repeat)throw new AppError('VALIDATION_ERROR',400,'Las contraseñas no coinciden.');
     return {firstName,lastName,email,phone,password};
   }finally{reader.close();output.end();}
 }
-void readInput().then(createFirstSuperAdmin).then(()=>console.info('Primer SUPER_ADMIN creado y activo. Iniciá sesión en el Login habitual.'))
+void readInput().then(createFirstSuperAdmin).then(()=>console.info('Primer SUPER_ADMIN creado y activo. Iniciá sesión desde la pantalla habitual.'))
   .catch(error=>{console.error(error instanceof AppError?error.message:'No se pudo crear el primer SUPER_ADMIN. Revisá conexión y esquema, sin publicar credenciales.');process.exitCode=1;})
   .finally(()=>databasePool.end());

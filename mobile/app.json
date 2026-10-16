@@ -29,7 +29,7 @@
         "expo-image-picker",
         {
           "photosPermission": "PetCare necesita acceso a tu galería para elegir la foto de tu mascota.",
-          "cameraPermission": false,
+          "cameraPermission": "PetCare usa la cámara para tomar fotos de perfil y de mascotas.",
           "microphonePermission": false
         }
       ],

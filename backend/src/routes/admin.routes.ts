@@ -39,7 +39,6 @@ adminRouter.post('/users',requirePermission('users.manage','roles.manage'),creat
 adminRouter.put('/users/:id',requirePermission('users.manage'),handle(async(req,res)=>repository.updateAdminUser(actor(res),identifier(req.params.id),req.body)));
 adminRouter.put('/users/:id/photo',requirePermission('users.manage'),handle(updateUserPhoto));
 adminRouter.put('/users/:id/permissions',requirePermission('users.manage','permissions.manage'),handle(async(req,res)=>repository.updateUserPermissions(actor(res),identifier(req.params.id),req.body)));
-adminRouter.post('/users/:id/invitation',requirePermission('users.manage'),createAuthRateLimiter(),handle(async(req,res)=>repository.inviteAdminUser(actor(res),identifier(req.params.id))));
 adminRouter.get('/roles',requirePermission('roles.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 adminRouter.put('/roles/:id',requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.updateRole(actor(res),identifier(req.params.id),req.body)));
 adminRouter.get('/permissions',requirePermission('permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));

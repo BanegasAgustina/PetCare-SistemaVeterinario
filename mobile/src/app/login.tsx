@@ -16,6 +16,7 @@ import { useAuth } from '../hooks/useAuth';
 import { validateLoginForm } from '../utils/auth-validation';
 import type { LoginValues } from '../types/auth';
 import { useAsyncAction } from '../hooks/useAsyncAction';
+import { ApiError } from '../services/api';
 
 const fields: AuthField<LoginValues>[] = [
   { key: 'email', label: 'Correo electrónico', icon: 'mail-outline', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, placeholder: 'ejemplo@email.com', maxLength: 254 } },
@@ -26,11 +27,12 @@ export default function LoginScreen() {
   const social=useAsyncAction();
   const { colors } = useTheme();
   const [recoveryVisible, setRecoveryVisible] = useState(false);
+  async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
   return <LoginLayout>
     <LoginBrand />
     <FormNotice message={auth.notice} />
     {/* Se conservan validación, email de registro, errores/loading y la llamada original al AuthContext. */}
-    <AuthForm compact fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={auth.signIn} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
+    <AuthForm compact fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={submitLogin} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
       secondaryAction={(loading) => <Pressable disabled={loading} accessibilityRole="button" onPress={() => { Keyboard.dismiss(); setRecoveryVisible(true); }} style={styles.recovery}><AppText variant="caption" style={{ color: colors.primary }}>¿Olvidaste tu contraseña?</AppText></Pressable>} />
     {auth.pendingVerification && <AppButton compact label="Verificar ahora" variant="secondary" onPress={() => { Keyboard.dismiss(); auth.openVerification(); }} />}
     <View style={styles.socialSection}>

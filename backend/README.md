@@ -72,7 +72,13 @@ cd backend
 npm install
 ```
 
-Copiar `.env.example` a `.env`: PowerShell `Copy-Item .env.example .env`; Bash `cp .env.example .env`. Completar credenciales propias en ese archivo local. No hay credenciales reales versionadas ni se genera una contraseña predeterminada para la aplicación.
+Copiar `.env.example` a `.env`: PowerShell `Copy-Item .env.example .env`; Bash `cp .env.example .env`. Completar credenciales propias en ese archivo local. No hay credenciales reales versionadas. Las cuentas de empleados creadas desde administración reciben la contraseña inicial `empleadoPetCare1234`; el alta no manda invitación y la persona debe verificar el correo al iniciar sesión y reemplazar esa contraseña antes de usar PetCare.
+
+### Alta de empleados y cambio obligatorio de contraseña
+
+Después de desplegar esta versión, ejecutar una vez `npm run db:migrate:employee-password` desde `backend` para agregar `users.must_change_password`. La migración mantiene habilitadas las cuentas existentes y solo las nuevas cuentas de personal quedan obligadas a cambiar contraseña. Ejecutarla antes de iniciar la API con este código.
+
+El administrador crea la cuenta con nombre, email y rol. La contraseña inicial se comunica al empleado por un canal seguro, fuera del correo de invitación. En su primer login, el backend conserva el flujo actual de código de verificación del email; una vez verificado, exige que el empleado establezca una contraseña propia. Las peticiones protegidas quedan bloqueadas hasta completar ese cambio.
 
 ## Configurar MySQL y crear la base
 
@@ -456,6 +462,53 @@ La aceptación por SMTP indica que el servidor de correo aceptó el mensaje, no 
 
 ## Fotos persistentes
 
-Las fotos se procesan en memoria y se guardan como WebP en un bucket privado de Railway Object Storage (API compatible con S3); MySQL conserva la clave estable (`pets/...`, `products/...` o `profiles/...`), no el Base64 ni una URL temporal. La lectura genera URLs firmadas por 15 minutos. El backend valida tipo real de imagen, tamaño de hasta 5 MB y máximo de 25 megapíxeles; cuando se reemplaza una foto se elimina la clave anterior después de guardar correctamente la nueva referencia.
+El backend sube las fotos de perfiles y mascotas a Cloudinary en memoria después de validar y convertir el archivo a WebP. El código espera `users.profile_photo_url` para perfiles y `pets.photo_url` para mascotas; ninguna de las columnas pudo confirmarse en la base Layerbase desde este entorno. El CRUD y ownership de mascotas usan `pets.id` y `pets.owner_id`. `client_pet_details` continúa referenciada en el código para `weight_kg` y `breed_name`; verificá que también exista en el esquema desplegado.
 
-Configurar exclusivamente en el backend, tanto local como en Railway/Vercel: `BUCKET`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`, `REGION`, `ENDPOINT` y `PET_PHOTO_S3_URL_STYLE` (`virtual` por defecto; usar `path` si así lo indica Credentials del bucket). En Railway crear un bucket, abrir Credentials y copiar endpoint, región, bucket y credenciales S3 al entorno del backend. No pegar estos valores en variables `EXPO_PUBLIC_*`. Las referencias antiguas que no correspondan a las claves nuevas se conservan; las fotos locales históricas no se migran ni borran automáticamente y deben volver a cargarse para pasar al bucket.
+La existencia del esquema de Layerbase no pudo comprobarse desde el entorno actual: `npm run db:check` devolvió `DB_UNAVAILABLE`. Ejecutá la consulta documentada en el README raíz para revisar `pets`, `users` y sus columnas. La extensión de mascotas es aditiva y manual: `npm run db:migrate:pet-photo` verifica `pets`, `owner_id`, `microchip_number` y cualquier `photo_url` existente antes de añadir `pets.photo_url VARCHAR(2048) NULL`; no se ejecutó. La columna de usuario tiene el script existente `npm run db:migrate:profile-photo`, que también debe usarse solo si la consulta muestra que falta.
+
+Configurar exclusivamente en el backend `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`. Las fotos nuevas de productos también se suben a Cloudinary y su URL HTTPS se guarda en `client_products.image_url`, ya presente en el esquema activo; no requieren una migración adicional. Las claves antiguas `products/...` todavía pueden leerse desde S3 si el bucket está configurado; si no, el producto sigue apareciendo y su foto se muestra vacía hasta volver a subirla. No poner secretos en variables `EXPO_PUBLIC_*`.
+
+## Tienda propia y reservas con vencimiento
+
+La tienda consulta `client_products` del inventario PetCare. ADMIN y SUPER_ADMIN crean/actualizan productos mediante el formulario administrativo, sujeto a `products.update`, `products.create`, `products.update_price` y `products.update_stock`. CLIENT crea reservas; SECRETARY, ADMIN y SUPER_ADMIN consultan o gestionan reservas según `reservations.view_all` y `reservations.manage`. El servidor ignora campos de precio o stock enviados al crear reservas.
+
+La reserva fija precio, creación y vencimiento en MySQL; el vencimiento es `created_at + 24 horas` según UTC. El stock disponible baja en la misma transacción que inserta la reserva. Cancelar o vencer libera `reserved_stock` una sola vez; retirar descuenta unidades físicas. Un worker del backend revisa vencimientos al iniciar y cada 30 segundos, y el listado/detalle ejecuta además una revisión inmediata.
+
+Antes de habilitarlo en Layerbase, inspeccionar el esquema y permisos RBAC del entorno elegido y ejecutar manualmente `npm run db:migrate:reservations` desde `backend` con la conexión correcta. La migración es aditiva, registra permisos faltantes, concede la gestión de reservas a SECRETARY/ADMIN/SUPER_ADMIN y backfillea fechas de pedidos activos con `created_at + 24 horas`; no elimina columnas externas antiguas ni ejecuta cambios al iniciar la API. No se ejecutó contra producción ni se verificó una conexión a Layerbase en esta tarea. Si el proceso backend está detenido, las reservas vencidas se liberan al reiniciar el servicio.
+
+## Error del panel: «Este módulo requiere actualizar el esquema de la clínica»
+
+### Qué significa y por qué aparecía en varias pantallas
+
+La app recibe el código `SCHEMA_UPDATE_REQUIRED` cuando una consulta encuentra una tabla o columna que falta en MySQL. La interfaz reutiliza ese mensaje en los módulos afectados, por eso el mismo cartel aparecía en distintas pantallas.
+
+La causa quedó confirmada en la base: faltaban `client_appointments.observations`, `client_appointments.cancellation_reason` y `client_order_status_history.reason`. Esas columnas son necesarias para los detalles de turnos, sus observaciones y cancelaciones, y el historial de rechazos de reservas.
+
+### Solución aplicada
+
+El 15/10/2026 se ejecutaron las migraciones aditivas `db:migrate:appointment-details` y `db:migrate:reservation-reason`. Después se consultaron los metadatos de MySQL y se confirmó que las tres columnas ya existen. No se modificaron ni borraron turnos, reservas o historiales existentes.
+
+Además, el resumen de Administración ahora consulta el próximo turno sin depender de las columnas opcionales del detalle, así la falta de una ampliación de detalle no bloquea el inicio.
+
+### Si el cartel aparece en otro entorno
+
+Cada entorno tiene su propia base. Desde `backend`, verificá que `.env` apunte al MySQL usado por ese backend y ejecutá `npm run db:check`. Si esa base no tiene las columnas indicadas, hacé un respaldo y corré, una vez, estos comandos:
+
+```sh
+npm run db:migrate:appointment-details
+npm run db:migrate:reservation-reason
+```
+
+Luego reiniciá el backend y comprobá que Mobile use la URL de ese mismo entorno en `EXPO_PUBLIC_API_URL`. Si el mensaje continúa, la app probablemente esté conectada a otro backend/base; verificá sus variables de entorno y el registro del servidor. Los scripts son aditivos e idempotentes: agregan únicamente las columnas faltantes y detienen el proceso si encuentran una definición incompatible.
+
+## Perfil clínico del veterinario
+
+El panel del veterinario consulta `/api/clinic` y `/api/vet`; el backend aplica `appointments.*`, `pets.*`, `medical_records.*` y los permisos específicos de vacunas, recetas e indicaciones. Los propietarios (`/clinic/clients`) y sus mascotas se limitan a los pacientes visibles para el profesional autenticado. Nunca se toma el ID de veterinario desde el cuerpo de una solicitud.
+
+Las observaciones privadas se guardan en `client_clinical_records.internal_notes`; el campo histórico `content` queda como indicaciones destinadas al propietario. La API del cliente no selecciona las notas privadas, motivos, diagnósticos ni tratamientos internos. Las consultas pueden vincularse a `client_appointments` usando `appointment_id`, con unicidad para impedir duplicar una consulta por turno. Las recetas guardan dosis, frecuencia y duración en campos propios. La descripción profesional se guarda en `veterinarians.professional_description`; la matrícula y las especialidades siguen sujetas a gestión administrativa.
+
+La migración aditiva es `npm run db:migrate:veterinarian-clinical`. Agrega `internal_notes`, `appointment_id`, `dose`, `frequency`, `duration` y `professional_description`, además de la referencia opcional al turno y una restricción única. No reescribe datos clínicos existentes y no corre al iniciar el servidor. Fue aplicada y verificada en la base MySQL conectada el 16/10/2026. Aplicala una vez en cada entorno después de revisar que esa conexión apunta a la base esperada.
+
+### Verificación
+
+`npm run db:check` confirmó una conexión MySQL compatible. Los metadatos de la base mostraron las tres columnas después de la migración. También pasan el typecheck, el lint y las 7 pruebas unitarias existentes del backend.

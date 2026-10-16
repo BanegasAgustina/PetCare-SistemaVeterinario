@@ -25,6 +25,10 @@ app.use(/^\/api\/client\/pets(?:\/\d+)?$/, (req,res,next)=> {
   if(!['POST','PUT'].includes(req.method))return next();
   authenticate(req,res,error=>{if(error)return next(error);requireRole('CLIENT')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
+app.use('/api/vet/profile/photo',(req,res,next)=>{
+  if(req.method!=='PUT')return next();
+  authenticate(req,res,error=>{if(error)return next(error);requireRole('VETERINARIAN')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+});
 app.use(/^\/api\/(?:admin\/(?:products\/\d+|users\/\d+\/photo)|admin\/veterinarians\/\d+\/photo|clinic\/admin\/products(?:\/\d+)?)$/, (req,res,next)=> {
   if(!['POST','PATCH','PUT'].includes(req.method))return next();
   authenticate(req,res,error=>{if(error)return next(error);requireRole('ADMIN','SUPER_ADMIN')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});

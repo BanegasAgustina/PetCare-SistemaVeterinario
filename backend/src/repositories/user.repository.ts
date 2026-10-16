@@ -5,12 +5,13 @@ import type { AuthUser, RegisterInput, RoleCode, StoredUser } from '../types/aut
 import { AppError } from '../utils/app-error';
 import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 import { registerStage } from '../utils/register-diagnostics';
+import { roleName } from '../utils/catalog-presentation';
 
-type UserRow = RowDataPacket & { id: string; first_name: string; last_name: string; email: string; phone: string | null; role: RoleCode; role_name: string; password_hash: string; is_active: number; email_verified_at: string | null; session_version: number };
-const userColumns = 'u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.is_active, u.email_verified_at, u.session_version, r.code AS role, r.name AS role_name';
+type UserRow = RowDataPacket & { id: string; first_name: string; last_name: string; email: string; phone: string | null; profile_photo_url:string|null; role: RoleCode; role_name: string; password_hash: string; is_active: number; email_verified_at: string | null; session_version: number; must_change_password:number };
+const userColumns = 'u.id, u.first_name, u.last_name, u.email, u.phone, u.profile_photo_url, u.password_hash, u.is_active, u.email_verified_at, u.session_version, u.must_change_password, r.code AS role, r.name AS role_name';
 
 function mapUser(row: UserRow): StoredUser {
-  return { id: String(row.id), firstName: row.first_name, lastName: row.last_name, email: row.email, phone: row.phone, role: row.role, roleName: row.role_name, passwordHash: row.password_hash, isActive: row.is_active === 1, emailVerifiedAt: row.email_verified_at, sessionVersion: row.session_version };
+  return { id: String(row.id), firstName: row.first_name, lastName: row.last_name, email: row.email, phone: row.phone, profilePhotoUrl:row.profile_photo_url, role: row.role, roleName: roleName(row.role,row.role_name), passwordHash: row.password_hash, isActive: row.is_active === 1, emailVerifiedAt: row.email_verified_at, sessionVersion: row.session_version, mustChangePassword:Number(row.must_change_password)===1 };
 }
 
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
@@ -29,7 +30,7 @@ export async function findUserById(id: string): Promise<StoredUser | null> {
 
 export function publicUser(user: StoredUser): AuthUser {
   // Selección explícita: evita filtrar hashes al agregar campos internos en el futuro.
-  return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, role: user.role, roleName: user.roleName };
+  return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, profilePhotoUrl:user.profilePhotoUrl??null, role: user.role, roleName: user.roleName };
 }
 
 export async function createClientUser(input: RegisterInput, passwordHash: string, verificationTokenHash: string): Promise<AuthUser> {

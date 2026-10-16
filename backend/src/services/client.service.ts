@@ -1,5 +1,5 @@
 /**
- * Coordina validación y operaciones del cliente usando su identidad autenticada. Delega persistencia al repository y fotos a S3; un error de consulta nunca se reemplaza por datos de muestra.
+ * Coordina validación y operaciones del cliente usando su identidad autenticada. Delega persistencia al repository y fotos a Cloudinary; un error de consulta nunca se reemplaza por datos de muestra.
  */
 import bcrypt from 'bcrypt';
 import * as repository from '../repositories/client.repository';
@@ -32,8 +32,8 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
         if(!petId&&!photo&&input.photoUrl)invalid('Seleccioná una foto de la galería.');
         let saved:Awaited<ReturnType<typeof repository.savePet>>;
         try {saved=await repository.savePet(owner,input,petId,!photo&&(values.photoUrl===undefined||Boolean(input.photoUrl)));}
-        catch(error){await photo?.remove().catch(()=>console.error('No se pudo limpiar una foto sin referencia.'));throw error;}
-        if(saved.previousPhoto&&saved.previousPhoto!==saved.pet.photoUrl)await removePetPhoto(owner,saved.previousPhoto).catch(()=>console.error('No se pudo eliminar la foto anterior del bucket.'));
+        catch(error){if(photo)console.error('Falló el guardado de la mascota; se conserva el objeto nuevo porque el resultado del commit puede ser incierto.');throw error;}
+        if(saved.previousPhoto&&saved.previousPhoto!==saved.pet.photoUrl)await removePetPhoto(owner,saved.previousPhoto).catch(()=>console.error('No se pudo eliminar la foto anterior de Cloudinary.'));
         return saved.pet;
       }
       case 'deactivate-pet':clientBody(body,[]);return repository.deactivatePet(owner,clientId(id));
@@ -42,7 +42,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'slots':return repository.slots(clientId(query.serviceId),query.veterinarianId?clientId(query.veterinarianId):undefined);
       case 'create-appointment': {const values=clientBody(body,['petId','slotId']);return repository.createAppointment(owner,clientId(values.petId),clientId(values.slotId));}
       case 'clinical': {if(!clinicalKinds.includes(String(id) as typeof clinicalKinds[number]))invalid();return repository.clinical(owner,String(id),query.petId?clientId(query.petId):undefined);}
-      case 'products':return repository.products(text(query.search,200,true)??'',query.categoryId?clientId(query.categoryId):undefined);
+      case 'products':{const productType=text(query.productType,20,true);if(productType&&!['MEDICINE','ACCESSORY'].includes(productType))throw new AppError('VALIDATION_ERROR',400,'El tipo de producto no es válido.');return repository.products(text(query.search,200,true)??'',query.categoryId?clientId(query.categoryId):undefined,false,productType??undefined);}
       case 'categories':return repository.categories();
       case 'product':return repository.product(clientId(id));
       case 'cart':return repository.cart(owner);

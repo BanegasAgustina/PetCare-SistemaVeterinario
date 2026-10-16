@@ -6,7 +6,7 @@ export function adminService(request:ClientRequest) {
     home:()=>request<AdminHome>('/admin/home'),catalog:()=>request<AdminCatalog>('/admin/catalog'),
     users:(search:string,page:number,status='all')=>request<AdminUserPage>(`/admin/users?${new URLSearchParams({search,page:String(page),status})}`),
     user:(id:string)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}`),
-    createUser:(body:unknown)=>request<{user:AdminUserDetail;delivery:string}>('/admin/users',{method:'POST',body}),
+    createUser:(body:unknown)=>request<{user:AdminUserDetail}>('/admin/users',{method:'POST',body}),
     updateUser:(id:string,body:unknown)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}`,{method:'PUT',body}),
     updateUserPhoto:(id:string,body:unknown)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}/photo`,{method:'PUT',body}),
     userPermissions:(id:string,overrides:{code:string;allowed:boolean|null}[])=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}/permissions`,{method:'PUT',body:{overrides}}),

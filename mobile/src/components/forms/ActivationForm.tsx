@@ -35,7 +35,7 @@ export function ActivationForm({kind}:{kind:'account'|'veterinarian'}) {
     <AppText variant="title">Configurá tu contraseña</AppText>
     <AppText muted>El enlace verifica tu correo. Tu contraseña será privada y la invitación podrá usarse una sola vez.</AppText>
     {!token&&!done&&<FormNotice error message="Abrí el enlace que recibiste por correo. Si venció, solicitá una nueva invitación al administrador." />}
-    {!done&&token&&<>
+    {!done&&Boolean(token)&&<>
       <AppInput label="Nueva contraseña" password value={password} error={errors.password} editable={!action.loading} onChangeText={setPassword} />
       <AppInput label="Repetir contraseña" password value={confirmPassword} error={errors.confirmPassword} editable={!action.loading} onChangeText={setConfirm} />
       <FormNotice error message={action.error} />
@@ -45,7 +45,7 @@ export function ActivationForm({kind}:{kind:'account'|'veterinarian'}) {
       }} />
     </>}
     {done&&<AppText>Contraseña configurada y correo verificado.</AppText>}
-    <AppButton label="Ir a Login" variant="secondary" disabled={action.loading} onPress={()=>router.replace('/login')} />
+    <AppButton label="Iniciar sesión" variant="secondary" disabled={action.loading} onPress={()=>router.replace('/login')} />
   </ScreenContainer>;
 }
 

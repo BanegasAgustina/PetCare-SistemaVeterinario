@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import bcrypt from 'bcrypt';
 import { databasePool } from '../config/database';
 import { getMailConfiguration } from '../config/mail';
 import { env } from '../config/env';
@@ -53,10 +54,31 @@ export async function resetPassword(body: unknown): Promise<void> {
       'SELECT id,CAST(user_id AS CHAR) AS user_id FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>UTC_TIMESTAMP(3) FOR UPDATE',[tokenHash(input.token)]);
     if (!rows[0]) throw new AppError('PASSWORD_RESET_INVALID',400,'El enlace no es válido, venció o ya se utilizó.');
     const hash = await hashPassword(password);
-    const [updated]=await connection.execute('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=?',[hash,rows[0].user_id]);
+    const [updated]=await connection.execute('UPDATE users SET password_hash=?,must_change_password=0,session_version=session_version+1 WHERE id=?',[hash,rows[0].user_id]);
     if((updated as import('mysql2/promise').ResultSetHeader).affectedRows!==1)throw new AppError('PASSWORD_RESET_INVALID',400,'El enlace no es valido o vencio.');
     await connection.execute('UPDATE password_resets SET used_at=UTC_TIMESTAMP(3) WHERE user_id=? AND used_at IS NULL',[rows[0].user_id]);
     await connection.commit();
   } catch(error) { await connection.rollback(); throw error; }
   finally { connection.release(); }
+}
+
+/** Establece la primera contraseña propia tras verificar el correo de una cuenta de empleado. */
+export async function changeInitialPassword(body: unknown): Promise<void> {
+  if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['email','currentPassword','newPassword'].includes(key))) throw new AppError('VALIDATION_ERROR',400,'Revisá los datos ingresados.');
+  const value=body as {email?:unknown;currentPassword?:unknown;newPassword?:unknown};
+  const email=normalizeEmail(value.email);const currentPassword=readPassword(value.currentPassword,false);const newPassword=readPassword(value.newPassword,true);
+  const connection=await databasePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [users]=await connection.execute<Array<{id:string;password_hash:string;is_active:number;email_verified_at:string|null;must_change_password:number}&import('mysql2').RowDataPacket>>(
+      'SELECT CAST(id AS CHAR) AS id,password_hash,is_active,email_verified_at,must_change_password FROM users WHERE email=? FOR UPDATE',[email]);
+    const user=users[0];
+    if(!user||user.is_active!==1||!await bcrypt.compare(currentPassword,user.password_hash))throw new AppError('INVALID_CREDENTIALS',401,'Correo electrónico o contraseña incorrectos.');
+    if(!user.email_verified_at)throw new AppError('EMAIL_NOT_VERIFIED',403,'Primero verificá el correo desde el código enviado.');
+    if(Number(user.must_change_password)!==1)throw new AppError('PASSWORD_CHANGE_NOT_REQUIRED',409,'La cuenta ya tiene una contraseña propia. Iniciá sesión.');
+    if(currentPassword===newPassword)throw new AppError('VALIDATION_ERROR',400,'Elegí una contraseña distinta a la inicial.');
+    const hash=await hashPassword(newPassword);
+    await connection.execute('UPDATE users SET password_hash=?,must_change_password=0,session_version=session_version+1 WHERE id=?',[hash,user.id]);
+    await connection.commit();
+  } catch(error){await connection.rollback();throw error;} finally{connection.release();}
 }

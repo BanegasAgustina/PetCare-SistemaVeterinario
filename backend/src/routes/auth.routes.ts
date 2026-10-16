@@ -1,6 +1,6 @@
 /** Rutas de autenticación tradicional; ninguna ruta pública acepta privilegios. */
 import { Router } from 'express';
-import { getCurrentUser, login, register, requestPasswordReset, resetPassword } from '../controllers/auth.controller';
+import { getCurrentUser, login, register, requestPasswordReset, resetPassword, changeInitialPassword } from '../controllers/auth.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { resend, verify } from '../controllers/verification.controller';
@@ -12,6 +12,7 @@ authRouter.post('/register', createAuthRateLimiter(), register);
 authRouter.post('/login', createAuthRateLimiter(), login);
 authRouter.post('/password-reset/request', createAuthRateLimiter(5), requestPasswordReset);
 authRouter.post('/password-reset/confirm', createAuthRateLimiter(10), resetPassword);
+authRouter.post('/change-initial-password',createAuthRateLimiter(10),changeInitialPassword);
 authRouter.post('/verify-email', createAuthRateLimiter(), verify);
 authRouter.post('/resend-verification', createAuthRateLimiter(), resend);
 authRouter.get('/me', authenticate, getCurrentUser);

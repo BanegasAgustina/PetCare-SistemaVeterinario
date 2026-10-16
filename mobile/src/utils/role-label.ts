@@ -1,5 +1,13 @@
 import type { AuthUser } from '../types/auth';
 
 export function roleLabel(role: AuthUser['role'], name: string): string {
-  return role === 'SUPER_ADMIN' ? 'Administrador principal' : name;
+  const labels: Partial<Record<AuthUser['role'], string>> = {
+    CLIENT: 'Cliente',
+    VETERINARIAN: 'Veterinario',
+    GROOMER: 'Peluquería',
+    SECRETARY: 'Secretaría',
+    ADMIN: 'Administrador',
+    SUPER_ADMIN: 'Administrador principal',
+  };
+  return labels[role] ?? name;
 }

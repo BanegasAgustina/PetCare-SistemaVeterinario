@@ -3,7 +3,7 @@ import type { RequestHandler } from 'express';
 import { loginUser, registerUser } from '../services/auth.service';
 import type { AuthUser } from '../types/auth';
 import { withRegisterDiagnostics } from '../utils/register-diagnostics';
-import { requestPasswordReset as requestReset, resetPassword as completeReset } from '../services/password-reset.service';
+import { requestPasswordReset as requestReset, resetPassword as completeReset, changeInitialPassword as changeInitial } from '../services/password-reset.service';
 
 export const register: RequestHandler = async (request, response, next) => {
   try { response.status(201).json({ success: true, data: await withRegisterDiagnostics(()=>registerUser(request.body)) }); }
@@ -23,4 +23,7 @@ export const requestPasswordReset: RequestHandler = async (request,response,next
 };
 export const resetPassword: RequestHandler = async (request,response,next) => {
   try { await completeReset(request.body); response.status(200).json({success:true,data:{reset:true}}); } catch(error) { next(error); }
+};
+export const changeInitialPassword: RequestHandler = async(request,response,next)=>{
+  try{await changeInitial(request.body);response.status(200).json({success:true,data:{changed:true}});}catch(error){next(error);}
 };

@@ -1,55 +1,131 @@
-/**
- * Gestiona especialidades reales mediante /admin/specialties. AuthContext y los guards controlan acceso visual; el backend exige specialties.manage para guardar cambios.
- */
-import { useCallback,useEffect,useState } from 'react';
-import { router } from 'expo-router';
-import { View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../layout/ScreenContainer';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
 import { FormNotice } from '../ui/FormNotice';
 import { useAuth } from '../../hooks/useAuth';
+import { useAdmin } from '../../hooks/useAdmin';
+import { useClinic } from '../../hooks/useClinic';
+import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
-import type { Specialty } from '../../types/veterinarian';
 import { SelectionRow } from '../ui/SelectionRow';
-import { FilterDisclosure } from '../ui/FilterDisclosure';
 import { SearchFilterBar } from '../ui/SearchFilterBar';
 import { AppModal } from '../ui/AppModal';
+import { PetCareCard, PetCareEmptyState } from '../client/PetCareUI';
+import { AdminFormActions, AdminFormSection } from './AdminFormLayout';
+import type { ClinicRow } from '../../types/clinic';
+import type { Specialty } from '../../types/veterinarian';
+
+type EditItem = { kind: 'type'; row: ClinicRow | null } | { kind: 'specialty'; row: Specialty | null };
+
+/** Presenta tipos profesionales y especialidades en un único espacio, sin mezclar sus relaciones. */
 export default function SpecialtiesScreen() {
-  const auth=useAuth();const {request}=auth;const action=useAsyncAction();const {run}=action;const {showToast}=useFeedback();
-  const [items,setItems]=useState<Specialty[]|null>(null);const [name,setName]=useState('');const [editing,setEditing]=useState<string|null>(null);const [modalOpen,setModalOpen]=useState(false);const [error,setError]=useState<string|null>(null);const [search,setSearch]=useState('');const [sort,setSort]=useState<'az'|'za'>('az');
-  const load=useCallback(async()=>{
-    setItems(null);
-    setItems(await request<Specialty[]>('/admin/specialties'));
-  },[request]);
-  function closeModal(){if(action.loading)return;setModalOpen(false);setEditing(null);setName('');setError(null);}
-  useEffect(()=>{void run(load);},[run,load]);
-  return <ScreenContainer keyboardAvoiding>
-    <AppButton label="Volver a Gestión" variant="secondary" onPress={()=>router.replace('/admin')} />
-    <AppText variant="title">Especialidades</AppText>
-    <FormNotice error message={action.error} />
-    {!auth.user?.permissions?.includes('specialties.manage')?<AppText>No tenés permiso para gestionar especialidades.</AppText>:<>
-      {!editing&&<AppButton label="Crear especialidad" onPress={()=>{setName('');setError(null);setModalOpen(true);}}/>}
-      {editing&&<AppButton label="Guardar nombre" onPress={()=>setModalOpen(true)}/>}
-      {editing&&<AppButton label="Cancelar edición" variant="secondary" onPress={()=>{setEditing(null);setName('');}}/>}
-      <AppButton label="Actualizar catálogo" variant="secondary" loading={action.loading} onPress={()=>void action.run(load)} />
-      <SearchFilterBar><AppInput label="Buscar especialidad" placeholder="Nombre" value={search} onChangeText={setSearch}/><FilterDisclosure fullWidth activeCount={sort==='az'?0:1} onApply={()=>void action.run(load)} onClear={()=>setSort('az')}><AppText variant="subtitle">Ordenar por nombre</AppText><SelectionRow radio label="A-Z" checked={sort==='az'} onPress={()=>setSort('az')}/><SelectionRow radio label="Z-A" checked={sort==='za'} onPress={()=>setSort('za')}/></FilterDisclosure></SearchFilterBar>
-      {action.loading && items===null && <AppText muted>Consultando especialidades…</AppText>}
-      {items!==null && !items.length && <AppText muted>No hay especialidades registradas. Podés crear una desde este formulario.</AppText>}
-      {items?.filter(item=>item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).sort((a,b)=>sort==='az'?a.name.localeCompare(b.name,'es'):b.name.localeCompare(a.name,'es')).map(item=><View key={item.id} style={{gap:10}}><AppText>{item.name}</AppText><AppButton label={`Editar ${item.name}`} variant="secondary" disabled={action.loading} onPress={()=>{setEditing(item.id);setName(item.name);setError(null);setModalOpen(true);}} /></View>)}
-      <AppModal visible={modalOpen} dismissible onClose={closeModal}>
-        <AppText variant="subtitle">{editing?'Editar especialidad':'Crear especialidad'}</AppText>
-        <AppInput label="Nombre" value={name} error={error??undefined} editable={!action.loading} maxLength={100} onChangeText={v=>{setName(v);setError(null);}} />
-        <FormNotice error message={action.error}/>
-        <AppButton label={editing?'Guardar nombre':'Crear especialidad'} loading={action.loading} onPress={()=>{
-        if (!name.trim()||name.trim().length>100) {setError('Ingresá un nombre de hasta 100 caracteres.');return;}
-        void action.run(async()=>{await auth.request(editing?`/admin/specialties/${editing}`:'/admin/specialties',{method:editing?'PUT':'POST',body:{name}});setName('');setEditing(null);setModalOpen(false);await load();showToast('Especialidad guardada','success');});
-      }} />
-        <AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={closeModal}/>
-      </AppModal>
-    </>}
+  const auth = useAuth();
+  const admin = useAdmin();
+  const clinic = useClinic();
+  const action = useAsyncAction();
+  const { showToast } = useFeedback();
+  const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<EditItem | null>(null);
+  const [name, setName] = useState('');
+  const [roleId, setRoleId] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const canEditTypes = auth.hasPermission('professional_types.manage');
+  const canEditSpecialties = auth.hasPermission('specialties.manage');
+  const request = auth.request;
+  const specialties = useClientQuery(useCallback(() => canEditSpecialties ? request<Specialty[]>('/admin/specialties') : Promise.resolve([]), [request, canEditSpecialties]));
+  const types = useClientQuery(useCallback(() => canEditTypes ? clinic.adminList('types') : Promise.resolve([]), [clinic, canEditTypes]));
+  const roles = useClientQuery(useCallback(() => canEditTypes ? admin.catalog() : Promise.resolve(null), [admin, canEditTypes]));
+  const rows = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase();
+    return [
+      ...(types.data ?? []).filter(row => String(row.name).toLocaleLowerCase().includes(needle)).map(row => ({ kind: 'type' as const, row })),
+      ...(specialties.data ?? []).filter(row => row.name.toLocaleLowerCase().includes(needle)).map(row => ({ kind: 'specialty' as const, row })),
+    ];
+  }, [types.data, specialties.data, search]);
+
+  function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
+    setEditing(kind === 'type' ? { kind, row: row as ClinicRow | null } : { kind, row: row as Specialty | null });
+    setName(row?.name == null ? '' : String(row.name));
+    const professionalType = kind === 'type' ? row as ClinicRow | null : null;
+    setRoleId(professionalType?.roleId == null ? '' : String(professionalType.roleId));
+    setError(null);
+  }
+  function close() {
+    if (action.loading) return;
+    setEditing(null);
+    setName('');
+    setRoleId('');
+    setError(null);
+  }
+  async function save() {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 100) {
+      setError('Ingresá un nombre de hasta 100 caracteres.');
+      return;
+    }
+    if (editing?.kind === 'type' && !editing.row && !roleId) {
+      setError('Seleccioná el tipo de profesional.');
+      return;
+    }
+    setError(null);
+    const saved = await action.run(async () => {
+      if (editing?.kind === 'specialty') {
+        const id = editing.row?.id;
+        await auth.request(id ? `/admin/specialties/${id}` : '/admin/specialties', { method: id ? 'PUT' : 'POST', body: { name: trimmed } });
+        specialties.reload();
+      } else if (editing?.kind === 'type') {
+        const id = editing.row?.id;
+        const role = roles.data?.roles.find(item => item.id === roleId || (id && item.id === editing.row?.roleId));
+        await clinic.adminSave('types', id ? String(id) : undefined, id ? { name: trimmed } : { name: trimmed, roleId, isClinical: role?.code === 'VETERINARIAN' });
+        types.reload();
+      }
+      showToast('Cambios guardados', 'success');
+    });
+    if (saved) close();
+  }
+
+  return <ScreenContainer keyboardAvoiding wide>
+    <AppText variant="title">Tipos y especialidades</AppText>
+    <AppText muted>Administrá cada catálogo por separado; las asignaciones actuales se conservan.</AppText>
+    <SearchFilterBar><AppInput icon="search-outline" label="Buscar" placeholder="Nombre" value={search} onChangeText={setSearch} returnKeyType="search" /></SearchFilterBar>
+    {(canEditTypes || canEditSpecialties) && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      {canEditTypes && <AppButton compact label="Crear tipo profesional" onPress={() => begin('type')} />}
+      {canEditSpecialties && <AppButton compact label="Crear especialidad" variant="secondary" onPress={() => begin('specialty')} />}
+    </View>}
+    <FormNotice error message={types.error ?? specialties.error ?? roles.error} />
+    {(types.loading || specialties.loading) && <AppText muted>Consultando catálogos…</AppText>}
+    {!types.loading && !specialties.loading && !rows.length && <PetCareEmptyState title="No hay resultados" message="Probá con otro nombre o creá un registro." />}
+    {rows.map(({ kind, row }) => {
+      const permitted = kind === 'type' ? canEditTypes : canEditSpecialties;
+      const role = kind === 'type' ? roles.data?.roles.find(item => item.id === String(row.roleId)) : null;
+      return <PetCareCard key={`${kind}-${row.id}`}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <AppText variant="subtitle" numberOfLines={1}>{String(row.name)}</AppText>
+            <AppText muted>{kind === 'type' ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}` : 'Especialidad veterinaria'}</AppText>
+          </View>
+          {permitted && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} onPress={() => begin(kind, row)} style={{ padding: 10 }}><Ionicons name="create-outline" size={22} /></Pressable>}
+        </View>
+      </PetCareCard>;
+    })}
+    <AppModal visible={Boolean(editing)} dismissible onClose={close}>
+      {editing && <>
+        <AppText variant="title">{editing.row ? 'Editar' : 'Crear'} {editing.kind === 'type' ? 'tipo profesional' : 'especialidad'}</AppText>
+        <AdminFormSection title={editing.kind === 'type' ? 'Tipo profesional' : 'Especialidad'}>
+          <AppInput label="Nombre" required value={name} maxLength={100} editable={!action.loading} onChangeText={value => { setName(value); setError(null); }} />
+          {editing.kind === 'type' && !editing.row && <>
+            <AppText>Rol profesional</AppText>
+            {(roles.data?.roles ?? []).filter(role => ['VETERINARIAN', 'GROOMER'].includes(role.code)).map(role => <SelectionRow radio key={role.id} label={role.name} checked={roleId === role.id} onPress={() => { setRoleId(role.id); setError(null); }} />)}
+          </>}
+        </AdminFormSection>
+        <FormNotice error message={error ?? action.error} />
+        <AdminFormActions><AppButton label="Guardar cambios" loading={action.loading} onPress={() => void save()} /><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={close} /></AdminFormActions>
+      </>}
+    </AppModal>
   </ScreenContainer>;
 }
-

@@ -1,20 +1,46 @@
 /** Objetos privados S3; las imágenes se procesan en memoria, nunca en disco. */
 import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { v2 as cloudinary } from 'cloudinary';
 import { AppError } from '../utils/app-error';
 import { clientId, invalid } from '../validators/client.validator';
 export const PHOTO_URL_TTL_SECONDS=900;
 const keyPattern=/^pets\/([1-9]\d{0,19})\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
 const productKeyPattern=/^products\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+const serviceKeyPattern=/^services\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
 const profileKeyPattern=/^profiles\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+const cloudinaryPhotoPattern=/^https:\/\/res\.cloudinary\.com\/([a-zA-Z0-9_-]+)\/image\/upload\/(?:v\d+\/)?((?:pets\/[1-9]\d{0,19}|products|services|profiles)\/[a-f0-9-]{36})\.webp$/;
+function cloudinaryClient() {
+  const cloud_name=process.env.CLOUDINARY_CLOUD_NAME?.trim(),api_key=process.env.CLOUDINARY_API_KEY?.trim(),api_secret=process.env.CLOUDINARY_API_SECRET?.trim();
+  if(!cloud_name||!api_key||!api_secret)throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'Cloudinary no está configurado. Definí CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en el backend.');
+  cloudinary.config({cloud_name,api_key,api_secret,secure:true});return {cloud_name};
+}
+async function uploadCloudinaryPhoto(image:Buffer,folder:string) {
+  cloudinaryClient();
+  try {return await new Promise<{secure_url:string;public_id:string}>((resolve,reject)=>{
+    const stream=cloudinary.uploader.upload_stream({folder,public_id:randomUUID(),resource_type:'image',format:'webp',allowed_formats:['webp'],transformation:[{quality:'auto:good'}]},(error,result)=>{
+      if(error||!result)reject(error??new Error('Upload vacío'));else resolve({secure_url:result.secure_url,public_id:result.public_id});
+    });stream.end(image);
+  });} catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la foto a Cloudinary. Intentá nuevamente.');}
+}
+function cloudinaryPublicId(value:unknown,kind:'pets'|'products'|'services'|'profiles',owner?:string):string|null {
+  if(typeof value!=='string')return null;const match=cloudinaryPhotoPattern.exec(value);if(!match)return null;
+  const {cloud_name}=cloudinaryClient();if(match[1]!==cloud_name)return null;
+  const id=match[2];if(kind==='profiles'&&/^profiles\/[a-f0-9-]{36}$/.test(id))return id;
+  if(kind==='products'&&/^products\/[a-f0-9-]{36}$/.test(id))return id;
+  if(kind==='services'&&/^services\/[a-f0-9-]{36}$/.test(id))return id;
+  if(kind==='pets'&&owner&&id.startsWith(`pets/${owner}/`)&&/^pets\/[1-9]\d{0,19}\/[a-f0-9-]{36}$/.test(id))return id;
+  return null;
+}
 export function isPetPhotoKey(value:unknown,owner?:string):value is string {
   if(typeof value!=='string')return false;
-  const match=keyPattern.exec(value);return Boolean(match&&(!owner||match[1]===owner));
+  const match=keyPattern.exec(value);return Boolean((match&&(!owner||match[1]===owner))||cloudinaryPublicId(value,'pets',owner));
 }
-export function isProductPhotoKey(value:unknown):value is string {return typeof value==='string'&&productKeyPattern.test(value);}
-export function isProfilePhotoKey(value:unknown):value is string {return typeof value==='string'&&profileKeyPattern.test(value);}
+export function isProductPhotoKey(value:unknown):value is string {return typeof value==='string'&&(productKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'products')));}
+export function isServicePhotoKey(value:unknown):value is string {return typeof value==='string'&&(serviceKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'services')));}
+export function isProfilePhotoKey(value:unknown):value is string {return typeof value==='string'&&(profileKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'profiles')));}
 /** Construye S3 con credenciales privadas del backend; virtual/path debe coincidir con Railway Credentials. */
 export function photoStorage() {
   const bucket=process.env.BUCKET?.trim(),accessKeyId=process.env.ACCESS_KEY_ID?.trim(),secretAccessKey=process.env.SECRET_ACCESS_KEY?.trim(),region=process.env.REGION?.trim(),endpoint=process.env.ENDPOINT?.trim();
@@ -36,15 +62,12 @@ export async function optimizePetPhoto(value:unknown):Promise<Buffer> {
 }
 /** Usa una clave nueva por foto; el servicio elimina el objeto si falla el guardado posterior en MySQL. */
 export async function storePetPhoto(owner:string,value:unknown) {
-  clientId(owner);const image=await optimizePetPhoto(value);const storage=photoStorage();
-  const key=`pets/${owner}/${randomUUID()}.webp`;
-  try {await storage.client.send(new PutObjectCommand({Bucket:storage.bucket,Key:key,Body:image,ContentType:'image/webp',CacheControl:'private, max-age=900'}));}
-  catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la foto. Intentá nuevamente.');}
-  finally {storage.client.destroy();}
-  return {url:key,remove:()=>removePetPhoto(owner,key)};
+  clientId(owner);const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,`pets/${owner}`);
+  return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
 }
 /** Restringe el borrado al prefijo del propietario validado; no acepta URLs ni claves arbitrarias. */
 export async function removePetPhoto(owner:string,key:unknown) {
+  const cloudId=cloudinaryPublicId(key,'pets',owner);if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!isPetPhotoKey(key,owner))return;
   const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
 }
@@ -52,37 +75,47 @@ export async function removePetPhoto(owner:string,key:unknown) {
 export async function petPhotoUrl(owner:string,key:unknown):Promise<string|null> {
   // Las referencias antiguas al volumen no son recuperables desde el bucket.
   if(!key)return null;
-  if(!isPetPhotoKey(key,owner))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto anterior debe volver a subirse al almacenamiento privado.');
+  if(cloudinaryPublicId(key,'pets',owner))return String(key);
+  if(!isPetPhotoKey(key,owner))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto anterior debe volver a subirse al almacenamiento disponible.');
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
 }
-/** Las fotos de producto usan el mismo bucket privado; MySQL conserva una clave estable en image_url. */
+/** MySQL conserva la URL permanente de Cloudinary en client_products.image_url. */
 export async function storeProductPhoto(value:unknown) {
-  const image=await optimizePetPhoto(value);const storage=photoStorage();const key=`products/${randomUUID()}.webp`;
-  try {await storage.client.send(new PutObjectCommand({Bucket:storage.bucket,Key:key,Body:image,ContentType:'image/webp',CacheControl:'private, max-age=900'}));}
-  catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la imagen del producto. Intentá nuevamente.');}
-  finally {storage.client.destroy();}
-  return {url:key,remove:()=>removeProductPhoto(key)};
+  const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'products');
+  return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
+}
+export async function storeServicePhoto(value:unknown) {
+  const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'services');
+  return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
+}
+export async function removeServicePhoto(key:unknown) {
+  const cloudId=cloudinaryPublicId(key,'services');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
+  if(!serviceKeyPattern.test(String(key??'')))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:String(key)}));}finally {storage.client.destroy();}
 }
 export async function removeProductPhoto(key:unknown) {
-  if(!isProductPhotoKey(key))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
+  const cloudId=cloudinaryPublicId(key,'products');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
+  if(!productKeyPattern.test(String(key??'')))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:String(key)}));}finally {storage.client.destroy();}
 }
 export async function productPhotoUrl(key:unknown):Promise<string|null> {
-  if(!key)return null;if(!isProductPhotoKey(key))return String(key);
-  const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
+  if(!key)return null;if(cloudinaryPublicId(key,'products'))return String(key);if(!isProductPhotoKey(key))return String(key);
+  try {const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:String(key),ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}}
+  catch {return null;}
 }
 /** Fotos de perfiles profesionales: solo el backend escribe, las respuestas usan URL firmada. */
 export async function storeProfilePhoto(value:unknown) {
-  const image=await optimizePetPhoto(value);const storage=photoStorage();const key=`profiles/${randomUUID()}.webp`;
-  try {await storage.client.send(new PutObjectCommand({Bucket:storage.bucket,Key:key,Body:image,ContentType:'image/webp',CacheControl:'private, max-age=900'}));}
-  catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la foto de perfil. Intentá nuevamente.');}
-  finally {storage.client.destroy();}
-  return {url:key,remove:()=>removeProfilePhoto(key)};
+  const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'profiles');
+  return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
+}
+async function removeCloudinaryPhoto(publicId:string) {
+  cloudinaryClient();try {const result=await cloudinary.uploader.destroy(publicId,{resource_type:'image',invalidate:true});if(result.result!=='ok'&&result.result!=='not found')throw new Error('Delete failed');}
+  catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos limpiar una foto anterior en Cloudinary.');}
 }
 export async function removeProfilePhoto(key:unknown) {
+  const cloudId=cloudinaryPublicId(key,'profiles');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!isProfilePhotoKey(key))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
 }
 export async function profilePhotoUrl(key:unknown):Promise<string|null> {
-  if(!key)return null;if(!isProfilePhotoKey(key))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto de perfil anterior debe volver a subirse al almacenamiento privado.');
+  if(!key)return null;if(cloudinaryPublicId(key,'profiles'))return String(key);if(!isProfilePhotoKey(key))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto de perfil anterior debe volver a subirse al almacenamiento disponible.');
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
 }
 /** Se aplica únicamente a resultados de consultas autorizadas por ownership. */
@@ -97,4 +130,9 @@ export async function presentProductImages(value:unknown):Promise<unknown> {
   if(Array.isArray(value))return Promise.all(value.map(presentProductImages));
   if(!value||typeof value!=='object')return value;
   const result:Record<string,unknown>={};for(const [key,item] of Object.entries(value))result[key]=key==='imageUrl'?await productPhotoUrl(item):await presentProductImages(item);return result;
+}
+export async function presentServiceImages(value:unknown):Promise<unknown> {
+  if(Array.isArray(value))return Promise.all(value.map(presentServiceImages));
+  if(!value||typeof value!=='object')return value;
+  const result:Record<string,unknown>={};for(const [key,item] of Object.entries(value))result[key]=key==='imageUrl'&&isServicePhotoKey(item)?String(item):await presentServiceImages(item);return result;
 }

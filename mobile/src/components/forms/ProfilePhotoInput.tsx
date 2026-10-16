@@ -19,7 +19,7 @@ export function ProfilePhotoInput({currentUri,photo,onSelect,onRemove,disabled=f
     <AppText variant="caption" muted>Foto de perfil del profesional</AppText>
     <PetImage uri={photo?.uri??currentUri}/>
     <AppButton variant="secondary" label={photo||currentUri?'Elegir otra foto':'Elegir foto'} disabled={disabled||loading} loading={loading} onPress={()=>void choose()}/>
-    {(photo||currentUri)&&<AppButton variant="secondary" label="Quitar foto" disabled={disabled||loading} onPress={()=>{setError(null);onRemove();}}/>}
+    {Boolean(photo||currentUri)&&<AppButton variant="secondary" label="Quitar foto" disabled={disabled||loading} onPress={()=>{setError(null);onRemove();}}/>}
     <FormNotice error message={error}/>
   </>;
 }

@@ -17,7 +17,7 @@ function readUser(value: unknown): AuthUser {
     }
   }
   if(user.professional!==undefined&&user.professional!==null){const p=user.professional;if(typeof p.typeId!=='string'||typeof p.name!=='string'||typeof p.isClinical!=='boolean'||!Array.isArray(p.serviceIds)||p.serviceIds.some(s=>typeof s!=='string'))throw new ApiError('INVALID_RESPONSE','No pudimos validar el perfil profesional.');}
-  return { professional:user.professional??null,id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, role: user.role,permissions:user.permissions ?? [],veterinarian:user.veterinarian ?? null,
+  return { professional:user.professional??null,id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, profilePhotoUrl:typeof user.profilePhotoUrl==='string'?user.profilePhotoUrl:null, role: user.role,permissions:user.permissions ?? [],veterinarian:user.veterinarian ?? null,
     ...(typeof user.roleName==='string'?{roleName:user.roleName}:{}) };
 }
 
@@ -38,6 +38,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 export async function resetPassword(token: string,password: string): Promise<void> {
   await apiRequest('/auth/password-reset/confirm',{method:'POST',body:{token,password}});
+}
+export async function changeInitialPassword(email:string,currentPassword:string,newPassword:string):Promise<void>{
+  await apiRequest('/auth/change-initial-password',{method:'POST',body:{email:normalizeEmail(email),currentPassword,newPassword}});
 }
 /** Valida todas las entradas de sesión, incluyendo OAuth y renovación, antes de persistirlas. */
 export function readAccessSession(result: AccessSession): AccessSession {

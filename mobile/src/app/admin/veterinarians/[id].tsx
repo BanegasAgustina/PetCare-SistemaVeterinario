@@ -12,6 +12,7 @@ import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
+import { softSurfaceShadow } from '../../../constants/surface';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import { useFeedback } from '../../../contexts/FeedbackContext';
 import { validateIdentityForm } from '../../../utils/auth-validation';
@@ -27,6 +28,7 @@ export default function VeterinarianEditor() {
   const [loadError,setLoadError]=useState<string|null>(null);const [retry,setRetry]=useState(0);const [deactivate,setDeactivate]=useState(false);const [review,setReview]=useState(false);
   const [photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const [removePhoto,setRemovePhoto]=useState(false);
   const canEdit=auth.hasPermission('veterinarians.manage');
+  const canChangeStatus=auth.hasRole('SUPER_ADMIN');
   const fill=(vet:VetDetail)=>{setDetail(vet);setValues({firstName:vet.firstName,lastName:vet.lastName,email:vet.email,phone:vet.phone??'',licenseNumber:vet.licenseNumber,isActive:vet.isActive,
     specialtyIds:vet.specialties.map(s=>s.id)});};
   useEffect(()=>{
@@ -45,10 +47,10 @@ export default function VeterinarianEditor() {
   };
   const save=async()=>{
     if (creating) {
-      const result=await auth.request<{veterinarian:VetDetail;delivery:string}>('/admin/veterinarians',{method:'POST',body:values});
+      const result=await auth.request<{veterinarian:VetDetail}>('/admin/veterinarians',{method:'POST',body:values});
       const created=result.veterinarian;let photoFailed=false;
       if(photo){try{await auth.request<VetDetail>(`/admin/veterinarians/${created.id}/photo`,{method:'PUT',body:{photoBase64:photo.base64}});}catch{photoFailed=true;}}
-      showToast(photoFailed?'Veterinario creado; no se pudo guardar la foto. Podés reintentar en el perfil.':result.delivery==='sent'?'Veterinario creado. Invitación enviada.':result.delivery==='failed'?'Veterinario creado. Falló el envío; reenviá la invitación.':'Veterinario creado con cuenta inactiva.',photoFailed||result.delivery==='failed'?'info':'success');
+      showToast(photoFailed?'Veterinario creado; no se pudo guardar la foto. Podés reintentar en el perfil.':'Cuenta creada con la contraseña inicial empleadoPetCare1234. Debe verificar su correo y cambiarla.',photoFailed?'info':'success');
       router.replace({pathname:'/admin/veterinarians/[id]',params:{id:created.id}});
     } else {
       let vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}`,{method:'PUT',body:values});
@@ -57,11 +59,10 @@ export default function VeterinarianEditor() {
       showToast('Datos y permisos actualizados','success');
     }
   };
-  return <ScreenContainer keyboardAvoiding>
-    <AppButton label="Volver a Veterinarios" variant="secondary" disabled={action.loading} onPress={()=>router.replace('/admin/veterinarians')} />
+  return <ScreenContainer keyboardAvoiding wide>
     <AppText variant="title">{creating?'Crear veterinario':'Perfil veterinario'}</AppText>
     <FormNotice error message={loadError} />
-    {loadError && <AppButton label="Reintentar" onPress={()=>setRetry(retry+1)} />}
+    {Boolean(loadError) && <AppButton label="Reintentar" onPress={()=>setRetry(retry+1)} />}
     {!catalog && !loadError && <AppText muted>Cargando catálogos…</AppText>}
     {catalog && (!creating || canEdit) && <>
       <AppText variant="subtitle">1. Datos personales</AppText>
@@ -69,7 +70,7 @@ export default function VeterinarianEditor() {
       <AppInput label="Nombre" value={values.firstName} error={errors.firstName} editable={canEdit&&!action.loading} onChangeText={v=>change('firstName',v)} />
       <AppInput label="Apellido" value={values.lastName} error={errors.lastName} editable={canEdit&&!action.loading} onChangeText={v=>change('lastName',v)} />
       <AppInput label="Correo electrónico" value={values.email} error={errors.email} keyboardType="email-address" editable={canEdit&&!action.loading} onChangeText={v=>change('email',v)} />
-      {!creating && <AppText variant="caption" muted>Cambiar el correo revoca la sesión y exige una nueva invitación para verificarlo y configurar la contraseña.</AppText>}
+      {!creating && <AppText variant="caption" muted>Cambiar el correo revoca la sesión y exige verificar el nuevo correo al iniciar sesión.</AppText>}
       <AppInput label="Teléfono" value={values.phone} error={errors.phone} keyboardType="phone-pad" editable={canEdit&&!action.loading} onChangeText={v=>change('phone',v)} />
       <AppText variant="subtitle">2. Datos profesionales</AppText>
       <AppInput label="Matrícula profesional" value={values.licenseNumber} error={errors.licenseNumber} editable={canEdit&&!action.loading} onChangeText={v=>change('licenseNumber',v)} />
@@ -80,19 +81,16 @@ export default function VeterinarianEditor() {
         onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
       <AppText variant="subtitle">Cuenta</AppText>
       <AppText muted>Rol Veterinario · asignado por el servidor</AppText>
-      <View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit}
+      <View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit||!canChangeStatus}
         onValueChange={value=>{if (!value&&!creating&&detail?.isActive)setDeactivate(true);else change('isActive',value);}} trackColor={{true:colors.primary}} /></View>
-      {detail && <><AppText muted>Correo: {detail.emailVerified?'Verificado':'Sin verificar'} · Invitación: {detail.invitationStatus==='accepted'?'Aceptada':detail.invitationStatus==='pending'?'Pendiente':detail.invitationStatus==='failed'?'Falló el envío':'Sin invitación vigente'}</AppText>
-        {values.email!==detail.email&&<AppText muted>Guardá el nuevo correo antes de enviar una invitación.</AppText>}
-        <AppButton label={detail.emailVerified?'Enviar restablecimiento de contraseña':'Enviar / reenviar invitación'} variant="secondary" loading={action.loading} disabled={!detail.isActive||values.email!==detail.email}
-          onPress={()=>void action.run(async()=>{const result=await auth.request<{delivery:string}>(`/admin/veterinarians/${id}/invitation`,{method:'POST'});showToast(result.delivery==='sent'?'Correo enviado':'Falló el envío. Podés reintentar en un minuto.',result.delivery==='sent'?'success':'error');setDetail(await request<VetDetail>(`/admin/veterinarians/${id}`));})} /></>}
+      {detail && <AppText muted>Correo: {detail.emailVerified?'Verificado':'Sin verificar'}</AppText>}
       <FormNotice error message={action.error} />
       {canEdit && <AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} />}
-      {review && <View style={[styles.review,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+      {review && <View style={[styles.review,softSurfaceShadow(colors.primary),{backgroundColor:colors.surface,borderColor:colors.border}]}>
         <AppText variant="subtitle">Revisar y {creating?'crear':'guardar'}</AppText>
         <AppText>{values.firstName} {values.lastName} · {values.email}</AppText><AppText>Matrícula {values.licenseNumber} · Cuenta {values.isActive?'activa':'inactiva'}</AppText>
         <AppText muted>{catalog.specialties.filter(s=>values.specialtyIds.includes(s.id)).map(s=>s.name).join(' · ')}</AppText>
-        <AppText muted>Cada profesional configura su contraseña por correo.</AppText>
+        <AppText muted>{creating?'Se creará con la contraseña inicial empleadoPetCare1234. Deberá verificar su correo y cambiarla.':'Los cambios de cuenta se aplican al guardar.'}</AppText>
         <AppButton label={creating?'Crear veterinario':'Guardar datos'} loading={action.loading} onPress={()=>void action.run(save)} />
       </View>}
     </>}

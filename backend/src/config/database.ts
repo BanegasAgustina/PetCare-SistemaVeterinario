@@ -22,3 +22,13 @@ export const databasePool = mysql.createPool({
   connectionLimit: env.databaseConnectionLimit,
   queueLimit: 50,
 });
+
+// UTC mantiene alineados TIMESTAMP, UTC_TIMESTAMP y los vencimientos persistidos por la aplicación.
+databasePool.on('connection', connection => {
+  const promiseConnection = (connection as unknown as {
+    promise(): { query(sql: string): Promise<unknown> };
+  }).promise();
+  void promiseConnection.query("SET time_zone = '+00:00'").catch(() => {
+    console.error('No se pudo fijar UTC en una conexión MySQL.');connection.destroy();
+  });
+});

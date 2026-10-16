@@ -24,7 +24,7 @@ export function LoginLayout({ children, scrollable = false }: PropsWithChildren<
   return <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: colors.background }]}>
     <View style={[styles.shape, { backgroundColor: colors.accent }]} />
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {scrollable ? <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      {scrollable ? <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, keyboardOpen && styles.keyboardScrollContent]}>
         {main}{artwork}
       </ScrollView> : <View style={styles.fixedContent}>
         {main}
@@ -36,6 +36,7 @@ export function LoginLayout({ children, scrollable = false }: PropsWithChildren<
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
   scrollContent: { flexGrow: 1, justifyContent: 'flex-end' },
+  keyboardScrollContent: { justifyContent: 'flex-start' },
   fixedContent: { flex: 1, overflow: 'hidden' },
   bottomArtwork: { position: 'absolute', left: 0, right: 0, bottom: -50, alignItems: 'center' },
   main: { width: '100%', paddingHorizontal: 24 },

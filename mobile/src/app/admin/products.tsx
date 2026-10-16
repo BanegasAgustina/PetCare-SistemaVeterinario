@@ -18,6 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useFeedback } from '../../contexts/FeedbackContext';
+import { AdminFormActions, AdminFormSection } from '../../components/admin/AdminFormLayout';
 
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string | null; category: string | null; priceCents: number; stock: number; physicalStock: number; reservedStock: number; isActive: boolean };
 type Page = { items: Product[]; page: number; total: number; hasMore: boolean };
@@ -75,7 +76,7 @@ export default function AdminProducts() {
   async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setPhotoError('Permití el acceso a la galería para elegir una imagen.');return;}}const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});if(result.canceled)return;const asset=result.assets[0];if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setPhotoError('Elegí una imagen de hasta 5 MB y 25 megapíxeles.');return;}setPhoto({uri:asset.uri,base64:asset.base64});setValues(current=>({...current,imageUrl:editing?.imageUrl??''}));}catch{setPhotoError('No pudimos abrir la imagen. Intentá elegir otra.');}}
 
   const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.sort !== 'name' ? 1 : 0) + (filters.categoryId ? 1 : 0);
-  return <ScreenContainer>
+  return <ScreenContainer wide>
     <AppText variant="title">Productos y stock</AppText>
     <SearchFilterBar><AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
       <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}>
@@ -106,16 +107,20 @@ export default function AdminProducts() {
     <AppModal visible={Boolean(detail)} dismissible onClose={() => setDetail(null)}>
       {detail && <><PetImage uri={detail.imageUrl}/><AppText variant="title">{detail.name}</AppText><AppText muted>{detail.category ?? 'Sin categoría'}</AppText><AppText variant="subtitle">{money(detail.priceCents)}</AppText><AppText>{detail.description || 'Sin descripción.'}</AppText><AppText>{detail.stock > 0 ? `${detail.stock} unidades disponibles` : 'Sin stock disponible'}</AppText>{detail.reservedStock > 0 && <AppText muted>{detail.reservedStock} unidades reservadas</AppText>}<AppText muted>{detail.isActive ? 'Producto activo' : 'Producto inactivo'}</AppText>{auth.hasPermission('products.update') || auth.hasPermission('products.update_price') || auth.hasPermission('products.update_stock') ? <AppButton label="Editar producto" onPress={() => openEditor(detail)}/> : null}</>}
     </AppModal>
-    <AppModal visible={Boolean(editing)} dismissible onClose={() => setEditing(null)}>
-      {editing && <><AppText variant="subtitle">Editar producto</AppText>
-        <AppInput label="Nombre" value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, name: value }))}/>
+    <AppModal size="wide" visible={Boolean(editing)} dismissible onClose={() => setEditing(null)}>
+      {editing && <><AppText variant="title">Editar producto</AppText>
+        <AdminFormSection title="Información del producto" description="Nombre, descripción e imagen que se muestran en la tienda.">
+        <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, name: value }))}/>
         <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, description: value }))}/>
         <AppText variant="caption" muted>Imagen del producto</AppText><PetImage uri={photo?.uri??(values.imageUrl||editing.imageUrl)}/><AppButton variant="secondary" label={photo?'Cambiar imagen':'Elegir imagen'} disabled={!auth.hasPermission('products.update')} onPress={()=>void choosePhoto()}/>{Boolean(photo||values.imageUrl)&&<AppButton variant="secondary" label="Quitar imagen" disabled={!auth.hasPermission('products.update')} onPress={()=>{setPhoto(null);setValues(current=>({...current,imageUrl:''}));}}/>}<FormNotice error message={photoError}/><AppInput label="URL HTTPS alternativa" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value => {setPhoto(null);setValues(current => ({ ...current, imageUrl: value }));}}/>
         {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => setValues(current => ({ ...current, categoryId: '' }))}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={String(category.name)} radio checked={values.categoryId === category.id} onPress={() => setValues(current => ({ ...current, categoryId: category.id }))}/>)}</>}
-        <AppInput label="Precio en pesos" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => setValues(current => ({ ...current, price: value.replace(',', '.') }))}/>
+        </AdminFormSection>
+        <AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">
+        <AppInput label="Costo del producto (ARS)" prefix="$" placeholder="0,00" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => setValues(current => ({ ...current, price: value.replace(',', '.') }))}/>
         <AppInput label="Stock físico" value={values.stock} error={errors.stock} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => setValues(current => ({ ...current, stock: value }))}/>
         <SelectionRow label="Producto activo" checked={values.isActive} disabled={!auth.hasPermission('products.update')} onPress={() => setValues(current => ({ ...current, isActive: !current.isActive }))}/>
-        <AppButton label="Revisar y guardar" onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => setEditing(null)}/>
+        </AdminFormSection>
+        <AdminFormActions><AppButton label="Revisar y guardar" onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => setEditing(null)}/></AdminFormActions>
       </>}
     </AppModal>
     <ConfirmModal visible={body !== null} title="Guardar cambios de producto" message="Los cambios se guardarán en el inventario real de PetCare." onCancel={() => setBody(null)} onConfirm={async () => { if (!editing || !body) return; await request(`/admin/products/${editing.id}`, { method: 'PATCH', body }); setBody(null); setEditing(null); query.reload(); showToast('Producto actualizado', 'success'); }}/>

@@ -20,7 +20,7 @@ import { SelectionRow } from '../ui/SelectionRow';
 import { PetBirthDate } from './PetBirthDate';
 import { validPetDate } from '../../utils/pet-date';
 import type { PetValues } from '../../types/client';
-const empty:PetValues={name:'',speciesId:'',breedId:'',breedName:'',birthDate:'',microchipNumber:'',photoUrl:'',weightKg:''};
+const empty:PetValues={name:'',sex:'',speciesId:'',breedId:'',breedName:'',birthDate:'',microchipNumber:'',photoUrl:'',weightKg:''};
 export function PetEditor({id}:{id?:string}) {
   const api=useClient();const action=useAsyncAction();const {showToast}=useFeedback();const {colors}=useTheme();
   const [values,setValues]=useState<PetValues>(empty);
@@ -29,21 +29,26 @@ export function PetEditor({id}:{id?:string}) {
   const [picking,setPicking]=useState(false);const pickerBusy=useRef(false);
   const load=useCallback(async()=>{
     const catalog=await api.petCatalog();const pet=id?await api.pet(id):null;
-    if(pet)setValues({name:pet.name,speciesId:pet.speciesId,breedId:pet.breedId??'',breedName:pet.breed??'',birthDate:pet.birthDate??'',microchipNumber:pet.microchipNumber??'',photoUrl:pet.photoUrl??'',weightKg:pet.weightKg??''});
+    if(pet)setValues({name:pet.name,sex:pet.sex??'',speciesId:pet.speciesId,breedId:pet.breedId??'',breedName:pet.breed??'',birthDate:pet.birthDate??'',microchipNumber:pet.microchipNumber??'',photoUrl:pet.photoUrl??'',weightKg:pet.weightKg??''});
     return {catalog,pet};
   },[api,id]);const query=useClientQuery(load);const disabled=action.loading||picking;
   function change(key:keyof PetValues,value:string) {
     setValues(v=>({...v,[key]:value,...(key==='speciesId'||key==='breedName'?{breedId:''}:{})}));
     setErrors(e=>({...e,[key]:undefined}));
   }
-  async function choosePhoto() {
+  async function choosePhoto(source:'gallery'|'camera') {
     if(pickerBusy.current||action.loading)return;pickerBusy.current=true;setPicking(true);setErrors(e=>({...e,photoUrl:undefined}));
     try {
-      if(Platform.OS!=='web') {
+      if(source==='camera'&&Platform.OS==='web'){setErrors(e=>({...e,photoUrl:'La cámara está disponible desde la app móvil.'}));return;}
+      if(source==='camera') {
+        const permission=await ImagePicker.requestCameraPermissionsAsync();
+        if(!permission.granted){setErrors(e=>({...e,photoUrl:'Permití el acceso a la cámara desde los ajustes del teléfono.'}));return;}
+      } else if(Platform.OS!=='web') {
         const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();
         if(!permission.granted){setErrors(e=>({...e,photoUrl:'Permití el acceso a la galería desde los ajustes del teléfono para elegir una foto.'}));return;}
       }
-      const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});
+      const options={mediaTypes:['images' as const],allowsEditing:true,aspect:[1,1] as [number,number],quality:0.8,base64:true};
+      const result=source==='camera'?await ImagePicker.launchCameraAsync(options):await ImagePicker.launchImageLibraryAsync(options);
       if(result.canceled)return;
       const asset=result.assets[0];
       if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setErrors(e=>({...e,photoUrl:'Elegí una foto de hasta 5 MB y 25 megapíxeles.'}));return;}
@@ -54,6 +59,7 @@ export function PetEditor({id}:{id?:string}) {
   function save() {
     if(disabled)return;const next:typeof errors={};
     if(!values.name.trim()||values.name.trim().length>100)next.name='Ingresá un nombre de hasta 100 caracteres.';
+    if(!values.sex)next.sex='Seleccioná el sexo de tu mascota.';
     if(!values.speciesId)next.speciesId='Seleccioná una especie.';
     if((values.breedName??'').trim().length>100)next.breedName='La raza admite hasta 100 caracteres.';
     if(values.birthDate&&!validPetDate(values.birthDate))next.birthDate='Seleccioná una fecha válida, sin fechas futuras.';
@@ -72,10 +78,12 @@ export function PetEditor({id}:{id?:string}) {
       <PetCareCard><AppText variant="subtitle">Foto de la mascota</AppText><View style={styles.photoSection}><View style={[styles.photo,{backgroundColor:colors.accent}]}>
         {preview?<Image source={{uri:preview}} style={styles.photo} accessibilityLabel="Foto de la mascota" onError={()=>setErrors(e=>({...e,photoUrl:'No pudimos mostrar la foto. Podés elegir otra imagen.'}))}/>:<Ionicons name="paw-outline" size={54} color={colors.primary} accessible={false}/>}
       </View></View>
-      <AppButton variant="secondary" label={preview?'Cambiar foto':'Elegir de la galería'} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto()}/>
+      <AppButton variant="secondary" label={preview?'Cambiar foto desde la galería':'Elegir de la galería'} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('gallery')}/>
+      {Platform.OS!=='web'&&<AppButton variant="secondary" label="Tomar foto con la cámara" loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('camera')}/>}
       {Boolean(preview)&&<AppButton variant="secondary" label="Quitar foto" disabled={disabled} onPress={()=>{setPhoto(null);change('photoUrl','');}}/>}<FormNotice error message={errors.photoUrl??null}/></PetCareCard>
       <PetCareCard><AppInput label="Nombre" value={values.name} error={errors.name} maxLength={100} editable={!disabled} onChangeText={v=>change('name',v)}/>
       <AppText variant="subtitle">Especie</AppText><FormNotice error message={errors.speciesId??null}/>{query.data.catalog.species.map(s=><SelectionRow radio key={s.id} label={s.name} checked={s.id===values.speciesId} disabled={disabled} onPress={()=>change('speciesId',s.id)}/>)}
+      <AppText variant="subtitle">Sexo</AppText><FormNotice error message={errors.sex??null}/>{([{value:'FEMALE',label:'Hembra'},{value:'MALE',label:'Macho'},{value:'UNKNOWN',label:'No lo sé'}] as const).map(option=><SelectionRow radio key={option.value} label={option.label} checked={values.sex===option.value} disabled={disabled} onPress={()=>change('sex',option.value)}/>)}
       <AppInput label="Raza (opcional)" placeholder="Escribí la raza de tu mascota" value={values.breedName??''} error={errors.breedName} maxLength={100} editable={!disabled} onChangeText={v=>change('breedName',v)}/>
       <PetBirthDate value={values.birthDate} disabled={disabled} onChange={v=>change('birthDate',v)}/><FormNotice error message={errors.birthDate??null}/>
       <AppInput label="Peso en kg (opcional)" value={values.weightKg} error={errors.weightKg} keyboardType="decimal-pad" maxLength={8} editable={!disabled} onChangeText={v=>change('weightKg',v.replace(',','.'))}/>
