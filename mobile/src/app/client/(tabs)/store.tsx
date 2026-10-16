@@ -2,7 +2,7 @@
 import { useCallback,useState } from 'react';
 import { useClient } from '../../../hooks/useClient';
 import { useClientQuery } from '../../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHeader,PetCareEmptyState,QueryState } from '../../../components/client/PetCareUI';
+import { PetCareScreen,PetCareHeader,PetCareEmptyState,QueryState,ResponsiveGrid } from '../../../components/client/PetCareUI';
 import { ProductCard } from '../../../components/client/RecordCards';
 import { AppInput } from '../../../components/forms/AppInput';
 import { AppText } from '../../../components/ui/AppText';
@@ -35,6 +35,6 @@ export default function StoreScreen(){
     </SearchFilterBar>
     <QueryState {...catalog}/>
     <QueryState {...query}/>
-    {query.data&&(query.data.length?query.data.map(product=><ProductCard key={product.id} product={product}/>):<PetCareEmptyState title="No hay productos disponibles" message="Probá cambiar los filtros o volvé a consultar más tarde." icon="bag-handle-outline"/>)}
+    {query.data&&(query.data.length?<ResponsiveGrid>{query.data.map(product=><ProductCard key={product.id} product={product}/>)}</ResponsiveGrid>:<PetCareEmptyState title="No hay productos disponibles" message="Probá cambiar los filtros o volvé a consultar más tarde." icon="bag-handle-outline"/>)}
   </PetCareScreen>;
 }

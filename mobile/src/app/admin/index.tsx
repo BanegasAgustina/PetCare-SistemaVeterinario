@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,7 +6,7 @@ import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAdminModules } from '../../components/layout/GlobalNavigation';
 import { AppText } from '../../components/ui/AppText';
-import { PetCareAction, PetCareCard, PetCareHeader, PetCareScreen, QueryState, type IconName } from '../../components/client/PetCareUI';
+import { PetCareAction, PetCareCard, PetCareHeader, PetCareScreen, QueryState, ResponsiveGrid, type IconName } from '../../components/client/PetCareUI';
 import { useTheme } from '../../hooks/useTheme';
 import { clinicDateTime } from '../../utils/clinic-date';
 
@@ -19,6 +19,8 @@ export default function AdminHome() {
   const clinic = useClinic();
   const query = useClientQuery(clinic.home);
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const largeWeb = Platform.OS === 'web' && width >= 1440;
 
   const metrics: Metric[] = [
     { label: 'Turnos de hoy', value: query.data?.todayCount ?? null, icon: 'calendar-outline' },
@@ -42,7 +44,7 @@ export default function AdminHome() {
 
     <QueryState {...query} />
     {metrics.length > 0 && <View style={styles.metrics}>
-      {metrics.map(metric => <View key={metric.label} style={styles.metricCell}>
+      {metrics.map(metric => <View key={metric.label} style={[styles.metricCell, largeWeb && styles.metricCellLarge]}>
         <PetCareCard>
           <View style={styles.metricHeading}>
             <View style={[styles.metricIcon, { backgroundColor: colors.accent }]}>
@@ -63,7 +65,7 @@ export default function AdminHome() {
 
     {quickLinks.length > 0 && <View style={styles.section}>
       <AppText variant="subtitle">Accesos rápidos</AppText>
-      {quickLinks.map(link => <PetCareAction key={link.path} title={link.title} icon={link.icon} onPress={() => router.push(link.path as never)} />)}
+      <ResponsiveGrid>{quickLinks.map(link => <PetCareAction key={link.path} title={link.title} icon={link.icon} onPress={() => router.push(link.path as never)} />)}</ResponsiveGrid>
     </View>}
     {quickLinks.length === 0 && <AppText muted>Consultá las secciones disponibles desde el menú.</AppText>}
   </PetCareScreen>;
@@ -74,6 +76,7 @@ const styles = StyleSheet.create({
   eyebrow: { letterSpacing: 0.8 },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   metricCell: { width: '48.5%' },
+  metricCellLarge: { width: '32%' },
   metricHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   metricIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   metricValue: { fontSize: 28, lineHeight: 34 },

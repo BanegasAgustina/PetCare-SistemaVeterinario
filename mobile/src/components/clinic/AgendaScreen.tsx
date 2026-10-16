@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, QueryState, statusLabel } from '../client/PetCareUI';
+import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, QueryState, statusLabel, ResponsiveGrid } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
@@ -67,7 +67,7 @@ export function AgendaScreen() {
 
     </SearchFilterBar>
     <QueryState {...catalog}/><QueryState {...query}/>
-    {query.data && (query.data.length ? query.data.slice(0,200).map(appointment => <PetCareCard key={appointment.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}><View style={{flex:1,minWidth:0,gap:4}}><AppText variant="subtitle">{clinicDateTime(String(appointment.startsAt))}</AppText><AppText>{String(appointment.service)} · {String(appointment.petName)}</AppText><AppText muted numberOfLines={1}>{String(appointment.veterinarian)} · {statusLabel(String(appointment.status))}</AppText></View><Pressable accessibilityRole="button" accessibilityLabel={`Ver turno de ${String(appointment.petName)}`} onPress={() => router.push({ pathname: `${base}/appointment` as never, params: { id: appointment.id } })} style={{padding:10}}><Ionicons name="eye-outline" size={23}/></Pressable></View></PetCareCard>) : <PetCareEmptyState title="No hay turnos en esta consulta" icon="calendar-outline"/>)}
+    {query.data && (query.data.length ? <ResponsiveGrid>{query.data.slice(0,200).map(appointment => <PetCareCard key={appointment.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}><View style={{flex:1,minWidth:0,gap:4}}><AppText variant="subtitle">{clinicDateTime(String(appointment.startsAt))}</AppText><AppText>{String(appointment.service)} · {String(appointment.petName)}</AppText><AppText muted numberOfLines={1}>{String(appointment.veterinarian)} · {statusLabel(String(appointment.status))}</AppText></View><Pressable accessibilityRole="button" accessibilityLabel={`Ver turno de ${String(appointment.petName)}`} onPress={() => router.push({ pathname: `${base}/appointment` as never, params: { id: appointment.id } })} style={{padding:10}}><Ionicons name="eye-outline" size={23}/></Pressable></View></PetCareCard>)}</ResponsiveGrid> : <PetCareEmptyState title="No hay turnos en esta consulta" icon="calendar-outline"/>)}
     <CompactPagination page={page} canPrevious={page > 1} canNext={Boolean(query.data && query.data.length>200)} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)}/>
   </PetCareScreen>;
 }

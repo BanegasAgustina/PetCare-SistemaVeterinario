@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
@@ -12,7 +12,7 @@ import { FormNotice } from '../../components/ui/FormNotice';
 import { FilterDisclosure } from '../../components/ui/FilterDisclosure';
 import { CompactPagination } from '../../components/ui/CompactPagination';
 import { SearchFilterBar } from '../../components/ui/SearchFilterBar';
-import { PetCareCard, PetImage, QueryState, money } from '../../components/client/PetCareUI';
+import { PetCareCard, PetImage, QueryState, money, ResponsiveGrid } from '../../components/client/PetCareUI';
 import { SelectionRow } from '../../components/ui/SelectionRow';
 import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
@@ -41,6 +41,8 @@ export default function AdminProducts() {
   const [body, setBody] = useState<Record<string, unknown> | null>(null);
   const [photo,setPhoto]=useState<{uri:string;base64:string}|null>(null);
   const [photoError,setPhotoError]=useState<string|null>(null);
+  const {width}=useWindowDimensions();
+  const desktopGrid=Platform.OS==='web'&&width>=768;
   const load = useCallback(() => request<Page>(`/admin/products?${new URLSearchParams({ search: submittedSearch, ...filters, page: String(page) })}`), [request, submittedSearch, filters, page]);
   const query = useClientQuery(load);
   const updateFilter = (key: keyof typeof filters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
@@ -93,7 +95,7 @@ export default function AdminProducts() {
     {query.data && <>
       <AppText muted>{query.data.total} productos</AppText>
       {!query.data.items.length && <AppText muted>No hay productos para esta consulta.</AppText>}
-      <View style={styles.grid}>{query.data.items.map(product => <PetCareCard key={product.id}>
+      {desktopGrid?<ResponsiveGrid>{query.data.items.map(product => <PetCareCard key={product.id}>
         <View style={styles.productRow}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${product.name}`} onPress={() => setDetail(product)} style={styles.productInfo}>
             <PetImage uri={product.imageUrl}/><View style={styles.productText}><AppText variant="subtitle" numberOfLines={2}>{product.name}</AppText><AppText muted>{product.category ?? 'Sin categoría'}</AppText><AppText>{money(product.priceCents)}</AppText><AppText variant="caption" muted>{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</AppText></View>
@@ -101,7 +103,15 @@ export default function AdminProducts() {
           <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${product.name}`} onPress={() => openEditor(product)} style={styles.editButton}><Ionicons name="pencil-outline" size={19} color="#146b55"/></Pressable>
         </View>
         <View style={styles.cardFooter}><AppText variant="caption" muted>{product.isActive ? 'Activo' : 'Inactivo'}</AppText><AppButton compact variant="secondary" label="Ver detalle" onPress={() => setDetail(product)}/></View>
-      </PetCareCard>)}</View>
+      </PetCareCard>)}</ResponsiveGrid>:<View style={styles.grid}>{query.data.items.map(product => <PetCareCard key={product.id}>
+        <View style={styles.productRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${product.name}`} onPress={() => setDetail(product)} style={styles.productInfo}>
+            <PetImage uri={product.imageUrl}/><View style={styles.productText}><AppText variant="subtitle" numberOfLines={2}>{product.name}</AppText><AppText muted>{product.category ?? 'Sin categoría'}</AppText><AppText>{money(product.priceCents)}</AppText><AppText variant="caption" muted>{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</AppText></View>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${product.name}`} onPress={() => openEditor(product)} style={styles.editButton}><Ionicons name="pencil-outline" size={19} color="#146b55"/></Pressable>
+        </View>
+        <View style={styles.cardFooter}><AppText variant="caption" muted>{product.isActive ? 'Activo' : 'Inactivo'}</AppText><AppButton compact variant="secondary" label="Ver detalle" onPress={() => setDetail(product)}/></View>
+      </PetCareCard>)}</View>}
       <CompactPagination page={page} canPrevious={page > 1} canNext={query.data.hasMore} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)} summary={`${query.data.total} productos`}/>
     </>}
     <AppModal visible={Boolean(detail)} dismissible onClose={() => setDetail(null)}>

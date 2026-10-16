@@ -14,7 +14,7 @@ import { friendlyError } from '../../../services/api';
 import { FilterDisclosure } from '../../../components/ui/FilterDisclosure';
 import { CompactPagination } from '../../../components/ui/CompactPagination';
 import { SearchFilterBar } from '../../../components/ui/SearchFilterBar';
-import { PetImage } from '../../../components/client/PetCareUI';
+import { PetImage,ResponsiveGrid } from '../../../components/client/PetCareUI';
 import { AdminPersonRow } from '../../../components/admin/AdminPersonRow';
 import { AppModal } from '../../../components/ui/AppModal';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
@@ -60,7 +60,7 @@ export default function VeterinariansScreen() {
     {Boolean(error) && <AppButton label="Reintentar" onPress={load} />}
     {loading && <AppText muted>Consultando veterinarios…</AppText>}
     {result && <AppText muted>{result.total} profesionales</AppText>}
-    {result?.items.map(vet=><AdminPersonRow key={vet.id} imageUri={vet.profilePhotoUrl} name={`${vet.firstName} ${vet.lastName}`} role="Veterinario" onEdit={undefined} onView={()=>openVetDetails(vet.id)}/>)}
+    {result?.items.length?<ResponsiveGrid>{result.items.map(vet=><AdminPersonRow key={vet.id} imageUri={vet.profilePhotoUrl} name={`${vet.firstName} ${vet.lastName}`} role="Veterinario" onEdit={undefined} onView={()=>openVetDetails(vet.id)}/>)}</ResponsiveGrid>:null}
     {result && !result.items.length && <AppText muted>No hay veterinarios para estos filtros.</AppText>}
     <CompactPagination page={page} canPrevious={!loading&&page>1} canNext={!loading&&Boolean(result?.hasMore)} onPrevious={()=>setPage(value=>value-1)} onNext={()=>setPage(value=>value+1)} summary={result?`${result.total} veterinarios`:undefined}/>
     <AppModal size="wide" visible={createOpen||create==='1'} dismissible onClose={()=>{if(!action.loading){setCreateOpen(false);router.setParams({create:undefined});}}}>

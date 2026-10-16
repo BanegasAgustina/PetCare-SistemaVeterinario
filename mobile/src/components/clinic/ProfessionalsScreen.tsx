@@ -8,7 +8,7 @@ import { useClinic } from '../../hooks/useClinic';
 import { useAdmin } from '../../hooks/useAdmin';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
-import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState } from '../client/PetCareUI';
+import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState, ResponsiveGrid } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
@@ -82,7 +82,7 @@ export function ProfessionalsScreen() {
       </FilterDisclosure>
     </SearchFilterBar>
     <QueryState {...catalog}/><QueryState {...query}/>
-    {query.data && (professionals.length ? visibleProfessionals.map(person => <PetCareCard key={person.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}><PetImage uri={typeof person.profilePhotoUrl==='string'?person.profilePhotoUrl:null} size={56}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{String(person.name)}</AppText><AppText muted>{String(person.typeName)} · {person.isActive?'Activo':'Inactivo'}</AppText>{Boolean(person.specialties)&&<AppText muted numberOfLines={1}>{String(person.specialties)}</AppText>}</View><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${String(person.name)}`} onPress={()=>load(person.id)} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View></PetCareCard>) : <PetCareEmptyState title="No hay profesionales para estos filtros"/>)}
+    {query.data && (professionals.length ? <ResponsiveGrid>{visibleProfessionals.map(person => <PetCareCard key={person.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}><PetImage uri={typeof person.profilePhotoUrl==='string'?person.profilePhotoUrl:null} size={56}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{String(person.name)}</AppText><AppText muted>{String(person.typeName)} · {person.isActive?'Activo':'Inactivo'}</AppText>{Boolean(person.specialties)&&<AppText muted numberOfLines={1}>{String(person.specialties)}</AppText>}</View><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${String(person.name)}`} onPress={()=>load(person.id)} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View></PetCareCard>)}</ResponsiveGrid> : <PetCareEmptyState title="No hay profesionales para estos filtros"/>)}
     <CompactPagination page={page} canPrevious={page > 1} canNext={page * pageSize < professionals.length} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)} summary={`${professionals.length} profesionales`}/>
     <AppModal size="wide" visible={Boolean(selected)} dismissible onClose={() => { setSelected(''); setNewType(''); }}>
       {Boolean(selected) && catalog.data && selectedProfessional && <>

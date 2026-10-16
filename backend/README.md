@@ -492,14 +492,17 @@ Además, el resumen de Administración ahora consulta el próximo turno sin depe
 
 ### Si el cartel aparece en otro entorno
 
-Cada entorno tiene su propia base. Desde `backend`, verificá que `.env` apunte al MySQL usado por ese backend y ejecutá `npm run db:check`. Si esa base no tiene las columnas indicadas, hacé un respaldo y corré, una vez, estos comandos:
+Cada entorno tiene su propia base. El error se genera cuando cualquier consulta encuentra una tabla o columna ausente; varias pantallas pueden mostrar el mismo error porque consultan esos datos por separado. La causa ya identificada fue la falta de columnas en turnos e historial de reservas. La migración aplicada a una base no actualiza otras bases ni otro entorno.
+
+Desde `backend`, primero comprobá que `.env` apunte al MySQL del backend que usa la app y que `EXPO_PUBLIC_API_URL` en Mobile señale a ese mismo backend. Después ejecutá `npm run db:check`. Si la conexión corresponde al entorno afectado, hacé un respaldo y aplicá el comando idempotente:
 
 ```sh
-npm run db:migrate:appointment-details
-npm run db:migrate:reservation-reason
+npm run db:migrate:clinic-schema
 ```
 
-Luego reiniciá el backend y comprobá que Mobile use la URL de ese mismo entorno en `EXPO_PUBLIC_API_URL`. Si el mensaje continúa, la app probablemente esté conectada a otro backend/base; verificá sus variables de entorno y el registro del servidor. Los scripts son aditivos e idempotentes: agregan únicamente las columnas faltantes y detienen el proceso si encuentran una definición incompatible.
+El comando verifica y agrega únicamente las columnas faltantes `client_appointments.cancellation_reason`, `client_appointments.observations` y `client_order_status_history.reason`; conserva los datos existentes y se detiene si encuentra una definición incompatible. Luego reiniciá el backend. Si vuelve a aparecer, buscá `[DATABASE_SCHEMA_ERROR]` en el registro de ese backend: contiene el código MySQL y el identificador de la tabla/columna faltante, sin SQL ni datos privados. Confirmá que corregís la base a la que apunta ese backend; no repitas una migración en una base distinta esperando que actualice el entorno activo.
+
+**Estado de esta revisión:** el comando `npm.cmd run db:check` desde el entorno local de trabajo no pudo conectar con la base configurada (devolvió `DB_ERROR`). Por eso no fue posible confirmar ni reparar desde aquí la base del backend que muestra el cartel. El cambio agrega un único comando seguro para aplicar las dos migraciones conocidas; ejecutalo desde el entorno y con las credenciales del backend afectado.
 
 ## Perfil clínico del veterinario
 

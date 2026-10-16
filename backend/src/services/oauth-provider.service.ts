@@ -6,7 +6,13 @@ export type ProviderIdentity = { subject: string; email: string | null; name: st
 /** Limita esperas y oculta respuestas externas que podrían incluir credenciales. */
 async function json(url: string, options: RequestInit = {}, provider?: OAuthProvider, stage?: string): Promise<Record<string,unknown>> {
   try {const response=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(10000)});const body:unknown=await response.json();
-    if(!response.ok||!body||typeof body!=='object'||Array.isArray(body)){console.warn(JSON.stringify({event:'oauth.provider_http_error',provider,stage,status:response.status}));throw new Error();}return body as Record<string,unknown>;
+    if(!response.ok||!body||typeof body!=='object'||Array.isArray(body)){
+      const details=body&&typeof body==='object'&&!Array.isArray(body)?body as Record<string,unknown>:{};
+      // X/Google/Facebook error codes help distinguish a portal/configuration
+      // rejection from a network failure. Never log the response body or tokens.
+      const providerError=typeof details.error==='string'?details.error.slice(0,80):undefined;
+      console.warn(JSON.stringify({event:'oauth.provider_http_error',provider,stage,status:response.status,providerError}));throw new Error();
+    }return body as Record<string,unknown>;
   }catch{if(provider)console.warn(JSON.stringify({event:'oauth.provider_request_failed',provider,stage}));throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
 }
 function identity(subject:unknown,email:unknown,name:unknown):ProviderIdentity {

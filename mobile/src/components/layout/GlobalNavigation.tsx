@@ -52,6 +52,7 @@ const veterinarianItems: MenuItem[] = [
   { label: 'Agenda y turnos', path: '/vet/agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
   { label: 'Pacientes', path: '/vet/patients', icon: 'paw-outline', permission: 'pets.view_information' },
   { label: 'Mis clientes', path: '/vet/clients', icon: 'people-outline', permission: 'pets.view_information' },
+  { label: 'Productos', path: '/vet/products', icon: 'pricetags-outline', permission: 'products.view' },
   { label: 'Mi perfil', path: '/vet/profile', icon: 'person-outline' },
 ];
 function iconFor(code: string): IconName {
@@ -73,13 +74,14 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const isClient = user?.role === 'CLIENT';
+  const isVeterinarian = user?.role === 'VETERINARIAN';
   const [adminModules, setAdminModules] = useState<AdminModule[]>([]);
   const [open, setOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string,boolean>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [progress] = useState(() => new Animated.Value(0));
-  const desktop = Platform.OS === 'web' && width >= 900;
+  const desktop = Platform.OS === 'web' && width >= 1024;
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/secretary';
   useEffect(() => {
     let active = true;
@@ -100,7 +102,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
       ...[...new Map(adminModules.filter(module=>!['/admin/availability','/admin/catalog/categories','/admin/catalog/promotions','/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
     ];
-    if (user.role === 'VETERINARIAN') return [...new Map(veterinarianItems.filter(item=>(!item.permission||hasPermission(item.permission))&&(!['/vet/patients','/vet/clients'].includes(item.path)||hasPermission('pets.view_all')||hasPermission('pets.view_assigned'))).map(item=>[item.path,item])).values()];
+    if (user.role === 'VETERINARIAN') return [...new Map(veterinarianItems.filter(item=>(!item.permission||hasPermission(item.permission)||(item.path==='/vet/products'&&hasPermission('prescriptions.create')))&&(!['/vet/patients','/vet/clients'].includes(item.path)||hasPermission('pets.view_all')||hasPermission('pets.view_assigned'))).map(item=>[item.path,item])).values()];
     const permitted: MenuItem[] = [
       { label: 'Inicio', path: base, icon: 'home-outline' },
       ...staffItems.filter(item => item.permission && hasPermission(item.permission)).map(item => ({ ...item, path: `${base}/${item.path}` })),
@@ -147,9 +149,9 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
         {!isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? setDesktopExpanded(value => !value) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
           <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
         </Pressable>}
-        {isClient || isAdmin ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
+        {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Notificaciones" onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.danger??'#d84343'}]}/>}</Pressable>}
-        {!isClient&&user.role!=='VETERINARIAN'&&<Pressable accessibilityRole="button" accessibilityLabel="Perfil" onPress={()=>router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
+        {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push(isVeterinarian?'/vet/profile':'/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>
     {isAdmin && pathname !== '/admin' && <View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
@@ -176,6 +178,6 @@ const styles = StyleSheet.create({
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   menuButton: { width: 44, height: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
   adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},backButton:{width:42,height:42,borderRadius:12,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:1},adminPageTitle:{fontSize:18,fontWeight:'600'},
-  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},desktopDrawer: { width: 252, paddingHorizontal: 15, paddingVertical: 18 }, mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
+  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},desktopDrawer: { flexGrow:0,flexShrink:0,width:252,paddingHorizontal:15,paddingVertical:18 }, mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
   brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 44, paddingHorizontal: 11, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },
 });

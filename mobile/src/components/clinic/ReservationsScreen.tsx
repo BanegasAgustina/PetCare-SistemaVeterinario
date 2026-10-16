@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState, statusLabel, money } from '../client/PetCareUI';
+import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState, statusLabel, money, ResponsiveGrid } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
@@ -18,6 +18,8 @@ import { ConfirmModal } from '../ui/ConfirmModal';
 import { AppModal } from '../ui/AppModal';
 import { clinicDateFilterToApi, clinicDateTime } from '../../utils/clinic-date';
 import { useFeedback } from '../../contexts/FeedbackContext';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { FormNotice } from '../ui/FormNotice';
 
 export function ReservationsScreen() {
   const api = useClinic();
@@ -50,7 +52,7 @@ export function ReservationsScreen() {
       {user?.role === 'CLIENT' && <AppButton compact label="Buscar" onPress={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>}
     </SearchFilterBar>
     <QueryState {...query}/>
-    {query.data && (query.data.length ? query.data.slice(0,100).map(reservation => {
+    {query.data && (query.data.length ? <ResponsiveGrid>{query.data.slice(0,100).map(reservation => {
       const items = reservation.items as Record<string,unknown>[] | undefined;
       const first = items?.[0];
       if (user?.role === 'CLIENT') return <PetCareCard key={reservation.id}>
@@ -64,7 +66,7 @@ export function ReservationsScreen() {
         <AppButton label="Ver reserva" onPress={() => router.push({ pathname: `${base}/reservation` as never, params: { id: reservation.id } })}/>
       </PetCareCard>;
       return <PetCareCard key={reservation.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}>{first&&<PetImage uri={typeof first.imageUrl==='string'?first.imageUrl:null} size={64}/>}<View style={{flex:1,minWidth:0,gap:3}}><AppText variant="subtitle" numberOfLines={1}>{String(first?.name??`Reserva #${reservation.id}`)}</AppText>{Boolean(reservation.clientName)&&<AppText numberOfLines={1}>{String(reservation.clientName)}</AppText>}<AppText muted>{items?.reduce((total,item)=>total+Number(item.quantity??0),0)??0} unidades · {reservationStatusLabel(String(reservation.status))}</AppText></View><Pressable accessibilityRole="button" accessibilityLabel={`Ver reserva ${String(reservation.id)}`} onPress={()=>setSelectedReservation(String(reservation.id))} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View>{hasPermission('reservations.manage')&&reservation.status==='PLACED'&&<View style={{flexDirection:'row',gap:10,flexWrap:'wrap'}}><AppButton compact label="Aceptar reserva" onPress={()=>setConfirmReservation(String(reservation.id))}/><AppButton compact label="Rechazar reserva" destructive onPress={()=>{setRejectReservation(String(reservation.id));setRejectionReason('');setRejectionError('');}}/></View>}</PetCareCard>;
-    }) : <PetCareEmptyState title="No hay reservas en esta consulta" icon="bag-handle-outline"/>)}
+    })}</ResponsiveGrid> : <PetCareEmptyState title="No hay reservas en esta consulta" icon="bag-handle-outline"/>)}
     <CompactPagination page={page} canPrevious={page > 1} canNext={Boolean(query.data && query.data.length>100)} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)}/>
     {user?.role !== 'CLIENT' && <AppModal size="wide" visible={Boolean(selectedReservation)} dismissible onClose={()=>setSelectedReservation(null)}>
       <AppText variant="title">Detalle de la reserva</AppText>
@@ -110,17 +112,22 @@ export function ReservationScreen() {
   const query = useClientQuery(useCallback(() => api.reservation(id), [api, id]));
   const [next, setNext] = useState<string | null>(null);
   const [now,setNow]=useState(0);
+  const [cancellationReason,setCancellationReason]=useState('');
+  const [cancellationError,setCancellationError]=useState<string|null>(null);
+  const cancellationAction=useAsyncAction();
   const { showToast } = useFeedback();
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const transitions: Record<string, string[]> = { PLACED: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['PROCESSING', 'CANCELLED'], PROCESSING: ['READY', 'CANCELLED'], READY: ['COMPLETED', 'CANCELLED'] };
+  async function cancelReservation(){const reason=cancellationReason.trim();if(reason.length<3||reason.length>500){setCancellationError('Ingresá un motivo de entre 3 y 500 caracteres.');return;}setCancellationError(null);await cancellationAction.run(async()=>{await api.changeReservation(id,'CANCELLED',reason);setNext(null);setCancellationReason('');showToast('Reserva cancelada','success');query.reload();});}
   return <PetCareScreen wide><PetCareHeader title={`Reserva #${id}`} back/><QueryState {...query}/>
     {query.data && <><PetCareCard><AppText variant="subtitle">{reservationStatusLabel(String(query.data.status))}</AppText><AppText>Se paga y se retira en el local de la veterinaria. Sin pagos en línea.</AppText>{Boolean(query.data.clientName) && <AppText>{String(query.data.clientName)}</AppText>}{Boolean(query.data.phone) && <AppText>Contacto: {String(query.data.phone)}</AppText>}<AppText>Reservada: {clinicDateTime(String(query.data.createdAt))}</AppText><AppText>Precio reservado: {money(Number(query.data.totalCents))}</AppText>{Boolean(query.data.expiresAt)&&<AppText>Vencimiento: {clinicDateTime(String(query.data.expiresAt))}</AppText>}{Boolean(query.data.expiresAt)&&['PLACED','CONFIRMED','PROCESSING','READY'].includes(String(query.data.status))&&<AppText>Tiempo restante: {now?remainingTime(String(query.data.expiresAt),now):'Calculando…'}</AppText>}</PetCareCard>
       {/* Cada evento describe un cambio persistido y el usuario que lo registró, sin llamar compra a una reserva. */}
       {query.data.statusHistory?.length ? <PetCareCard><AppText variant="subtitle">Historial de estados</AppText>{query.data.statusHistory.map((event,index)=><AppText key={`${event.occurredAt}-${index}`}>{reservationStatusLabel(event.newStatus)} · {clinicDateTime(event.occurredAt)}{event.actorName?` · ${event.actorName}`:''}</AppText>)}</PetCareCard> : null}
       {query.data.items?.map(item => <PetCareCard key={String(item.productId)}>{hasPermission('reservations.view_all')&&<PetImage uri={typeof item.imageUrl==='string'?item.imageUrl:null} size={100}/>}<AppText variant="subtitle">{String(item.name)}</AppText>{hasPermission('reservations.view_all')&&Boolean(item.description)&&<AppText>{String(item.description)}</AppText>}<AppText>Tipo: {productTypeLabel(String(item.productType))}</AppText><AppText>Cantidad: {String(item.quantity)}</AppText><AppText>Precio al reservar: {money(Number(item.priceCents)*Number(item.quantity))}</AppText>{Boolean(item.petName) && <AppText>Mascota: {String(item.petName)}</AppText>}{Boolean(item.prescriptionId) && <AppText>Receta asociada: #{String(item.prescriptionId)}</AppText>}</PetCareCard>)}
-      {hasPermission('reservations.manage') && (transitions[String(query.data.status)] ?? []).map(status => <AppButton key={status} label={status === 'COMPLETED' ? 'Marcar retirada' : status === 'PROCESSING' ? 'Preparar' : reservationStatusLabel(status)} onPress={() => setNext(status)}/>)}
+      {hasPermission('reservations.manage') && (transitions[String(query.data.status)] ?? []).map(status => <AppButton key={status} label={status === 'COMPLETED' ? 'Marcar retirada' : status === 'PROCESSING' ? 'Preparar' : reservationStatusLabel(status)} destructive={status==='CANCELLED'} onPress={() => {if(status==='CANCELLED'){setCancellationReason('');setCancellationError(null);}setNext(status);}}/>)}
     </>}
-    <ConfirmModal visible={Boolean(next)} title="Actualizar reserva" message={next === 'CANCELLED' ? 'Se cancelará la reserva y se liberarán sus unidades.' : next === 'COMPLETED' ? 'Se registrará el retiro y se descontarán las unidades del stock físico.' : 'El cliente verá el estado actualizado.'} destructive={next === 'CANCELLED'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { await api.changeReservation(id, next!); setNext(null); showToast('Reserva actualizada', 'success'); query.reload(); }}/>
+    <AppModal visible={next==='CANCELLED'} dismissible onClose={()=>{if(!cancellationAction.loading)setNext(null);}}><AppText variant="title">Cancelar reserva</AppText><AppText muted>El motivo quedará registrado y se informará al cliente. Las unidades se liberarán.</AppText><AppInput label="Motivo de cancelación" required multiline maxLength={500} value={cancellationReason} error={cancellationError??undefined} editable={!cancellationAction.loading} onChangeText={value=>{setCancellationReason(value);setCancellationError(null);}}/><FormNotice error message={cancellationAction.error}/><AppButton label="Confirmar cancelación" destructive loading={cancellationAction.loading} onPress={()=>void cancelReservation()}/><AppButton label="Volver" variant="secondary" disabled={cancellationAction.loading} onPress={()=>setNext(null)}/></AppModal>
+    <ConfirmModal visible={Boolean(next)&&next!=='CANCELLED'} title="Actualizar reserva" message={next === 'COMPLETED' ? 'Se registrará el retiro y se descontarán las unidades del stock físico.' : 'El cliente verá el estado actualizado.'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { await api.changeReservation(id, next!); setNext(null); showToast('Reserva actualizada', 'success'); query.reload(); }}/>
   </PetCareScreen>;
 }
 

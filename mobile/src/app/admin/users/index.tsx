@@ -11,7 +11,7 @@ import { ScreenContainer } from '../../../components/layout/ScreenContainer';
 import { AppText } from '../../../components/ui/AppText';
 import { AppInput } from '../../../components/forms/AppInput';
 import { AppButton } from '../../../components/ui/AppButton';
-import { PetImage,QueryState } from '../../../components/client/PetCareUI';
+import { PetImage,QueryState,ResponsiveGrid } from '../../../components/client/PetCareUI';
 import { AdminPersonRow } from '../../../components/admin/AdminPersonRow';
 import { useAdmin } from '../../../hooks/useAdmin';
 import { useAuth } from '../../../hooks/useAuth';
@@ -50,7 +50,7 @@ export default function UsersScreen() {
     {canCreate&&<AppButton label="Crear usuario" onPress={()=>{setCreateValues(empty);setCreateErrors({});setCreatePhoto(null);setCreateOpen(true);}}/>}
     <QueryState {...query}/>{query.data&&<><AppText muted>{query.data.total} usuarios</AppText>
       {!query.data.items.length&&<AppText muted>No hay usuarios para esta consulta.</AppText>}
-      <View style={{gap:10}}>{query.data.items.map(user=><AdminPersonRow key={user.id} imageUri={user.profilePhotoUrl} name={`${user.firstName} ${user.lastName}`} role={roleLabel(user.role,user.roleName)} onView={()=>openUserDetails(user.id)}/>)}</View>
+      <View style={{gap:10}}><ResponsiveGrid>{query.data.items.map(user=><AdminPersonRow key={user.id} imageUri={user.profilePhotoUrl} name={`${user.firstName} ${user.lastName}`} role={roleLabel(user.role,user.roleName)} onView={()=>openUserDetails(user.id)}/>)}</ResponsiveGrid></View>
       <CompactPagination page={page} canPrevious={page>1&&!query.loading} canNext={query.data.hasMore&&!query.loading} onPrevious={()=>setPage(p=>p-1)} onNext={()=>setPage(p=>p+1)} summary={`${query.data.total} usuarios`}/>
     </>}
     <AppModal size="wide" visible={createOpen||create==='1'&&canCreate} dismissible onClose={()=>{if(!action.loading){setCreateOpen(false);router.setParams({create:undefined});}}}>
@@ -68,7 +68,7 @@ export default function UsersScreen() {
         {photoRole&&<ProfilePhotoInput currentUri={null} photo={createPhoto} disabled={action.loading} onSelect={setCreatePhoto} onRemove={()=>setCreatePhoto(null)}/>}
       </AdminFormSection>
       <QueryState {...catalog}/><FormNotice error message={action.error}/>
-      <AdminFormActions><AppButton label="Crear cuenta" loading={action.loading} disabled={!createValues.roleId} onPress={createUser}/><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={()=>setCreateOpen(false)}/></AdminFormActions>
+      <AdminFormActions><AppButton label="Crear cuenta" loading={action.loading} disabled={!createValues.roleId} onPress={createUser}/><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={()=>{setCreateOpen(false);router.setParams({create:undefined});}}/></AdminFormActions>
     </AppModal>
     <AppModal visible={selectedUserId!==null} dismissible onClose={()=>setSelectedUserId(null)}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><AppText variant="title">Detalle del usuario</AppText>{auth.hasPermission('users.manage')&&selectedUser&&<Pressable accessibilityRole="button" accessibilityLabel="Editar usuario" onPress={()=>{setSelectedUserId(null);router.push({pathname:'/admin/users/[id]',params:{id:selectedUser.id}});}} style={{padding:10}}><Ionicons name="create-outline" size={22}/></Pressable>}</View>

@@ -2,13 +2,13 @@
  * Inicio compartido del personal autenticado. Consulta /clinic/home para agenda y contadores reales y presenta módulos según permisos de /me; no inventa cifras ante errores.
  */
 import { useCallback,useState } from 'react';
-import { Platform,Pressable,ScrollView,View } from 'react-native';
+import { Platform,Pressable,ScrollView,View,useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHeader,PetCareCard,PetCareAction,PetCareEmptyState,PetImage,QueryState,statusLabel } from '../client/PetCareUI';
+import { PetCareScreen,PetCareHeader,PetCareCard,PetCareAction,PetCareEmptyState,PetImage,QueryState,statusLabel,ResponsiveGrid } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { AppButton } from '../ui/AppButton';
@@ -30,24 +30,25 @@ export function StaffHome(){const {user}=useAuth();return user?.role==='VETERINA
 /** Inicio exclusivo del veterinario: agenda real del día y tres accesos operativos. */
 function VeterinarianHome(){
  const {user,hasPermission}=useAuth();
+ const {width}=useWindowDimensions();
  const patientScope=hasPermission('pets.view_all')||hasPermission('pets.view_assigned');
  const api=useClinic();
  const query=useClientQuery(api.home);
  const appointments=query.data?.todayAppointments??[];
+ const renderAppointmentCard=(item:typeof appointments[number],cardWidth:number|'100%')=><Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Abrir turno de ${String(item.petName)}`} onPress={()=>router.push({pathname:'/vet/appointment' as never,params:{id:item.id}})} style={{width:cardWidth}}>
+  <PetCareCard><View style={{alignItems:'center',gap:8}}><PetImage uri={typeof item.petPhotoUrl==='string'?item.petPhotoUrl:null} size={76}/><AppText variant="subtitle" numberOfLines={1}>{String(item.petName)}</AppText></View>
+   <AppText>{clinicDateTime(String(item.startsAt))}</AppText>
+   {hasPermission('users.view_basic')&&Boolean(item.ownerName)&&<AppText muted numberOfLines={1}>Propietario: {String(item.ownerName)}</AppText>}
+   <AppText>{statusLabel(String(item.status))}</AppText>
+  </PetCareCard>
+ </Pressable>;
+ const appointmentCards=appointments.map(item=>renderAppointmentCard(item,'100%'));
  return <PetCareScreen wide>
   <PetCareHeader title={`Hola, ${user?.firstName??''}`} subtitle="Atención veterinaria"/>
   <AppText variant="subtitle">Turnos de hoy</AppText>
   <QueryState {...query}/>
   {query.data&&appointments.length===0&&<PetCareEmptyState title="No tenés turnos para hoy" icon="calendar-outline"/>}
-  {appointments.length>0&&<ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{gap:12,paddingBottom:8}}>
-   {appointments.map(item=><Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Abrir turno de ${String(item.petName)}`} onPress={()=>router.push({pathname:'/vet/appointment' as never,params:{id:item.id}})} style={{width:260}}>
-    <PetCareCard><View style={{alignItems:'center',gap:8}}><PetImage uri={typeof item.petPhotoUrl==='string'?item.petPhotoUrl:null} size={76}/><AppText variant="subtitle" numberOfLines={1}>{String(item.petName)}</AppText></View>
-     <AppText>{clinicDateTime(String(item.startsAt))}</AppText>
-     {hasPermission('users.view_basic')&&Boolean(item.ownerName)&&<AppText muted numberOfLines={1}>Propietario: {String(item.ownerName)}</AppText>}
-     <AppText>{statusLabel(String(item.status))}</AppText>
-    </PetCareCard>
-   </Pressable>)}
-  </ScrollView>}
+  {appointments.length>0&&(Platform.OS==='web'&&width>=768?<ResponsiveGrid>{appointmentCards}</ResponsiveGrid>:<ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{gap:12,paddingBottom:8}}>{appointments.map(item=>renderAppointmentCard(item,260))}</ScrollView>)}
   {(hasPermission('appointments.view_own')||hasPermission('appointments.view_all'))&&<PetCareAction title="Agenda y turnos" icon="calendar-outline" onPress={()=>router.push('/vet/agenda' as never)}/>}
   {hasPermission('pets.view_information')&&patientScope&&<PetCareAction title="Pacientes" icon="paw-outline" onPress={()=>router.push('/vet/patients' as never)}/>}
   {hasPermission('pets.view_information')&&patientScope&&<PetCareAction title="Mis clientes" icon="people-outline" onPress={()=>router.push('/vet/clients' as never)}/>}
