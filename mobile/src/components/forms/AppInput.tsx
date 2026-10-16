@@ -24,7 +24,7 @@ export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps
           onFocus={(event) => { setFocused(true); onFocus?.(event); }} onBlur={(event) => { setFocused(false); onBlur?.(event); }}
           style={[styles.input, fieldIcon && styles.iconInput, compact && styles.compactInput, { color: colors.text }, style]} />
         {/* Cambia únicamente secureTextEntry; no modifica la contraseña del formulario. */}
-        {password && <Pressable disabled={props.editable === false} accessibilityRole="button" accessibilityState={{ disabled: props.editable === false }} accessibilityLabel={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} onPress={() => setVisible(!visible)} style={[styles.toggle, compact && { minHeight: 44, minWidth: 44 }]}>
+        {password && <Pressable disabled={props.editable === false} accessibilityRole="button" accessibilityState={{ disabled: props.editable === false }} accessibilityLabel={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} onPress={() => setVisible(!visible)} style={[styles.toggle, compact && { minHeight: 44, minWidth: 44}]}>
           <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.primary} accessible={false} />
         </Pressable>}
       </View>
