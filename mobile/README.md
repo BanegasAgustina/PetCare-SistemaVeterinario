@@ -69,7 +69,7 @@ Las pruebas comprueban validaciones, confirmación local, payload sin confirmPas
 
 ## Backend y base de datos
 
-DB_* y JWT_ACCESS_SECRET pertenecen exclusivamente al backend. EXPO_PUBLIC_API_URL es pública; jamás contiene secretos. API usa timeout de 12 segundos y mensajes seguros. Confirmar contraseña se compara solo en frontend; no se transmite. El registro no envía rol y abre el modal de verificación antes de continuar a Login. Login guarda únicamente token/vencimiento en SecureStore nativo; web usa memoria temporal y pierde sesión al recargar. No se guarda contraseña. Restauración consulta /me; un fallo de red permite reintentar. Token vencido requiere otro login. Cerrar sesión borra almacenamiento local; no revoca un JWT ya emitido en el servidor.
+DB_* y JWT_ACCESS_SECRET pertenecen exclusivamente al backend. EXPO_PUBLIC_API_URL es pública; jamás contiene secretos. API usa timeout de 12 segundos y mensajes seguros. Confirmar contraseña se compara solo en frontend; no se transmite. El registro no envía rol y abre el modal de verificación antes de continuar a Login. Login guarda la sesión en SecureStore nativo y en sessionStorage para web (persiste al recargar la pestaña, pero no en una nueva sesión del navegador). No se guarda contraseña. Restauración consulta /me; un fallo de red permite reintentar. Token vencido requiere otro login. Cerrar sesión borra almacenamiento local; no revoca un JWT ya emitido en el servidor.
 
 La auditoría inicial de npm informa 13 avisos moderados en dependencias transitivas de Expo (uuid/xcode y decode-uri-component/query-string, propagados a herramientas Expo). No se ejecutó npm audit fix --force: propone retroceder SDK/Router y romper compatibilidad. Revisar actualizaciones compatibles antes de publicar.
 

@@ -3,9 +3,9 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { ApiError } from './api';
 import type { StoredSession } from '../types/auth';
+import { clearWebSession, readWebSession, saveWebSession } from './web-session-store';
 
 const sessionKey = 'petcare.access-session';
-let webSession: StoredSession | null = null;
 let pendingMutation: Promise<void> = Promise.resolve();
 
 // Ordenar escritura/borrado evita que un login pendiente vuelva a guardar una sesión cerrada.
@@ -16,19 +16,19 @@ function mutate(operation: () => Promise<void>): Promise<void> {
 }
 export function saveSession(session: StoredSession): Promise<void> {
   return mutate(async () => {
-    if (Platform.OS === 'web') { webSession = session; return; }
+    if (Platform.OS === 'web') { saveWebSession(session); return; }
     await SecureStore.setItemAsync(sessionKey, JSON.stringify(session), { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
   });
 }
 export function clearSession(): Promise<void> {
   return mutate(async () => {
-    if (Platform.OS === 'web') { webSession = null; return; }
+    if (Platform.OS === 'web') { clearWebSession(); return; }
     await SecureStore.deleteItemAsync(sessionKey);
   });
 }
 export async function readSession(): Promise<StoredSession | null> {
   await pendingMutation.catch(() => undefined);
-  if (Platform.OS === 'web') return webSession;
+  if (Platform.OS === 'web') return readWebSession();
   let raw: string | null;
   try { raw = await SecureStore.getItemAsync(sessionKey); }
   catch { throw new ApiError('SESSION_STORAGE_ERROR', 'No pudimos recuperar tu sesión de forma segura.'); }
