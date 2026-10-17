@@ -1,6 +1,6 @@
 /** Feedback breve propio: una notificación a la vez, no bloquea y desaparece automáticamente. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { Animated, Pressable, StyleSheet, View, AccessibilityInfo, Platform } from 'react-native';
+import { Animated, Pressable, StyleSheet, View, AccessibilityInfo } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppText } from '../components/ui/AppText';
@@ -24,7 +24,7 @@ export function FeedbackProvider({ children }: PropsWithChildren) {
     void AccessibilityInfo.isReduceMotionEnabled().then(reduce => {
       if (!active) return;
       opacity.setValue(0);
-      Animated.timing(opacity, { toValue: 1, duration: reduce ? 0 : 160, useNativeDriver: Platform.OS !== 'web' }).start();
+      Animated.timing(opacity, { toValue: 1, duration: reduce ? 0 : 160, useNativeDriver: false }).start();
     });
     const timeout = setTimeout(() => setToast(null), 4500);
     return () => { active = false; clearTimeout(timeout); opacity.stopAnimation(); };

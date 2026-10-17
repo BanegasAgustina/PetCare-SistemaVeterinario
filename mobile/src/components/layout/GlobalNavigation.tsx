@@ -124,7 +124,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   };
 
   useEffect(() => {
-    Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: true }).start();
+    Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
   }, [open, progress]);
   if (!user) return <>{children}</>;
   const navigate = (path: string) => { setOpen(false); router.push(path as never); };
