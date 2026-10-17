@@ -4,6 +4,7 @@ import { databasePool } from '../config/database';
 import { getMailConfiguration } from '../config/mail';
 import { env } from '../config/env';
 import { AppError } from '../utils/app-error';
+import { normalizePasswordResetToken } from '../utils/password-reset-token';
 import { normalizeEmail, readPassword } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 import { sendPasswordResetEmail } from './mail.service';
@@ -41,20 +42,20 @@ export async function requestPasswordReset(body: unknown): Promise<void> {
   finally{connection.release();}
   if(!token)return;
   const url = new URL(baseUrl);
-  url.searchParams.set('token',token);
-  await sendPasswordResetEmail(email,url.toString());
+  url.searchParams.set('token', token);
+  await sendPasswordResetEmail(email, url.toString());
 }
 
 export async function resetPassword(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['token','password'].includes(key))) throw new AppError('VALIDATION_ERROR',400,'El enlace no es válido o venció.');
   const input = body as { token?: unknown; password?: unknown };
-  if (typeof input.token !== 'string' || !/^[a-f0-9]{64}$/.test(input.token)) throw new AppError('PASSWORD_RESET_INVALID',400,'El enlace no es válido o venció.');
+  const token = normalizePasswordResetToken(input.token);
   const password = readPassword(input.password,true);
   const connection = await databasePool.getConnection();
   try {
     await connection.beginTransaction();
     const [rows] = await connection.execute<Array<{id:string;user_id:string} & import('mysql2').RowDataPacket>>(
-      'SELECT id,CAST(user_id AS CHAR) AS user_id FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>UTC_TIMESTAMP(3) FOR UPDATE',[tokenHash(input.token)]);
+      'SELECT id,CAST(user_id AS CHAR) AS user_id FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>UTC_TIMESTAMP(3) FOR UPDATE',[tokenHash(token)]);
     if (!rows[0]) throw new AppError('PASSWORD_RESET_INVALID',400,'El enlace no es válido, venció o ya se utilizó.');
     const hash = await hashPassword(password);
     const [updated]=await connection.execute('UPDATE users SET password_hash=?,must_change_password=0,session_version=session_version+1 WHERE id=?',[hash,rows[0].user_id]);

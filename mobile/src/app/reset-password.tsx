@@ -8,17 +8,19 @@ import { AppText } from '../components/ui/AppText';
 import { FormNotice } from '../components/ui/FormNotice';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import { resetPassword } from '../services/auth.service';
+import { isValidPasswordResetToken, normalizePasswordResetToken } from '../utils/password-reset-token';
 
 export default function ResetPasswordScreen(){
-  const {token}=useLocalSearchParams<{token?:string}>();
+  const rawToken = useLocalSearchParams<{token?: string | string[]}>().token;
+  const token = normalizePasswordResetToken(rawToken);
   const [password,setPassword]=useState('');
   const [confirm,setConfirm]=useState('');
   const [validationError,setValidationError]=useState('');
   const [done,setDone]=useState(false);
   const action=useAsyncAction();
   const submit=()=>{
-    if(!token||!/^[a-f0-9]{64}$/.test(token)){setValidationError('El enlace no es válido. Solicitá uno nuevo desde el inicio de sesión.');return;}
-    if([...password].length<8||!/\p{Lu}/u.test(password)||!/\p{Ll}/u.test(password)||!/[0-9]/.test(password)||! /[^\p{L}\p{N}\s]/u.test(password)){setValidationError('Usá al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.');return;}
+    if(!isValidPasswordResetToken(token)){setValidationError('El enlace no es válido. Solicitá uno nuevo desde el inicio de sesión.');return;}
+    if([...password].length<8||!/\p{Lu}/u.test(password)||!/\p{Ll}/u.test(password)||!/\d/.test(password)||!/[^\p{L}\p{N}\s]/u.test(password)){setValidationError('Usá al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.');return;}
     if(password!==confirm){setValidationError('Las contraseñas no coinciden.');return;}
     setValidationError('');void action.run(async()=>{await resetPassword(token,password);setDone(true);setPassword('');setConfirm('');});
   };
