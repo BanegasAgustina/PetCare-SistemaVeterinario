@@ -1,20 +1,22 @@
 /** Sesión global: revalida /me, rota renovación con un único envío y revoca al cerrar sesión. */
 import { createContext, useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as authApi from '../services/auth.service';
 import { ApiError, friendlyError, apiRequest } from '../services/api';
 import { clearSession, readSession, saveSession } from '../services/session-store';
 import type { AuthUser, LoginValues, RegisterValues, StoredSession, VerificationChallenge,AccessSession } from '../types/auth';
 import { readVerification } from '../services/verification.service';
 import { hasRole,hasPermission } from '../utils/authorization';
-import { beginOAuth,completeOAuth,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
+import { beginOAuth,completeOAuth,exchangeWebOAuthReturn,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
 
 type AuthContextValue = {
   socialSignIn: (provider:OAuthProvider)=>Promise<void>;
+  completeWebOAuthReturn: (ticket:string)=>Promise<boolean>;
   linkProvider: (provider:OAuthProvider)=>Promise<void>;
   oauthPending: OAuthPending|null;
   cancelOAuth: ()=>void;
   registerOAuth: (profile:RegisterValues)=>Promise<void>;
+  completeVerifiedSession: (result:unknown)=>Promise<AuthUser|null>;
   hasRole: (...roles:AuthUser['role'][])=>boolean;
   hasPermission: (...codes:string[])=>boolean;
   request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; body?: unknown }) => Promise<T>;
@@ -27,9 +29,13 @@ type AuthContextValue = {
 };
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function isWebOAuthCallback():boolean {
+  return Platform.OS==='web'&&typeof window!=='undefined'&&window.location.pathname.replace(/\/+$/,'')==='/oauth'&&new URLSearchParams(window.location.search).has('ticket');
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [restoring, setRestoring] = useState(true);
+  const [restoring, setRestoring] = useState(()=>!isWebOAuthCallback());
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState('');
@@ -69,13 +75,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   /** Todas las vías de login comparten validación /me y persistencia, sin aceptar un rol local. */
   const acceptSession=useCallback(async(result:AccessSession,attempt:number)=>{
-    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return;}
+    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return null;}
     const currentUser=await authApi.getCurrentUser(result.accessToken);
-    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return;}
+    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return null;}
     const stored={accessToken:result.accessToken,refreshToken:result.refreshToken,expiresAt:Date.now()+result.expiresIn*1000};
     await saveSession(stored);
     if(attempt===generation.current){session.current=stored;setUser(currentUser);setExpiresAt(stored.expiresAt);setNotice(null);setRestoreError(null);setRegisteredEmail('');setPendingVerification(null);setVerificationOpen(false);setOAuthPending(null);}
+    return attempt===generation.current?currentUser:null;
   },[]);
+  const completeVerifiedSession=useCallback(async(result:unknown)=>acceptSession(authApi.readAccessSession(result),generation.current),[acceptSession]);
 
   const restoreSession = useCallback(async () => {
     renewing.current=null;
@@ -103,6 +111,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     // La lectura del almacenamiento inicia después de montar el proveedor.
+    if(isWebOAuthCallback())return;
     const start = setTimeout(() => { void restoreSession(); }, 0);
     return () => { clearTimeout(start); generation.current += 1; };
   }, [restoreSession]);
@@ -133,13 +142,29 @@ export function AuthProvider({ children }: PropsWithChildren) {
     renewing.current=null;
     const attempt=++generation.current;
     try{const result=await beginOAuth(provider);if(attempt!==generation.current)return;
+      if('redirecting' in result)return;
       if(result.session)await acceptSession(result.session,attempt);else if(result.pending)setOAuthPending(result.pending);
     }catch(error){if(attempt===generation.current&&error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED'&&error.verification){setPendingVerification(readVerification(error.verification));setVerificationFromLogin(true);setVerificationOpen(true);}throw error;}
+  },[acceptSession]);
+  const completeWebOAuthReturn=useCallback(async(ticket:string)=>{
+    const attempt=++generation.current;
+    try {
+      const result=await exchangeWebOAuthReturn(ticket);
+      if(attempt!==generation.current)return false;
+      if(result.session){await acceptSession(result.session,attempt);return true;}
+      if(result.pending){setOAuthPending(result.pending);return false;}
+      throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
+    } catch(error) {
+      if(attempt===generation.current&&error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED'&&error.verification){
+        setPendingVerification(readVerification(error.verification));setVerificationFromLogin(true);setVerificationOpen(true);return false;
+      }
+      throw error;
+    }
   },[acceptSession]);
   const linkProvider=useCallback(async(provider:OAuthProvider)=>{
     let stored=session.current;if(!stored)throw new ApiError('AUTH_REQUIRED','Iniciá sesión.',401);
     if(stored.expiresAt<=Date.now()+30000)stored=await renewSession(stored);
-    const result=await beginOAuth(provider,stored.accessToken);if(!result.linked)throw new ApiError('INVALID_RESPONSE','No se pudo vincular el proveedor.');
+    const result=await beginOAuth(provider,stored.accessToken);if('redirecting' in result||!result.linked)throw new ApiError('INVALID_RESPONSE','No se pudo vincular el proveedor.');
   },[renewSession]);
   const registerOAuth=useCallback(async(profile:RegisterValues)=>{
     if(!oauthPending)throw new ApiError('OAUTH_FAILED','Iniciá OAuth nuevamente.');const attempt=generation.current;
@@ -199,9 +224,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return ()=>subscription.remove();
   },[refreshProfile]);
   const updateVerification = (value: VerificationChallenge) => setPendingVerification(value);
-  // Verificar email no inicia sesión: el flujo existente continúa con credenciales en Login.
+  // El backend solo devuelve sesión al verificar una cuenta que ya tiene identidad OAuth vinculada.
   const finishVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice(null); };
   const leaveVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice('Volvé a iniciar sesión para retomar la verificación de tu correo.'); };
-  return <AuthContext.Provider value={{socialSignIn,linkProvider,oauthPending,cancelOAuth:()=>setOAuthPending(null),registerOAuth, hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
+  return <AuthContext.Provider value={{socialSignIn,completeWebOAuthReturn,linkProvider,oauthPending,cancelOAuth:()=>setOAuthPending(null),registerOAuth,completeVerifiedSession, hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
     pendingVerification, verificationOpen, openVerification, updateVerification, finishVerification, verificationFromLogin, leaveVerification }}>{children}</AuthContext.Provider>;
 }

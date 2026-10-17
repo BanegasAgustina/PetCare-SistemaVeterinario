@@ -337,7 +337,7 @@ Los valores de ejemplo son ilustrativos. delivery=sent significa aceptación por
 {"verificationToken":"<prueba recibida>","code":"012345"}
 ```
 
-Respuesta 200: `{"success":true,"data":{"verified":true}}`. Marca email_verified_at con UTC, consume el desafío y elimina code_hash. No emite Access Token. Después de verificar se continúa a Login; credenciales correctas de una cuenta verificada conservan la respuesta JWT existente.
+Respuesta 200: `{"success":true,"data":{"verified":true}}` para una cuenta sin identidad OAuth. Marca email_verified_at con UTC, consume el desafío y elimina code_hash; luego el usuario continúa a Login. Si la cuenta ya tiene una identidad OAuth vinculada, una verificación correcta también devuelve `data.session` con la sesión PetCare, sin cambiar el rol existente. En ambos casos el token/código de verificación es de un solo uso y no basta por sí solo para acceder a `/me`.
 
 `POST /api/auth/resend-verification`:
 

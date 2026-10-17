@@ -10,6 +10,11 @@ import { maskEmail } from '../utils/mask-email';
 import { validateVerification } from '../validators/verification.validator';
 import { sendVerificationEmail } from './mail.service';
 import { registerStage, registerDiagnosticFailure } from '../utils/register-diagnostics';
+import { findUserById } from '../repositories/user.repository';
+import { sessionForUser } from './session.service';
+import { shouldIssueSessionAfterVerification } from './oauth-policy';
+import type { AccessSession } from '../types/auth';
+import type { RowDataPacket } from 'mysql2/promise';
 
 export const hashVerificationToken = (token: string) => createHash('sha256').update(token).digest('hex');
 export const hashVerificationCode = (id: string, code: string) => createHmac('sha256', getVerificationSecret()).update(`${id}:${code}`).digest('hex');
@@ -84,7 +89,7 @@ export async function resendVerification(body: unknown): Promise<VerificationCha
   });
 }
 
-export async function verifyEmail(body: unknown): Promise<void> {
+export async function verifyEmail(body: unknown): Promise<AccessSession | null> {
   const { verificationToken: token, code } = validateVerification(body, true);
   const tokenHash = hashVerificationToken(token);
   const id = await findVerificationUser(tokenHash);
@@ -102,4 +107,9 @@ export async function verifyEmail(body: unknown): Promise<void> {
     return null;
   });
   if (error) throw error;
+  const [accounts]=await databasePool.execute<RowDataPacket[]>('SELECT user_id FROM oauth_accounts WHERE user_id=? LIMIT 1',[id]);
+  if(!shouldIssueSessionAfterVerification(accounts.length>0))return null;
+  const user=await findUserById(id);
+  if(!user||!user.isActive||!user.emailVerifiedAt)throw new AppError('VERIFICATION_SESSION_EXPIRED',401,'La cuenta no está disponible. Iniciá sesión para continuar.');
+  return sessionForUser(user);
 }

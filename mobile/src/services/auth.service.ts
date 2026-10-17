@@ -43,7 +43,11 @@ export async function changeInitialPassword(email:string,currentPassword:string,
   await apiRequest('/auth/change-initial-password',{method:'POST',body:{email:normalizeEmail(email),currentPassword,newPassword}});
 }
 /** Valida todas las entradas de sesión, incluyendo OAuth y renovación, antes de persistirlas. */
-export function readAccessSession(result: AccessSession): AccessSession {
+export function readAccessSession(value: unknown): AccessSession {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la sesión de PetCare.');
+  }
+  const result=value as AccessSession;
   if (typeof result.accessToken !== 'string' || !result.accessToken || result.accessToken.length > 4096 || result.tokenType !== 'Bearer' || !Number.isInteger(result.expiresIn) || result.expiresIn <= 0 || result.expiresIn > 3600) {
     throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la sesión de PetCare.');
   }

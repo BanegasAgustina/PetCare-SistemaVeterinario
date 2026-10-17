@@ -16,7 +16,8 @@ export async function resendCode(verificationToken: string): Promise<Verificatio
   const result = await apiRequest<{ verification: unknown }>('/auth/resend-verification', { method: 'POST', body: { verificationToken } });
   return readVerification(result.verification);
 }
-export async function verifyCode(verificationToken: string, code: string): Promise<void> {
-  const result = await apiRequest<{ verified: boolean }>('/auth/verify-email', { method: 'POST', body: { verificationToken, code } });
+export async function verifyCode(verificationToken: string, code: string): Promise<unknown | null> {
+  const result = await apiRequest<{ verified: boolean; session?: unknown }>('/auth/verify-email', { method: 'POST', body: { verificationToken, code } });
   if (result.verified !== true) throw new ApiError('INVALID_RESPONSE', 'No pudimos confirmar la verificación.');
+  return result.session === undefined ? null : result.session;
 }

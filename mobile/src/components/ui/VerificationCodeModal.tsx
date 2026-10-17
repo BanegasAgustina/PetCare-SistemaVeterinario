@@ -14,6 +14,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { ApiError, friendlyError } from '../../services/api';
 import { readVerification, resendCode, verifyCode } from '../../services/verification.service';
 import type { VerificationChallenge } from '../../types/auth';
+import { roleHome } from '../../utils/role-home';
 
 export function VerificationCodeModal({ challenge, autoSend = false }: { challenge: VerificationChallenge; autoSend?: boolean }) {
   const auth = useAuth(); const { colors } = useTheme(); const { showToast } = useFeedback();
@@ -65,7 +66,11 @@ export function VerificationCodeModal({ challenge, autoSend = false }: { challen
     if (code.length !== 6) { setError('Ingresá los seis dígitos del código.'); return; }
     inFlight.current = true; setLoading('verify'); setError(null); setInfo(null);
     try {
-      await verifyCode(challenge.verificationToken, code);
+      const session=await verifyCode(challenge.verificationToken, code);
+      if(session&&mounted.current){
+        const user=await auth.completeVerifiedSession(session);
+        if(user){showToast('Correo verificado. Tu cuenta está lista.','success');router.replace(roleHome(user));return;}
+      }
       if (mounted.current) { setVerified(true); Keyboard.dismiss(); }
     } catch (failure) {
       if (mounted.current) {

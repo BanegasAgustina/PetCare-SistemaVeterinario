@@ -2,7 +2,7 @@
 import type { RequestHandler } from 'express';
 import { resendVerification, verifyEmail } from '../services/verification.service';
 export const verify: RequestHandler = async (request, response, next) => {
-  try { await verifyEmail(request.body); response.json({ success: true, data: { verified: true } }); }
+  try { const session=await verifyEmail(request.body); response.json({ success: true, data: { verified: true, ...(session?{session}:{}) } }); }
   catch (error) { next(error); }
 };
 export const resend: RequestHandler = async (request, response, next) => {

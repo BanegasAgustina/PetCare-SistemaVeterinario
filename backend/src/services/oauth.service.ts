@@ -6,6 +6,7 @@ import * as repo from '../repositories/oauth.repository';
 import { authorizationUrl,providerIdentity } from './oauth-provider.service';
 import { findUserById,findUserByEmail } from '../repositories/user.repository';
 import { sessionForUser } from './session.service';
+import { assertOAuthRegistrationEmailAvailable, oauthExchangeAction } from './oauth-policy';
 import { validateRegister } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 import { createVerificationProof,resendVerification,hashVerificationToken } from './verification.service';
@@ -32,16 +33,17 @@ export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:un
 export async function exchangeOAuth(value:unknown){
   const body=object(value);const result=await repo.withTicket(body.ticket,body.proof,async(c,a)=>{
     const [accounts]=await c.execute<RowDataPacket[]>('SELECT user_id FROM oauth_accounts WHERE provider=? AND subject=?',[a.provider,a.identity_json.subject]);
-    if(a.link_user_id){
+    const action=oauthExchangeAction(accounts[0]?String(accounts[0].user_id):null,a.link_user_id);
+    if(action==='conflict')throw new AppError('OAUTH_ACCOUNT_CONFLICT',409,'Esta identidad ya pertenece a otra cuenta.');
+    if(action==='link'){
       const [users]=await c.execute<RowDataPacket[]>('SELECT is_active,email_verified_at,session_version FROM users WHERE id=? FOR UPDATE',[a.link_user_id]);
       if(!users[0]?.is_active||!users[0]?.email_verified_at||Number(users[0].session_version)!==a.link_session_version)throw new AppError('INVALID_TOKEN',401,'La sesión de vinculación fue revocada.');
       // El consentimiento abierto no debe vincular una identidad después de cerrar la sesión que lo inició.
       const [families]=await c.execute<RowDataPacket[]>('SELECT 1 FROM refresh_tokens WHERE family_id=? AND user_id=? AND revoked_at IS NULL AND expires_at>UTC_TIMESTAMP(3) LIMIT 1',[a.link_family_id,a.link_user_id]);
       if(!families.length)throw new AppError('INVALID_TOKEN',401,'La sesión de vinculación fue revocada.');
-      if(accounts[0]&&String(accounts[0].user_id)!==String(a.link_user_id))throw new AppError('OAUTH_ACCOUNT_CONFLICT',409,'Esta identidad ya pertenece a otra cuenta.');
       if(!accounts[0])await c.execute('INSERT INTO oauth_accounts(provider,subject,user_id) VALUES (?,?,?)',[a.provider,a.identity_json.subject,a.link_user_id]);await repo.consume(c,body.ticket as string);return {linked:true as const};
     }
-    if(!accounts[0])return {registrationRequired:true as const,email:a.identity_json.email,name:a.identity_json.name};
+    if(action==='register')return {registrationRequired:true as const,email:a.identity_json.email,name:a.identity_json.name};
     await repo.consume(c,body.ticket as string);return {userId:String(accounts[0].user_id)};
   });
   if(!('userId' in result))return result;const user=await findUserById(result.userId!);
@@ -51,7 +53,7 @@ export async function exchangeOAuth(value:unknown){
 /** No fusionar por email. El alta exige contraseña propia y código SMTP, también para X. */
 export async function registerOAuth(value:unknown){
   const body=object(value),input=validateRegister(body.profile);getMailConfiguration();getVerificationSecret();
-  if(await findUserByEmail(input.email))throw new AppError('OAUTH_LINK_REQUIRED',409,'Ese email ya tiene una cuenta. Iniciá sesión con contraseña y vinculá el proveedor desde tu perfil.');
+  assertOAuthRegistrationEmailAvailable(Boolean(await findUserByEmail(input.email)));
   const hash=await hashPassword(input.password),proof=randomBytes(32).toString('hex');
   await repo.withTicket(body.ticket,body.proof,async(c,a)=>{
     if(a.link_user_id)throw new AppError('VALIDATION_ERROR',400,'Esta solicitud es de vinculación.');const [roles]=await c.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='CLIENT'");if(!roles[0])throw new AppError('AUTH_UNAVAILABLE',503,'El rol cliente no está configurado.');
