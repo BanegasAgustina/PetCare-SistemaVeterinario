@@ -4,6 +4,17 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "framework": null,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        }
+      ]
+    }
+  ],
   "redirects": [
     {
       "source": "/auth/login",

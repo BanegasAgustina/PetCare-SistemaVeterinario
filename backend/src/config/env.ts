@@ -65,6 +65,7 @@ const localWebOrigins = [
 const petcareWebOrigins = [
   'https://petcare-sistemaveterinario-mobile.vercel.app',
 ];
+const petcareVercelPreviewOrigin = /^https:\/\/petcare-sistemaveterinario-mobile-[a-z0-9-]+\.vercel\.app$/;
 const configuredCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
 if (nodeEnvironment === 'production') {
   for (const origin of configuredCorsOrigins) {
@@ -92,6 +93,7 @@ export const env = {
   databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 30000, 60000),
   bcryptSaltRounds: readPositiveInteger('BCRYPT_SALT_ROUNDS', 12, 14),
   corsAllowedOrigins: [...new Set([...(nodeEnvironment === 'production' ? [] : localWebOrigins), ...petcareWebOrigins, ...configuredCorsOrigins])],
+  isCorsOriginAllowed: (origin?: string) => !origin || env.corsAllowedOrigins.includes(origin) || petcareVercelPreviewOrigin.test(origin),
 };
 
 if (env.bcryptSaltRounds < 10) throw new Error('BCRYPT_SALT_ROUNDS debe estar entre 10 y 14.');

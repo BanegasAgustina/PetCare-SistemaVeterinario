@@ -161,7 +161,7 @@ Los callbacks exactos de los proveedores son:
 - Facebook: `https://pet-care-sistema-veterinario.vercel.app/api/auth/oauth/facebook/callback`
 - X: `https://pet-care-sistema-veterinario.vercel.app/api/auth/oauth/x/callback`
 
-Registra cada URL en el portal correspondiente como redirect/callback URI. Los destinos finales son `/oauth` en web y `petcare://oauth` en la app; no los registres como callbacks del proveedor. La configuración de Vercel o los portales externos debe comprobarse en esas cuentas; el código no acredita la aprobación de credenciales OAuth ni permisos.
+Registra cada URL en el portal correspondiente como redirect/callback URI. Los destinos finales son `/oauth` en web y `petcare://oauth` en la app; no los registres como callbacks del proveedor. El callback configura `Cross-Origin-Opener-Policy: same-origin-allow-popups` para que Expo pueda devolver el resultado al popup que inició el flujo; las demás respuestas conservan la política predeterminada de Helmet. La configuración de Vercel o los portales externos debe comprobarse en esas cuentas; el código no acredita la aprobación de credenciales OAuth ni permisos.
 
 ## Ejecutar la API
 
