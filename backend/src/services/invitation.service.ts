@@ -18,7 +18,8 @@ export function invitationUrl(kind:'veterinarian'|'account'='veterinarian'): URL
   getMailConfiguration();
   try {
     const url = new URL((kind==='account'?process.env.ACCOUNT_INVITATION_URL?.trim():undefined) || process.env.VETERINARIAN_INVITATION_URL || '');
-    const local = env.nodeEnvironment !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname);
+    const isLocal = ['localhost','127.0.0.1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
+    const local = env.nodeEnvironment !== 'production' && isLocal;
     if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
     return url;
   } catch { throw new AppError('INVITATION_UNAVAILABLE',503,'Configurá la URL segura de activación de cuentas.'); }

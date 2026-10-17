@@ -57,13 +57,24 @@ const messages: Record<string, string> = {
   VERIFICATION_SEND_LIMIT: 'Alcanzaste el límite de envíos. Intentá más tarde.',
 };
 
-function getApiUrl(): string {
-  const value = process.env.EXPO_PUBLIC_API_URL?.trim();
+export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
+
+export function getApiUrl(): string {
+  const configuredValue = process.env.EXPO_PUBLIC_API_URL?.trim();
+  // En builds de producción / release (APK compilado o web pública), si no se inyectó la variable,
+  // se utiliza la URL oficial HTTPS de producción para garantizar funcionamiento autónomo.
+  // En desarrollo (__DEV__), si no se define, se exige configuración explícita.
+  const value = configuredValue || (!__DEV__ ? PRODUCTION_API_URL : '');
   try {
     if (!value) throw new Error();
     const url = new URL(value);
-    // HTTP is limited to Expo development; release builds must never bundle a local or cleartext API.
-    if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && __DEV__)) || url.username || url.password) throw new Error();
+    const isLocalHost = ['localhost', '127.0.0.1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
+    // En producción/release se rechaza terminantemente HTTP, localhost e IPs privadas locales.
+    if (!__DEV__ && (url.protocol !== 'https:' || isLocalHost)) {
+      throw new Error();
+    }
+    if (url.protocol !== 'https:' && !__DEV__) throw new Error();
+    if (url.username || url.password) throw new Error();
     const path = url.pathname.replace(/\/+$/, '');
     if (!/\/api$/i.test(path)) url.pathname = `${path}/api`;
     return url.toString().replace(/\/+$/, '');
@@ -71,7 +82,10 @@ function getApiUrl(): string {
 }
 
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; body?: unknown; accessToken?: string } = {}): Promise<T> {
-  const url = `${getApiUrl()}${path}`;
+  // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const cleanPath = normalizedPath.replace(/^\/api(?=\/|$)/i, '');
+  const url = `${getApiUrl()}${cleanPath}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {

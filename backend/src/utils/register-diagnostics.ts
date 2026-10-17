@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { AppError } from './app-error';
 import { DatabaseError } from './database-error';
+import { env } from '../config/env';
 
 export type RegisterStage = 'request_received' | 'validation' | 'validation_ok' | 'mail_configuration' | 'mail_configuration_ok'
   | 'checking_existing_email' | 'existing_email_checked' | 'password_hashing' | 'password_hashed'
@@ -47,7 +48,7 @@ export function registerDiagnosticFailure(error: unknown): void {
   if (trace) console.error('[REGISTER][ERROR]',JSON.stringify({ requestId:trace.requestId,stage:trace.stage,...safeRegisterError(error) }));
 }
 export async function withRegisterDiagnostics<T>(operation: () => Promise<T>): Promise<T> {
-  if (process.env.REGISTER_DIAGNOSTICS !== 'true' || process.env.NODE_ENV === 'production') return operation();
+  if (process.env.REGISTER_DIAGNOSTICS !== 'true' || env.nodeEnvironment === 'production') return operation();
   return context.run({ requestId:randomUUID(),stage:'request_received' },async()=> {
     registerStage('request_received');
     try { const result=await operation();registerStage('completed');return result; }

@@ -1,4 +1,4 @@
-/** Configura proveedores confidenciales. Los secretos y callbacks pertenecen al backend. */
+import { env } from './env';
 import { AppError } from '../utils/app-error';
 export const providers = ['google', 'facebook', 'x'] as const;
 export type OAuthProvider = typeof providers[number];
@@ -7,12 +7,23 @@ export function oauthProvider(value: unknown): OAuthProvider {
   return value as OAuthProvider;
 }
 export function backendOrigin(): string {
+  const raw = process.env.BACKEND_URL?.trim();
+  if (!raw) throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL).');
   try {
-    const url = new URL(process.env.BACKEND_URL ?? '');
-    const local = process.env.NODE_ENV !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname);
-    if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error();
+    const url = new URL(raw);
+    const isLocal = ['localhost', '127.0.0.1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
+    if (env.nodeEnvironment === 'production' && isLocal) {
+      throw new AppError('OAUTH_UNAVAILABLE',503,'BACKEND_URL no puede apuntar a localhost ni a una red local en producción. Configurá https://pet-care-sistema-veterinario.vercel.app');
+    }
+    const local = env.nodeEnvironment !== 'production' && isLocal;
+    if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
+    const cleanPath = url.pathname.replace(/\/+$/, '');
+    if (cleanPath !== '' && cleanPath !== '/api') throw new Error();
     return url.origin;
-  } catch { throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend.'); }
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL debe ser una URL HTTPS válida).');
+  }
 }
 export function oauthConfig(provider: OAuthProvider) {
   const { clientId, clientSecret } = providerCredentials(provider);
@@ -54,7 +65,7 @@ export function oauthReturnUrl(value: unknown): string {
   const allowed = (process.env.OAUTH_RETURN_URLS ?? '').split(',').map(s=>s.trim()).filter(Boolean);
   if (typeof value !== 'string' || !allowed.includes(value)) throw new AppError('VALIDATION_ERROR',400,'El destino OAuth no está autorizado.');
   const url = new URL(value);
-  const local = process.env.NODE_ENV !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname);
+  const local = env.nodeEnvironment !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname);
   if ((url.protocol !== 'https:' && url.protocol !== 'petcare:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new AppError('VALIDATION_ERROR',400,'El destino OAuth no es válido.');
   return value;
 }

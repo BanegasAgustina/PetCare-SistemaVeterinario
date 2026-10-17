@@ -2,8 +2,28 @@
   "cli": { "version": ">= 16.0.0" },
   "build": {
     "development": { "developmentClient": true, "distribution": "internal", "android": { "buildType": "apk" } },
-    "preview": { "distribution": "internal", "environment": "preview", "android": { "buildType": "apk" } },
-    "production": { "autoIncrement": true, "environment": "production" },
-    "production-apk": { "distribution": "internal", "environment": "production", "android": { "buildType": "apk" } }
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pet-care-sistema-veterinario.vercel.app/api"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pet-care-sistema-veterinario.vercel.app/api"
+      }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "environment": "production",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pet-care-sistema-veterinario.vercel.app/api"
+      }
+    }
   }
 }

@@ -11,9 +11,12 @@ import { sendPasswordResetEmail } from './mail.service';
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
 const resetUrl = () => {
   const value = process.env.PASSWORD_RESET_URL?.trim();
-  try { const url = new URL(value ?? ''); const localHost=['localhost','127.0.0.1','::1'].includes(url.hostname);
-    if ((url.protocol!=='https:'&&!(env.nodeEnvironment!=='production'&&localHost&&url.protocol==='http:')) || url.username || url.password || url.search || url.hash) throw new Error();
-    return url.toString(); }
+  try {
+    const url = new URL(value ?? '');
+    const isLocal = ['localhost','127.0.0.1','::1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
+    if ((url.protocol !== 'https:' && !(env.nodeEnvironment !== 'production' && isLocal && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
+    return url.toString();
+  }
   catch { throw new AppError('PASSWORD_RESET_UNAVAILABLE', 503, 'La recuperación de contraseña no está configurada.'); }
 };
 

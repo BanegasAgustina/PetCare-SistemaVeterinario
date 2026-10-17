@@ -2,6 +2,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { useTheme } from '../hooks/useTheme';
 import { AuthProvider } from '../contexts/AuthContext';
@@ -10,6 +11,9 @@ import { FeedbackProvider } from '../contexts/FeedbackContext';
 import { VerificationCodeModal } from '../components/ui/VerificationCodeModal';
 import { OAuthRegistrationModal } from '../components/forms/OAuthRegistrationModal';
 import { GlobalNavigation } from '../components/layout/GlobalNavigation';
+
+// Cierra automáticamente cualquier sesión OAuth pendiente en web al recibir el callback
+WebBrowser.maybeCompleteAuthSession();
 
 function ThemedNavigation() {
   const { mode, colors } = useTheme();
