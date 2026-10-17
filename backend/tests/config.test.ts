@@ -17,6 +17,16 @@ test('backendOrigin rejects localhost and private IPs in production', () => {
     // Should tolerate /api path and normalize origin
     process.env.BACKEND_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
     assert.equal(backendOrigin(), 'https://pet-care-sistema-veterinario.vercel.app');
+
+    // In Vercel runtime, if BACKEND_URL was left as localhost, it resolves to PRODUCTION_BACKEND_URL
+    const originalRegion = process.env.VERCEL_REGION;
+    try {
+      process.env.VERCEL_REGION = 'iad1';
+      process.env.BACKEND_URL = 'http://localhost:3000';
+      assert.equal(backendOrigin(), 'https://pet-care-sistema-veterinario.vercel.app');
+    } finally {
+      process.env.VERCEL_REGION = originalRegion;
+    }
   } finally {
     process.env.BACKEND_URL = originalUrl;
   }

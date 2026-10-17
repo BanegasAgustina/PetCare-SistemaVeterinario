@@ -35,11 +35,19 @@ export async function providerIdentity(provider:OAuthProvider,code:string,verifi
     const proof=createHmac('sha256',c.clientSecret).update(token.access_token).digest('hex');
     const profile=await json(`${root}/me?fields=id,name,email&appsecret_proof=${proof}`,{headers:{Authorization:`Bearer ${token.access_token}`}},provider,'profile');return identity(profile.id,profile.email,profile.name);
   }
-  const fields=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:c.callback,code_verifier:verifier});const headers:Record<string,string>={'Content-Type':'application/x-www-form-urlencoded'};
-  if(provider==='google'){fields.set('client_id',c.clientId);fields.set('client_secret',c.clientSecret);}else headers.Authorization=`Basic ${Buffer.from(`${encodeURIComponent(c.clientId)}:${encodeURIComponent(c.clientSecret)}`).toString('base64')}`;
+  const fields=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:c.callback,code_verifier:verifier});
+  const headers:Record<string,string>={'Content-Type':'application/x-www-form-urlencoded','User-Agent':'PetCare-App/1.0'};
+  if(provider==='google'){
+    fields.set('client_id',c.clientId);
+    fields.set('client_secret',c.clientSecret);
+  } else {
+    fields.set('client_id',c.clientId);
+    headers.Authorization=`Basic ${Buffer.from(`${c.clientId}:${c.clientSecret}`).toString('base64')}`;
+  }
   const token=await json(provider==='google'?'https://oauth2.googleapis.com/token':'https://api.x.com/2/oauth2/token',{method:'POST',headers,body:fields},provider,'token_exchange');
   if(typeof token.access_token!=='string')throw new AppError('OAUTH_PROVIDER_ERROR',502,'No se recibió una autorización válida.');
-  const profile=await json(provider==='google'?'https://openidconnect.googleapis.com/v1/userinfo':'https://api.x.com/2/users/me',{headers:{Authorization:`Bearer ${token.access_token}`}},provider,'profile');
+  const profileHeaders:Record<string,string>={Authorization:`Bearer ${token.access_token}`,'User-Agent':'PetCare-App/1.0'};
+  const profile=await json(provider==='google'?'https://openidconnect.googleapis.com/v1/userinfo':'https://api.x.com/2/users/me',{headers:profileHeaders},provider,'profile');
   if(provider==='google')return identity(profile.sub,profile.email,profile.name);
   const data=profile.data as Record<string,unknown>|undefined;return identity(data?.id,null,data?.name);
 }

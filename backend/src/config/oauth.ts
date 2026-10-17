@@ -6,16 +6,30 @@ export function oauthProvider(value: unknown): OAuthProvider {
   if (typeof value !== 'string' || !providers.includes(value as OAuthProvider)) throw new AppError('VALIDATION_ERROR',400,'Proveedor no válido.');
   return value as OAuthProvider;
 }
+export const PRODUCTION_BACKEND_URL = 'https://pet-care-sistema-veterinario.vercel.app';
+
 export function backendOrigin(): string {
+  const isVercelRuntime = Boolean(process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production' || process.env.VERCEL_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+  const isProd = env.nodeEnvironment === 'production' || isVercelRuntime;
   const raw = process.env.BACKEND_URL?.trim();
-  if (!raw) throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL).');
+
+  const isLocalHost = (val: string) => {
+    try {
+      const u = new URL(val);
+      return ['localhost', '127.0.0.1'].includes(u.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(u.hostname);
+    } catch { return true; }
+  };
+
+  const effectiveUrl = (isProd && (!raw || isLocalHost(raw))) ? PRODUCTION_BACKEND_URL : raw;
+  if (!effectiveUrl) throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL).');
+
   try {
-    const url = new URL(raw);
-    const isLocal = ['localhost', '127.0.0.1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
-    if (env.nodeEnvironment === 'production' && isLocal) {
+    const url = new URL(effectiveUrl);
+    const isLocal = isLocalHost(effectiveUrl);
+    if (isProd && isLocal) {
       throw new AppError('OAUTH_UNAVAILABLE',503,'BACKEND_URL no puede apuntar a localhost ni a una red local en producción. Configurá https://pet-care-sistema-veterinario.vercel.app');
     }
-    const local = env.nodeEnvironment !== 'production' && isLocal;
+    const local = !isProd && isLocal;
     if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
     const cleanPath = url.pathname.replace(/\/+$/, '');
     if (cleanPath !== '' && cleanPath !== '/api') throw new Error();
@@ -65,7 +79,8 @@ export function oauthReturnUrl(value: unknown): string {
   const allowed = (process.env.OAUTH_RETURN_URLS ?? '').split(',').map(s=>s.trim()).filter(Boolean);
   if (typeof value !== 'string' || !allowed.includes(value)) throw new AppError('VALIDATION_ERROR',400,'El destino OAuth no está autorizado.');
   const url = new URL(value);
-  const local = env.nodeEnvironment !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname);
+  const isVercelRuntime = Boolean(process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production' || process.env.VERCEL_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+  const local = env.nodeEnvironment !== 'production' && !isVercelRuntime && ['localhost','127.0.0.1'].includes(url.hostname);
   if ((url.protocol !== 'https:' && url.protocol !== 'petcare:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new AppError('VALIDATION_ERROR',400,'El destino OAuth no es válido.');
   return value;
 }
