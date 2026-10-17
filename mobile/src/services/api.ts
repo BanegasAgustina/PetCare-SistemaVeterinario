@@ -62,7 +62,8 @@ function getApiUrl(): string {
   try {
     if (!value) throw new Error();
     const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error();
+    // HTTP is limited to Expo development; release builds must never bundle a local or cleartext API.
+    if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && __DEV__)) || url.username || url.password) throw new Error();
     const path = url.pathname.replace(/\/+$/, '');
     if (!/\/api$/i.test(path)) url.pathname = `${path}/api`;
     return url.toString().replace(/\/+$/, '');

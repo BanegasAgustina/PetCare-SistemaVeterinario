@@ -14,7 +14,7 @@ Configurar además estas variables en .env:
 | JWT_ACCESS_TTL_SECONDS | 900 por defecto, máximo 3600 |
 | JWT_ISSUER / JWT_AUDIENCE | petcare-api / petcare-mobile |
 | BCRYPT_SALT_ROUNDS | 12 por defecto; admite 10–14 |
-| CORS_ALLOWED_ORIGINS | Orígenes web separados por coma; ejemplo http://localhost:8081 |
+| CORS_ALLOWED_ORIGINS | Orígenes HTTPS web separados por coma en producción; local solo en desarrollo |
 
 Generar una clave local con `node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"` y copiarla a JWT_ACCESS_SECRET en .env. No compartirla ni agregarla a mobile. Usar HTTPS al publicar la API. Health y CLI DB funcionan sin clave; login exige configuración JWT válida.
 
@@ -118,11 +118,11 @@ Después ejecutar migraciones, seeds y comprobación con las credenciales locale
 | --- | --- | --- |
 | NODE_ENV | development | development, test o production |
 | PORT | 3000 | Puerto HTTP, entero entre 1 y 65535 |
-| DB_HOST | 127.0.0.1 | Host del servidor MySQL |
+| DB_HOST | 127.0.0.1 solo fuera de producción | En producción es obligatorio usar el host remoto de Layerbase; se rechaza loopback e IP LAN |
 | DB_PORT | 3306 | Puerto MySQL, entero entre 1 y 65535 |
 | DB_NAME | petcare | Base específica del proyecto; nombre validado |
-| DB_USER | petcare | Cuenta autorizada localmente |
-| DB_PASSWORD | vacío | Completar contraseña real solo en .env |
+| DB_USER | petcare solo fuera de producción | Usuario MySQL; obligatorio en producción |
+| DB_PASSWORD | vacío solo fuera de producción | Contraseña MySQL; obligatoria en producción |
 | DB_SSL_MODE | `disabled` en local; `required` para Layerbase y produccion | TLS: `disabled`, `required` o `verify_identity` |
 | DB_CONNECTION_LIMIT | 5 | Conexiones del pool, entero de 1 a 100 |
 | DB_CONNECT_TIMEOUT_MS | 30000 | Tiempo al abrir conexion, de 1 a 60000 ms |
@@ -131,7 +131,37 @@ Layerbase entrega host, puerto asignado, esquema, usuario y contrasena en Quick 
 
 Layerbase requiere TLS. `DB_SSL_MODE=required` cifra la conexion del puerto pooler; su certificado no es de confianza publica, por lo que la verificacion estricta falla en ese endpoint. Si Quick Connect selecciona el endpoint directo, usar `verify_identity` para validar el certificado y el nombre del host. En MySQL local se puede usar `disabled`; no se permite desactivar TLS para Layerbase ni en produccion. El timeout predeterminado de 30 s contempla el despertar de una base hibernada. `DB_CONNECT_TIMEOUT_MS` limita solo la apertura de conexion, no las consultas ni la espera de cola. El pool tiene cola maxima de 50 y `multipleStatements=false`. BIGINT se devuelve como string para evitar perdida de precision. `.env` esta ignorado por Git; nunca copiar DB_* al bundle mobile.
 
-El repositorio contiene `mobile/vercel.json` para el frontend. El backend Express esta en `backend/src/app.ts`; Vercel puede reconocer esa entrada si el proyecto de backend usa `backend` como `Root Directory`. El proyecto de Vercel de mobile no despliega ni configura el backend. En el proyecto que aloje el backend, cargar alli las variables `DB_*` de Quick Connect; no cargarlas en el proyecto Expo. Esta revision no cambia variables del panel ni confirma un deploy remoto.
+El repositorio contiene `mobile/vercel.json` para el frontend. El backend Express esta en `backend/src/app.ts`; Vercel reconoce esa entrada cuando el proyecto usa `backend` como `Root Directory`. Los dos proyectos Vercel tienen entornos y variables independientes.
+
+## Produccion remota en Vercel
+
+En el proyecto Vercel del backend (Root Directory `backend`) define las variables server-side. No copies estos valores al proyecto mobile ni al bundle Expo.
+
+| Variable | Valor de produccion / requisito |
+| --- | --- |
+| NODE_ENV | `production` |
+| BACKEND_URL | `https://pet-care-sistema-veterinario.vercel.app` (origen, sin `/api`) |
+| DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD | Valores privados de Layerbase; son obligatorios y se leen solo en backend |
+| DB_SSL_MODE | `required` para TLS del endpoint pooler de Layerbase; usa `verify_identity` si el endpoint directo presenta certificado verificable |
+| CORS_ALLOWED_ORIGINS | `https://petcare-sistemaveterinario-mobile.vercel.app` (solo orígenes web HTTPS; el esquema `petcare://` no va aquí) |
+| JWT_ACCESS_SECRET | Secreto aleatorio independiente, mínimo 32 bytes |
+| EMAIL_CODE_SECRET | Secreto aleatorio independiente de JWT, mínimo 32 bytes |
+| OAUTH_RETURN_URLS | `https://petcare-sistemaveterinario-mobile.vercel.app/oauth,petcare://oauth` |
+| PASSWORD_RESET_URL | `https://petcare-sistemaveterinario-mobile.vercel.app/reset-password` |
+| VETERINARIAN_INVITATION_URL | `https://petcare-sistemaveterinario-mobile.vercel.app/activate-vet` |
+| ACCOUNT_INVITATION_URL | `https://petcare-sistemaveterinario-mobile.vercel.app/activate-account` si se usa esa invitacion |
+
+Configura tambien `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASSWORD` y `MAIL_FROM` para correo; `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` para las fotos si se mantiene Cloudinary; y `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`/`FACEBOOK_CLIENT_SECRET`, `FACEBOOK_GRAPH_VERSION` y `X_CLIENT_ID`/`X_CLIENT_SECRET` para OAuth. X conserva compatibilidad con `TWITTER_CLIENT_ID`/`TWITTER_CLIENT_SECRET`. Los secretos se cargan como variables privadas en el proyecto `backend`; los valores que el cliente incluye en su JavaScript, como `EXPO_PUBLIC_API_URL`, son publicos.
+
+En el proyecto Vercel del frontend (Root Directory `mobile`) define `EXPO_PUBLIC_API_URL=https://pet-care-sistema-veterinario.vercel.app/api` para Production. Usa una API HTTPS de preview separada para Preview. En EAS, define ese mismo nombre en el entorno `production` antes de crear un `production-apk`; el cliente ahora solo acepta HTTP en builds de desarrollo. Los `.env.example` locales no estan presentes actualmente en el checkout; usa las tablas/documentacion y no subas `.env`.
+
+Los callbacks exactos de los proveedores son:
+
+- Google: `https://pet-care-sistema-veterinario.vercel.app/api/auth/oauth/google/callback`
+- Facebook: `https://pet-care-sistema-veterinario.vercel.app/api/auth/oauth/facebook/callback`
+- X: `https://pet-care-sistema-veterinario.vercel.app/api/auth/oauth/x/callback`
+
+Registra cada URL en el portal correspondiente como redirect/callback URI. Los destinos finales son `/oauth` en web y `petcare://oauth` en la app; no los registres como callbacks del proveedor. La configuración de Vercel o los portales externos debe comprobarse en esas cuentas; el código no acredita la aprobación de credenciales OAuth ni permisos.
 
 ## Ejecutar la API
 

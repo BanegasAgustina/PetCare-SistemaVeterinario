@@ -117,7 +117,7 @@ Más detalles en [mobile/README.md](mobile/README.md) y [backend/README.md](back
 
 ## Entorno, base de datos y API
 
-Backend usa las variables DB_* y JWT_ACCESS_SECRET, JWT_ACCESS_TTL_SECONDS, JWT_ISSUER, JWT_AUDIENCE, BCRYPT_SALT_ROUNDS y CORS_ALLOWED_ORIGINS. Configurar una clave aleatoria local de al menos 32 bytes. Copiar mobile/.env.example a mobile/.env y completar EXPO_PUBLIC_API_URL con la URL de la API accesible desde el teléfono, terminada en /api. Reiniciar Expo tras cambiarla. Los ejemplos y el flujo completo están en los README específicos.
+Backend usa DB_*, JWT_*, SMTP_* y las variables privadas documentadas en [backend/README.md](backend/README.md). Para desarrollo local define `EXPO_PUBLIC_API_URL` en `mobile/.env`; el checkout actual no contiene `mobile/.env.example`. En producción, el frontend usa `https://pet-care-sistema-veterinario.vercel.app/api`; configura ese valor en el proyecto Vercel mobile y en el entorno EAS correspondiente. Consulta [mobile/README.md](mobile/README.md) para producción web, OAuth y APK.
 
 `GET http://localhost:3000/api/health`:
 

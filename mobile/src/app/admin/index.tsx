@@ -20,7 +20,7 @@ export default function AdminHome() {
   const query = useClientQuery(clinic.home);
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const largeWeb = Platform.OS === 'web' && width >= 1440;
+  const desktopWeb = Platform.OS === 'web' && width >= 1024;
 
   const metrics: Metric[] = [
     { label: 'Turnos de hoy', value: query.data?.todayCount ?? null, icon: 'calendar-outline' },
@@ -44,7 +44,7 @@ export default function AdminHome() {
 
     <QueryState {...query} />
     {metrics.length > 0 && <View style={styles.metrics}>
-      {metrics.map(metric => <View key={metric.label} style={[styles.metricCell, largeWeb && styles.metricCellLarge]}>
+      {metrics.map(metric => <View key={metric.label} style={[styles.metricCell, desktopWeb && styles.metricCellDesktop]}>
         <PetCareCard>
           <View style={styles.metricHeading}>
             <View style={[styles.metricIcon, { backgroundColor: colors.accent }]}>
@@ -57,15 +57,19 @@ export default function AdminHome() {
       </View>)}
     </View>}
 
-    {query.data?.nextAppointment && <PetCareCard>
-      <AppText variant="subtitle">Próximo turno</AppText>
-      <AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText>
-      <AppText muted>{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText>
-    </PetCareCard>}
+    {(query.data?.nextAppointment || quickLinks.length > 0) && <View style={[styles.desktopOverview, desktopWeb && styles.desktopOverviewWeb]}>
+      {query.data?.nextAppointment && <View style={desktopWeb && styles.desktopOverviewColumn}><PetCareCard>
+        <AppText variant="subtitle">Próximo turno</AppText>
+        <AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText>
+        <AppText muted>{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText>
+      </PetCareCard></View>}
 
-    {quickLinks.length > 0 && <View style={styles.section}>
-      <AppText variant="subtitle">Accesos rápidos</AppText>
-      <ResponsiveGrid>{quickLinks.map(link => <PetCareAction key={link.path} title={link.title} icon={link.icon} onPress={() => router.push(link.path as never)} />)}</ResponsiveGrid>
+      {quickLinks.length > 0 && <View style={[styles.section, desktopWeb && styles.desktopOverviewColumn]}>
+        <AppText variant="subtitle">Accesos rápidos</AppText>
+        {desktopWeb
+          ? <View style={styles.desktopQuickLinks}>{quickLinks.map(link => <PetCareAction key={link.path} title={link.title} icon={link.icon} onPress={() => router.push(link.path as never)} />)}</View>
+          : <ResponsiveGrid>{quickLinks.map(link => <PetCareAction key={link.path} title={link.title} icon={link.icon} onPress={() => router.push(link.path as never)} />)}</ResponsiveGrid>}
+      </View>}
     </View>}
     {quickLinks.length === 0 && <AppText muted>Consultá las secciones disponibles desde el menú.</AppText>}
   </PetCareScreen>;
@@ -76,9 +80,13 @@ const styles = StyleSheet.create({
   eyebrow: { letterSpacing: 0.8 },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   metricCell: { width: '48.5%' },
-  metricCellLarge: { width: '32%' },
+  metricCellDesktop: { width: '32%' },
   metricHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   metricIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   metricValue: { fontSize: 28, lineHeight: 34 },
   section: { gap: 12 },
+  desktopOverview: { gap: 18 },
+  desktopOverviewWeb: { flexDirection: 'row', alignItems: 'stretch', gap: 16 },
+  desktopOverviewColumn: { flex: 1, minWidth: 0 },
+  desktopQuickLinks: { gap: 10 },
 });

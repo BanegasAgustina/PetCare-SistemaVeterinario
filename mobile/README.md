@@ -124,9 +124,24 @@ npx eas-cli@latest build --platform android --profile preview
 
 Descarga el APK desde EAS y ábrelo en Android para instalarlo. No requiere Expo Go ni un servidor de desarrollo. Que compile no confirma que un proveedor OAuth acepte las credenciales o callbacks.
 
+### APK de producción
+
+El perfil `production-apk` genera un APK de release instalable, separado del perfil `production` (AAB para Google Play). Antes del build, crea `EXPO_PUBLIC_API_URL` en el entorno EAS `production` con el valor `https://pet-care-sistema-veterinario.vercel.app/api`. La variable es pública y queda incorporada al APK.
+
+```bash
+npx eas-cli@latest env:set --name EXPO_PUBLIC_API_URL --value https://pet-care-sistema-veterinario.vercel.app/api --environment production --visibility plaintext
+npx eas-cli@latest build --platform android --profile production-apk
+```
+
+Para preview usa el mismo nombre de variable en el entorno `preview` con una API de preview HTTPS. Los builds de release rechazan HTTP; HTTP queda limitado al desarrollo local de Expo.
+
 ### Configurar y verificar OAuth
 
-En el backend desplegado configura `BACKEND_URL` como el origen HTTPS real de la API, credenciales privadas de proveedores, `OAUTH_RETURN_URLS` con `https://petcare-sistemaveterinario-mobile.vercel.app/oauth` y `petcare://oauth`, y `CORS_ALLOWED_ORIGINS` con `https://petcare-sistemaveterinario-mobile.vercel.app`. En Vercel, configura `EXPO_PUBLIC_API_URL` con el origen de API confirmado y `/api`. La URL no debe ser una IP LAN. El frontend tiene `mobile/vercel.json` para exportar Expo web y enviar rutas como `/oauth` a la SPA. En Vercel configura `Root Directory` como `mobile` para que ese archivo y el build se apliquen.
+Configura las variables en proyectos Vercel separados; el dominio y los callbacks indicados son los oficiales de este despliegue. En el proyecto `mobile` (Root Directory `mobile`), define `EXPO_PUBLIC_API_URL=https://pet-care-sistema-veterinario.vercel.app/api` para Production y Preview según corresponda. En el proyecto `backend` (Root Directory `backend`), define `NODE_ENV=production`, `BACKEND_URL=https://pet-care-sistema-veterinario.vercel.app` (origen sin `/api`), `CORS_ALLOWED_ORIGINS=https://petcare-sistemaveterinario-mobile.vercel.app` y `OAUTH_RETURN_URLS=https://petcare-sistemaveterinario-mobile.vercel.app/oauth,petcare://oauth`. El esquema nativo es un destino OAuth, nunca un origen CORS.
+
+En el proyecto `backend` configura además las variables privadas `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` y `DB_SSL_MODE=required` con los datos de Layerbase; no las cargues en `mobile`, Expo ni en variables `EXPO_PUBLIC_*`. La aplicación ahora exige host, usuario y contraseña remotos en producción, y rechaza loopback e IPs LAN. Carga también `JWT_ACCESS_SECRET` y `EMAIL_CODE_SECRET` como secretos aleatorios independientes de al menos 32 bytes; `JWT_ACCESS_TTL_SECONDS`, `JWT_ISSUER` y `JWT_AUDIENCE` pueden conservar sus valores predeterminados documentados. Para email define `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASSWORD` y `MAIL_FROM`. Para recuperación y activación define `PASSWORD_RESET_URL=https://petcare-sistemaveterinario-mobile.vercel.app/reset-password`, `VETERINARIAN_INVITATION_URL=https://petcare-sistemaveterinario-mobile.vercel.app/activate-vet` y, si se envían invitaciones de cuentas generales, `ACCOUNT_INVITATION_URL=https://petcare-sistemaveterinario-mobile.vercel.app/activate-account`. Las imágenes requieren el almacenamiento privado que ya utiliza el backend (Cloudinary: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`; o S3 compatible: `BUCKET`, `REGION`, `ENDPOINT`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY` y opcionalmente `PET_PHOTO_S3_URL_STYLE`).
+
+Para OAuth define en `backend` los secretos privados `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`/`FACEBOOK_CLIENT_SECRET` y `X_CLIENT_ID`/`X_CLIENT_SECRET` (X también admite los nombres anteriores `TWITTER_CLIENT_ID`/`TWITTER_CLIENT_SECRET`); Facebook requiere `FACEBOOK_GRAPH_VERSION`. No cargues credenciales OAuth en el proyecto `mobile`. El endpoint `/api/health/database` comprueba la conexión DB, pero no confirma correo, credenciales OAuth ni autorizaciones en las consolas externas.
 
 Obtén los callbacks exactos de cada proveedor ejecutando desde `backend/`: `npm run oauth:callbacks`. Registra en cada consola el callback HTTPS de ese proveedor, formado con el origen real del backend y `/api/auth/oauth/{proveedor}/callback`. No registres `/oauth` ni `petcare://oauth` como callback del proveedor: son destinos finales a los que redirige PetCare después del callback del proveedor.
 

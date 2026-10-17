@@ -31,7 +31,17 @@ if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
   throw new Error('NODE_ENV debe ser development, test o production.');
 }
 
-const databaseHost = process.env.DB_HOST ?? '127.0.0.1';
+const configuredDatabaseHost = process.env.DB_HOST?.trim();
+const databaseHost = configuredDatabaseHost || (nodeEnvironment === 'production' ? '' : '127.0.0.1');
+if (!databaseHost) {
+  throw new Error('DB_HOST es obligatorio en production; configurá el host remoto de la base de datos.');
+}
+if (nodeEnvironment === 'production' && /^(localhost|127(?:\.\d{1,3}){0,3}|::1|\[::1\]|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})$/i.test(databaseHost)) {
+  throw new Error('DB_HOST no puede apuntar a loopback o a una IP de red local en production.');
+}
+if (nodeEnvironment === 'production' && (!process.env.DB_USER?.trim() || !process.env.DB_PASSWORD)) {
+  throw new Error('DB_USER y DB_PASSWORD son obligatorios en production.');
+}
 if (/(?:^|\.)(?:railway\.internal|rlwy\.net|railway\.app)$/i.test(databaseHost)) {
   throw new Error('DB_HOST todavía apunta a Railway. Configurá el host vigente de Layerbase en DB_HOST.');
 }
@@ -44,16 +54,27 @@ if (databaseSslMode === 'disabled' && (isLayerbaseHost || nodeEnvironment === 'p
   throw new Error('La conexión remota/producción requiere TLS. Configurá DB_SSL_MODE=required o verify_identity.');
 }
 
-// Orígenes web conocidos de PetCare; la variable puede añadir otros entornos propios.
-const petcareWebOrigins = [
+// Los orígenes locales solo aplican en desarrollo/pruebas; production admite la web oficial.
+const localWebOrigins = [
   'http://localhost:8081',
   'http://127.0.0.1:8081',
   'http://localhost:8082',
   'http://127.0.0.1:8082',
+];
+const petcareWebOrigins = [
   'https://petcare-sistemaveterinario-mobile.vercel.app',
-  'https://petcare-sistemaveterinario-mobile-drpos021a.vercel.app',
 ];
 const configuredCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
+if (nodeEnvironment === 'production') {
+  for (const origin of configuredCorsOrigins) {
+    try {
+      const url = new URL(origin);
+      if (url.protocol !== 'https:' || url.origin !== origin || url.username || url.password) throw new Error();
+    } catch {
+      throw new Error('CORS_ALLOWED_ORIGINS en production debe contener solo origenes HTTPS exactos, sin rutas ni credenciales.');
+    }
+  }
+}
 
 export const env = {
   nodeEnvironment,
@@ -69,7 +90,7 @@ export const env = {
   databaseConnectionLimit: readPositiveInteger('DB_CONNECTION_LIMIT', 5, 100),
   databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 30000, 60000),
   bcryptSaltRounds: readPositiveInteger('BCRYPT_SALT_ROUNDS', 12, 14),
-  corsAllowedOrigins: [...new Set([...petcareWebOrigins, ...configuredCorsOrigins])],
+  corsAllowedOrigins: [...new Set([...(nodeEnvironment === 'production' ? [] : localWebOrigins), ...petcareWebOrigins, ...configuredCorsOrigins])],
 };
 
 if (env.bcryptSaltRounds < 10) throw new Error('BCRYPT_SALT_ROUNDS debe estar entre 10 y 14.');

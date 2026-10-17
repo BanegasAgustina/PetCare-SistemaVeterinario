@@ -33,7 +33,15 @@
           "microphonePermission": false
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./src/assets/petcare-logo-dark.png",
+          "imageWidth": 260,
+          "backgroundColor": "#ffffff"
+        }
+      ]
     ]
   }
 }

@@ -70,6 +70,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const auth = useAuth();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const [containerWidth, setContainerWidth] = useState(width);
   const pathname = usePathname();
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
@@ -78,10 +79,11 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const [adminModules, setAdminModules] = useState<AdminModule[]>([]);
   const [open, setOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(true);
+  const [highlightedAdminPath, setHighlightedAdminPath] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string,boolean>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [progress] = useState(() => new Animated.Value(0));
-  const desktop = Platform.OS === 'web' && width >= 1024;
+  const desktop = Platform.OS === 'web' && Math.min(width, containerWidth) >= 1024;
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/secretary';
   useEffect(() => {
     let active = true;
@@ -122,31 +124,33 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   }, [open, progress]);
   if (!user) return <>{children}</>;
   const navigate = (path: string) => { setOpen(false); router.push(path as never); };
-  const renderItem = (item: MenuItem) => <Pressable key={item.path} accessibilityRole="button" accessibilityState={{ selected: item.path === selected?.path }} onPress={() => navigate(item.path)} style={[styles.item, item.path === selected?.path && { backgroundColor: colors.accent, borderLeftColor: colors.primary, borderLeftWidth: 3 }]}>
+  const renderItem = (item: MenuItem) => <Pressable key={item.path} accessibilityRole="button" accessibilityState={{ selected: item.path === selected?.path }} onPress={() => navigate(item.path)} onHoverIn={() => { if (desktop && isAdmin) setHighlightedAdminPath(item.path); }} onHoverOut={() => { if (desktop && isAdmin) setHighlightedAdminPath(value => value === item.path ? null : value); }} onFocus={() => { if (desktop && isAdmin) setHighlightedAdminPath(item.path); }} onBlur={() => { if (desktop && isAdmin) setHighlightedAdminPath(value => value === item.path ? null : value); }} style={[styles.item, desktop && isAdmin && highlightedAdminPath === item.path && { backgroundColor: colors.accent }, item.path === selected?.path && { backgroundColor: colors.accent, borderLeftColor: colors.primary, borderLeftWidth: 3 }]}>
     <Ionicons name={item.icon} size={20} color={item.path === selected?.path ? colors.primary : colors.muted}/><AppText numberOfLines={1} style={styles.itemText}>{item.label}</AppText>
   </Pressable>;
-  const drawer = <View style={[styles.drawer, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }, desktop && styles.desktopDrawer]}>
-    <View style={styles.brand}><AppText muted>{user.roleName}</AppText></View>
-    <ScrollView style={styles.drawerMenu} contentContainerStyle={styles.menuContent} keyboardShouldPersistTaps="handled">
+  const drawer = <View style={[styles.drawer, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }, desktop && isAdmin && styles.adminDesktopDrawer]}>
+    <View style={styles.brand}><AppText numberOfLines={desktop && isAdmin ? 1 : undefined} ellipsizeMode={desktop && isAdmin ? 'tail' : undefined} muted>{user.roleName}</AppText></View>
+    <ScrollView style={[styles.drawerMenu, desktop && isAdmin && styles.adminDesktopDrawerMenu]} contentContainerStyle={styles.menuContent} keyboardShouldPersistTaps="handled">
       {isAdmin ? adminGroups.map(group => {
         const groupItems = items.filter(item => item.group === group);
         if (!groupItems.length) return null;
-        const collapsed = Boolean(collapsedGroups[group]);
+        const collapsed = !desktop && Boolean(collapsedGroups[group]);
         return <View key={group}>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} onPress={() => setCollapsedGroups(value => ({ ...value, [group]: !value[group] }))} style={styles.groupHeading}>
-            <AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText>
-            <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={16} color={colors.muted}/>
-          </Pressable>
+          {desktop
+            ? <View style={styles.groupHeading}><AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText></View>
+            : <Pressable accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} onPress={() => setCollapsedGroups(value => ({ ...value, [group]: !value[group] }))} style={styles.groupHeading}>
+              <AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText>
+              <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={16} color={colors.muted}/>
+            </Pressable>}
           {!collapsed && groupItems.map(renderItem)}
         </View>;
       }) : items.map(renderItem)}
     </ScrollView>
   </View>;
 
-  return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><View style={[styles.root, { backgroundColor: colors.background }]}>
+  return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
     <SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={styles.topBar}>
-        {!isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? setDesktopExpanded(value => !value) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
+      <View style={[styles.topBar, desktop && isAdmin && styles.adminDesktopTopBar]}>
+        {!isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktop && isAdmin ? 'Menú de navegación siempre visible' : desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? (isAdmin ? setDesktopExpanded(true) : setDesktopExpanded(value => !value)) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
           <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
         </Pressable>}
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
@@ -154,7 +158,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
         {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push(isVeterinarian?'/vet/profile':'/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>
-    {isAdmin && pathname !== '/admin' && <View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
+    {isAdmin && pathname !== '/admin' && <View style={[styles.adminPageBar, desktop && styles.adminDesktopPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
       <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={adminBack} style={[styles.backButton,{backgroundColor:colors.accent}]}>
         <Ionicons name="arrow-back" size={21} color={colors.text}/>
       </Pressable>
@@ -164,7 +168,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       </View>
     </View>}
     <View style={styles.body}>
-      {desktop && desktopExpanded && drawer}
+      {desktop && (isAdmin || desktopExpanded) && drawer}
       <View style={styles.page}>{children}</View>
       {!desktop && !isClient && <View pointerEvents={open ? 'auto' : 'none'} style={StyleSheet.absoluteFill}>
         <Pressable onPress={() => setOpen(false)} style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: open ? 1 : 0 }]}/>
@@ -175,9 +179,9 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, adminDesktopTopBar:{minHeight:68,paddingHorizontal:28,gap:16},
   menuButton: { width: 44, height: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
-  adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},backButton:{width:42,height:42,borderRadius:12,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:1},adminPageTitle:{fontSize:18,fontWeight:'600'},
-  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},desktopDrawer: { flexGrow:0,flexShrink:0,width:252,paddingHorizontal:15,paddingVertical:18 }, mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
+  adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},adminDesktopPageBar:{minHeight:72,paddingHorizontal:28,gap:14},backButton:{width:42,height:42,borderRadius:12,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:1},adminPageTitle:{fontSize:18,fontWeight:'600'},
+  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},adminDesktopDrawer:{flex:0,flexGrow:0,flexShrink:0,flexBasis:280,width:280,minWidth:280,maxWidth:280,alignSelf:'stretch',minHeight:0,paddingHorizontal:18,paddingVertical:20},adminDesktopDrawerMenu:{flex:1,minHeight:0,width:'100%'},mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
   brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 44, paddingHorizontal: 11, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },
 });
