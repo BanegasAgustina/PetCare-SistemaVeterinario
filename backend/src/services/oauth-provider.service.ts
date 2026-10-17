@@ -15,9 +15,10 @@ async function json(url: string, options: RequestInit = {}, provider?: OAuthProv
     }return body as Record<string,unknown>;
   }catch{if(provider)console.warn(JSON.stringify({event:'oauth.provider_request_failed',provider,stage}));throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
 }
-function identity(subject:unknown,email:unknown,name:unknown):ProviderIdentity {
+function identity(subject:unknown,email:unknown,name:unknown,emailVerified=false):ProviderIdentity {
   if(typeof subject!=='string'||!/^[\x21-\x7e]{1,255}$/.test(subject))throw new AppError('OAUTH_PROVIDER_ERROR',502,'El proveedor no devolvió una identidad válida.');
-  return {subject,email:typeof email==='string'&&email.length<=254?email:null,name:typeof name==='string'&&name.length<=200?name:null};
+  // Solo se usa el email verificado del proveedor como sugerencia; PetCare siempre pide su propio código.
+  return {subject,email:emailVerified&&typeof email==='string'&&email.length<=254?email:null,name:typeof name==='string'&&name.length<=200?name:null};
 }
 export function authorizationUrl(provider:OAuthProvider,state:string,challenge:string):string {
   const c=oauthConfig(provider);const url=new URL(provider==='google'?'https://accounts.google.com/o/oauth2/v2/auth':provider==='facebook'?`https://www.facebook.com/${c.facebookVersion}/dialog/oauth`:'https://x.com/i/oauth2/authorize');
@@ -48,6 +49,6 @@ export async function providerIdentity(provider:OAuthProvider,code:string,verifi
   if(typeof token.access_token!=='string')throw new AppError('OAUTH_PROVIDER_ERROR',502,'No se recibió una autorización válida.');
   const profileHeaders:Record<string,string>={Authorization:`Bearer ${token.access_token}`,'User-Agent':'PetCare-App/1.0'};
   const profile=await json(provider==='google'?'https://openidconnect.googleapis.com/v1/userinfo':'https://api.x.com/2/users/me',{headers:profileHeaders},provider,'profile');
-  if(provider==='google')return identity(profile.sub,profile.email,profile.name);
+  if(provider==='google')return identity(profile.sub,profile.email,profile.name,profile.email_verified===true);
   const data=profile.data as Record<string,unknown>|undefined;return identity(data?.id,null,data?.name);
 }

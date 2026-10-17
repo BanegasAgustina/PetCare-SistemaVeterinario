@@ -16,6 +16,7 @@ type AuthContextValue = {
   oauthPending: OAuthPending|null;
   cancelOAuth: ()=>void;
   registerOAuth: (profile:RegisterValues)=>Promise<void>;
+  completeVerifiedSession: (result:unknown)=>Promise<AuthUser|null>;
   hasRole: (...roles:AuthUser['role'][])=>boolean;
   hasPermission: (...codes:string[])=>boolean;
   request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; body?: unknown }) => Promise<T>;
@@ -74,13 +75,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   /** Todas las vías de login comparten validación /me y persistencia, sin aceptar un rol local. */
   const acceptSession=useCallback(async(result:AccessSession,attempt:number)=>{
-    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return;}
+    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return null;}
     const currentUser=await authApi.getCurrentUser(result.accessToken);
-    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return;}
+    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return null;}
     const stored={accessToken:result.accessToken,refreshToken:result.refreshToken,expiresAt:Date.now()+result.expiresIn*1000};
     await saveSession(stored);
     if(attempt===generation.current){session.current=stored;setUser(currentUser);setExpiresAt(stored.expiresAt);setNotice(null);setRestoreError(null);setRegisteredEmail('');setPendingVerification(null);setVerificationOpen(false);setOAuthPending(null);}
+    return attempt===generation.current?currentUser:null;
   },[]);
+  const completeVerifiedSession=useCallback(async(result:unknown)=>acceptSession(authApi.readAccessSession(result),generation.current),[acceptSession]);
 
   const restoreSession = useCallback(async () => {
     renewing.current=null;
@@ -145,11 +148,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
   },[acceptSession]);
   const completeWebOAuthReturn=useCallback(async(ticket:string)=>{
     const attempt=++generation.current;
-    const result=await exchangeWebOAuthReturn(ticket);
-    if(attempt!==generation.current)return false;
-    if(result.session){await acceptSession(result.session,attempt);return true;}
-    if(result.pending){setOAuthPending(result.pending);return false;}
-    throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
+    try {
+      const result=await exchangeWebOAuthReturn(ticket);
+      if(attempt!==generation.current)return false;
+      if(result.session){await acceptSession(result.session,attempt);return true;}
+      if(result.pending){setOAuthPending(result.pending);return false;}
+      throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
+    } catch(error) {
+      if(attempt===generation.current&&error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED'&&error.verification){
+        setPendingVerification(readVerification(error.verification));setVerificationFromLogin(true);setVerificationOpen(true);return false;
+      }
+      throw error;
+    }
   },[acceptSession]);
   const linkProvider=useCallback(async(provider:OAuthProvider)=>{
     let stored=session.current;if(!stored)throw new ApiError('AUTH_REQUIRED','Iniciá sesión.',401);
@@ -214,9 +224,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return ()=>subscription.remove();
   },[refreshProfile]);
   const updateVerification = (value: VerificationChallenge) => setPendingVerification(value);
-  // Verificar email no inicia sesión: el flujo existente continúa con credenciales en Login.
+  // El backend solo devuelve sesión al verificar una cuenta que ya tiene identidad OAuth vinculada.
   const finishVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice(null); };
   const leaveVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice('Volvé a iniciar sesión para retomar la verificación de tu correo.'); };
-  return <AuthContext.Provider value={{socialSignIn,completeWebOAuthReturn,linkProvider,oauthPending,cancelOAuth:()=>setOAuthPending(null),registerOAuth, hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
+  return <AuthContext.Provider value={{socialSignIn,completeWebOAuthReturn,linkProvider,oauthPending,cancelOAuth:()=>setOAuthPending(null),registerOAuth,completeVerifiedSession, hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
     pendingVerification, verificationOpen, openVerification, updateVerification, finishVerification, verificationFromLogin, leaveVerification }}>{children}</AuthContext.Provider>;
 }

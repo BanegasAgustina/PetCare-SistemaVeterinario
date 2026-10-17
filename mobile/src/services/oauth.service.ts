@@ -63,9 +63,15 @@ export async function exchangeWebOAuthReturn(ticket:string):Promise<OAuthResult>
   if(Platform.OS!=='web'||!/^[a-f0-9]{64}$/.test(ticket))throw new ApiError('OAUTH_FAILED','La respuesta OAuth no es válida. Iniciá el proceso nuevamente.');
   const proof=readWebOAuthProof();
   if(!proof)throw new ApiError('OAUTH_INVALID_PROOF','No encontramos el inicio de sesión pendiente. Volvé a intentar.');
-  const result=await exchangeOAuthTicket(ticket,proof);
-  clearWebOAuthProof();
-  return result;
+  try {
+    const result=await exchangeOAuthTicket(ticket,proof);
+    clearWebOAuthProof();
+    return result;
+  } catch(error) {
+    // EMAIL_NOT_VERIFIED is returned after the backend consumes this one-time ticket.
+    if(error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED')clearWebOAuthProof();
+    throw error;
+  }
 }
 export async function completeOAuth(pending:OAuthPending,profile:RegisterValues):Promise<VerificationChallenge> {
   const {confirmPassword,...input}=profile;
