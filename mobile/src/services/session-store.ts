@@ -1,4 +1,4 @@
-/** Persistencia nativa cifrada; en web solo memoria, sin localStorage ni contraseñas. */
+/** SecureStore nativo y sessionStorage por pestaña web; nunca guarda contraseñas. */
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { ApiError } from './api';

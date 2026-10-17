@@ -92,7 +92,7 @@ Regla global en ../AGENTS.md y eslint.config.js. Informe: [../INFORME_VERIFICACI
 
 ## Login social y builds Android con EAS
 
-Google, Facebook y X usan OAuth Authorization Code en el backend. Google y X usan PKCE; Facebook usa un cliente confidencial del backend y `state`. Los secretos OAuth solo se configuran en el backend. PetCare verifica la identidad con cada proveedor, crea la sesión existente y devuelve un ticket de un solo uso que la app canjea por POST. Las cuentas nuevas completan el registro y verifican el email. Si el email ya pertenece a una cuenta, inicia sesión en esa cuenta y vincula el proveedor desde Perfil/Mi cuenta; no se fusionan usuarios automáticamente por email.
+Google, Facebook y X usan OAuth Authorization Code en el backend. Google y X usan PKCE; Facebook usa un cliente confidencial del backend y `state`. Los secretos OAuth solo se configuran en el backend. PetCare verifica la identidad con cada proveedor, crea la sesión existente y devuelve un ticket de un solo uso que el cliente canjea por POST. En web el login redirige la pestaña completa y conserva por diez minutos la prueba PKCE de PetCare en `sessionStorage`; `/oauth` canjea el ticket, valida `/me`, guarda la sesión y redirige al panel según el rol. Así el login no depende de `window.opener` ni de que el popup sobreviva políticas COOP. Android conserva el navegador de autenticación y el retorno `petcare://oauth`, con la prueba y los tokens en memoria/SecureStore. Las cuentas nuevas completan el registro y verifican el email. Si el email ya pertenece a una cuenta, inicia sesión en esa cuenta y vincula el proveedor desde Perfil/Mi cuenta; no se fusionan usuarios automáticamente por email.
 
 ### Expo Go
 
