@@ -67,7 +67,7 @@ Configurá las siguientes variables en la consola de Vercel en sus respectivos p
 | `JWT_ACCESS_TTL_SECONDS` | `900` | Production, Preview | 15 minutos |
 | `JWT_ISSUER` | `petcare-api` | Production, Preview | Emisor JWT |
 | `JWT_AUDIENCE` | `petcare-mobile` | Production, Preview | Audiencia JWT |
-| `CORS_ALLOWED_ORIGINS` | `https://petcare-sistemaveterinario-mobile.vercel.app` | Production, Preview | Origen web oficial |
+| `CORS_ALLOWED_ORIGINS` | `https://petcare-sistemaveterinario-mobile.vercel.app` | Production, Preview | Origenes adicionales; la web oficial y las previews `petcare-sistemaveterinario-mobile-*.vercel.app` ya estan permitidas por el backend |
 | `OAUTH_RETURN_URLS` | `petcare://oauth,https://petcare-sistemaveterinario-mobile.vercel.app/oauth` | Production, Preview | Destinos permitidos para tickets OAuth |
 | `ACCOUNT_INVITATION_URL` | `https://petcare-sistemaveterinario-mobile.vercel.app/activate-account` | Production, Preview | Pantalla de activación web |
 | `VETERINARIAN_INVITATION_URL` | `https://petcare-sistemaveterinario-mobile.vercel.app/activate-vet` | Production, Preview | Pantalla de activación veterinarios |
@@ -94,6 +94,8 @@ Configurá las siguientes variables en la consola de Vercel en sus respectivos p
 | Variable | Valor Requerido | Entorno | Observaciones |
 | :--- | :--- | :--- | :--- |
 | `EXPO_PUBLIC_API_URL` | `https://pet-care-sistema-veterinario.vercel.app/api` | Production, Preview | Inyecta la URL de la API remota durante `npx expo export -p web` |
+
+La API permite CORS para el dominio web oficial y los despliegues preview de ese proyecto en Vercel (`https://petcare-sistemaveterinario-mobile-<sufijo>.vercel.app`). Si una preview sigue fallando, verificá que la URL pertenezca a ese proyecto y que el backend haya sido redesplegado con esta configuración; no uses `*` como origen permitido.
 
 ---
 

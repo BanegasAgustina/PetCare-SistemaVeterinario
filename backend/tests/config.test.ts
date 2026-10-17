@@ -35,3 +35,11 @@ test('backendOrigin rejects localhost and private IPs in production', () => {
 test('corsAllowedOrigins contains official mobile web production origin', () => {
   assert.ok(env.corsAllowedOrigins.includes('https://petcare-sistemaveterinario-mobile.vercel.app'));
 });
+
+test('CORS allows PetCare Vercel preview deployments and rejects unrelated origins', () => {
+  assert.equal(env.isCorsOriginAllowed('https://petcare-sistemaveterinario-mobile-dnne6sivd.vercel.app'), true);
+  assert.equal(env.isCorsOriginAllowed('https://petcare-sistemaveterinario-mobile-git-feature.vercel.app'), true);
+  assert.equal(env.isCorsOriginAllowed('https://petcare-sistemaveterinario-mobile.vercel.app.attacker.test'), false);
+  assert.equal(env.isCorsOriginAllowed('http://petcare-sistemaveterinario-mobile-dnne6sivd.vercel.app'), false);
+  assert.equal(env.isCorsOriginAllowed('https://other-project-dnne6sivd.vercel.app'), false);
+});
