@@ -17,7 +17,10 @@ const unavailableCodes = new Set([
 export function normalizeDatabaseError(error: unknown): DatabaseError {
   if (error instanceof DatabaseError) return error;
   const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
-  if (unavailableCodes.has(code)) return new DatabaseError('DB_UNAVAILABLE', 503, 'La base de datos no está disponible. Intentá nuevamente.', error);
+  if (unavailableCodes.has(code)) {
+    console.error('[DATABASE_UNAVAILABLE]', JSON.stringify({ code }));
+    return new DatabaseError('DB_UNAVAILABLE', 503, 'La base de datos no está disponible. Intentá nuevamente.', error);
+  }
   if (['ER_NO_SUCH_TABLE','ER_BAD_FIELD_ERROR'].includes(code)) {
     const message = typeof error === 'object' && error !== null && 'sqlMessage' in error ? String(error.sqlMessage) : '';
     const object = /(?:Table|Unknown column)\s+['`]?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)?)['`]?/i.exec(message)?.[1];
@@ -32,6 +35,7 @@ export function normalizeDatabaseError(error: unknown): DatabaseError {
   if (['ER_CHECK_CONSTRAINT_VIOLATED', 'ER_BAD_NULL_ERROR', 'ER_DATA_TOO_LONG', 'ER_TRUNCATED_WRONG_VALUE', 'WARN_DATA_TRUNCATED'].includes(code)) {
     return new DatabaseError('DB_INVALID_DATA', 400, 'Los datos no cumplen los requisitos de la base de datos.', error);
   }
+  console.error('[DATABASE_OPERATION_ERROR]', JSON.stringify({ code: /^[A-Z0-9_]+$/.test(code) ? code : 'UNKNOWN' }));
   return new DatabaseError('DB_ERROR', 500, 'No se pudo completar la operación con la base de datos.', error);
 }
 

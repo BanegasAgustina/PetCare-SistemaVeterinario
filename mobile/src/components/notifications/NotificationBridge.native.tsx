@@ -1,34 +1,42 @@
 import { useEffect, useState } from 'react';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import type * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { pushTokenIfAlreadyGranted } from '../../services/push-notifications';
 import { notificationPath } from '../../services/notification-path';
 import { publishNotificationChange } from '../../services/notification-events';
 
-Notifications.setNotificationHandler({handleNotification:async()=>({
-  shouldPlaySound:false,shouldSetBadge:true,shouldShowBanner:true,shouldShowList:true,
-})});
-
 export function NotificationBridge() {
   const { user, request } = useAuth();
-  const [pendingResponse, setPendingResponse] = useState<Notifications.NotificationResponse | null>(
-    () => Notifications.getLastNotificationResponse(),
-  );
+  const [pendingResponse, setPendingResponse] = useState<Notifications.NotificationResponse | null>(null);
+  const [notificationModule, setNotificationModule] = useState<typeof import('expo-notifications') | null>(null);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(setPendingResponse);
-    const receivedSubscription = Notifications.addNotificationReceivedListener(publishNotificationChange);
+    if (Platform.OS === 'web' || isRunningInExpoGo()) return;
+    let active = true;
+    let responseSubscription: { remove: () => void } | undefined;
+    let receivedSubscription: { remove: () => void } | undefined;
+    void import('expo-notifications').then(notifications => {
+      if (!active) return;
+      notifications.setNotificationHandler({handleNotification:async()=>({
+        shouldPlaySound:false,shouldSetBadge:true,shouldShowBanner:true,shouldShowList:true,
+      })});
+      setNotificationModule(notifications);
+      setPendingResponse(notifications.getLastNotificationResponse());
+      responseSubscription = notifications.addNotificationResponseReceivedListener(setPendingResponse);
+      receivedSubscription = notifications.addNotificationReceivedListener(publishNotificationChange);
+    }).catch(() => console.error('No se pudo inicializar el módulo de notificaciones del dispositivo.'));
     return () => {
-      responseSubscription.remove();
-      receivedSubscription.remove();
+      active = false;
+      responseSubscription?.remove();
+      receivedSubscription?.remove();
     };
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !pendingResponse || user?.role !== 'CLIENT') return;
+    if (Platform.OS === 'web' || isRunningInExpoGo() || !pendingResponse || !notificationModule || user?.role !== 'CLIENT') return;
     const data = pendingResponse.notification.request.content.data ?? {};
     const notificationId = typeof data.notificationId === 'string' && /^[1-9]\d*$/.test(data.notificationId)
       ? data.notificationId
@@ -45,14 +53,14 @@ export function NotificationBridge() {
       }
       if(!active)return;
       router.push(ownedNotification?notificationPath(data.referenceType,data.referenceId):'/client/notifications');
-      Notifications.clearLastNotificationResponse();
+      notificationModule.clearLastNotificationResponse();
       setPendingResponse(null);
     })();
     return ()=>{active=false;};
-  }, [pendingResponse, request, user?.role]);
+  }, [notificationModule, pendingResponse, request, user?.role]);
 
   useEffect(() => {
-    if (Platform.OS === 'web' || user?.role !== 'CLIENT') return;
+    if (Platform.OS === 'web' || isRunningInExpoGo() || user?.role !== 'CLIENT') return;
     let active = true;
     void pushTokenIfAlreadyGranted()
       .then(async token => {
