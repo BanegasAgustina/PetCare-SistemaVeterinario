@@ -18,7 +18,7 @@ Resultados y límites de verificación en [INFORME_FASE_3.md](INFORME_FASE_3.md)
 
 Implementado: Login con logo original, temas claro/oscuro con Context API, Expo Router desde mobile/src/app, API REST con health, pool MySQL 8, comprobación de conexión, cuatro migraciones SQL y seeds mínimos idempotentes. Se conservaron la interfaz de autenticación y el contrato health.
 
-Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Access Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica, turnos y reservas tienen implementación compartida en esta ampliación; su habilitación requiere la nueva migración y las verificaciones documentadas. OAuth Google/Facebook/X y refresh tokens rotativos están implementados; su activación en producción requiere credenciales y callbacks externos. Ver mobile/README.md.
+Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Acccess Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica, turnos y reservas tienen implementación compartida en esta ampliación; su habilitación requiere la nueva migración y las verificaciones documentadas. OAuth Google/Facebook/X y refresh tokens rotativos están implementados; su activación en producción requiere credenciales y callbacks externos. Ver mobile/README.md.
 
 ## AUTORIZACIÓN Y PERMISOS
 
@@ -117,12 +117,15 @@ Más detalles en [mobile/README.md](mobile/README.md) y [backend/README.md](back
 
 ## Entorno, base de datos y API
 
-Backend usa DB_*, JWT_*, SMTP_* y las variables privadas documentadas en [backend/README.md](backend/README.md). Para desarrollo local define `EXPO_PUBLIC_API_URL` en `mobile/.env`; el checkout actual no contiene `mobile/.env.example`. En producción, el frontend usa `https://pet-care-sistema-veterinario.vercel.app/api`; configura ese valor en el proyecto Vercel mobile y en el entorno EAS correspondiente. Consulta [mobile/README.md](mobile/README.md) para producción web, OAuth y APK.
+Backend usa DB*\*, JWT*_, SMTP\__ y las variables privadas documentadas en [backend/README.md](backend/README.md). Para desarrollo local define `EXPO_PUBLIC_API_URL` en `mobile/.env`; el checkout actual no contiene `mobile/.env.example`. En producción, el frontend usa `https://pet-care-sistema-veterinario.vercel.app/api`; configura ese valor en el proyecto Vercel mobile y en el entorno EAS correspondiente. Consulta [mobile/README.md](mobile/README.md) para producción web, OAuth y APK.
 
 `GET http://localhost:3000/api/health`:
 
 ```json
-{ "success": true, "data": { "status": "ok", "message": "PetCare API funcionando" } }
+{
+  "success": true,
+  "data": { "status": "ok", "message": "PetCare API funcionando" }
+}
 ```
 
 Health comprueba HTTP. `GET /api/health/database` comprueba conexión y versión MySQL; devuelve 200 con estado disponible o un error seguro (503 cuando no hay conexión), sin credenciales ni configuración.
@@ -133,7 +136,7 @@ Las tablas roles, users, species, breeds y pets forman el modelo inicial normali
 
 `.env` está excluido de Git; los ejemplos no contienen secretos. JSON está limitado a 100 KB, las consultas usan placeholders y los errores públicos omiten SQL, hashes y secretos. Bcrypt almacena solo hashes; el servidor determina el rol. Login y registro tienen límite independiente de intentos por IP. El Access Token vence por defecto en 15 minutos; después se requiere otro login. Los seeds no crean cuentas.
 
-Backend: `npm run lint`, `npm run typecheck` (incluye tests), `npm test`, `npm run build`. La suite MySQL real usa `npm run test:db`, exclusivamente con NODE_ENV=test, host local y una base cuyo nombre termine en _test; ver backend/README.md.
+Backend: `npm run lint`, `npm run typecheck` (incluye tests), `npm test`, `npm run build`. La suite MySQL real usa `npm run test:db`, exclusivamente con NODE_ENV=test, host local y una base cuyo nombre termine en \_test; ver backend/README.md.
 
 Mobile: `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor`, `npx expo export --platform android`.
 
