@@ -490,6 +490,44 @@ La migración es aditiva y separada del historial SQL histórico que no está pr
 
 La aceptación por SMTP indica que el servidor de correo aceptó el mensaje, no garantiza su llegada a la bandeja. Si el token vence o ya se usó, el backend rechaza el cambio.
 
+## Notificaciones de clientes
+
+La campanita usa `client_notifications` y siempre consulta/modifica filas con el `owner_id` del usuario autenticado. Los avisos se crean dentro de la transacción del evento: confirmación/reprogramación/cancelación de turnos, nueva información clínica, aprobación/rechazo de reservas y vencimiento. Los avisos clínicos son genéricos y no copian diagnósticos, tratamientos ni comentarios internos. Una clave única por evento evita duplicar avisos por ejecuciones repetidas; los recordatorios también incluyen el slot vigente para que una reprogramación use una clave nueva.
+
+Los recordatorios se calculan con turnos reales `CONFIRMED`, para cualquier servicio activo, en UTC y se presentan en `America/Argentina/Buenos_Aires`. La ventana cubre desde 5 minutos antes hasta 10 minutos después de las 24 o 4 horas previas. El cron de Vercel invoca `/api/cron/notifications` cada 5 minutos; no se usa `setInterval` para este proceso. La ruta exige `Authorization: Bearer <CRON_SECRET>`, valida el secreto de forma constante y no devuelve datos personales.
+
+Las notificaciones push usan Expo Push Service. `client_push_tokens` guarda tokens Expo por usuario/dispositivo y la cola persistente registra tickets, recibos, reintentos y tokens inválidos. La asociación única del token se actualiza al iniciar sesión con otra cuenta; la tarea no entrega avisos si el token ya no pertenece al usuario destinatario. Los avisos importantes también entran en una cola SMTP solo cuando la configuración SMTP es válida y la cuenta está activa y verificada. Un fallo del proveedor no revierte el evento principal; se reintenta desde la cola. Los avisos de salud no contienen información clínica sensible.
+
+### Cambios de esquema propuestos — no aplicados
+
+La captura `schema-audit.json` muestra `client_notifications` existente con `id`, `owner_id`, `title`, `body`, `read_at` y `created_at`. Esa captura no es una verificación de Layerbase y difiere de columnas usadas por el código actual; por eso hay que confirmar el esquema real antes de ejecutar nada. El SQL aditivo está en `notification-migrations/001_notifications.sql`: agrega tipo/referencia/clave idempotente a notificaciones y crea tablas de tokens push y colas de entrega. No borra ni reescribe notificaciones o cuentas existentes; las filas previas reciben el tipo por defecto `GENERAL`.
+
+Antes de aprobar ese SQL, inspeccioná en Layerbase las columnas actuales:
+
+```sql
+SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME IN (
+    'client_notifications', 'users', 'client_appointments',
+    'client_appointment_slots', 'client_services', 'pets'
+  )
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+```
+
+Compará los tipos de IDs/FKs con el SQL y confirmá que estén desplegadas las columnas de relaciones que el backend actual consulta. La migración es de ejecución única: revisá/adaptá el archivo junto con quien administre Layerbase y aplicalo manualmente solo después de tu aprobación. **No se ejecutó migración ni se accedió a datos de producción durante esta tarea.** Desplegar el backend nuevo antes de aplicar el esquema requerido haría fallar los avisos transaccionales.
+
+### Producción, Expo y operación
+
+- En el proyecto Vercel que ejecuta `backend` (Root Directory `backend`), configura `CRON_SECRET` como secreto privado aleatorio de al menos 32 bytes. Podés generar uno localmente con `node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))"` y pegarlo directamente en **Settings → Environment Variables**; no lo guardes en el repo ni lo envíes en logs. Vercel agrega ese valor como `Authorization: Bearer ...` al cron. El archivo `backend/vercel.json` define `*/5 * * * *`; debe pertenecer al proyecto backend para activarse al desplegar.
+- El backend reutiliza SMTP existente: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASSWORD` y `MAIL_FROM`. Los correos solo se encolan si la configuración pasa la validación SMTP. `EXPO_PUSH_ACCESS_TOKEN` es opcional y solo se define en backend si se activa la autenticación de Expo Push Service.
+- En `mobile/`, `npx expo install expo-notifications` instala la versión compatible con SDK 58 y el plugin queda en `app.json`. Vinculá la app con el proyecto EAS administrado (`npx eas-cli@latest init`) para que `Constants.easConfig.projectId` esté disponible. Configurá credenciales FCM v1 en EAS; no guardes credenciales en el cliente. Expo Push remoto requiere un development build o APK propio, no Expo Go en Android. El cambio del plugin requiere generar y distribuir un APK nuevo; no se generó ninguno.
+- El permiso se solicita desde Centro de notificaciones, no al abrir la app por primera vez. Al cerrar sesión se revoca el token de ese dispositivo (si hay conexión) y se limpian avisos locales del sistema. Web solo usa campanita y correo; no se agregó push del navegador.
+- Para probar el cron manualmente, hacelo en Preview/test con un turno de cuenta controlada: una invocación puede enviar correos/push reales. El endpoint protegido es `GET /api/cron/notifications`; los resultados agregados no incluyen datos de clientes. Revisá Vercel Runtime Logs por `notification_cron_failed` y `notification_email_not_configured`; no habilites logs de Nodemailer ni imprimas headers, tokens o cuerpos.
+- La suite automatizada `npm test` cubre autorización cron, formato horario, ventana/idempotencia de recordatorios y persistencia idempotente simulada. Estas pruebas no conectan Layerbase ni envían correo/push reales. La entrega externa requiere probar con un Android físico/development build o APK, permisos habilitados y credenciales EAS/FCM válidas.
+
+La API de cliente expone `GET /api/client/notifications`, `PATCH /api/client/notifications/read-all`, `PATCH /api/client/notifications/:id/read`, `POST /api/client/notifications/push-token` y `POST /api/client/notifications/push-token/revoke`; todos obtienen el destinatario del JWT/rol `CLIENT`, nunca de un `userId` del cuerpo.
+
 ## Fotos persistentes
 
 El backend sube las fotos de perfiles y mascotas a Cloudinary en memoria después de validar y convertir el archivo a WebP. El código espera `users.profile_photo_url` para perfiles y `pets.photo_url` para mascotas; ninguna de las columnas pudo confirmarse en la base Layerbase desde este entorno. El CRUD y ownership de mascotas usan `pets.id` y `pets.owner_id`. `client_pet_details` continúa referenciada en el código para `weight_kg` y `breed_name`; verificá que también exista en el esquema desplegado.

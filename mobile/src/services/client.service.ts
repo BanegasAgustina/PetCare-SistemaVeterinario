@@ -19,7 +19,7 @@ export function clientService(request:ClientRequest){
     product:(id:string)=>get<Product>(`/store/products/${encodeURIComponent(id)}`),categories:()=>get<CatalogItem[]>('/store/categories'),
     cart:()=>get<Cart>('/cart'),updateCart:(id:string,quantity:number)=>send<Cart>(`/cart/${encodeURIComponent(id)}`,'PUT',{quantity}),
     checkout:(requestKey:string)=>send<OrderDetail>('/orders','POST',{requestKey}),orders:()=>get<Order[]>('/orders'),order:(id:string)=>get<OrderDetail>(`/orders/${encodeURIComponent(id)}`),
-    notifications:()=>get<Notification[]>('/notifications'),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),
+    notifications:()=>get<Notification[]>('/notifications'),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),readAllNotifications:()=>send('/notifications/read-all','PATCH',{}),
     updateProfile:(values:{firstName:string;lastName:string;phone:string})=>send('/profile','PATCH',values),
     changePassword:(currentPassword:string,password:string)=>send('/profile/password','PUT',{currentPassword,password}),
   };

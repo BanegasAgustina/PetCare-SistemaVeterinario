@@ -60,6 +60,9 @@ export async function refresh(refreshToken: string): Promise<AccessSession> {
 export async function logout(refreshToken: string): Promise<void> {
   await apiRequest('/auth/logout',{method:'POST',body:{refreshToken}});
 }
+export async function revokePushToken(accessToken:string,token:string):Promise<void>{
+  await apiRequest('/client/notifications/push-token/revoke',{method:'POST',body:{token},accessToken});
+}
 export async function getCurrentUser(accessToken: string): Promise<AuthUser> {
   const result = await apiRequest<{ user: unknown }>('/auth/me', { accessToken });
   return readUser(result.user);

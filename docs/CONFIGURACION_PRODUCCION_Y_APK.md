@@ -72,6 +72,8 @@ Configurá las siguientes variables en la consola de Vercel en sus respectivos p
 | `ACCOUNT_INVITATION_URL` | `https://petcare-sistemaveterinario-mobile.vercel.app/activate-account` | Production, Preview | Pantalla de activación web |
 | `VETERINARIAN_INVITATION_URL` | `https://petcare-sistemaveterinario-mobile.vercel.app/activate-vet` | Production, Preview | Pantalla de activación veterinarios |
 | `PASSWORD_RESET_URL` | `https://petcare-sistemaveterinario-mobile.vercel.app/reset-password` | Production, Preview | Pantalla de reseteo de clave |
+| `CRON_SECRET` | *(Secreto aleatorio de al menos 32 bytes)* | Production | Autentica el cron de notificaciones; Vercel lo envía como Bearer |
+| `EXPO_PUSH_ACCESS_TOKEN` | *(Opcional; solo si se habilita autenticación Expo Push)* | Production, Preview | Secreto backend, nunca móvil |
 | `SMTP_HOST` | `smtp.gmail.com` | Production, Preview | Servidor SMTP |
 | `SMTP_PORT` | `587` | Production, Preview | Puerto STARTTLS |
 | `SMTP_SECURE` | `false` | Production, Preview | STARTTLS utiliza puerto 587 con secure=false |
@@ -210,3 +212,11 @@ El APK se generará en:
 
 * **BLOQUEADO POR UN SERVICIO O ERROR REAL**:
   * Ninguno. La base de datos MariaDB en Layerbase está disponible y respondiendo activamente al backend en producción.
+
+## Notificaciones, recordatorios y Android push
+
+El backend usa una función HTTP protegida para que Vercel Cron procese recordatorios y colas; no depende de procesos en memoria. El `backend/vercel.json` declara `GET /api/cron/notifications` cada cinco minutos. Para activarlo, el proyecto Vercel debe tener Root Directory `backend` y `CRON_SECRET` privado; no ejecutes el endpoint de Production como prueba porque puede entregar avisos reales.
+
+Expo Push Service necesita el proyecto Expo/EAS vinculado y credenciales FCM v1 Android configuradas en EAS. El token push se solicita al usuario desde Centro de notificaciones y solo se guarda en SecureStore/backend autenticado. Expo Go Android no admite push remoto; tras aprobar/aplicar el esquema SQL, desplegar backend y mobile, hace falta generar un APK nuevo. Esta tarea no generó APK ni desplegó cambios.
+
+El esquema propuesto está en `backend/notification-migrations/001_notifications.sql` y no se ejecutó. Antes de aplicarlo, compará la consulta de metadatos y las tablas base en `backend/README.md` con Layerbase; las capturas versionadas no prueban el esquema remoto. SMTP para emails de eventos reutiliza las variables privadas `SMTP_*` y `MAIL_FROM`; las notificaciones clínicas por correo usan un texto genérico sin incluir detalles sensibles.

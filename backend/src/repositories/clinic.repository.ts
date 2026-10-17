@@ -12,6 +12,8 @@ import { profilePhotoUrl } from '../services/pet-photo.service';
 import * as v from '../validators/clinic.validator';
 import { catalogName } from '../utils/catalog-presentation';
 import { clientClinicalRecord } from '../utils/clinical-presentation';
+import { formatNotificationDateTime } from '../utils/notification-date';
+import { cancelPendingAppointmentReminders, createClientNotification } from './notification.repository';
 export type Connection=Pick<PoolConnection,'execute'>;
 export type SqlValue=string|number|boolean|null;
 export type Data=Record<string,SqlValue>;
@@ -28,7 +30,20 @@ export async function transaction<T>(actor:AuthUser,operation:(c:PoolConnection,
 }
 export async function rows(sql:string,args:unknown[]=[],c:Connection=databasePool):Promise<Data[]> {const [r]=await c.execute<RowDataPacket[]>(sql,args as SqlValue[]);return r.map(map);}
 export async function one(sql:string,args:unknown[],c:Connection=databasePool) {const r=await rows(sql,args,c);if(!r[0])throw new AppError('NOT_FOUND',404,'Registro no encontrado.');return r[0];}
-export async function notify(c:Connection,owner:unknown,title:string,content:string) {await c.execute('INSERT INTO client_notifications(owner_id,title,body) VALUES (?,?,?)',[String(owner),title,content] as SqlValue[]);}
+export async function notify(
+  c: PoolConnection,
+  owner: unknown,
+  title: string,
+  content: string,
+  eventType = 'GENERAL',
+  referenceType?: string | null,
+  referenceId?: string | null,
+  eventKey?: string | null,
+) {
+  await createClientNotification(c, {
+    ownerId: String(owner), title, body: content, eventType, referenceType, referenceId, eventKey,
+  });
+}
 export async function professionals(activeOnly=false) {const result=await rows(`SELECT u.id,CONCAT(u.first_name,' ',u.last_name) AS name,u.profile_photo_url AS profilePhotoUrl,u.created_at AS createdAt,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified,pt.id AS typeId,pt.name AS typeName,pt.is_clinical AS isClinical,v.id AS veterinarianId,(SELECT GROUP_CONCAT(sp.name ORDER BY sp.name SEPARATOR ' · ') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialties FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians v ON v.user_id=u.id ${activeOnly?'WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL':''} ORDER BY u.created_at DESC,u.last_name,u.first_name`);return Promise.all(result.map(async person=>({...person,profilePhotoUrl:await profilePhotoUrl(person.profilePhotoUrl)})));}
 export async function catalog(actor?:AuthUser) {
  const admin=actor&&['ADMIN','SUPER_ADMIN'].includes(actor.role);
@@ -102,7 +117,27 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
   if(observations!==undefined){assignments.push('observations=?');values.push(observations);}
   if(cancellationReason!==undefined){assignments.push('cancellation_reason=?');values.push(cancellationReason);}
   await c.execute(`UPDATE client_appointments SET ${assignments.join(',')} WHERE id=?`,[...values,id] as SqlValue[]);
-await notify(c,a.ownerId,body.status==='CANCELLED'?'Tu turno fue cancelado':'Tu turno fue actualizado',body.status==='CANCELLED'?`La clínica canceló el turno ${id}. Motivo: ${cancellationReason}`:`La clínica actualizó el turno ${id}. Consultá Turnos para ver el estado y horario.`);
+  const slotChanged=slotId!==String(a.slotId);
+  const statusChanged=status!==String(a.status);
+  if(slotChanged||statusChanged){
+   if(slotChanged||status==='CANCELLED')await cancelPendingAppointmentReminders(c,id);
+   const current=slotChanged?await one(`${appointmentSelect} WHERE a.id=?`,[id],c):a;
+   const target=status==='CANCELLED'?a:current;
+   const {date,time}=formatNotificationDateTime(target.startsAt);
+   const eventType=status==='CANCELLED'?'APPOINTMENT_CANCELLED':slotChanged?'APPOINTMENT_RESCHEDULED':status==='CONFIRMED'?'APPOINTMENT_CONFIRMED':'APPOINTMENT_UPDATED';
+   const title=status==='CANCELLED'?'Turno cancelado':slotChanged?'Turno reprogramado':status==='CONFIRMED'?'Turno confirmado':'Turno actualizado';
+   const bodyText=status==='CANCELLED'
+    ?`Tu turno de ${target.service} para ${target.petName}, el ${date} a las ${time}, fue cancelado.`
+    :slotChanged
+     ?`Tu turno de ${target.service} para ${target.petName} fue reprogramado para el ${date} a las ${time}.`
+     :status==='CONFIRMED'
+      ?`Tu turno de ${target.service} para ${target.petName} fue confirmado para el ${date} a las ${time}.`
+      :`El estado de tu turno de ${target.service} para ${target.petName} cambió a ${status.toLowerCase()}.`;
+   const eventKey=status==='CANCELLED'
+    ?`appointment:${id}:cancelled`
+    :`appointment:${id}:transition:${a.status}:${a.slotId}:${status}:${slotId}`;
+   await notify(c,a.ownerId,title,bodyText,eventType,'appointment',id,eventKey);
+  }
   return {updated:true};
  });
 }
@@ -155,7 +190,12 @@ export async function saveClinical(actor:AuthUser,petId:string,kind:string,value
   await c.execute('INSERT INTO client_clinical_records(pet_id,veterinarian_id,kind,title,content,occurred_at,next_due_at,product_id,consultation_id,valid_until,weight_kg,reason,diagnosis,treatment,internal_notes,appointment_id,dose,frequency,duration) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[petId,vet.id,kind,title,content,occurred,next,productId,consultationId,validUntil,weight,v.text(body.reason,5000,true),v.text(body.diagnosis,5000,true),v.text(body.treatment,5000,true),internalNotes,appointmentId,dose,frequency,duration]);
   if(weight!==null)await c.execute('INSERT INTO client_pet_details(pet_id,weight_kg) VALUES (?,?) ON DUPLICATE KEY UPDATE weight_kg=?',[petId,weight,weight]);
   const [savedId]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
-  await notify(c,(await patientScope(fresh,petId,c)).ownerId,'Nueva información de tu mascota','La clínica agregó un registro. Consultá la ficha de tu mascota.');return {created:true,recordId:String(savedId[0].id)};
+  const notificationReferenceType=appointmentId?'appointment':'pet';
+  const notificationReferenceId=appointmentId??petId;
+  const notificationBody=kind==='recommendations'
+   ?'El veterinario agregó nuevas recomendaciones para tu mascota. Ingresá a PetCare para consultar los detalles.'
+   :'El veterinario agregó información nueva de salud para tu mascota. Ingresá a PetCare para consultar los detalles.';
+  await notify(c,(await patientScope(fresh,petId,c)).ownerId,'Hay información nueva de tu mascota',notificationBody,'CLINICAL_UPDATE',notificationReferenceType,notificationReferenceId,`clinical-record:${String(savedId[0].id)}`);return {created:true,recordId:String(savedId[0].id)};
  });
 }
 export async function clients(actor:AuthUser,search='') {

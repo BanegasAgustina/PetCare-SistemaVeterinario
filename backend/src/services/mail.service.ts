@@ -47,3 +47,21 @@ export async function sendPasswordResetEmail(email: string, url: string): Promis
   } catch { throw new AppError('EMAIL_DELIVERY_FAILED', 503, 'No pudimos enviar el correo. Intentá nuevamente más tarde.'); }
   finally { transport.close(); }
 }
+
+/** Sends only the already-sanitized title/body persisted with a client notification. */
+export async function sendClientNotificationEmail(email: string, title: string, body: string): Promise<void> {
+  const { from, ...configuration } = getMailConfiguration();
+  const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
+    socketTimeout: 5000, dnsTimeout: 5000, logger: false, debug: false, disableFileAccess: true, disableUrlAccess: true });
+  try {
+    const result = await transport.sendMail({
+      from: { name: 'PetCare', address: from },
+      to: email,
+      subject: `PetCare: ${title}`,
+      text: `${body}\n\nIngresá a PetCare para consultar tus notificaciones.`,
+    });
+    if (!result.accepted.length) throw new Error('Destinatario no aceptado');
+  } catch {
+    throw new AppError('EMAIL_DELIVERY_FAILED', 503, 'No pudimos enviar la notificación por correo.');
+  } finally { transport.close(); }
+}
