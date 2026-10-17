@@ -11,26 +11,26 @@ import { AppButton } from '../ui/AppButton';
 import { useTheme } from '../../hooks/useTheme';
 import { clinicDate } from '../../utils/clinic-date';
 import type { Pet,Appointment,ClinicalRecord,Product,Order } from '../../types/client';
-export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=false}:{pet:Pet;portraitSize?:number;showViewButton?:boolean;showMicrochip?:boolean}){
+export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=false,compact=false}:{pet:Pet;portraitSize?:number;showViewButton?:boolean;showMicrochip?:boolean;compact?:boolean;}){
   const {colors}=useTheme();
   const {width}=useWindowDimensions();
-  const photoSize=portraitSize??Math.min(190,Math.max(124,Math.round(Math.min(width,600)*0.36)));
+  const photoSize=portraitSize??(compact?76:Math.min(190,Math.max(124,Math.round(Math.min(width,600)*0.36))));
   const openPet=()=>router.push({pathname:'/client/pets/[id]',params:{id:pet.id}});
   const editPet=()=>router.push({pathname:'/client/pets/[id]/edit',params:{id:pet.id}});
   return <PetCareCard>
-    <View style={styles.petHeader}>
+    <View style={[styles.petHeader,compact&&{alignItems:'center'}]}>
       <View style={[styles.petPhotoFrame,{width:photoSize+6,height:photoSize+6,borderColor:colors.border}]}>
         <PetImage uri={pet.photoUrl} size={photoSize}/>
-        <View style={[styles.photoMark,{backgroundColor:colors.primary}]}><Ionicons name="paw" size={24} color={colors.onPrimary}/></View>
+        <View style={[styles.photoMark,{backgroundColor:colors.primary}]}>        <Ionicons name="paw" size={compact?18:24} color={colors.onPrimary}/></View>
       </View>
-      <View style={styles.petInfo}>
+      <View style={[styles.petInfo,compact&&{gap:6}]}>
         <View style={styles.petTitleRow}>
-          <AppText numberOfLines={2} variant="subtitle" style={styles.petName}>{pet.name}</AppText>
+          <AppText numberOfLines={2} variant="subtitle" style={[styles.petName,compact&&{fontSize:20,lineHeight:24}]}>{pet.name}</AppText>
           <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${pet.name}`} onPress={editPet} style={[styles.editButton,{backgroundColor:colors.accent}]}><Ionicons name="pencil" size={22} color={colors.text}/></Pressable>
         </View>
-        <View style={styles.speciesRow}><Ionicons name="paw-outline" size={22} color={colors.primary}/><AppText style={styles.speciesText}>{pet.species}{pet.breed?`  ·  ${pet.breed}`:''}</AppText></View>
-        <View style={[styles.infoDivider,{backgroundColor:colors.border}]}/>
-        {pet.birthDate!==null&&pet.birthDate!==''&&<View style={styles.detailRow}><Ionicons name="calendar-outline" size={21} color={colors.primary}/><AppText style={styles.detailText}>Nació el {clinicDate(pet.birthDate)}</AppText></View>}
+        <View style={styles.speciesRow}>        <Ionicons name="paw-outline" size={compact?18:22} color={colors.primary}/><AppText style={styles.speciesText}>{pet.species}{pet.breed?`  ·  ${pet.breed}`:''}</AppText></View>
+        {!compact&&<View style={[styles.infoDivider,{backgroundColor:colors.border}]}/>}
+        {!compact&&pet.birthDate!==null&&pet.birthDate!==''&&<View style={styles.detailRow}><Ionicons name="calendar-outline" size={21} color={colors.primary}/><AppText style={styles.detailText}>Nació el {clinicDate(pet.birthDate)}</AppText></View>}
         {pet.weightKg != null&&<View style={styles.detailRow}><Ionicons name="barbell-outline" size={21} color={colors.primary}/><AppText style={styles.detailText}>{pet.weightKg} kg</AppText></View>}
         {Boolean(showMicrochip&&pet.microchipNumber)&&<View style={styles.detailRow}><Ionicons name="barcode-outline" size={21} color={colors.primary}/><AppText style={styles.detailText}>Microchip: {pet.microchipNumber}</AppText></View>}
       </View>
