@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { env } from './env';
 import { AppError } from '../utils/app-error';
 export const providers = ['google', 'facebook', 'x'] as const;
@@ -6,28 +7,20 @@ export function oauthProvider(value: unknown): OAuthProvider {
   if (typeof value !== 'string' || !providers.includes(value as OAuthProvider)) throw new AppError('VALIDATION_ERROR',400,'Proveedor no válido.');
   return value as OAuthProvider;
 }
-export const PRODUCTION_BACKEND_URL = 'https://pet-care-sistema-veterinario.vercel.app';
-
 export function backendOrigin(): string {
   const isVercelRuntime = Boolean(process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production' || process.env.VERCEL_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
   const isProd = env.nodeEnvironment === 'production' || isVercelRuntime;
   const raw = process.env.BACKEND_URL?.trim();
-
-  const isLocalHost = (val: string) => {
-    try {
-      const u = new URL(val);
-      return ['localhost', '127.0.0.1'].includes(u.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(u.hostname);
-    } catch { return true; }
-  };
-
-  const effectiveUrl = (isProd && (!raw || isLocalHost(raw))) ? PRODUCTION_BACKEND_URL : raw;
-  if (!effectiveUrl) throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL).');
+  if (!raw) throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL).');
 
   try {
-    const url = new URL(effectiveUrl);
-    const isLocal = isLocalHost(effectiveUrl);
-    if (isProd && isLocal) {
-      throw new AppError('OAUTH_UNAVAILABLE',503,'BACKEND_URL no puede apuntar a localhost ni a una red local en producción. Configurá https://pet-care-sistema-veterinario.vercel.app');
+    const url = new URL(raw);
+    const hostname = url.hostname.toLowerCase().replace(/\.$/, '');
+    const ipHostname = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+    const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost') ||
+      ipHostname === '127.0.0.1' || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(ipHostname);
+    if (isProd && (isLocal || isIP(ipHostname) !== 0)) {
+      throw new AppError('OAUTH_UNAVAILABLE',503,'BACKEND_URL debe usar un dominio público HTTPS en producción.');
     }
     const local = !isProd && isLocal;
     if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();

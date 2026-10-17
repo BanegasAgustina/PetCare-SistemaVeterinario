@@ -14,8 +14,8 @@ export const clinicalKinds=['medical-history','vaccines','prescriptions','recomm
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>) {
   return runDatabaseOperation(async()=>{
     switch(operation){
-      case 'home': {const [pets,appointments,products,notifications]=await Promise.all([repository.pets(owner),repository.appointments(owner),repository.products('',undefined,true),repository.notifications(owner)]);
-        return {pets,nextAppointment:appointments.filter(a=>a.isUpcoming).sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt)))[0]??null,featuredProducts:products,unreadNotifications:notifications.filter(n=>!n.readAt).length};}
+      case 'home': {const [pets,appointments,products,unreadNotifications]=await Promise.all([repository.pets(owner),repository.appointments(owner),repository.products('',undefined,true),repository.unreadNotificationCount(owner)]);
+        return {pets,nextAppointment:appointments.filter(a=>a.isUpcoming).sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt)))[0]??null,featuredProducts:products,unreadNotifications};}
       case 'pets':return repository.pets(owner);
       case 'pet-catalog':return repository.petCatalog();
       case 'pet':return repository.pet(owner,clientId(id));
@@ -52,6 +52,9 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'checkout':{const values=clientBody(body,['requestKey']);return repository.checkout(owner,requestKey(values.requestKey));}
       case 'notifications':return repository.notifications(owner);
       case 'notification-read':clientBody(body,[]);return repository.readNotification(owner,clientId(id));
+      case 'notification-read-all':clientBody(body,[]);return repository.readAllNotifications(owner);
+      case 'push-token-register':return repository.registerPushToken(owner,body);
+      case 'push-token-revoke':return repository.revokePushToken(owner,body);
       case 'profile-update':{const values=clientBody(body,['firstName','lastName','phone']);return repository.updateProfile(owner,readName(values.firstName,'El nombre'),readName(values.lastName,'El apellido'),readPhone(values.phone));}
       case 'password-update':{const values=clientBody(body,['currentPassword','password']);const current=readPassword(values.currentPassword,false);const password=readPassword(values.password,true);
         const user=await findUserById(owner);if(!user||!await bcrypt.compare(current,user.passwordHash))throw new AppError('CURRENT_PASSWORD_INVALID',400,'La contraseña actual no es correcta.');

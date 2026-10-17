@@ -167,4 +167,20 @@ Las versiones de `package.json` corresponden a Expo SDK 58, React 19.3 y React N
 
 **Solución aplicada:** comprobar valores opcionales con un booleano antes de renderizar, por ejemplo `{Boolean(valorOpcional) && <AppText>...</AppText>}`. Para valores numéricos opcionales, comprobar `valor !== null && valor !== undefined` para admitir también el valor cero. Se aplicó el criterio en Reservas, Turnos, Pacientes, Profesionales, Servicios, Clientes, formularios y componentes compartidos de estados y encabezados. No se modificaron pantallas de rutas `src/app/client` ni su presentación.
 
-**Comprobación:** `npm run typecheck` y `npm run lint` completan correctamente. `npm test` completa, pero el proyecto no contiene pruebas automatizadas (`0 tests`).
+**Comprobación:** `npm run typecheck`, `npm run lint` y `npm test` verifican tipado, estilo y pruebas automatizadas disponibles.
+
+## Notificaciones push y centro de notificaciones
+
+La campanita de clientes consulta el backend autenticado, muestra el número sin leer, permite marcar una o todas como leídas y abre la mascota, el turno o el detalle de reserva asociado. Android puede recibir push en la bandeja del sistema mediante `expo-notifications`; web no usa push del navegador. Los recordatorios se calculan en el backend a partir de los turnos MySQL y no se programan localmente en el teléfono.
+
+El permiso se solicita únicamente al tocar **Activar notificaciones en este dispositivo** desde Notificaciones. Para probar en un teléfono se requiere un development build o APK propio: el push remoto no está disponible en Expo Go para Android. Después de vincular el proyecto con `npx eas-cli@latest init`, registrá credenciales FCM v1 en EAS Build/credentials y generá un APK nuevo para incorporar el plugin nativo `expo-notifications`. El token Expo queda en SecureStore y se registra con el usuario autenticado; cerrar sesión revoca el token del dispositivo y limpia las notificaciones locales visibles. No configures secretos FCM, SMTP o Expo Push en `mobile`, en `EXPO_PUBLIC_*` ni en el repositorio.
+
+Pasos manuales pendientes:
+
+1. Vincular el proyecto Expo con su EAS Project ID mediante `npx eas-cli@latest init`; el cliente lo obtiene de `Constants.easConfig.projectId`.
+2. Cargar las credenciales FCM v1 Android en EAS para el proyecto y el perfil de build que se va a probar.
+3. Revisar y aprobar `backend/notification-migrations/001_notifications.sql`, verificar primero el esquema Layerbase con la consulta del README del backend y ejecutar el SQL solo con autorización.
+4. Configurar `CRON_SECRET` en Vercel Backend y confirmar que el proyecto Vercel use `backend` como Root Directory para tomar `backend/vercel.json` (cron cada cinco minutos). Configurar SMTP existente en el backend si se desean correos para eventos importantes.
+5. Desplegar backend y frontend con sus cambios; después generar/distribuir el APK de prueba. Ninguna migración, despliegue ni compilación APK fue ejecutada por esta tarea.
+
+Las pruebas automatizadas de `npm test` verifican el enrutamiento seguro de avisos en cliente. No simulan un proveedor Expo/FCM real, SMTP, una base Layerbase ni la entrega en Android. La prueba real debe usar una cuenta de cliente controlada, un dispositivo con permiso concedido y un turno/reserva legítimos; una invocación manual del cron puede enviar mensajes reales.

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { subscribeToNotificationChanges } from '../../services/notification-events';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
@@ -94,8 +95,11 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     if (!isClient) return () => { active = false; };
-    void request<{ unreadNotifications?: number }>('/client/home').then(result => { if (active) setUnreadNotifications(result.unreadNotifications ?? 0); }).catch(() => { if (active) setUnreadNotifications(0); });
-    return () => { active = false; };
+    const refreshUnread=()=>void request<{ unreadNotifications?: number }>('/client/home').then(result => { if (active) setUnreadNotifications(result.unreadNotifications ?? 0); }).catch(() => { if (active) setUnreadNotifications(0); });
+    refreshUnread();
+    const unsubscribe=subscribeToNotificationChanges(refreshUnread);
+    const interval=setInterval(refreshUnread,30_000);
+    return () => { active = false;unsubscribe();clearInterval(interval); };
   }, [request, user?.id, isClient, pathname]);
   const items = useMemo<MenuItem[]>(() => {
     if (!user) return [];
@@ -154,7 +158,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
           <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
         </Pressable>}
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
-        {isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Notificaciones" onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.danger??'#d84343'}]}/>}</Pressable>}
+        {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.danger??'#d84343',width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
         {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push(isVeterinarian?'/vet/profile':'/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>

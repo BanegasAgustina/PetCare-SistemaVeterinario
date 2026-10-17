@@ -23,6 +23,13 @@
     "icon": "./src/assets/petcare-icon.png",
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "petcare-notifications",
+          "color": "#def1ea"
+        }
+      ],
       "expo-secure-store",
       "@react-native-community/datetimepicker",
       [

@@ -12,6 +12,7 @@ import { FeedbackProvider } from '../contexts/FeedbackContext';
 import { VerificationCodeModal } from '../components/ui/VerificationCodeModal';
 import { OAuthRegistrationModal } from '../components/forms/OAuthRegistrationModal';
 import { GlobalNavigation } from '../components/layout/GlobalNavigation';
+import { NotificationBridge } from '../components/notifications/NotificationBridge';
 
 // Completa el retorno de Expo solo en ventanas emergentes; el login web principal usa redirección completa.
 if(Platform.OS==='web'&&(window.opener||window.parent!==window))WebBrowser.maybeCompleteAuthSession();
@@ -37,6 +38,7 @@ function ThemedNavigation() {
   return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{auth.user ? <GlobalNavigation>{content}</GlobalNavigation> : content}
     {auth.verificationOpen && auth.pendingVerification && <VerificationCodeModal key={auth.pendingVerification.verificationToken} challenge={auth.pendingVerification} autoSend={auth.verificationFromLogin} />}
     {auth.oauthPending && <OAuthRegistrationModal key={auth.oauthPending.ticket}/>}
+    <NotificationBridge />
   </>;
 }
 export default function RootLayout() {

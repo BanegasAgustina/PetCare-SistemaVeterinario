@@ -17,5 +17,5 @@ export type CartItem=Product&{quantity:number;subtotalCents:number};
 export type Cart={items:CartItem[];totalCents:number;checkoutKey:string};
 export type Order={id:string;status:string;totalCents:number;createdAt:string};
 export type OrderDetail=Order&{items:{productId:string;name:string;quantity:number;priceCents:number;subtotalCents:number}[]};
-export type Notification={id:string;title:string;body:string;readAt:string|null;createdAt:string};
+export type Notification={id:string;title:string;body:string;eventType:string;referenceType:string|null;referenceId:string|null;readAt:string|null;createdAt:string};
 export type Home={pets:Pet[];nextAppointment:Appointment|null;featuredProducts:Product[];unreadNotifications:number};

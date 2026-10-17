@@ -10,6 +10,7 @@ import { productPhotoUrl } from '../services/pet-photo.service';
 // Se valida tanto la transición de estado como el tipo de producto reservado.
 import { activeReservationStatuses,assertReservableProduct,assertReservationTransition } from '../utils/clinic-rules';
 import { forbidden } from '../utils/admin-authorization';
+import { formatNotificationDateTime } from '../utils/notification-date';
 export async function list(actor:AuthUser,query:Record<string,unknown>={}) {
  await expireDueReservations();
  const own=actor.role==='CLIENT';if(!own)db.permit(actor,'reservations.view_all');const args:unknown[]=own?[actor.id]:[];let where=own?'WHERE o.owner_id=?':'WHERE 1=1';
@@ -58,7 +59,7 @@ export async function create(actor:AuthUser,value:unknown) {
 export async function change(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['status','reason']);const status=v.text(body.status,20)!;const reason=status==='CANCELLED'?v.text(body.reason,500):null;if(status==='CANCELLED'&&(!reason||reason.length<3))v.invalid('Ingresá el motivo de rechazo.');if(status!=='CANCELLED'&&body.reason!==undefined)v.invalid();
  const changed=await db.transaction(actor,async(c,fresh)=>{db.permit(fresh,'reservations.manage');const order=await db.one('SELECT id,owner_id AS ownerId,status,expires_at AS expiresAt,expires_at<=UTC_TIMESTAMP(3) AS isExpired FROM client_orders WHERE id=? FOR UPDATE',[id],c);
-  if(Boolean(order.isExpired)&&activeReservationStatuses.includes(String(order.status))){const items=await db.rows('SELECT i.product_id AS productId,i.quantity,p.reserved_stock AS reservedStock FROM client_order_items i JOIN client_products p ON p.id=i.product_id WHERE i.order_id=? ORDER BY p.id FOR UPDATE',[id],c);for(const item of items){if(Number(item.reservedStock)<Number(item.quantity))throw new AppError('STOCK_CONFLICT',409,'El stock reservado requiere revisión administrativa.');await c.execute('UPDATE client_products SET reserved_stock=reserved_stock-? WHERE id=?',[item.quantity,item.productId]);}await c.execute("UPDATE client_orders SET status='EXPIRED' WHERE id=? AND status=?",[id,order.status]);await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id) VALUES (?,?,?,?)',[id,order.status,'EXPIRED',null]);await db.notify(c,order.ownerId,'La reserva venció','El plazo de retiro terminó y las unidades volvieron al stock.');return false;}
+  if(Boolean(order.isExpired)&&activeReservationStatuses.includes(String(order.status))){const items=await db.rows('SELECT i.product_id AS productId,i.quantity,p.reserved_stock AS reservedStock FROM client_order_items i JOIN client_products p ON p.id=i.product_id WHERE i.order_id=? ORDER BY p.id FOR UPDATE',[id],c);for(const item of items){if(Number(item.reservedStock)<Number(item.quantity))throw new AppError('STOCK_CONFLICT',409,'El stock reservado requiere revisión administrativa.');await c.execute('UPDATE client_products SET reserved_stock=reserved_stock-? WHERE id=?',[item.quantity,item.productId]);}await c.execute("UPDATE client_orders SET status='EXPIRED' WHERE id=? AND status=?",[id,order.status]);await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id) VALUES (?,?,?,?)',[id,order.status,'EXPIRED',null]);await db.notify(c,order.ownerId,'La reserva venció','El plazo de retiro terminó y las unidades volvieron al stock.','RESERVATION_EXPIRED','reservation',id,`reservation:${id}:EXPIRED`);return false;}
   assertReservationTransition(String(order.status),status,order.expiresAt?String(order.expiresAt):null);
   const items=await db.rows('SELECT i.product_id AS productId,i.quantity,p.stock,p.reserved_stock AS reservedStock FROM client_order_items i JOIN client_products p ON p.id=i.product_id WHERE i.order_id=? ORDER BY p.id FOR UPDATE',[id],c);
   if(['CANCELLED','COMPLETED'].includes(status)){for(const item of items){if(Number(item.reservedStock)<Number(item.quantity))throw new AppError('STOCK_CONFLICT',409,'El stock reservado requiere revisión administrativa.');
@@ -68,8 +69,18 @@ export async function change(actor:AuthUser,id:string,value:unknown) {
   await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,reason) VALUES (?,?,?,?,?)',[id,order.status,status,fresh.id,reason]);
   // El estado vigente sigue en client_orders para conservar el contrato API y las pantallas existentes.
   await c.execute('UPDATE client_orders SET status=? WHERE id=?',[status,id]);
-  // El aviso al propietario se mantiene dentro del mismo cambio transaccional de estado.
-await db.notify(c,order.ownerId,status==='READY'?'Reserva lista para retirar':status==='CANCELLED'?'La reserva fue rechazada':'Tu reserva fue actualizada',status==='CANCELLED'?`La clínica rechazó la reserva ${id}. Motivo: ${reason}`:`La clínica actualizó el pedido ${id}. Consultá Mis pedidos para ver su estado.`);
+  // El aviso al propietario se confirma en la misma transacción que el estado de la reserva.
+  const deadline=order.expiresAt?formatNotificationDateTime(order.expiresAt):null;
+  const eventType=status==='CANCELLED'?'RESERVATION_REJECTED':status==='CONFIRMED'?'RESERVATION_APPROVED':status==='READY'?'RESERVATION_READY':'RESERVATION_UPDATED';
+  const title=status==='CANCELLED'?'La reserva fue rechazada':status==='CONFIRMED'?'La reserva fue aprobada':status==='READY'?'Reserva lista para retirar':'Tu reserva fue actualizada';
+  const message=status==='CANCELLED'
+   ?`La clínica rechazó la reserva ${id}. Motivo: ${reason}`
+   :status==='CONFIRMED'
+    ?`La clínica aprobó tu reserva ${id}.${deadline?` Retirala antes del ${deadline.date} a las ${deadline.time}.`:''}`
+    :status==='READY'
+     ?`La reserva ${id} está lista para retirar.${deadline?` Retirala antes del ${deadline.date} a las ${deadline.time}.`:''}`
+     :`La clínica actualizó la reserva ${id}. Consultá Mis pedidos para ver su estado.`;
+  await db.notify(c,order.ownerId,title,message,eventType,'reservation',id,`reservation:${id}:${order.status}:${status}`);
   return true;
  });if(!changed)throw new AppError('RESERVATION_EXPIRED',409,'La reserva venció y sus unidades fueron liberadas.');return detail(actor,id);
 }
@@ -82,7 +93,7 @@ export async function expireDueReservations(batchSize=100):Promise<number> {
   for(const order of orders){const [updated]=await connection.execute("UPDATE client_orders SET status='EXPIRED' WHERE id=? AND status=? AND expires_at<=UTC_TIMESTAMP(3)",[order.id,order.status]);if((updated as {affectedRows?:number}).affectedRows!==1)continue;
    const [items]=await connection.execute<(RowDataPacket & {productId:string;quantity:number;reservedStock:number})[]>('SELECT i.product_id AS productId,i.quantity,p.reserved_stock AS reservedStock FROM client_order_items i JOIN client_products p ON p.id=i.product_id WHERE i.order_id=? ORDER BY p.id FOR UPDATE',[order.id]);
    for(const item of items){if(Number(item.reservedStock)<Number(item.quantity))throw new AppError('STOCK_CONFLICT',409,'El stock reservado requiere revisión administrativa.');const [stockUpdate]=await connection.execute('UPDATE client_products SET reserved_stock=reserved_stock-? WHERE id=? AND reserved_stock>=?',[item.quantity,item.productId,item.quantity]);if((stockUpdate as {affectedRows?:number}).affectedRows!==1)throw new AppError('STOCK_CONFLICT',409,'No se pudo liberar el stock vencido.');}
-   await connection.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id) VALUES (?,?,?,NULL)',[order.id,order.status,'EXPIRED']);await db.notify(connection,order.ownerId,'La reserva venció','El plazo de retiro terminó y las unidades volvieron al stock.');count+=1;
+   await connection.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id) VALUES (?,?,?,NULL)',[order.id,order.status,'EXPIRED']);await db.notify(connection,order.ownerId,'La reserva venció','El plazo de retiro terminó y las unidades volvieron al stock.','RESERVATION_EXPIRED','reservation',order.id,`reservation:${order.id}:EXPIRED`);count+=1;
   }
   await connection.commit();return count;
  }catch(error){await connection.rollback();throw error;}finally{connection.release();}
