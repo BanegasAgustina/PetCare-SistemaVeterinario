@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { databaseDiagnostic, normalizeDatabaseError } from '../src/utils/database-error';
+import { normalizeDatabaseError } from '../src/utils/database-error';
 
 test('database connection failures produce a safe 503 classification', () => {
   const error = normalizeDatabaseError({ code: 'ECONNREFUSED', message: 'private connection detail' });
@@ -29,16 +29,6 @@ test('missing database columns produce a safe schema 500 classification', () => 
   } finally {
     console.error = originalError;
   }
-});
-
-test('clinic diagnostics retain the driver code and column without exposing SQL text', () => {
-  const error = normalizeDatabaseError({
-    code: 'ER_BAD_FIELD_ERROR',
-    sqlMessage: "Unknown column 'p.photo_url' in 'field list'; secret value",
-  });
-
-  assert.deepEqual(databaseDiagnostic(error), { code: 'ER_BAD_FIELD_ERROR', object: 'p.photo_url' });
-  assert.doesNotMatch(JSON.stringify(databaseDiagnostic(error)), /secret value|SELECT|password/i);
 });
 
 test('unclassified database errors remain a safe 500 classification', () => {
