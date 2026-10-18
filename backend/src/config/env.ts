@@ -26,7 +26,7 @@ if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(databaseName)) {
   throw new Error('DB_NAME debe comenzar con una letra y contener solo letras, números o guiones bajos (máximo 64).');
 }
 
-const isVercelRuntime = Boolean(process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production' || process.env.VERCEL_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+export const isVercelRuntime = Boolean(process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production' || process.env.VERCEL_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
 const nodeEnvironment = process.env.NODE_ENV ?? (isVercelRuntime ? 'production' : 'development');
 if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
   throw new Error('NODE_ENV debe ser development, test o production.');

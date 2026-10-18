@@ -12,10 +12,18 @@ export const notFoundHandler: RequestHandler = (_request, response) => {
 export const errorHandler: ErrorRequestHandler = (error: unknown, request, response, next) => {
   if (response.headersSent) { next(error); return; }
   if (error instanceof DatabaseError || error instanceof AppError) {
-    if (error instanceof DatabaseError && error.code === 'SCHEMA_UPDATE_REQUIRED') {
+    if (error instanceof DatabaseError) {
       const routePath = typeof request.route?.path === 'string' ? request.route.path : '';
       const route = `${request.baseUrl}${routePath}`.replace(/[^A-Za-z0-9_/:.-]/g, '').slice(0, 160);
-      console.error('[DATABASE_SCHEMA_REQUEST]', JSON.stringify({ method: request.method, route: route || 'unknown' }));
+      const cause = error.cause;
+      const causeCode = typeof cause === 'object' && cause !== null && 'code' in cause ? String(cause.code) : error.code;
+      const safeCode = /^[A-Z0-9_]+$/.test(causeCode) ? causeCode : 'UNKNOWN';
+      if (error.code === 'SCHEMA_UPDATE_REQUIRED') {
+        console.error('[DATABASE_SCHEMA_REQUEST]', JSON.stringify({ method: request.method, route: route || 'unknown' }));
+      } else {
+        // Agrega el endpoint fallido al código del motor sin incluir mensaje SQL ni valores enlazados.
+        console.error('[DATABASE_OPERATION_REQUEST]', JSON.stringify({ method: request.method, route: route || 'unknown', code: safeCode }));
+      }
     }
     const result: ApiFailure = { success: false, error: { code: error.code, message: error.message,
       ...(error instanceof AppError && error.verification ? { verification: error.verification } : {}) } };

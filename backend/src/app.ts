@@ -2,12 +2,13 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { env } from './config/env';
+import { env, isVercelRuntime } from './config/env';
 import { apiRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { authenticate } from './middlewares/auth.middleware';
 import { requireRole } from './middlewares/permission.middleware';
 import { createAuthRateLimiter } from './middlewares/auth-rate-limit.middleware';
+import { configureProxyTrust } from './middlewares/proxy-trust.middleware';
 import { pet } from './repositories/client.repository';
 import { petPhotoUrl } from './services/pet-photo.service';
 import { clientId } from './validators/client.validator';
@@ -16,6 +17,7 @@ import { notificationJobsRouter } from './routes/notification-jobs.routes';
 export const app = express();
 // Vercel detecta este archivo como la entrada Express cuando recibe un default export.
 export default app;
+configureProxyTrust(app, isVercelRuntime);
 app.disable('x-powered-by');
 // Solo se habilitan la web oficial y sus previews de Vercel; el cliente nativo no necesita CORS.
 app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
