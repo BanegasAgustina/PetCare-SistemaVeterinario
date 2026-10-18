@@ -1,11 +1,12 @@
+-- MariaDB migration (Layerbase 11.8): safe to retry after a partial run.
 ALTER TABLE client_notifications
-  ADD COLUMN event_type VARCHAR(40) NOT NULL DEFAULT 'GENERAL',
-  ADD COLUMN reference_type VARCHAR(32) NULL,
-  ADD COLUMN reference_id BIGINT UNSIGNED NULL,
-  ADD COLUMN event_key VARCHAR(191) CHARACTER SET ascii COLLATE ascii_bin NULL,
-  ADD UNIQUE KEY uq_client_notifications_event_key (event_key);
+  ADD COLUMN IF NOT EXISTS event_type VARCHAR(40) NOT NULL DEFAULT 'GENERAL',
+  ADD COLUMN IF NOT EXISTS reference_type VARCHAR(32) NULL,
+  ADD COLUMN IF NOT EXISTS reference_id BIGINT UNSIGNED NULL,
+  ADD COLUMN IF NOT EXISTS event_key VARCHAR(191) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  ADD UNIQUE KEY IF NOT EXISTS uq_client_notifications_event_key (event_key);
 
-CREATE TABLE client_push_tokens (
+CREATE TABLE IF NOT EXISTS client_push_tokens (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,
   expo_push_token VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -20,7 +21,7 @@ CREATE TABLE client_push_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE client_notification_push_deliveries (
+CREATE TABLE IF NOT EXISTS client_notification_push_deliveries (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   notification_id BIGINT UNSIGNED NOT NULL,
   push_token_id BIGINT UNSIGNED NOT NULL,
@@ -43,7 +44,7 @@ CREATE TABLE client_notification_push_deliveries (
     FOREIGN KEY (push_token_id) REFERENCES client_push_tokens(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE client_notification_email_deliveries (
+CREATE TABLE IF NOT EXISTS client_notification_email_deliveries (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   notification_id BIGINT UNSIGNED NOT NULL,
   status ENUM('PENDING', 'SENDING', 'SENT', 'FAILED') NOT NULL DEFAULT 'PENDING',

@@ -34,6 +34,14 @@ function cloudinaryPublicId(value:unknown,kind:'pets'|'products'|'services'|'pro
   if(kind==='pets'&&owner&&id.startsWith(`pets/${owner}/`)&&/^pets\/[1-9]\d{0,19}\/[a-f0-9-]{36}$/.test(id))return id;
   return null;
 }
+/** Una URL pública guardada no necesita credenciales Cloudinary para poder leerse. */
+function cloudinaryPetUrl(value:unknown,owner:string):string|null {
+  if(typeof value!=='string')return null;
+  const match=cloudinaryPhotoPattern.exec(value);
+  if(!match)return null;
+  const id=match[2];
+  return id.startsWith(`pets/${owner}/`)&&/^pets\/[1-9]\d{0,19}\/[a-f0-9-]{36}$/.test(id)?value:null;
+}
 export function isPetPhotoKey(value:unknown,owner?:string):value is string {
   if(typeof value!=='string')return false;
   const match=keyPattern.exec(value);return Boolean((match&&(!owner||match[1]===owner))||cloudinaryPublicId(value,'pets',owner));
@@ -75,7 +83,13 @@ export async function removePetPhoto(owner:string,key:unknown) {
 export async function petPhotoUrl(owner:string,key:unknown):Promise<string|null> {
   // Las referencias antiguas al volumen no son recuperables desde el bucket.
   if(!key)return null;
-  if(cloudinaryPublicId(key,'pets',owner))return String(key);
+  // Cloudinary URLs are public and immutable; requiring its API secret/cloud name
+  // to return an already stored URL made otherwise healthy patient reads fail.
+  if(typeof key==='string'&&cloudinaryPhotoPattern.test(key)) {
+    const url=cloudinaryPetUrl(key,owner);
+    if(url)return url;
+    throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto anterior debe volver a subirse al almacenamiento disponible.');
+  }
   if(!isPetPhotoKey(key,owner))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto anterior debe volver a subirse al almacenamiento disponible.');
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
 }
