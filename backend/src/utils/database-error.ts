@@ -7,6 +7,16 @@ export class DatabaseError extends Error {
   }
 }
 
+/** Extrae solo el código del driver y, si existe, el identificador SQL citado; nunca devuelve sqlMessage. */
+export function databaseDiagnostic(error: unknown): { code: string; object?: string } {
+  const source = error instanceof DatabaseError ? error.cause : error;
+  const rawCode = typeof source === 'object' && source !== null && 'code' in source ? String(source.code) : '';
+  const code = /^[A-Z0-9_]+$/.test(rawCode) ? rawCode : 'UNKNOWN';
+  const message = typeof source === 'object' && source !== null && 'sqlMessage' in source ? String(source.sqlMessage) : '';
+  const object = /(?:Table|Unknown column)\s+['`]?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)?)['`]?/i.exec(message)?.[1];
+  return { code, ...(object ? { object } : {}) };
+}
+
 const unavailableCodes = new Set([
   'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EACCES',
   'PROTOCOL_CONNECTION_LOST', 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR', 'PROTOCOL_ENQUEUE_AFTER_QUIT',
@@ -22,8 +32,7 @@ export function normalizeDatabaseError(error: unknown): DatabaseError {
     return new DatabaseError('DB_UNAVAILABLE', 503, 'La base de datos no está disponible. Intentá nuevamente.', error);
   }
   if (['ER_NO_SUCH_TABLE','ER_BAD_FIELD_ERROR','ER_UNKNOWN_COLLATION','ER_COLLATION_CHARSET_MISMATCH'].includes(code)) {
-    const message = typeof error === 'object' && error !== null && 'sqlMessage' in error ? String(error.sqlMessage) : '';
-    const object = /(?:Table|Unknown column)\s+['`]?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)?)['`]?/i.exec(message)?.[1];
+    const { object } = databaseDiagnostic(error);
     // Registrar solo el código y el identificador validado: nunca SQL, valores ni sqlMessage completo.
     console.error('[DATABASE_SCHEMA_ERROR]', JSON.stringify({ code, ...(object ? { object } : {}) }));
     return new DatabaseError('SCHEMA_UPDATE_REQUIRED',500,'No pudimos recuperar los datos de la clínica. El esquema de la base requiere una actualización.',error);
