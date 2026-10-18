@@ -59,6 +59,11 @@ const messages: Record<string, string> = {
 
 export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
 
+/** Registra solo código y estado; nunca URL, encabezados, tokens ni cuerpo de la respuesta. */
+function reportApiFailure(code: string, status: number): void {
+  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ code, status }));
+}
+
 export function getApiUrl(): string {
   const configuredValue = process.env.EXPO_PUBLIC_API_URL?.trim();
   // En builds de producción / release (APK compilado o web pública), si no se inyectó la variable,
@@ -89,20 +94,34 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    const response = await fetch(url, {
-      method: options.method ?? 'GET', signal: controller.signal,
-      headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
-    const result = await response.json();
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: options.method ?? 'GET', signal: controller.signal,
+        headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      });
+    } catch {
+      reportApiFailure('NETWORK_ERROR', 0);
+      throw new ApiError('NETWORK_ERROR', 'No pudimos conectar con PetCare. Revisá tu conexión e intentá nuevamente.');
+    }
+    let result: any;
+    try { result = await response.json(); }
+    catch {
+      const code = response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR';
+      reportApiFailure(code, response.status);
+      throw new ApiError(code, response.ok ? 'PetCare devolvió una respuesta que no pudimos interpretar.' : 'El servidor respondió con un error.', response.status);
+    }
     if (!response.ok || result?.success !== true) {
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
+      reportApiFailure(code, response.status);
       throw new ApiError(code, messages[code] ?? 'No pudimos completar la operación. Intentá nuevamente.', response.status, result?.error?.verification);
     }
     return result.data as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError('NETWORK_ERROR', 'No pudimos conectar con PetCare. Revisá tu conexión e intentá nuevamente.');
+    reportApiFailure('CLIENT_ERROR', 0);
+    throw new ApiError('CLIENT_ERROR', 'No pudimos completar la operación. Intentá nuevamente.');
   } finally { clearTimeout(timeout); }
 }
 
