@@ -7,6 +7,7 @@ import { router, usePathname } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import { roleLabel } from '../../utils/role-label';
 import { softSurfaceShadow } from '../../constants/surface';
 import { AppText } from '../ui/AppText';
 import type { IconName } from '../client/PetCareUI';
@@ -132,7 +133,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     <Ionicons name={item.icon} size={20} color={item.path === selected?.path ? colors.primary : colors.muted}/><AppText numberOfLines={1} style={styles.itemText}>{item.label}</AppText>
   </Pressable>;
   const drawer = <View style={[styles.drawer, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }, desktop && isAdmin && styles.adminDesktopDrawer]}>
-    <View style={styles.brand}><AppText numberOfLines={desktop && isAdmin ? 1 : undefined} ellipsizeMode={desktop && isAdmin ? 'tail' : undefined} muted>{user.roleName}</AppText></View>
+    <View style={styles.brand}><AppText numberOfLines={desktop && isAdmin ? 1 : undefined} ellipsizeMode={desktop && isAdmin ? 'tail' : undefined} muted>{roleLabel(user.role,user.roleName ?? user.role)}</AppText></View>
     <ScrollView style={[styles.drawerMenu, desktop && isAdmin && styles.adminDesktopDrawerMenu]} contentContainerStyle={styles.menuContent} keyboardShouldPersistTaps="handled">
       {isAdmin ? adminGroups.map(group => {
         const groupItems = items.filter(item => item.group === group);

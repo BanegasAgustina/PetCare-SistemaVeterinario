@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState, statusLabel, money, ResponsiveGrid } from '../client/PetCareUI';
+import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState, statusLabel, money, ResponsiveGrid, PetCareBadge } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
@@ -90,6 +90,7 @@ export function ReservationsScreen() {
           <AppText>Creada: {clinicDateTime(String(detail.data.createdAt))}</AppText>
           {Boolean(detail.data.expiresAt) && <AppText>Vence: {clinicDateTime(String(detail.data.expiresAt))}</AppText>}
           <AppText>Estado: {reservationStatusLabel(String(detail.data.status))}</AppText>
+          {['CONFIRMED','PROCESSING','READY'].includes(String(detail.data.status))&&<PetCareBadge label="No retirado"/>}
           <AppText>Total registrado: {money(Number(detail.data.totalCents))}</AppText>
           {Boolean(detail.data.statusHistory?.at(-1)?.reason) && <AppText>Motivo: {String(detail.data.statusHistory?.at(-1)?.reason)}</AppText>}
         </PetCareCard>
@@ -124,14 +125,14 @@ export function ReservationScreen() {
       {/* Cada evento describe un cambio persistido y el usuario que lo registró, sin llamar compra a una reserva. */}
       {query.data.statusHistory?.length ? <PetCareCard><AppText variant="subtitle">Historial de estados</AppText>{query.data.statusHistory.map((event,index)=><AppText key={`${event.occurredAt}-${index}`}>{reservationStatusLabel(event.newStatus)} · {clinicDateTime(event.occurredAt)}{event.actorName?` · ${event.actorName}`:''}</AppText>)}</PetCareCard> : null}
       {query.data.items?.map(item => <PetCareCard key={String(item.productId)}>{hasPermission('reservations.view_all')&&<PetImage uri={typeof item.imageUrl==='string'?item.imageUrl:null} size={100}/>}<AppText variant="subtitle">{String(item.name)}</AppText>{hasPermission('reservations.view_all')&&Boolean(item.description)&&<AppText>{String(item.description)}</AppText>}<AppText>Tipo: {productTypeLabel(String(item.productType))}</AppText><AppText>Cantidad: {String(item.quantity)}</AppText><AppText>Precio al reservar: {money(Number(item.priceCents)*Number(item.quantity))}</AppText>{Boolean(item.petName) && <AppText>Mascota: {String(item.petName)}</AppText>}{Boolean(item.prescriptionId) && <AppText>Receta asociada: #{String(item.prescriptionId)}</AppText>}</PetCareCard>)}
-      {hasPermission('reservations.manage') && (transitions[String(query.data.status)] ?? []).map(status => <AppButton key={status} label={status === 'COMPLETED' ? 'Marcar retirada' : status === 'PROCESSING' ? 'Preparar' : reservationStatusLabel(status)} destructive={status==='CANCELLED'} onPress={() => {if(status==='CANCELLED'){setCancellationReason('');setCancellationError(null);}setNext(status);}}/>)}
+      {hasPermission('reservations.manage') && (transitions[String(query.data.status)] ?? []).map(status => <AppButton key={status} label={status === 'COMPLETED' ? 'Registrar pago y retiro' : status === 'PROCESSING' ? 'Preparar' : reservationStatusLabel(status)} destructive={status==='CANCELLED'} onPress={() => {if(status==='CANCELLED'){setCancellationReason('');setCancellationError(null);}setNext(status);}}/>)}
     </>}
     <AppModal visible={next==='CANCELLED'} dismissible onClose={()=>{if(!cancellationAction.loading)setNext(null);}}><AppText variant="title">Cancelar reserva</AppText><AppText muted>El motivo quedará registrado y se informará al cliente. Las unidades se liberarán.</AppText><AppInput label="Motivo de cancelación" required multiline maxLength={500} value={cancellationReason} error={cancellationError??undefined} editable={!cancellationAction.loading} onChangeText={value=>{setCancellationReason(value);setCancellationError(null);}}/><FormNotice error message={cancellationAction.error}/><AppButton label="Confirmar cancelación" destructive loading={cancellationAction.loading} onPress={()=>void cancelReservation()}/><AppButton label="Volver" variant="secondary" disabled={cancellationAction.loading} onPress={()=>setNext(null)}/></AppModal>
-    <ConfirmModal visible={Boolean(next)&&next!=='CANCELLED'} title="Actualizar reserva" message={next === 'COMPLETED' ? 'Se registrará el retiro y se descontarán las unidades del stock físico.' : 'El cliente verá el estado actualizado.'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { await api.changeReservation(id, next!); setNext(null); showToast('Reserva actualizada', 'success'); query.reload(); }}/>
+    <ConfirmModal visible={Boolean(next)&&next!=='CANCELLED'} title={next === 'COMPLETED' ? 'Confirmar pago y retiro' : 'Actualizar reserva'} message={next === 'COMPLETED' ? '¿Confirmás que el producto fue pagado y retirado por el cliente? Se descontarán las unidades del stock físico.' : 'El cliente verá el estado actualizado.'} confirmLabel={next === 'COMPLETED' ? 'Sí, pagado y retirado' : 'Confirmar'} onCancel={() => setNext(null)} onConfirm={async () => { await api.changeReservation(id, next!); setNext(null); showToast(next === 'COMPLETED' ? 'Pago y retiro registrados' : 'Reserva actualizada', 'success'); query.reload(); }}/>
   </PetCareScreen>;
 }
 
 function remainingTime(expiresAt:string,now:number){const milliseconds=Math.max(0,new Date(expiresAt).getTime()-now);const hours=Math.floor(milliseconds/3_600_000);const minutes=Math.floor(milliseconds%3_600_000/60_000);const seconds=Math.floor(milliseconds%60_000/1000);return `${hours} h ${String(minutes).padStart(2,'0')} min ${String(seconds).padStart(2,'0')} s`;}
 function productTypeLabel(type:string){return type==='ACCESSORY'?'Accesorio':type==='MEDICINE'?'Medicamento':'Producto sin clasificar';}
 
-function reservationStatusLabel(value:string){return ({PLACED:'Reservada',COMPLETED:'Retirada',CANCELLED:'Cancelada',EXPIRED:'Vencida'} as Record<string,string>)[value]??statusLabel(value);}
+function reservationStatusLabel(value:string){return ({PLACED:'Reservada',CONFIRMED:'Confirmada · No retirado',PROCESSING:'En preparación · No retirado',READY:'Lista · No retirada',COMPLETED:'Retirado y pagado',CANCELLED:'Cancelada',EXPIRED:'Vencida'} as Record<string,string>)[value]??statusLabel(value);}

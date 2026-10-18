@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import type * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
-import { pushTokenIfAlreadyGranted } from '../../services/push-notifications';
+import { loadNotificationsModule, pushTokenIfAlreadyGranted } from '../../services/push-notifications';
 import { notificationPath } from '../../services/notification-path';
 import { publishNotificationChange } from '../../services/notification-events';
 
@@ -18,8 +18,8 @@ export function NotificationBridge() {
     let active = true;
     let responseSubscription: { remove: () => void } | undefined;
     let receivedSubscription: { remove: () => void } | undefined;
-    void import('expo-notifications').then(notifications => {
-      if (!active) return;
+    void loadNotificationsModule().then(notifications => {
+      if (!active || !notifications) return;
       notifications.setNotificationHandler({handleNotification:async()=>({
         shouldPlaySound:false,shouldSetBadge:true,shouldShowBanner:true,shouldShowList:true,
       })});

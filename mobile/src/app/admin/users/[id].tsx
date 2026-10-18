@@ -44,7 +44,7 @@ export default function UserEditor() {
   }
   return <ScreenContainer keyboardAvoiding wide><AppText variant="title">{creating?'Crear usuario':'Usuario'}</AppText><QueryState {...query}/>
     {query.data&&!query.error&&!query.loading&&<>
-      {blocked&&<FormNotice message="Un ADMIN no puede modificar cuentas SUPER_ADMIN."/>}
+      {blocked&&<FormNotice message="Un administrador no puede modificar cuentas de administrador principal."/>}
       <PetCareCard><AppInput label="Nombre" value={values.firstName} error={errors.firstName} maxLength={100} editable={!blocked&&!action.loading} onChangeText={v=>change('firstName',v)}/>
         <AppInput label="Apellido" value={values.lastName} error={errors.lastName} maxLength={100} editable={!blocked&&!action.loading} onChangeText={v=>change('lastName',v)}/>
         <AppInput label="Correo electrónico" value={values.email} error={errors.email} maxLength={254} keyboardType="email-address" autoCapitalize="none" editable={creating&&!action.loading} onChangeText={v=>change('email',v)}/>

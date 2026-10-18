@@ -52,17 +52,26 @@ invitationRouter.post('/accept',createAuthRateLimiter(),handler(async req=> { aw
 
 export const specialtiesAdminRouter = Router();
 specialtiesAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('specialties.manage'));
-specialtiesAdminRouter.get('/',handler(async ()=> (await vetCatalog()).specialties));
+specialtiesAdminRouter.get('/',handler(async ()=>runDatabaseOperation(async()=>{
+  const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties ORDER BY name');
+  return rows.map(row=>({id:String(row.id),name:String(row.name),isActive:Boolean(row.isActive)}));
+})));
 specialtiesAdminRouter.post('/',handler(async req=>runDatabaseOperation(async ()=> {
   const body=objectBody(req.body,['name']); const name=textField(body.name,'La especialidad',100);
   await databasePool.execute('INSERT INTO specialties (name) VALUES (?)',[name]);return { name };
 }),201));
 specialtiesAdminRouter.put('/:id',handler(async req=>runDatabaseOperation(async ()=> {
-  const body=objectBody(req.body,['name']); const name=textField(body.name,'La especialidad',100);
+  const body=objectBody(req.body,['name','isActive']);
+  if(body.name===undefined&&body.isActive===undefined)throw new AppError('VALIDATION_ERROR',400,'Indicá qué dato querés actualizar.');
   const id=identifier(req.params.id);
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id FROM specialties WHERE id=?',[id]);
   if (!rows.length) throw new AppError('NOT_FOUND',404,'Especialidad no encontrada.');
-  await databasePool.execute('UPDATE specialties SET name=? WHERE id=?',[name,id]);return { id,name };
+  const fields:string[]=[];const values:(string|boolean)[]=[];
+  if(body.name!==undefined){fields.push('name=?');values.push(textField(body.name,'La especialidad',100));}
+  if(body.isActive!==undefined){if(typeof body.isActive!=='boolean')throw new AppError('VALIDATION_ERROR',400,'El estado de la especialidad no es válido.');fields.push('is_active=?');values.push(body.isActive);}
+  await databasePool.execute(`UPDATE specialties SET ${fields.join(',')} WHERE id=?`,[...values,id]);
+  const [updated]=await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties WHERE id=?',[id]);
+  return {id:String(updated[0].id),name:String(updated[0].name),isActive:Boolean(updated[0].isActive)};
 })));
 
 /** Un solo panel. El backend entrega módulos accesibles del catálogo según permisos efectivos. */

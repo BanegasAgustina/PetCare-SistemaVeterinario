@@ -20,8 +20,8 @@ async function transaction<T>(operation: (connection: PoolConnection) => Promise
 }
 export async function vetCatalog() {
   return runDatabaseOperation(async () => {
-    const [specialties] = await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM specialties ORDER BY name');
-    return { specialties: specialties.map(s=>({ id: String(s.id),name: catalogName(s.name as string) })) };
+    const [specialties] = await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties WHERE is_active=1 ORDER BY name');
+    return { specialties: specialties.map(s=>({ id: String(s.id),name: catalogName(s.name as string),isActive:true })) };
   });
 }
 export async function vetDetail(id: string) {
@@ -93,9 +93,10 @@ export async function updateOwnVetPhoto(userId:string,key:string|null) {
   return {previous};
 }
 async function replaceSpecialties(connection: PoolConnection,vetId: string,ids: string[]) {
-  const [rows] = await connection.execute<RowDataPacket[]>(`SELECT id FROM specialties WHERE id IN (${ids.map(()=>'?').join(',')})`,ids);
+  const [rows] = await connection.execute<RowDataPacket[]>(`SELECT id FROM specialties WHERE is_active=1 AND id IN (${ids.map(()=>'?').join(',')})`,ids);
   if (rows.length !== ids.length) throw new AppError('VALIDATION_ERROR',400,'Una especialidad seleccionada ya no existe.');
-  await connection.execute('DELETE FROM veterinarian_specialties WHERE veterinarian_id=?',[vetId]);
+  // Una baja lógica conserva la relación histórica; solo reemplazamos asignaciones activas.
+  await connection.execute('DELETE vs FROM veterinarian_specialties vs JOIN specialties s ON s.id=vs.specialty_id WHERE vs.veterinarian_id=? AND s.is_active=1',[vetId]);
   for (const id of ids) await connection.execute('INSERT INTO veterinarian_specialties (veterinarian_id,specialty_id) VALUES (?,?)',[vetId,id]);
 }
 async function lockVet(connection: PoolConnection,id: string) {

@@ -1,5 +1,5 @@
 /** Datos de administración recibidos de la API: ningún catálogo se define en la app. */
-export type Specialty = { id: string; name: string };
+export type Specialty = { id: string; name: string; isActive?: boolean };
 export type VetCatalog = { specialties: Specialty[] };
 export type VetSummary = { id: string; firstName: string; lastName: string; email: string; profilePhotoUrl:string|null; licenseNumber: string; isActive: boolean; specialties: Specialty[] };
 export type VetDetail = VetSummary & { userId: string; phone: string | null; emailVerified: boolean; invitationStatus: string };

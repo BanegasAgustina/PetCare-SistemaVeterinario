@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { roleHome } from '../utils/role-home';
 import { AdminFormActions, AdminFormSection } from '../components/admin/AdminFormLayout';
 import { OAuthLinks } from '../components/ui/OAuthLinks';
+import { roleLabel } from '../utils/role-label';
 
 export default function AccountScreen() {
   const auth = useAuth();
@@ -27,12 +28,12 @@ export default function AccountScreen() {
       <AppText variant="subtitle">{auth.user.firstName} {auth.user.lastName}</AppText>
       <AppText>{auth.user.email}</AppText>
       <AppText muted>{auth.user.phone ?? 'Sin teléfono registrado'}</AppText>
-      <AppText variant="caption">{auth.user.roleName ?? auth.user.role}</AppText>
+      <AppText variant="caption">{roleLabel(auth.user.role,auth.user.roleName ?? auth.user.role)}</AppText>
     </View>:<AdminFormSection title="Datos de la cuenta"><View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <AppText variant="subtitle">{auth.user.firstName} {auth.user.lastName}</AppText>
       <AppText>{auth.user.email}</AppText>
       <AppText muted>{auth.user.phone ?? 'Sin teléfono registrado'}</AppText>
-      <AppText variant="caption">{auth.user.roleName ?? auth.user.role}</AppText>
+      <AppText variant="caption">{roleLabel(auth.user.role,auth.user.roleName ?? auth.user.role)}</AppText>
     </View></AdminFormSection>}
     <FormNotice message={action.error} error />
     {isClient?<>

@@ -15,6 +15,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { SelectionRow } from '../ui/SelectionRow';
 import { SearchFilterBar } from '../ui/SearchFilterBar';
 import { AppModal } from '../ui/AppModal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { PetCareCard, PetCareEmptyState } from '../client/PetCareUI';
 import { AdminFormActions, AdminFormSection } from './AdminFormLayout';
 import type { ClinicRow } from '../../types/clinic';
@@ -31,6 +32,7 @@ export default function SpecialtiesScreen() {
   const { showToast } = useFeedback();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<EditItem | null>(null);
+  const [statusTarget,setStatusTarget]=useState<Specialty|null>(null);
   const [name, setName] = useState('');
   const [roleId, setRoleId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -107,8 +109,9 @@ export default function SpecialtiesScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <AppText variant="subtitle" numberOfLines={1}>{String(row.name)}</AppText>
-            <AppText muted>{kind === 'type' ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}` : 'Especialidad veterinaria'}</AppText>
+            <AppText muted>{kind === 'type' ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}` : `Especialidad veterinaria · ${(row as Specialty).isActive===false?'Inactiva':'Activa'}`}</AppText>
           </View>
+          {permitted&&kind==='specialty'&&<AppButton compact variant={(row as Specialty).isActive===false?'primary':'secondary'} destructive={(row as Specialty).isActive!==false} label={(row as Specialty).isActive===false?'Reactivar':'Desactivar'} onPress={()=>setStatusTarget(row as Specialty)}/>}
           {permitted && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} onPress={() => begin(kind, row)} style={{ padding: 10 }}><Ionicons name="create-outline" size={22} /></Pressable>}
         </View>
       </PetCareCard>;
@@ -127,5 +130,10 @@ export default function SpecialtiesScreen() {
         <AdminFormActions><AppButton label="Guardar cambios" loading={action.loading} onPress={() => void save()} /><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={close} /></AdminFormActions>
       </>}
     </AppModal>
+    <ConfirmModal visible={Boolean(statusTarget)} title={statusTarget?.isActive===false?'Reactivar especialidad':'Desactivar especialidad'} message={statusTarget?.isActive===false?'La especialidad volverá a estar disponible para nuevas asignaciones y reservas.':'La especialidad dejará de ofrecerse para nuevas asignaciones. Se conservarán sus relaciones e historiales existentes.'} confirmLabel={statusTarget?.isActive===false?'Reactivar':'Desactivar'} destructive={statusTarget?.isActive!==false} onCancel={()=>setStatusTarget(null)} onConfirm={async()=>{
+      const target=statusTarget;if(!target)return;
+      await auth.request(`/admin/specialties/${encodeURIComponent(target.id)}`,{method:'PUT',body:{isActive:target.isActive===false}});
+      setStatusTarget(null);specialties.reload();showToast(target.isActive===false?'Especialidad reactivada':'Especialidad desactivada','success');
+    }}/>
   </ScreenContainer>;
 }
