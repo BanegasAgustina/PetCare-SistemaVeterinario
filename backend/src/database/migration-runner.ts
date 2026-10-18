@@ -18,7 +18,7 @@ export async function runMigrations(directory?: string): Promise<number> {
           checksum CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
           state ENUM('running', 'applied') NOT NULL,
           applied_at TIMESTAMP(3) NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci`);
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
         const [records] = await connection.execute<MigrationRecord[]>('SELECT version, checksum, state FROM schema_migrations');
         verifyMigrationHistory(files, records);
         let appliedCount = 0;

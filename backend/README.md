@@ -57,7 +57,7 @@ Las respuestas omiten password_hash, secretos y detalles internos. Usuario inexi
 | 401 | INVALID_TOKEN / TOKEN_EXPIRED | Token inválido o vencido |
 | 429 | TOO_MANY_ATTEMPTS | Límite de intentos; reintentar después |
 | 503 | AUTH_UNAVAILABLE / DB_UNAVAILABLE | Configuración o dependencia no disponible |
-| 500 | INTERNAL_ERROR / DB_ERROR | Fallo interno seguro |
+| 500 | INTERNAL_ERROR / DB_ERROR / SCHEMA_UPDATE_REQUIRED | Fallo interno o esquema incompatible; requiere corrección del backend/base |
 
 Formato de error: `{"success":false,"error":{"code":"INVALID_CREDENTIALS","message":"Email o contraseña incorrectos."}}`. Auth responde Cache-Control: no-store. Access Token se renueva con refresh rotativo; hace falta volver a iniciar sesión si la familia vence o se revoca. Logout mobile borra su sesión local: un token emitido conserva validez hasta expirar salvo desactivación o cambio de versión de sesión. Esta versión incluye permisos y restablecimiento iniciado por Super Admin para veterinarios mediante invitación. OAuth Google/Facebook/X está implementado; requiere las credenciales/callbacks externos documentados en ../mobile/README.md.
 
@@ -101,13 +101,13 @@ npm run db:seed
 npm run db:check
 ```
 
-`db:create` crea la base indicada por DB_NAME, con utf8mb4/utf8mb4_0900_as_ci, sin eliminar datos. Si la base ya existe, no cambia su configuración; los objetos nuevos declaran explícitamente charset/collation. El nombre de la base debe comenzar con una letra y contener hasta 64 letras, números o guiones bajos.
+`db:create` crea la base indicada por DB_NAME, con utf8mb4/utf8mb4_unicode_ci, sin eliminar datos. Esa collation funciona en MySQL 8+ y MariaDB 11.8; `utf8mb4_0900_as_ci` solo existe en MySQL 8 y no debe usarse en DDL compartido. Si la base ya existe, no cambia su configuración; los objetos nuevos declaran explícitamente charset/collation. El nombre de la base debe comenzar con una letra y contener hasta 64 letras, números o guiones bajos.
 
 Alternativa: un administrador puede crearla desde Workbench y omitir `db:create`:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS petcare
-CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci;
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 Después ejecutar migraciones, seeds y comprobación con las credenciales locales autorizadas. En producción separar el usuario de migraciones (DDL) del usuario de API (solo los permisos de datos necesarios), en lugar de otorgar permisos globales. Usar respaldos antes de aplicar cambios sobre datos existentes. Se recomienda configurar el servidor MySQL en UTC; el driver usa timezone Z y retorna fechas como strings.
@@ -124,12 +124,12 @@ Después ejecutar migraciones, seeds y comprobación con las credenciales locale
 | DB_USER | petcare solo fuera de producción | Usuario MySQL; obligatorio en producción |
 | DB_PASSWORD | vacío solo fuera de producción | Contraseña MySQL; obligatoria en producción |
 | DB_SSL_MODE | `disabled` en local; `required` para Layerbase y produccion | TLS: `disabled`, `required` o `verify_identity` |
-| DB_CONNECTION_LIMIT | 5 | Conexiones del pool, entero de 1 a 100 |
+| DB_CONNECTION_LIMIT | 1 en Vercel; 5 en local | Conexiones por instancia del pool; en Vercel se acepta de 1 a 10 y fuera de Vercel de 1 a 100 |
 | DB_CONNECT_TIMEOUT_MS | 30000 | Tiempo al abrir conexion, de 1 a 60000 ms |
 
 Layerbase entrega host, puerto asignado, esquema, usuario y contrasena en Quick Connect. Configurar esos valores en `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD`; PetCare usa el pool `mysql2` existente y no necesita un driver especifico ni una URL Layerbase. El codigo ignora `MYSQL_PUBLIC_URL`; no conservar esa variable si apunta a otra conexion. El host Railway se rechaza para evitar volver a conectar al proveedor anterior.
 
-Layerbase requiere TLS. `DB_SSL_MODE=required` cifra la conexion del puerto pooler; su certificado no es de confianza publica, por lo que la verificacion estricta falla en ese endpoint. Si Quick Connect selecciona el endpoint directo, usar `verify_identity` para validar el certificado y el nombre del host. En MySQL local se puede usar `disabled`; no se permite desactivar TLS para Layerbase ni en produccion. El timeout predeterminado de 30 s contempla el despertar de una base hibernada. `DB_CONNECT_TIMEOUT_MS` limita solo la apertura de conexion, no las consultas ni la espera de cola. El pool tiene cola maxima de 50 y `multipleStatements=false`. BIGINT se devuelve como string para evitar perdida de precision. `.env` esta ignorado por Git; nunca copiar DB_* al bundle mobile.
+Layerbase requiere TLS. `DB_SSL_MODE=required` cifra la conexion del puerto pooler; su certificado no es de confianza publica, por lo que la verificacion estricta falla en ese endpoint. Si Quick Connect selecciona el endpoint directo, usar `verify_identity` para validar el certificado y el nombre del host. En MySQL local se puede usar `disabled`; no se permite desactivar TLS para Layerbase ni en produccion. El timeout predeterminado de 30 s contempla el despertar de una base hibernada. `DB_CONNECT_TIMEOUT_MS` limita solo la apertura de conexion, no las consultas ni la espera de cola. En Vercel cada instancia usa un pool de 1 conexion por defecto (10 solicitudes en cola); `DB_CONNECTION_LIMIT` permite ajustarlo hasta 10. Fuera de Vercel el pool usa 5 conexiones y cola maxima de 50. `multipleStatements=false`. BIGINT se devuelve como string para evitar perdida de precision. `.env` esta ignorado por Git; nunca copiar DB_* al bundle mobile.
 
 El repositorio contiene `mobile/vercel.json` para el frontend. El backend Express esta en `backend/src/app.ts`; Vercel reconoce esa entrada cuando el proyecto usa `backend` como `Root Directory`. Los dos proyectos Vercel tienen entornos y variables independientes.
 
@@ -290,7 +290,7 @@ Si no puede conectar, responde 503 sin host, usuario, contraseña, nombre de bas
 
 Una versión incompatible devuelve 503/DB_VERSION_UNSUPPORTED. Readiness no verifica que el esquema o seeds estén completos: comprobarlos con los comandos de preparación. No existen endpoints CRUD de usuarios/mascotas.
 
-Errores DB centralizados: DB_CONFLICT (409), DB_RELATION_CONFLICT (409), DB_INVALID_DATA (400), DB_UNAVAILABLE (503) y DB_ERROR (500). Conservan la causa internamente pero la respuesta selecciona solo code/message públicos. Futuros repositorios deben usar runDatabaseOperation y consultas parametrizadas. Los comandos CLI también ocultan detalles de MySQL.
+Errores DB centralizados: DB_CONFLICT (409), DB_RELATION_CONFLICT (409), DB_INVALID_DATA (400), DB_UNAVAILABLE (503), SCHEMA_UPDATE_REQUIRED (500) y DB_ERROR (500). Una tabla/columna/collation ausente es un fallo persistente del esquema, no una indisponibilidad temporal. Conservan la causa internamente pero la respuesta selecciona solo code/message públicos. Futuros repositorios deben usar runDatabaseOperation y consultas parametrizadas. Los comandos CLI también ocultan detalles de MySQL.
 
 Se mantienen 404/NOT_FOUND, 400/INVALID_JSON, 413/PAYLOAD_TOO_LARGE y 500/INTERNAL_ERROR. CORS permite únicamente los orígenes web explícitos de CORS_ALLOWED_ORIGINS; el cliente nativo no requiere CORS.
 

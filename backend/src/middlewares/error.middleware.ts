@@ -9,9 +9,14 @@ export const notFoundHandler: RequestHandler = (_request, response) => {
   response.status(404).json(result);
 };
 
-export const errorHandler: ErrorRequestHandler = (error: unknown, _request, response, next) => {
+export const errorHandler: ErrorRequestHandler = (error: unknown, request, response, next) => {
   if (response.headersSent) { next(error); return; }
   if (error instanceof DatabaseError || error instanceof AppError) {
+    if (error instanceof DatabaseError && error.code === 'SCHEMA_UPDATE_REQUIRED') {
+      const routePath = typeof request.route?.path === 'string' ? request.route.path : '';
+      const route = `${request.baseUrl}${routePath}`.replace(/[^A-Za-z0-9_/:.-]/g, '').slice(0, 160);
+      console.error('[DATABASE_SCHEMA_REQUEST]', JSON.stringify({ method: request.method, route: route || 'unknown' }));
+    }
     const result: ApiFailure = { success: false, error: { code: error.code, message: error.message,
       ...(error instanceof AppError && error.verification ? { verification: error.verification } : {}) } };
     response.status(error.status).json(result);

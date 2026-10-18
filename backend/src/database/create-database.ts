@@ -14,7 +14,8 @@ export async function createDatabase(): Promise<void> {
       assertMysql8Version(rows[0].version);
       // Excepción controlada: un identificador SQL no puede usar ?. DB_NAME ya fue
       // validado estrictamente en env.ts; se encierra entre backticks adicionalmente.
-      await connection.execute(`CREATE DATABASE IF NOT EXISTS \`${env.database.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci`);
+      // utf8mb4_0900_as_ci solo existe en MySQL 8; unicode_ci es compatible con MariaDB 11.8.
+      await connection.execute(`CREATE DATABASE IF NOT EXISTS \`${env.database.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
     } finally { await connection.end(); }
   });
 }

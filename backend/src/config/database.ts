@@ -20,7 +20,7 @@ export const databasePool = mysql.createPool({
   ...databaseOptions,
   waitForConnections: true,
   connectionLimit: env.databaseConnectionLimit,
-  queueLimit: 50,
+  queueLimit: env.databaseQueueLimit,
 });
 
 // UTC mantiene alineados TIMESTAMP, UTC_TIMESTAMP y los vencimientos persistidos por la aplicación.

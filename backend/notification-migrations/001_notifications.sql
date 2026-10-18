@@ -18,7 +18,7 @@ CREATE TABLE client_push_tokens (
   KEY idx_client_push_tokens_user (user_id, revoked_at),
   CONSTRAINT fk_client_push_tokens_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE client_notification_push_deliveries (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -41,7 +41,7 @@ CREATE TABLE client_notification_push_deliveries (
     FOREIGN KEY (notification_id) REFERENCES client_notifications(id) ON DELETE CASCADE,
   CONSTRAINT fk_notification_push_delivery_token
     FOREIGN KEY (push_token_id) REFERENCES client_push_tokens(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE client_notification_email_deliveries (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -58,4 +58,4 @@ CREATE TABLE client_notification_email_deliveries (
   KEY idx_notification_email_pending (status, next_attempt_at, id),
   CONSTRAINT fk_notification_email_delivery_notification
     FOREIGN KEY (notification_id) REFERENCES client_notifications(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

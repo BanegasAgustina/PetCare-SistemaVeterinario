@@ -17,7 +17,7 @@ export async function migratePasswordResets(){
       checksum CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
       state ENUM('running','applied') NOT NULL,
       applied_at TIMESTAMP(3) NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci`);
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     const [history]=await connection.execute<RowDataPacket[]>('SELECT checksum,state FROM password_reset_schema_migrations WHERE version=?',[version]);
     if(history.length){if(history[0].checksum!==checksum||history[0].state!=='applied')throw new Error('Historial de recuperación incompleto o incompatible. Inspeccioná el esquema antes de continuar.');console.info('La migración de recuperación ya está aplicada.');return;}
     const [users]=await connection.execute<RowDataPacket[]>("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users'");

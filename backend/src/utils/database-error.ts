@@ -8,10 +8,10 @@ export class DatabaseError extends Error {
 }
 
 const unavailableCodes = new Set([
-  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH',
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EACCES',
   'PROTOCOL_CONNECTION_LOST', 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR', 'PROTOCOL_ENQUEUE_AFTER_QUIT',
   'ER_ACCESS_DENIED_ERROR', 'ER_DBACCESS_DENIED_ERROR', 'ER_BAD_DB_ERROR',
-  'ER_CON_COUNT_ERROR', 'ER_SERVER_SHUTDOWN', 'ER_SERVER_OFFLINE_MODE',
+  'ER_CON_COUNT_ERROR', 'ER_SERVER_SHUTDOWN', 'ER_SERVER_OFFLINE_MODE', 'POOL_ENQUEUELIMIT',
 ]);
 
 export function normalizeDatabaseError(error: unknown): DatabaseError {
@@ -21,12 +21,12 @@ export function normalizeDatabaseError(error: unknown): DatabaseError {
     console.error('[DATABASE_UNAVAILABLE]', JSON.stringify({ code }));
     return new DatabaseError('DB_UNAVAILABLE', 503, 'La base de datos no está disponible. Intentá nuevamente.', error);
   }
-  if (['ER_NO_SUCH_TABLE','ER_BAD_FIELD_ERROR'].includes(code)) {
+  if (['ER_NO_SUCH_TABLE','ER_BAD_FIELD_ERROR','ER_UNKNOWN_COLLATION','ER_COLLATION_CHARSET_MISMATCH'].includes(code)) {
     const message = typeof error === 'object' && error !== null && 'sqlMessage' in error ? String(error.sqlMessage) : '';
     const object = /(?:Table|Unknown column)\s+['`]?([A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)?)['`]?/i.exec(message)?.[1];
     // Registrar solo el código y el identificador validado: nunca SQL, valores ni sqlMessage completo.
     console.error('[DATABASE_SCHEMA_ERROR]', JSON.stringify({ code, ...(object ? { object } : {}) }));
-    return new DatabaseError('SCHEMA_UPDATE_REQUIRED',503,'No pudimos recuperar los datos de la clínica. Intentá nuevamente.',error);
+    return new DatabaseError('SCHEMA_UPDATE_REQUIRED',500,'No pudimos recuperar los datos de la clínica. El esquema de la base requiere una actualización.',error);
   }
   if (code === 'ER_DUP_ENTRY') return new DatabaseError('DB_CONFLICT', 409, 'Ya existe un registro con esos datos únicos.', error);
   if (['ER_NO_REFERENCED_ROW_2', 'ER_ROW_IS_REFERENCED_2'].includes(code)) {

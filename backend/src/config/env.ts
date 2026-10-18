@@ -89,7 +89,10 @@ export const env = {
     password: process.env.DB_PASSWORD ?? '',
     ssl: databaseSslMode === 'disabled' ? undefined : databaseSslMode === 'verify_identity' ? { verifyIdentity: true } : { rejectUnauthorized: false },
   },
-  databaseConnectionLimit: readPositiveInteger('DB_CONNECTION_LIMIT', 5, 100),
+  // Cada instancia serverless conserva su propio pool; un pool de 5 multiplicado
+  // por la concurrencia de Vercel puede agotar el límite de Layerbase.
+  databaseConnectionLimit: readPositiveInteger('DB_CONNECTION_LIMIT', isVercelRuntime ? 1 : 5, isVercelRuntime ? 10 : 100),
+  databaseQueueLimit: isVercelRuntime ? 10 : 50,
   databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 30000, 60000),
   bcryptSaltRounds: readPositiveInteger('BCRYPT_SALT_ROUNDS', 12, 14),
   corsAllowedOrigins: [...new Set([...(nodeEnvironment === 'production' ? [] : localWebOrigins), ...petcareWebOrigins, ...configuredCorsOrigins])],
