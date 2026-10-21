@@ -14,7 +14,7 @@ import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 export type DeliveryZone = { id: string; name: string; province: string; city: string; postalCodePrefix: string | null; feeCents: number | null; isActive: boolean };
 export type FulfillmentSettings = { pickupEnabled: boolean; pickupAddress: string | null; pickupHours: string | null; pickupInstructions: string | null; deliveryEnabled: boolean; deliveryBaseFeeCents: number; freeDeliveryThresholdCents: number | null; deliveryHours: string | null; deliveryDays: string | null; deliveryInformation: string | null; bankName: string | null; bankAccountHolder: string | null; bankCbuCvu: string | null; bankAlias: string | null; zones: DeliveryZone[] };
 export type PromotionBanner = { id:string;name:string;description:string|null;imageUrl:string|null;categoryId:string|null;category:string|null;stock:number;isActive:boolean;priceCents:number;regularPriceCents:number;requiresPrescription:boolean;speciesId:string|null;productType:'GENERAL'|'MEDICINE'|'ACCESSORY';promotionName:string;bannerSubtitle:string|null;bannerCtaText:string };
-export type StoreBanner={id:string;title:string;subtitle:string|null;description:string|null;mobileImageUrl:string;desktopImageUrl:string|null;backgroundColor:string;textColor:string;contentAlignment:'LEFT'|'CENTER'|'RIGHT';darkOverlay:boolean;destinationType:'PRODUCT'|'CATEGORY'|'PROMOTION'|'PRODUCT_LIST'|'INFO';destinationId:string|null;targetProductId:string|null;ctaText:string|null;sortOrder:number;isActive:boolean;startsAt:string|null;endsAt:string|null};
+export type StoreBanner={id:string;title:string|null;subtitle:string|null;description:string|null;mobileImageUrl:string;desktopImageUrl:string|null;backgroundColor:string;textColor:string;contentAlignment:'LEFT'|'CENTER'|'RIGHT';darkOverlay:boolean;destinationType:'PRODUCT'|'CATEGORY'|'PROMOTION'|'PRODUCT_LIST'|'INFO';destinationId:string|null;targetProductId:string|null;ctaText:string|null;sortOrder:number;isActive:boolean;startsAt:string|null;endsAt:string|null};
 
 export async function publicBanners():Promise<StoreBanner[]> {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT CAST(b.id AS CHAR) AS id,b.title,b.subtitle,b.description,b.mobile_image_url AS mobileImageUrl,b.desktop_image_url AS desktopImageUrl,
@@ -49,7 +49,7 @@ export async function adminBanners(actor:AuthUser):Promise<{items:StoreBanner[];
 export async function saveBanner(actor:AuthUser,rawId:unknown,value:unknown) {
   const id=rawId===undefined?null:v.id(rawId);
   const body=v.body(value,['title','subtitle','description','mobileImageUrl','desktopImageUrl','backgroundColor','textColor','contentAlignment','darkOverlay','destinationType','destinationId','ctaText','sortOrder','isActive','startsAt','endsAt']);
-  const title=v.text(body.title,160)!;const subtitle=v.text(body.subtitle,250,true)??null;const description=v.text(body.description,5000,true)??null;
+  const title=v.text(typeof body.title==='string'?body.title.trim():body.title,160,true);const subtitle=v.text(body.subtitle,250,true)??null;const description=v.text(body.description,5000,true)??null;
   const mobileImage=v.imageUrl(body.mobileImageUrl);if(!mobileImage||!isBannerPhotoKey(mobileImage))v.invalid('Subí una imagen válida para móvil.');
   const desktopImage=body.desktopImageUrl===null||body.desktopImageUrl===''||body.desktopImageUrl===undefined?null:v.imageUrl(body.desktopImageUrl);
   if(desktopImage&&!isBannerPhotoKey(desktopImage))v.invalid('Subí una imagen válida para escritorio.');
