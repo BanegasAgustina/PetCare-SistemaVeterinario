@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../layout/ScreenContainer';
 import { AppText } from '../ui/AppText';
@@ -13,45 +13,55 @@ import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { SelectionRow } from '../ui/SelectionRow';
-import { SearchFilterBar } from '../ui/SearchFilterBar';
 import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
-import { PetCareCard, PetCareEmptyState } from '../client/PetCareUI';
-import { AdminFormActions, AdminFormSection } from './AdminFormLayout';
-import { AdminPageHeading } from './AdminPageHeading';
+import { PetCareEmptyState } from '../client/PetCareUI';
+import { useTheme } from '../../hooks/useTheme';
 import type { ClinicRow } from '../../types/clinic';
 import type { Specialty } from '../../types/veterinarian';
 
+type Tab = 'types' | 'specialties';
 type EditItem = { kind: 'type'; row: ClinicRow | null } | { kind: 'specialty'; row: Specialty | null };
+type ListedRow = { kind: 'type'; row: ClinicRow } | { kind: 'specialty'; row: Specialty };
 
-/** Presenta tipos profesionales y especialidades en un único espacio, sin mezclar sus relaciones. */
+/** Catálogos separados, con permisos y recorridos existentes. */
 export default function SpecialtiesScreen() {
   const auth = useAuth();
   const admin = useAdmin();
   const clinic = useClinic();
   const action = useAsyncAction();
+  const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const { showToast } = useFeedback();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<EditItem | null>(null);
-  const [statusTarget,setStatusTarget]=useState<Specialty|null>(null);
+  const [statusTarget, setStatusTarget] = useState<Specialty | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Specialty | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all'|'active'|'inactive'>('all');
   const [name, setName] = useState('');
   const [roleId, setRoleId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const canEditTypes = auth.hasPermission('professional_types.manage');
   const canEditSpecialties = auth.hasPermission('specialties.manage');
+  const [tab, setTab] = useState<Tab>(() => canEditTypes || !canEditSpecialties ? 'types' : 'specialties');
   const request = auth.request;
   const specialties = useClientQuery(useCallback(() => canEditSpecialties ? request<Specialty[]>('/admin/specialties') : Promise.resolve([]), [request, canEditSpecialties]));
   const types = useClientQuery(useCallback(() => canEditTypes ? clinic.adminList('types') : Promise.resolve([]), [clinic, canEditTypes]));
   const roles = useClientQuery(useCallback(() => canEditTypes ? admin.catalog() : Promise.resolve(null), [admin, canEditTypes]));
-  const rows = useMemo(() => {
+
+  const rows = useMemo<ListedRow[]>(() => {
     const needle = search.trim().toLocaleLowerCase();
-    return [
-      ...(types.data ?? []).filter(row => String(row.name).toLocaleLowerCase().includes(needle)).map(row => ({ kind: 'type' as const, row })),
-      ...(specialties.data ?? []).filter(row => row.name.toLocaleLowerCase().includes(needle)).map(row => ({ kind: 'specialty' as const, row })),
-    ];
-  }, [types.data, specialties.data, search]);
-  const typeRows = rows.filter(item => item.kind === 'type');
-  const specialtyRows = rows.filter(item => item.kind === 'specialty');
+    if (tab === 'types') return (types.data ?? [])
+      .filter(row => String(row.name).toLocaleLowerCase().includes(needle))
+      .map(row => ({ kind: 'type', row }));
+    return (specialties.data ?? [])
+      .filter(row => row.name.toLocaleLowerCase().includes(needle) && (statusFilter === 'all' || (row.isActive !== false) === (statusFilter === 'active')))
+      .map(row => ({ kind: 'specialty', row }));
+  }, [tab, types.data, specialties.data, search, statusFilter]);
+
+  const loading = tab === 'types' ? types.loading : specialties.loading;
+  const listError = tab === 'types' ? types.error ?? roles.error : specialties.error;
+  const currentCount = tab === 'types' ? types.data?.length ?? 0 : specialties.data?.length ?? 0;
 
   function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
     setEditing(kind === 'type' ? { kind, row: row as ClinicRow | null } : { kind, row: row as Specialty | null });
@@ -59,14 +69,18 @@ export default function SpecialtiesScreen() {
     const professionalType = kind === 'type' ? row as ClinicRow | null : null;
     setRoleId(professionalType?.roleId == null ? '' : String(professionalType.roleId));
     setError(null);
+    action.clearError();
   }
+
   function close() {
     if (action.loading) return;
     setEditing(null);
     setName('');
     setRoleId('');
     setError(null);
+    action.clearError();
   }
+
   async function save() {
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 100) {
@@ -89,57 +103,133 @@ export default function SpecialtiesScreen() {
         await clinic.adminSave('types', id ? String(id) : undefined, id ? { name: trimmed } : { name: trimmed, roleId, isClinical: role?.code === 'VETERINARIAN' });
         types.reload();
       }
-      showToast('Cambios guardados', 'success');
+      showToast(editing?.row ? 'Cambios guardados' : 'Registro creado', 'success');
     });
     if (saved) close();
   }
-  function renderRow({ kind, row }: (typeof rows)[number]) {
+
+  function renderRow({ kind, row }: ListedRow) {
     const permitted = kind === 'type' ? canEditTypes : canEditSpecialties;
     const role = kind === 'type' ? roles.data?.roles.find(item => item.id === String(row.roleId)) : null;
-    return <PetCareCard key={`${kind}-${row.id}`}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <AppText variant="subtitle" numberOfLines={1}>{String(row.name)}</AppText>
-          <AppText muted>{kind === 'type' ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}` : `Especialidad veterinaria · ${(row as Specialty).isActive===false?'Inactiva':'Activa'}`}</AppText>
-        </View>
-        {permitted&&kind==='specialty'&&<AppButton compact variant={(row as Specialty).isActive===false?'primary':'secondary'} destructive={(row as Specialty).isActive!==false} label={(row as Specialty).isActive===false?'Reactivar':'Desactivar'} onPress={()=>setStatusTarget(row as Specialty)}/>}
-        {permitted && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} onPress={() => begin(kind, row)} style={{ padding: 10 }}><Ionicons name="create-outline" size={22} /></Pressable>}
+    const active = kind === 'specialty' ? (row as Specialty).isActive !== false : null;
+    const descriptor = kind === 'type'
+      ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}`
+      : 'Especialidad veterinaria';
+    return <View key={`${kind}-${row.id}`} style={[styles.rowCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.accent }]}>
+        <Ionicons name={kind === 'type' ? 'people-outline' : 'ribbon-outline'} size={20} color={colors.primary} />
       </View>
-    </PetCareCard>;
+      <View style={styles.rowInfo}>
+        <AppText variant="subtitle" numberOfLines={1}>{String(row.name)}</AppText>
+        <AppText variant="caption" muted numberOfLines={1}>{descriptor}</AppText>
+      </View>
+      {active !== null && <View style={[styles.statusPill, { backgroundColor: active ? '#e6f3ed' : colors.accent }]}>
+        <View style={[styles.statusDot, { backgroundColor: active ? '#23805d' : colors.muted }]} />
+        <AppText variant="caption" style={{ color: active ? '#176347' : colors.muted }}>{active ? 'Activa' : 'Inactiva'}</AppText>
+      </View>}
+      {permitted && kind === 'specialty' && <Pressable accessibilityRole="button" accessibilityLabel={active ? `Desactivar ${String(row.name)}` : `Reactivar ${String(row.name)}`} hitSlop={6} onPress={() => setStatusTarget(row as Specialty)} style={[styles.iconButton, { backgroundColor: colors.accent }]}>
+        <Ionicons name={active ? 'pause-outline' : 'play-outline'} size={19} color={colors.primary} />
+      </Pressable>}
+      {permitted && kind === 'specialty' && <Pressable accessibilityRole="button" accessibilityLabel={`Eliminar ${String(row.name)}`} hitSlop={6} onPress={() => setDeleteTarget(row as Specialty)} style={[styles.iconButton, { backgroundColor: colors.accent }]}>
+        <Ionicons name="trash-outline" size={18} color={colors.danger} />
+      </Pressable>}
+      {permitted && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} hitSlop={6} onPress={() => begin(kind, row)} style={[styles.iconButton, { backgroundColor: colors.accent }]}>
+        <Ionicons name="create-outline" size={19} color={colors.primary} />
+      </Pressable>}
+    </View>;
   }
 
+  const editingExisting = Boolean(editing?.row);
+  const saveLabel = editingExisting ? 'Guardar cambios' : editing?.kind === 'type' ? 'Crear tipo profesional' : 'Crear especialidad';
+
   return <ScreenContainer keyboardAvoiding wide>
-    <AdminPageHeading title="Tipos y especialidades"/>
-    <AppText muted>Administrá cada catálogo por separado; las asignaciones actuales se conservan.</AppText>
-    <SearchFilterBar><AppInput icon="search-outline" label="Buscar" placeholder="Nombre" value={search} onChangeText={setSearch} returnKeyType="search" /></SearchFilterBar>
-    {(canEditTypes || canEditSpecialties) && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-      {canEditTypes && <AppButton compact label="Crear tipo profesional" onPress={() => begin('type')} />}
-      {canEditSpecialties && <AppButton compact label="Crear especialidad" variant="secondary" onPress={() => begin('specialty')} />}
-    </View>}
-    <FormNotice error message={types.error ?? specialties.error ?? roles.error} />
-    {(types.loading || specialties.loading) && <AppText muted>Consultando catálogos…</AppText>}
-    {!types.loading && !specialties.loading && !rows.length && <PetCareEmptyState title="No hay resultados" message="Probá con otro nombre o creá un registro." />}
-    {typeRows.length > 0 && <AppText variant="subtitle">Tipos profesionales</AppText>}
-    {typeRows.map(renderRow)}
-    {specialtyRows.map(renderRow)}
+    <View style={[styles.content, { maxWidth: width >= 1024 ? 900 : '100%' }]}>
+      {(canEditTypes || canEditSpecialties) && <View style={[styles.tabs, { backgroundColor: colors.accent }]}>
+        {canEditTypes && <Pressable accessibilityRole="tab" accessibilityState={{ selected: tab === 'types' }} onPress={() => { setTab('types'); setSearch(''); }} style={[styles.tab, tab === 'types' && { backgroundColor: colors.primary }]}>
+          <Ionicons name="people-outline" size={17} color={tab === 'types' ? colors.onPrimary : colors.text} />
+          <AppText variant="caption" style={{ color: tab === 'types' ? colors.onPrimary : colors.text }}>Tipos profesionales</AppText>
+          <AppText variant="caption" style={{ color: tab === 'types' ? colors.onPrimary : colors.muted }}>{types.data?.length ?? 0}</AppText>
+        </Pressable>}
+        {canEditSpecialties && <Pressable accessibilityRole="tab" accessibilityState={{ selected: tab === 'specialties' }} onPress={() => { setTab('specialties'); setSearch(''); }} style={[styles.tab, tab === 'specialties' && { backgroundColor: colors.primary }]}>
+          <Ionicons name="ribbon-outline" size={17} color={tab === 'specialties' ? colors.onPrimary : colors.text} />
+          <AppText variant="caption" style={{ color: tab === 'specialties' ? colors.onPrimary : colors.text }}>Especialidades</AppText>
+          <AppText variant="caption" style={{ color: tab === 'specialties' ? colors.onPrimary : colors.muted }}>{specialties.data?.length ?? 0}</AppText>
+        </Pressable>}
+      </View>}
+
+      <AppInput compact label="Buscar por nombre" placeholder="Ej.: Cardiología" value={search} onChangeText={setSearch} returnKeyType="search" icon="search-outline" />
+      {tab === 'specialties' && <View style={styles.filters}>{(['all','active','inactive'] as const).map(status=><AppButton key={status} compact variant={statusFilter === status ? 'primary' : 'secondary'} label={status === 'all' ? 'Todas' : status === 'active' ? 'Activas' : 'Inactivas'} onPress={() => setStatusFilter(status)} />)}</View>}
+
+      {((tab === 'types' && canEditTypes) || (tab === 'specialties' && canEditSpecialties)) && <View style={styles.listHeading}>
+        <AppButton compact label={tab === 'types' ? 'Nuevo tipo' : 'Nueva especialidad'} onPress={() => begin(tab === 'types' ? 'type' : 'specialty')} />
+      </View>}
+
+      <FormNotice error message={listError} />
+      {loading && <AppText muted>Consultando {tab === 'types' ? 'tipos profesionales' : 'especialidades'}…</AppText>}
+      {!loading && rows.length > 0 && <View style={styles.rows}>{rows.map(renderRow)}</View>}
+      {!loading && !rows.length && (currentCount > 0 || search.trim()
+        ? <PetCareEmptyState title="No hay coincidencias" message="Probá con otro nombre o limpiá la búsqueda." />
+        : <PetCareEmptyState title={tab === 'types' ? 'Todavía no hay tipos profesionales' : 'Todavía no hay especialidades'} message="Los registros que agregues aparecerán en esta lista." />)}
+    </View>
+
     <AppModal visible={Boolean(editing)} dismissible onClose={close}>
       {editing && <>
-        <AppText variant="title">{editing.row ? 'Editar' : 'Crear'} {editing.kind === 'type' ? 'tipo profesional' : 'especialidad'}</AppText>
-        <AdminFormSection title={editing.kind === 'type' ? 'Tipo profesional' : 'Especialidad'}>
+        <View style={styles.modalHeader}>
+          <View style={styles.modalTitleBlock}>
+            <AppText variant="title">{editingExisting ? 'Editar' : 'Crear'} {editing.kind === 'type' ? 'tipo profesional' : 'especialidad'}</AppText>
+            <AppText variant="caption" muted>{editing.kind === 'type' ? 'Completá los datos del perfil profesional.' : 'Definí el nombre que se asignará a los profesionales.'}</AppText>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cerrar formulario" disabled={action.loading} onPress={close} hitSlop={8} style={styles.closeButton}>
+            <Ionicons name="close" size={22} color={colors.muted} />
+          </Pressable>
+        </View>
+        <View style={styles.formSection}>
           <AppInput label="Nombre" required value={name} maxLength={100} editable={!action.loading} onChangeText={value => { setName(value); setError(null); }} />
           {editing.kind === 'type' && !editing.row && <>
-            <AppText>Rol profesional</AppText>
+            <AppText variant="caption" muted>Rol profesional</AppText>
             {(roles.data?.roles ?? []).filter(role => ['VETERINARIAN', 'GROOMER'].includes(role.code)).map(role => <SelectionRow radio key={role.id} label={role.name} checked={roleId === role.id} onPress={() => { setRoleId(role.id); setError(null); }} />)}
           </>}
-        </AdminFormSection>
+        </View>
         <FormNotice error message={error ?? action.error} />
-        <AdminFormActions><AppButton label="Guardar cambios" loading={action.loading} onPress={() => void save()} /><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={close} /></AdminFormActions>
+        <View style={styles.formActions}>
+          <AppButton compact label={saveLabel} loading={action.loading} onPress={() => void save()} />
+          <AppButton compact label="Cancelar" variant="secondary" disabled={action.loading} onPress={close} />
+        </View>
       </>}
     </AppModal>
-    <ConfirmModal visible={Boolean(statusTarget)} title={statusTarget?.isActive===false?'Reactivar especialidad':'Desactivar especialidad'} message={statusTarget?.isActive===false?'La especialidad volverá a estar disponible para nuevas asignaciones y reservas.':'La especialidad dejará de ofrecerse para nuevas asignaciones. Se conservarán sus relaciones e historiales existentes.'} confirmLabel={statusTarget?.isActive===false?'Reactivar':'Desactivar'} destructive={statusTarget?.isActive!==false} onCancel={()=>setStatusTarget(null)} onConfirm={async()=>{
-      const target=statusTarget;if(!target)return;
-      await auth.request(`/admin/specialties/${encodeURIComponent(target.id)}`,{method:'PUT',body:{isActive:target.isActive===false}});
-      setStatusTarget(null);specialties.reload();showToast(target.isActive===false?'Especialidad reactivada':'Especialidad desactivada','success');
-    }}/>
+
+    <ConfirmModal visible={Boolean(statusTarget)} title={statusTarget?.isActive === false ? 'Reactivar especialidad' : 'Desactivar especialidad'} message={statusTarget?.isActive === false ? 'La especialidad volverá a estar disponible para nuevas asignaciones y reservas.' : 'La especialidad dejará de ofrecerse para nuevas asignaciones. Se conservarán sus relaciones e historiales existentes.'} confirmLabel={statusTarget?.isActive === false ? 'Reactivar' : 'Desactivar'} destructive={statusTarget?.isActive !== false} onCancel={() => setStatusTarget(null)} onConfirm={async () => {
+      const target = statusTarget;
+      if (!target) return;
+      await auth.request(`/admin/specialties/${encodeURIComponent(target.id)}`, { method: 'PUT', body: { isActive: target.isActive === false } });
+      setStatusTarget(null);
+      specialties.reload();
+      showToast(target.isActive === false ? 'Especialidad reactivada' : 'Especialidad desactivada', 'success');
+    }} />
+    <ConfirmModal visible={Boolean(deleteTarget)} title="Eliminar especialidad" message="Solo se eliminará si no tiene servicios ni profesionales asociados. Si existen relaciones, el sistema conservará el registro y te indicará que lo desactives." confirmLabel="Eliminar" destructive onCancel={() => setDeleteTarget(null)} onConfirm={async()=>{
+      const target=deleteTarget;if(!target)return;
+      await auth.request(`/admin/specialties/${encodeURIComponent(target.id)}`,{method:'DELETE'});
+      setDeleteTarget(null);specialties.reload();showToast('Especialidad eliminada','success');
+    }} />
   </ScreenContainer>;
 }
+
+const styles = StyleSheet.create({
+  content: { width: '100%', alignSelf: 'center', gap: 14 },
+  tabs: { flexDirection: 'row', borderRadius: 14, padding: 4, gap: 4 },
+  tab: { flex: 1, minHeight: 42, borderRadius: 11, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  listHeading: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 2 },
+  filters: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  rows: { gap: 9 },
+  rowCard: { minHeight: 76, borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rowIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  rowInfo: { flex: 1, minWidth: 0, gap: 3 },
+  statusPill: { minHeight: 26, borderRadius: 13, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  iconButton: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  modalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  modalTitleBlock: { flex: 1, minWidth: 0, gap: 4 },
+  closeButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  formSection: { gap: 12, paddingTop: 4 },
+  formActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 4 },
+});

@@ -161,15 +161,15 @@ function discountPercentage(product: Product) {
 }
 
 const styles = StyleSheet.create({
-  productCard: { flex: 1, minHeight: 0, padding: 9, borderRadius: 18, borderWidth: 1, gap: 5 },
-  productImageFrame: { width: '100%', aspectRatio: 1, borderRadius: 13, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  productCard: { flex: 1, minHeight: 0, padding: 10, borderRadius: 20, borderWidth: 1, gap: 6 },
+  productImageFrame: { width: '100%', aspectRatio: 1, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   productImage: { width: '100%', height: '100%' }, productName: { minHeight: 38, fontSize: 15, lineHeight: 19 }, productBadge: { maxWidth: '100%', alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 11 }, productBadgeText: { fontSize: 12, lineHeight: 16 },
   priceBlock: { gap: 0, marginTop: 'auto' }, price: { fontSize: 16, lineHeight: 21 }, oldPrice: { textDecorationLine: 'line-through', fontSize: 12, lineHeight: 16 },
   cardActions: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginTop: 4 },
-  actionButton: { flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 5, paddingVertical: 4, flexDirection: 'row', gap: 4, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  actionButton: { flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 5, paddingVertical: 4, flexDirection: 'row', gap: 4, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontSize: 12, lineHeight: 15, fontWeight: '700', textAlign: 'center' }, cartAddIcon: { position: 'relative' }, cartPlus: { position: 'absolute', right: -3, top: -3, borderRadius: 6 },
   promotionSection: { width: '100%', gap: 8 },
-  storeBannerSection:{width:'100%',position:'relative',gap:8},storeBanner:{borderRadius:18,overflow:'hidden',justifyContent:'center',padding:22},storeBannerCopy:{maxWidth:'72%',gap:7},storeBannerTitle:{fontSize:26,lineHeight:31,fontWeight:'700'},storeBannerCta:{marginTop:4,minHeight:38,paddingHorizontal:12,borderRadius:12,borderWidth:1,flexDirection:'row',alignItems:'center',gap:8},storeBannerArrow:{position:'absolute',top:'43%',width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center',opacity:0.92},storeBannerPrev:{left:10},storeBannerNext:{right:10},storeBannerDots:{flexDirection:'row',justifyContent:'center',gap:8},storeBannerDot:{width:9,height:9,borderRadius:5},
+  storeBannerSection:{width:'100%',position:'relative',gap:8},storeBanner:{borderRadius:20,overflow:'hidden',justifyContent:'center',padding:22},storeBannerCopy:{maxWidth:'72%',gap:7},storeBannerTitle:{fontSize:26,lineHeight:31,fontWeight:'700'},storeBannerCta:{marginTop:4,minHeight:40,paddingHorizontal:13,borderRadius:14,borderWidth:1,flexDirection:'row',alignItems:'center',gap:8},storeBannerArrow:{position:'absolute',top:'43%',width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',opacity:0.92},storeBannerPrev:{left:10},storeBannerNext:{right:10},storeBannerDots:{flexDirection:'row',justifyContent:'center',gap:8},storeBannerDot:{width:9,height:9,borderRadius:5},
   promotionCard: { minHeight: 166, padding: 12, borderWidth: 1, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 10, overflow: 'hidden' },
   promotionCopy: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' }, promotionBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }, promotionTitle: { fontSize: 17, lineHeight: 20 }, promotionPrice: { flexDirection: 'row', alignItems: 'center', gap: 7 }, promotionCurrent: { fontSize: 16, lineHeight: 20, fontWeight: '700' },
   promotionImageFrame: { width: 94, height: 100, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, promotionImage: { width: '100%', height: '100%' },

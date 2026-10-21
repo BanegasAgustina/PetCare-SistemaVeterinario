@@ -18,7 +18,7 @@ test('client store services call the registered route suffixes', async () => {
 
 test('client checkout submits only an idempotency key, configured payment type and delivery details',async()=>{
  const requests:{path:string;method?:string;body?:unknown}[]=[];
- const request=async<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH';body?:unknown}):Promise<T>=>{requests.push({path,method:options?.method,body:options?.body});return {} as T;};
+  const request=async<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown}):Promise<T>=>{requests.push({path,method:options?.method,body:options?.body});return {} as T;};
  const api=clientService(request);
  await api.checkout({requestKey:'3a3c6736-c93d-4ac4-b699-8d7a812e4eb1',paymentMethod:'BANK_TRANSFER',paymentReference:'OP-1234',fulfillmentMethod:'DELIVERY',address:{recipientName:'Ana',phone:'1112345678',street:'Calle Uno',streetNumber:'10',unit:'',city:'La Plata',province:'Buenos Aires',postalCode:'1900',reference:''}});
  assert.deepEqual(requests,[{path:'/client/orders',method:'POST',body:{requestKey:'3a3c6736-c93d-4ac4-b699-8d7a812e4eb1',paymentMethod:'BANK_TRANSFER',paymentReference:'OP-1234',fulfillmentMethod:'DELIVERY',address:{recipientName:'Ana',phone:'1112345678',street:'Calle Uno',streetNumber:'10',unit:'',city:'La Plata',province:'Buenos Aires',postalCode:'1900',reference:''}}}]);
@@ -26,7 +26,7 @@ test('client checkout submits only an idempotency key, configured payment type a
 
 test('administrator store settings read and write the existing clinic configuration endpoint', async () => {
   const requests: { path: string; method?: string }[] = [];
-  const request = async <T,>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' }): Promise<T> => {
+  const request = async <T,>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown }): Promise<T> => {
     requests.push({ path, method: options?.method });
     return {} as T;
   };

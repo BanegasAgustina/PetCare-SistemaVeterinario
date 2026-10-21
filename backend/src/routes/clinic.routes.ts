@@ -15,8 +15,10 @@ clinicRouter.get('/slots',requireRole('VETERINARIAN','GROOMER','SECRETARY','ADMI
 clinicRouter.get('/appointments/:id',requireRole('VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'),requireAnyPermission('appointments.view_own','appointments.view_all'),h('appointment'));
 clinicRouter.get('/appointments',requireRole('VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'),requireAnyPermission('appointments.view_own','appointments.view_all'),h('appointments'));
 clinicRouter.patch('/appointments/:id',requireRole('VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'),requireAnyPermission('appointments.update_own','appointments.manage'),h('appointment-update'));
-clinicRouter.get('/patients/:id',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.view_information'),h('patient'));
-clinicRouter.get('/patients',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.view_information'),h('patients'));
+clinicRouter.get('/grooming/appointments/:id/record',requireRole('GROOMER'),requirePermission('appointments.view_own'),h('grooming-record'));
+clinicRouter.put('/grooming/appointments/:id/record',requireRole('GROOMER'),requirePermission('appointments.update_own'),h('grooming-record-save'));
+clinicRouter.get('/patients/:id',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requireAnyPermission('pets.view_information','appointments.view_own'),h('patient'));
+clinicRouter.get('/patients',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requireAnyPermission('pets.view_information','appointments.view_own'),h('patients'));
 clinicRouter.patch('/patients/:id',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-update'));
 clinicRouter.patch('/patients/:id/deactivate',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-deactivate'));
 clinicRouter.get('/patients/:id/records/:kind',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),h('clinical'));
@@ -45,3 +47,4 @@ clinicRouter.patch('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requir
 clinicRouter.get('/admin/:kind',requireRole('ADMIN','SUPER_ADMIN'),h('admin-list'));
 clinicRouter.post('/admin/:kind',requireRole('ADMIN','SUPER_ADMIN'),createAuthRateLimiter(),h('admin-save',201));
 clinicRouter.patch('/admin/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),h('admin-save'));
+clinicRouter.delete('/admin/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),h('admin-delete'));

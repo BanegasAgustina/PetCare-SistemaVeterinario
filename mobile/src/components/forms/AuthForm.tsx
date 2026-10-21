@@ -17,11 +17,12 @@ type AuthFormProps<T extends Record<string, string>> = {
   secondaryAction?: (loading: boolean) => ReactNode;
   compact?: boolean;
   centerSubmitButton?: boolean;
+  borderlessInputs?: boolean;
   /** Solo Login de poca altura; Registro mantiene sus medidas predeterminadas. */
   dense?: boolean;
 };
 
-export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false }: AuthFormProps<T>) {
+export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false, borderlessInputs = false }: AuthFormProps<T>) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
   const inputs = useRef<Partial<Record<keyof T, ComponentRef<typeof TextInput> | null>>>({});
@@ -44,7 +45,7 @@ export function AuthForm<T extends Record<string, string>>({ fields, initialValu
   };
   return <View style={[styles.form, compact && styles.compact, dense && { gap: 4 }]}>
     {fields.map((field, index) => <AppInput key={String(field.key)} {...field.inputProps}
-      ref={(input) => { inputs.current[field.key] = input; }} label={field.label} hint={field.hint} password={field.password} icon={field.icon} compact={dense}
+      ref={(input) => { inputs.current[field.key] = input; }} label={field.label} hint={field.hint} password={field.password} icon={field.icon} compact={dense} borderless={borderlessInputs}
       value={values[field.key]} error={errors[field.key]} editable={!action.loading}
       returnKeyType={index === fields.length - 1 ? 'done' : 'next'}
       onSubmitEditing={() => index === fields.length - 1 ? void submit() : inputs.current[fields[index + 1].key]?.focus()}

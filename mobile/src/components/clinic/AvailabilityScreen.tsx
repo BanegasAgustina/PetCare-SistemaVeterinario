@@ -23,7 +23,7 @@ export function AvailabilityScreen() {
     <AppText muted>Elegí un servicio para indicar quién lo brinda, los días de atención y el período en que ofrecerá turnos.</AppText>
     <PetCareCard>
       <AppText variant="subtitle">Para comprobar los turnos publicados</AppText>
-      <AppText muted>Abrí el servicio, elegí al profesional y consultá “Turnos publicados”. Los horarios libres se ofrecen a clientes en “Solicitar turno”; en Agenda aparecen cuando ya tienen una reserva.</AppText>
+      <AppText muted>Abrí el servicio, elegí al profesional y consultá el calendario de días con turnos. Al tocar una fecha, podés revisar sus horarios y desactivar uno o todos los turnos de ese día. Los horarios libres se ofrecen a clientes en “Solicitar turno”; en Agenda aparecen cuando ya tienen una reserva.</AppText>
     </PetCareCard>
     <SearchFilterBar><AppInput icon="search-outline" label="Buscar servicio" placeholder="Nombre del servicio" value={search} onChangeText={setSearch} /></SearchFilterBar>
     <QueryState {...catalog} />

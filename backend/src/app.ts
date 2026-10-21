@@ -20,7 +20,7 @@ export default app;
 configureProxyTrust(app, isVercelRuntime);
 app.disable('x-powered-by');
 // Solo se habilitan la web oficial y sus previews de Vercel; el cliente nativo no necesita CORS.
-app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(helmet({strictTransportSecurity:env.nodeEnvironment==='production'?undefined:false,contentSecurityPolicy:false}));
 const photoUploadLimiter=createAuthRateLimiter();
 // El cuerpo de fotos se procesa solo tras autenticar; el resto conserva su límite.

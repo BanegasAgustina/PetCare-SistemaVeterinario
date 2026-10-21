@@ -73,6 +73,19 @@ specialtiesAdminRouter.put('/:id',handler(async req=>runDatabaseOperation(async 
   const [updated]=await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties WHERE id=?',[id]);
   return {id:String(updated[0].id),name:String(updated[0].name),isActive:Boolean(updated[0].isActive)};
 })));
+specialtiesAdminRouter.delete('/:id',handler(async req=>runDatabaseOperation(async()=>{
+  const id=identifier(req.params.id);const connection=await databasePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows]=await connection.execute<RowDataPacket[]>('SELECT id FROM specialties WHERE id=? FOR UPDATE',[id]);
+    if(!rows.length)throw new AppError('NOT_FOUND',404,'Especialidad no encontrada.');
+    const [services]=await connection.execute<RowDataPacket[]>('SELECT id FROM client_services WHERE specialty_id=? LIMIT 1',[id]);
+    const [veterinarians]=await connection.execute<RowDataPacket[]>('SELECT id FROM veterinarian_specialties WHERE specialty_id=? LIMIT 1',[id]);
+    if(services.length||veterinarians.length)throw new AppError('RECORD_IN_USE',409,'No se puede eliminar definitivamente porque hay servicios o profesionales relacionados. Desactivá la especialidad para conservar esas relaciones.');
+    await connection.execute('DELETE FROM specialties WHERE id=?',[id]);
+    await connection.commit();return {deleted:true};
+  } catch(error) {await connection.rollback();throw error;} finally {connection.release();}
+})));
 
 /** Un solo panel. El backend entrega módulos accesibles del catálogo según permisos efectivos. */
 export const veterinarianPanelRouter = Router();

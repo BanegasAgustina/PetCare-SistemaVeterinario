@@ -27,10 +27,10 @@ export function AppModal({ visible, dismissible = false, onClose, size = 'defaul
 }
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }, keyboard: { pointerEvents: 'box-none', flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { width: '90%', maxWidth: 440, maxHeight: '90%', borderRadius: 26, borderWidth: 1, elevation: 4 },
+  card: { width: '92%', maxWidth: 440, maxHeight: '88%', borderRadius: 24, borderWidth: 1, elevation: 4 },
   wideCard: { maxWidth: 760 },
   desktopCard: { maxWidth: 600 },
   desktopWideCard: { maxWidth: 1000 },
-  content: { padding: 22, gap: 16 }, scrollContent: { flexShrink: 1 },
-  footer: { borderTopWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
+  content: { padding: 20, gap: 14 }, scrollContent: { flexShrink: 1 },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, padding: 14, gap: 9 },
 });

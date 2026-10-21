@@ -81,27 +81,29 @@ export async function requestAppointment(owner:string,petId:string,slotId:string
 const appointmentSelect=`SELECT a.id,a.owner_id AS ownerId,a.pet_id AS petId,a.slot_id AS slotId,a.status,a.observations,a.cancellation_reason AS cancellationReason,p.name AS petName,p.photo_url AS petPhotoUrl,CONCAT(owner.first_name,' ',owner.last_name) AS ownerName,owner.phone AS ownerPhone,sv.name AS service,sv.id AS serviceId,pt.id AS typeId,pt.name AS typeName,s.professional_user_id AS professionalId,CONCAT(u.first_name,' ',u.last_name) AS veterinarian,s.starts_at AS startsAt,s.ends_at AS endsAt,(s.starts_at>UTC_TIMESTAMP() AND a.status NOT IN ('CANCELLED','COMPLETED')) AS isUpcoming FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id JOIN users u ON u.id=s.professional_user_id JOIN professional_types pt ON pt.id=s.professional_type_id JOIN users owner ON owner.id=a.owner_id`;
 export async function appointments(actor:AuthUser,query:Record<string,unknown>={}) {
  const params:unknown[]=[];const clauses:string[]=[];
- if(actor.role==='CLIENT'){clauses.push('a.owner_id=?');params.push(actor.id);}else if(!actor.permissions?.includes('appointments.view_all')){permit(actor,'appointments.view_own');clauses.push('s.professional_user_id=?');params.push(actor.id);}
- for(const [key,column] of Object.entries({id:'a.id',professionalId:'s.professional_user_id',serviceId:'sv.id',typeId:'pt.id',status:'a.status'})){if(query[key]){clauses.push(`${column}=?`);params.push(key==='status'?v.text(query[key],20):v.id(query[key]));}}
+ if(actor.role==='CLIENT'){clauses.push('a.owner_id=?');params.push(actor.id);}else if(actor.role==='GROOMER'||!actor.permissions?.includes('appointments.view_all')){permit(actor,'appointments.view_own');clauses.push('s.professional_user_id=?');params.push(actor.id);}
+ for(const [key,column] of Object.entries({id:'a.id',petId:'a.pet_id',professionalId:'s.professional_user_id',serviceId:'sv.id',typeId:'pt.id',status:'a.status'})){if(query[key]){clauses.push(`${column}=?`);params.push(key==='status'?v.text(query[key],20):v.id(query[key]));}}
  if(query.search){const search=v.text(query.search,100)!;const searchOwner=actor.role==='VETERINARIAN'&&actor.permissions?.includes('users.view_basic');clauses.push(`(p.name LIKE ? OR sv.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?${searchOwner?' OR owner.first_name LIKE ? OR owner.last_name LIKE ?':''})`);params.push(...Array(searchOwner?6:4).fill(`%${search}%`));}
  if(query.date){const date=v.text(query.date,10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push("DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=?");params.push(date);}
  for(const [key,operator] of [['fromDate','>=' ],['toDate','<=']] as const)if(query[key]){const date=v.text(query[key],10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push(`DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))${operator}?`);params.push(date);}
- const result=await rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY s.starts_at ${actor.role==='VETERINARIAN'?'ASC':'DESC'} LIMIT 201 OFFSET ${(v.queryPage(query)-1)*200}`,params);
+ const result=await rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY s.starts_at ${['VETERINARIAN','GROOMER'].includes(actor.role)?'ASC':'DESC'} LIMIT 201 OFFSET ${(v.queryPage(query)-1)*200}`,params);
  return await Promise.all(result.map(async appointment=>{
   const presented:Data={...appointment,petPhotoUrl:await petPhotoUrl(String(appointment.ownerId),appointment.petPhotoUrl)};
   // Las notas internas del turno nunca forman parte de la API consumida por CLIENT.
   if(actor.role==='CLIENT'){delete presented.observations;delete presented.ownerName;delete presented.ownerPhone;}
   if(actor.role==='VETERINARIAN')delete presented.observations;
-  if(actor.role==='VETERINARIAN'&&!actor.permissions?.includes('users.view_basic')){delete presented.ownerName;delete presented.ownerPhone;}
+  if(['VETERINARIAN','GROOMER'].includes(actor.role)&&!actor.permissions?.includes('users.view_basic')){delete presented.ownerName;delete presented.ownerPhone;}
   return presented;
  })) as Data[];
 }
 export async function changeAppointment(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['status','slotId','observations','cancellationReason']);return transaction(actor,async(c,fresh)=>{
   const a=await one(`${appointmentSelect} WHERE a.id=? FOR UPDATE`,[id],c);
-  const manage=fresh.permissions?.includes('appointments.manage');
+  const manage=fresh.role!=='GROOMER'&&fresh.permissions?.includes('appointments.manage');
+  if(fresh.role==='GROOMER'&&(a.professionalId!==fresh.id||String(a.typeId)!==String(fresh.professional?.typeId)))forbidden();
   if(!manage){permit(fresh,'appointments.update_own');if(a.professionalId!==fresh.id)forbidden();}
   if(fresh.role==='VETERINARIAN'&&body.observations!==undefined)forbidden();
+  if(fresh.role==='GROOMER'&&body.observations!==undefined)forbidden('Usá el registro de peluquería para guardar observaciones del servicio.');
   if(['COMPLETED','CANCELLED'].includes(String(a.status))&&(body.status!==undefined||body.slotId!==undefined))throw new AppError('INVALID_TRANSITION',409,'El turno se encuentra cerrado.');
   let slotId=String(a.slotId);let status=String(a.status);
   if(body.slotId!==undefined){if(!manage)forbidden();slotId=v.id(body.slotId);if(slotId!==a.slotId){const next=await one('SELECT service_id AS serviceId,professional_user_id AS professionalId FROM client_appointment_slots WHERE id=?',[slotId],c);if(next.serviceId!==a.serviceId)v.invalid('El nuevo horario debe corresponder al mismo servicio.');
@@ -147,9 +149,27 @@ export async function patientScope(actor:AuthUser,petId:string,c:Connection=data
  if(actor.permissions?.includes('pets.view_all'))return one('SELECT id,owner_id AS ownerId FROM pets WHERE id=?',[petId],c);
  permit(actor,'pets.view_assigned');return one('SELECT p.id,p.owner_id AS ownerId FROM pets p JOIN veterinarian_patients vp ON vp.pet_id=p.id JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE p.id=? AND vt.user_id=?',[petId,actor.id],c);
 }
+async function groomerPatientScope(actor:AuthUser,petId:string,c:Connection=databasePool) {
+ if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
+ return one(`SELECT p.id,p.owner_id AS ownerId FROM pets p WHERE p.id=? AND EXISTS(
+  SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id
+  JOIN professional_types pt ON pt.id=slot.professional_type_id JOIN roles r ON r.id=pt.role_id
+  WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER'
+ )`,[petId,actor.id],c);
+}
 export const patientListOrdering:Record<string,string>={recent:'p.created_at DESC',oldest:'p.created_at ASC',az:'p.name ASC',za:'p.name DESC',weight_high:'d.weight_kg DESC,p.name ASC',weight_low:'d.weight_kg ASC,p.name ASC',birth_recent:'p.birth_date DESC,p.name ASC',birth_oldest:'p.birth_date ASC,p.name ASC'};
 export const patientNextAppointmentExpression="(SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt";
 export async function patients(actor:AuthUser,search='',sort='recent',speciesId?:string) {
+ if(actor.role==='GROOMER'){
+  permit(actor,'appointments.view_own');
+  const result=await rows(`SELECT p.id,p.owner_id AS ownerId,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed,
+   (SELECT MAX(hist.ends_at) FROM client_appointments done JOIN client_appointment_slots hist ON hist.id=done.slot_id JOIN professional_types hpt ON hpt.id=hist.professional_type_id JOIN roles hr ON hr.id=hpt.role_id WHERE done.pet_id=p.id AND hist.professional_user_id=? AND hr.code='GROOMER' AND done.status='COMPLETED') AS lastServiceAt,
+   (SELECT MIN(future.starts_at) FROM client_appointments next JOIN client_appointment_slots future ON future.id=next.slot_id JOIN professional_types npt ON npt.id=future.professional_type_id JOIN roles nr ON nr.id=npt.role_id WHERE next.pet_id=p.id AND future.professional_user_id=? AND nr.code='GROOMER' AND next.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND future.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt
+   FROM pets p JOIN species sp ON sp.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id
+   WHERE p.is_active=1 AND p.name LIKE ? AND EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id JOIN professional_types pt ON pt.id=slot.professional_type_id JOIN roles r ON r.id=pt.role_id WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER')
+   ORDER BY COALESCE(lastServiceAt,'1000-01-01') DESC,p.name LIMIT 200`,[actor.id,actor.id,`%${search}%`,actor.id]);
+  return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
+ }
  permit(actor,'pets.view_information');const all=actor.permissions?.includes('pets.view_all');if(!all)permit(actor,'pets.view_assigned');if(actor.role!=='VETERINARIAN'&&!['ADMIN','SUPER_ADMIN'].includes(actor.role))forbidden();
  if(!['recent','oldest','az','za','weight_high','weight_low','birth_recent','birth_oldest'].includes(sort))v.invalid('Criterio de orden no válido.');
  const owner=actor.permissions?.includes('users.view_basic');const params:unknown[]=[`%${search}%`];if(owner)params.push(`%${search}%`);if(speciesId)params.push(v.id(speciesId));if(!all)params.push(actor.id);
@@ -217,23 +237,58 @@ export async function clientDetails(actor:AuthUser,id:string) {
  return {client,pets,appointments:!contact&&vet?appointmentRows.map(item=>{const visible={...item};delete visible.ownerName;delete visible.ownerPhone;return visible;}):appointmentRows,reservations:vet?[]:await rows('SELECT id,status,created_at AS createdAt FROM client_orders WHERE owner_id=? ORDER BY id DESC LIMIT 100',[id])};
 }
 export async function home(actor:AuthUser) {
- const all=actor.permissions?.includes('appointments.view_all'),own=actor.permissions?.includes('appointments.view_own');
+ const all=actor.role!=='GROOMER'&&actor.permissions?.includes('appointments.view_all'),own=actor.permissions?.includes('appointments.view_own');
  let stats:Data|null=null,next:Data|null=null;
  if(all||own){const scope=all?'':' AND s.professional_user_id=?';const params=all?[]:[actor.id];
-  stats=await one(`SELECT SUM(DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS todayCount,SUM(a.status='REQUESTED') AS pendingCount FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE a.status<>'CANCELLED'${scope}`,params);
+  stats=await one(`SELECT SUM(DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00')) AND a.status<>'CANCELLED') AS todayCount,SUM(a.status='REQUESTED') AS pendingCount,SUM(a.status='COMPLETED' AND DATE(CONVERT_TZ(s.ends_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS completedTodayCount FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE a.status<>'CANCELLED'${scope}`,params);
   // El resumen no depende de las columnas opcionales que usa el detalle (observations y cancellation_reason).
   const r=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.ends_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 1`,params);next=r[0]??null;
  }
  const clinicToday=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(part=>[part.type,part.value]));
- const todayAppointments=actor.role==='VETERINARIAN'&&(all||own)?await appointments(actor,{date:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
- return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,pendingReservations:actor.permissions?.includes('reservations.view_all')?Number((await one("SELECT COUNT(*) AS total FROM client_orders WHERE status='PLACED'",[])).total):null,...(todayAppointments?{todayAppointments}: {})};
+ const todayAppointments=['VETERINARIAN','GROOMER'].includes(actor.role)&&(all||own)?await appointments(actor,{date:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
+ const upcomingAppointments=actor.role==='GROOMER'&&own?await appointments(actor,{fromDate:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
+ return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,pendingReservations:actor.permissions?.includes('reservations.view_all')?Number((await one("SELECT COUNT(*) AS total FROM client_orders WHERE status='PLACED'",[])).total):null,...(todayAppointments?{todayAppointments}: {}),...(upcomingAppointments?{upcomingAppointments:upcomingAppointments.filter(item=>['REQUESTED','CONFIRMED','IN_PROGRESS'].includes(String(item.status))).slice(0,5)}:{})};
 }
 
-export async function patient(actor:AuthUser,id:string) {permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
+export async function patient(actor:AuthUser,id:string) {if(actor.role==='GROOMER')return groomerPatient(actor,id);permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
  const owner=actor.permissions?.includes('users.view_basic');const result=await one(`SELECT p.id,p.name,p.sex,p.species_id AS speciesId,p.breed_id AS breedId,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg,
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
  (SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt ${owner?",CONCAT(u.first_name,' ',u.last_name) AS ownerName,u.email AS ownerEmail,u.phone AS ownerPhone":''} FROM pets p JOIN species s ON s.id=p.species_id JOIN users u ON u.id=p.owner_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);
  result.photoUrl=await petPhotoUrl(String(scope.ownerId),result.photoUrl);return result;
+}
+export async function groomerPatient(actor:AuthUser,id:string) {
+ const scope=await groomerPatientScope(actor,id);
+ const result=await one(`SELECT p.id,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed
+  FROM pets p JOIN species sp ON sp.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);
+ result.photoUrl=await petPhotoUrl(String(scope.ownerId),result.photoUrl);
+ const history=await rows(`SELECT gr.id,gr.appointment_id AS appointmentId,gr.coat_notes AS coatNotes,gr.behavior_notes AS behaviorNotes,gr.care_instructions AS careInstructions,gr.created_at AS createdAt,gr.updated_at AS updatedAt,a.status,sv.name AS service,slot.starts_at AS startsAt,slot.ends_at AS endsAt
+  FROM client_grooming_records gr JOIN client_appointments a ON a.id=gr.appointment_id JOIN client_appointment_slots slot ON slot.id=a.slot_id JOIN client_services sv ON sv.id=slot.service_id
+  WHERE gr.pet_id=? AND gr.professional_user_id=? ORDER BY gr.created_at DESC,gr.id DESC`,[id,actor.id]);
+ return {...result,groomingHistory:history};
+}
+async function groomerAppointment(actor:AuthUser,appointmentId:string,c:Connection=databasePool,lock=false) {
+ if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
+ return one(`${appointmentSelect} JOIN roles grooming_role ON grooming_role.id=pt.role_id WHERE a.id=? AND s.professional_user_id=? AND grooming_role.code='GROOMER'${lock?' FOR UPDATE':''}`,[appointmentId,actor.id],c);
+}
+export async function groomingRecord(actor:AuthUser,appointmentId:string) {
+ const appointment=await groomerAppointment(actor,appointmentId);
+ if(!['IN_PROGRESS','COMPLETED'].includes(String(appointment.status)))v.invalid('El registro de peluquería solo está disponible durante la atención o después de finalizarla.');
+ const result=await rows('SELECT id,appointment_id AS appointmentId,coat_notes AS coatNotes,behavior_notes AS behaviorNotes,care_instructions AS careInstructions,created_at AS createdAt,updated_at AS updatedAt FROM client_grooming_records WHERE appointment_id=? AND professional_user_id=?',[appointmentId,actor.id]);
+ return result[0]??null;
+}
+export async function saveGroomingRecord(actor:AuthUser,appointmentId:string,value:unknown) {
+ const body=v.body(value,['coatNotes','behaviorNotes','careInstructions']);
+ const coatNotes=v.text(body.coatNotes,5000,true),behaviorNotes=v.text(body.behaviorNotes,5000,true),careInstructions=v.text(body.careInstructions,5000,true);
+ if(!coatNotes&&!behaviorNotes&&!careInstructions)v.invalid('Ingresá alguna observación o indicación del servicio.');
+ return transaction(actor,async(c,fresh)=>{
+  permit(fresh,'appointments.update_own');
+  const appointment=await groomerAppointment(fresh,appointmentId,c,true);
+  if(!['IN_PROGRESS','COMPLETED'].includes(String(appointment.status))||String(appointment.typeId)!==String(fresh.professional?.typeId))v.invalid('El registro requiere un turno propio de peluquería en atención o finalizado.');
+  await c.execute(`INSERT INTO client_grooming_records(appointment_id,pet_id,professional_user_id,created_by_user_id,updated_by_user_id,coat_notes,behavior_notes,care_instructions)
+   VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE updated_by_user_id=VALUES(updated_by_user_id),coat_notes=VALUES(coat_notes),behavior_notes=VALUES(behavior_notes),care_instructions=VALUES(care_instructions)`,[appointmentId,appointment.petId,fresh.id,fresh.id,fresh.id,coatNotes,behaviorNotes,careInstructions]);
+  const saved=await one('SELECT id,appointment_id AS appointmentId,coat_notes AS coatNotes,behavior_notes AS behaviorNotes,care_instructions AS careInstructions,created_at AS createdAt,updated_at AS updatedAt FROM client_grooming_records WHERE appointment_id=?',[appointmentId],c);
+  return {saved:true,record:saved};
+ });
 }
 export async function updatePatient(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['name','sex','speciesId','breedId','birthDate','microchipNumber','weightKg']);

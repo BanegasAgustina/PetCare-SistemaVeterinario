@@ -9,7 +9,7 @@ function enumField<T extends string>(value:unknown,allowed:readonly T[]):T {if(t
 export type Entity=keyof typeof entities;
 export function entity(name:string):Entity {if(!Object.hasOwn(entities,name))v.invalid();return name as Entity;}
 // La lista administrativa muestra disponibilidad y autoría sin exponer datos sensibles.
-export async function list(actor:AuthUser,name:Entity,query:Record<string,unknown>={}) {const config=entities[name];assertAdminPermission(actor,config.permission);const fields=Object.entries(config.fields).map(([alias,column])=>`${column} AS ${alias}`).join(',');const search=v.text(query.search,100,true)??'';const result=await db.rows(`SELECT id,${fields} ${name==='products'?',reserved_stock AS reservedStock,created_by AS createdBy,updated_by AS updatedBy':''} FROM ${config.table} WHERE name LIKE ? ORDER BY name LIMIT 101 OFFSET ${(v.queryPage(query)-1)*100}`,[`%${search}%`]);return ['types','specialties'].includes(name)?result.map(item=>({...item,name:catalogName(String(item.name))})):result;}
+export async function list(actor:AuthUser,name:Entity,query:Record<string,unknown>={}) {const config=entities[name];assertAdminPermission(actor,config.permission);const fields=Object.entries(config.fields).map(([alias,column])=>`${column} AS ${alias}`).join(',');const search=v.text(query.search,100,true)??'';const status=query.status??'all';if(!['all','active','inactive'].includes(String(status)))v.invalid('El filtro de estado no es válido.');const filters=['name LIKE ?'];const params:unknown[]=[`%${search}%`];if(name!=='types'&&status!=='all'){filters.push('is_active=?');params.push(status==='active'?1:0);}const result=await db.rows(`SELECT id,${fields} ${name==='products'?',reserved_stock AS reservedStock,created_by AS createdBy,updated_by AS updatedBy':''} FROM ${config.table} WHERE ${filters.join(' AND ')} ORDER BY name LIMIT 101 OFFSET ${(v.queryPage(query)-1)*100}`,params);return ['types','specialties'].includes(name)?result.map(item=>({...item,name:catalogName(String(item.name))})):result;}
 export async function save(actor:AuthUser,name:Entity,id:string|undefined,value:unknown) {const config=entities[name];const fields:Record<string,string>=config.fields;const body=v.body(value,Object.keys(fields));const names=Object.keys(body);if(!names.length)v.invalid();if(!id&&!body.name)v.invalid('Ingresá un nombre.');
  // Cada dato de producto se valida en el backend antes de iniciar la escritura.
  const converted:db.Data={};for(const key of names){const value=body[key];converted[key]=key==='name'?v.text(value,name==='products'?200:name==='services'&&key==='name'?20:100):key==='imageUrl'?(name==='services'?v.serviceImage(value):v.productImage(value)):key==='bannerImageUrl'?v.productImage(value):key==='bannerCtaText'?v.text(value,40,true)??'Ver producto':key==='bannerSubtitle'?v.text(value,250,true):key==='productType'?enumField(value,['MEDICINE','ACCESSORY']):key.endsWith('Id')?v.optionalId(value):key.startsWith('is')||key==='requiresPrescription'?v.bool(value):key.endsWith('At')?v.instant(value):['stock','priceCents','durationMinutes'].includes(key)?(key==='priceCents'&&value===null?null:v.integer(value,key==='durationMinutes'?5:0,key==='durationMinutes'?480:100000000)):v.text(value,10000,true);}
@@ -21,8 +21,8 @@ export async function save(actor:AuthUser,name:Entity,id:string|undefined,value:
   if(finalType==='ACCESSORY'&&Boolean(body.requiresPrescription??current?.requiresPrescription))v.invalid('Un accesorio no puede requerir receta veterinaria.');
   // La limpieza de imagen previa solo ocurre después del commit y conserva la referencia vigente ante errores.
   if(current){previousImage=current.imageUrl;if(body.stock!==undefined&&Number(body.stock)<Number(current.reservedStock))v.invalid('El stock físico no puede ser menor al reservado.');}}
-  if(id){const current=await db.one(`SELECT id${name==='services'?' ,image_url AS imageUrl':''} FROM ${config.table} WHERE id=? FOR UPDATE`,[id],c);if(name==='services')previousImage=current.imageUrl;}
-  if(name==='services'){if(body.name!==undefined&&/\d/u.test(String(body.name)))v.invalid('El nombre del servicio no puede incluir números.');if((!id||body.typeId!==undefined)&&!converted.typeId)v.invalid('Seleccioná el tipo profesional.');if(converted.typeId){const type=await db.one('SELECT id,is_clinical AS isClinical FROM professional_types WHERE id=?',[converted.typeId],c);if(!type.isClinical&&converted.specialtyId)v.invalid('Un servicio no clínico no requiere especialidad veterinaria.');}if(converted.specialtyId)await db.one('SELECT id FROM specialties WHERE id=? AND is_active=1',[converted.specialtyId],c);}
+  let currentService:db.Data|null=null;if(id){const current=await db.one(`SELECT id${name==='services'?' ,image_url AS imageUrl,specialty_id AS specialtyId':''} FROM ${config.table} WHERE id=? FOR UPDATE`,[id],c);if(name==='services'){previousImage=current.imageUrl;currentService=current;}}
+  if(name==='services'){if(body.name!==undefined&&/\d/u.test(String(body.name)))v.invalid('El nombre del servicio no puede incluir números.');if((!id||body.typeId!==undefined)&&!converted.typeId)v.invalid('Seleccioná el tipo profesional.');if(converted.typeId){const type=await db.one('SELECT id,is_clinical AS isClinical FROM professional_types WHERE id=?',[converted.typeId],c);if(!type.isClinical&&converted.specialtyId)v.invalid('Un servicio no clínico no requiere especialidad veterinaria.');}const specialtyId=body.specialtyId!==undefined?converted.specialtyId:currentService?.specialtyId;if(converted.specialtyId)await db.one('SELECT id FROM specialties WHERE id=? AND is_active=1',[converted.specialtyId],c);if(body.isActive===true&&specialtyId)await db.one('SELECT id FROM specialties WHERE id=? AND is_active=1',[specialtyId],c);}
   if(name==='types'){if(!id){const role=await db.one('SELECT code FROM roles WHERE id=?',[converted.roleId],c);if(!['VETERINARIAN','GROOMER'].includes(String(role.code)))v.invalid('Este rol no es profesional.');if(Boolean(converted.isClinical)!==(role.code==='VETERINARIAN'))v.invalid('El acceso clínico corresponde exclusivamente al rol veterinario.');}else if(body.roleId!==undefined||body.isClinical!==undefined)v.invalid('No se cambia el rol ni acceso clínico de un tipo utilizado.');}
   if(name==='promotions'&&converted.startsAt&&converted.endsAt&&String(converted.endsAt)<=String(converted.startsAt))v.invalid('La promoción debe terminar después de comenzar.');
   // La autoría de edición se toma de la sesión verificada y nunca del cuerpo enviado por el cliente.
@@ -37,6 +37,26 @@ export async function save(actor:AuthUser,name:Entity,id:string|undefined,value:
   if(name==='products'){savedId=auditedProductId;await c.execute('INSERT INTO client_product_change_history(product_id,actor_user_id,action,changed_fields) VALUES (?,?,?,?)',[String(auditedProductId),fresh.id,id?'UPDATED':'CREATED',JSON.stringify(names)]);}
   // Se devuelve la imagen anterior para que el servicio la retire únicamente tras confirmar la escritura.
   return {saved:true,id:savedId,...(['products','services'].includes(name)?{previousImage}: {})};
+ });
+}
+export async function deleteService(actor:AuthUser,id:string) {
+ return db.transaction(actor,async(c,fresh)=>{
+  assertAdminPermission(fresh,'services.manage');
+  const service=await db.one('SELECT id,image_url AS imageUrl FROM client_services WHERE id=? FOR UPDATE',[id],c);
+  const slots=await db.rows('SELECT id FROM client_appointment_slots WHERE service_id=? FOR UPDATE',[id],c);
+  if(slots.length){
+   const appointments=await db.rows('SELECT a.id FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE s.service_id=? LIMIT 1 FOR UPDATE',[id],c);
+   if(appointments.length){
+    await c.execute('UPDATE client_services SET is_active=0 WHERE id=?',[id]);
+    await c.execute('DELETE FROM professional_services WHERE service_id=?',[id]);
+    await c.execute('UPDATE client_appointment_slots s SET is_active=0 WHERE s.service_id=? AND NOT EXISTS (SELECT 1 FROM client_appointments a WHERE a.slot_id=s.id)',[id]);
+    return {deleted:false,archived:true,imageUrl:service.imageUrl};
+   }
+  }
+  await c.execute('DELETE FROM professional_services WHERE service_id=?',[service.id]);
+  await c.execute('DELETE FROM client_appointment_slots WHERE service_id=?',[service.id]);
+  await c.execute('DELETE FROM client_services WHERE id=?',[service.id]);
+  return {deleted:true,archived:false,imageUrl:service.imageUrl};
  });
 }
 export async function assignServices(actor:AuthUser,id:string,value:unknown) {const body=v.body(value,['serviceIds']);if(!Array.isArray(body.serviceIds)||body.serviceIds.length>100)v.invalid();const ids=[...new Set(body.serviceIds.map(v.id))];return db.transaction(actor,async(c,fresh)=>{assertAdminPermission(fresh,'professionals.manage');const p=await db.one('SELECT u.id,pt.id AS typeId,vt.id AS veterinarianId FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians vt ON vt.user_id=u.id WHERE u.id=? FOR UPDATE',[id],c);

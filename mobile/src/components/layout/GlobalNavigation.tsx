@@ -61,6 +61,12 @@ const veterinarianItems: MenuItem[] = [
   { label: 'Productos', path: '/vet/products', icon: 'pricetags-outline', permission: 'products.view' },
   { label: 'Mi perfil', path: '/vet/profile', icon: 'person-outline' },
 ];
+const groomerItems: MenuItem[] = [
+  { label: 'Panel principal', path: '/professional', icon: 'home-outline' },
+  { label: 'Mi agenda', path: '/professional/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
+  { label: 'Mis mascotas atendidas', path: '/professional/patients', icon: 'paw-outline', permission: 'appointments.view_own' },
+  { label: 'Mi perfil', path: '/account', icon: 'person-outline' },
+];
 function iconFor(code: string): IconName {
   if (code.includes('pet')) return 'paw-outline';
   if (code.includes('appointment') || code.includes('schedule')) return 'calendar-outline';
@@ -117,6 +123,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties','/admin/reservations'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
     ];
     if (user.role === 'VETERINARIAN') return [...new Map(veterinarianItems.filter(item=>(!item.permission||hasPermission(item.permission)||(item.path==='/vet/products'&&hasPermission('prescriptions.create')))&&(!['/vet/patients','/vet/clients'].includes(item.path)||hasPermission('pets.view_all')||hasPermission('pets.view_assigned'))).map(item=>[item.path,item])).values()];
+    if (user.role === 'GROOMER') return groomerItems.filter(item=>!item.permission||hasPermission(item.permission));
     const permitted: MenuItem[] = [
       { label: 'Inicio', path: base, icon: 'home-outline' },
       ...staffItems.filter(item => item.permission && hasPermission(item.permission)).map(item => ({ ...item, path: `${base}/${item.path}` })),
@@ -192,8 +199,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, adminDesktopTopBar:{minHeight:68,paddingHorizontal:28,gap:16},
-  menuButton: { width: 44, height: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
-  adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},adminDesktopPageBar:{minHeight:72,paddingHorizontal:28,gap:14},backButton:{width:42,height:42,borderRadius:12,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:1},adminPageTitle:{fontSize:18,fontWeight:'600'},
+  menuButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
+  adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},adminDesktopPageBar:{minHeight:72,paddingHorizontal:28,gap:14},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},
   body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},adminDesktopDrawer:{flex:0,flexGrow:0,flexShrink:0,flexBasis:280,width:280,minWidth:280,maxWidth:280,alignSelf:'stretch',minHeight:0,paddingHorizontal:18,paddingVertical:20},adminDesktopDrawerMenu:{flex:1,minHeight:0,width:'100%'},mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
-  brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 44, paddingHorizontal: 11, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },
+  brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 46, paddingHorizontal: 12, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },
 });

@@ -22,12 +22,12 @@ export function AdminFormActions({ children }: PropsWithChildren) {
 }
 
 const styles = StyleSheet.create({
-  section: { width: '100%', gap: 12, paddingTop: 4 },
-  heading: { gap: 3 },
+  section: { width: '100%', gap: 13, paddingTop: 5 },
+  heading: { gap: 4 },
   fields: { width: '100%', gap: 12 },
   fieldsDesktop: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
   fieldItem: { width: '50%', paddingHorizontal: 6 },
-  actions: { width: '100%', gap: 10, paddingTop: 4 },
+  actions: { width: '100%', gap: 9, paddingTop: 5 },
   actionsDesktop: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 },
   actionItem: { flexGrow: 1, flexBasis: 0, paddingHorizontal: 5 },
 });

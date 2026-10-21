@@ -1,6 +1,6 @@
 /** Services Cliente usan el request autenticado existente; nunca reciben ownerId. */
 import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,Notification,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress,StoreBanner } from '../types/client';
-export type ClientRequest=<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH';body?:unknown})=>Promise<T>;
+export type ClientRequest=<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown})=>Promise<T>;
 export function clientService(request:ClientRequest){
   const get=<T>(path:string)=>request<T>(`/client${path}`);
   const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/client${path}`,{method,body});

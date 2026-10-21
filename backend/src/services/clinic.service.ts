@@ -20,6 +20,8 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'catalog':return clinic.catalog(actor);
  case 'appointments':return clinic.appointments(actor,query);
  case 'appointment-update':return clinic.changeAppointment(actor,v.id(id),value);
+ case 'grooming-record':return clinic.groomingRecord(actor,v.id(id));
+ case 'grooming-record-save':return clinic.saveGroomingRecord(actor,v.id(id),value);
  case 'patient':return clinic.patient(actor,v.id(id));
  case 'patient-update':return clinic.updatePatient(actor,v.id(id),value);
  case 'patient-deactivate':return clinic.deactivatePatient(actor,v.id(id));
@@ -52,6 +54,13 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
   const {photoBase64,...fields}=record;const image=await storeProductPhoto(photoBase64);
   try {const saved=await admin.save(actor,entity,id===undefined?undefined:v.id(id),{...fields,imageUrl:image.url});const previous=(saved as {previousImage?:unknown}).previousImage;if(previous!==image.url&&isProductPhotoKey(previous))await removeProductPhoto(previous).catch(()=>console.error('No se pudo limpiar la imagen anterior del producto.'));return {saved:true};}
   catch(error){await image.remove().catch(()=>console.error('No se pudo limpiar una imagen de producto sin referencia.'));throw error;}
+ }
+ case 'admin-delete':{
+  const entity=admin.entity(kind!);
+  if(entity!=='services')v.invalid();
+  const removed=await admin.deleteService(actor,v.id(id));
+  if(removed.deleted&&isServicePhotoKey(removed.imageUrl))await removeServicePhoto(removed.imageUrl).catch(()=>console.error('No se pudo limpiar la imagen del servicio eliminado.'));
+  return {deleted:removed.deleted,archived:removed.archived};
  }
  case 'availability':return admin.availability(actor,query);
  case 'availability-save':return admin.saveAvailability(actor,value);

@@ -4,10 +4,11 @@ import type { ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
+import { softSurfaceShadow } from '../../constants/surface';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-type AppInputProps = TextInputProps & { label: string; error?: string; hint?: string; password?: boolean; compact?: boolean; icon?: 'mail-outline' | 'lock-closed-outline' | 'search-outline'; prefix?: string; required?: boolean };
-export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps>(function AppInput({ label, error, hint, password = false, compact = false, icon, prefix, required = false, style, onFocus, onBlur, ...props }, ref) {
+type AppInputProps = TextInputProps & { label: string; error?: string; hint?: string; password?: boolean; compact?: boolean; borderless?: boolean; icon?: 'mail-outline' | 'lock-closed-outline' | 'search-outline'; prefix?: string; required?: boolean };
+export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps>(function AppInput({ label, error, hint, password = false, compact = false, borderless = false, icon, prefix, required = false, style, onFocus, onBlur, ...props }, ref) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -15,7 +16,7 @@ export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps
   return (
     <View style={[styles.container, compact && { gap: 3 }]}>
       <AppText variant="caption" accessibilityLabel={required ? `${label}, obligatorio` : label}>{label}{required ? ' *' : ''}</AppText>
-      <View style={[styles.field, { backgroundColor: colors.surface, borderColor: error ? colors.danger : focused ? colors.primary : colors.border, opacity: props.editable === false ? 0.6 : 1 }]}>
+      <View style={[styles.field, borderless&&styles.borderlessField, focused&&!error&&!borderless&&softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: error ? colors.danger : focused ? colors.primary : colors.border, opacity: props.editable === false ? 0.6 : 1 }]}>
         {Boolean(prefix) && <AppText style={[styles.prefix, { color: colors.muted }]}>{prefix}</AppText>}
         {/* Los iconos son optativos: Registro conserva su presentación actual. */}
         {fieldIcon && <Ionicons name={fieldIcon} size={20} color={focused ? colors.primary : colors.muted} style={styles.leadingIcon} accessible={false} />}
@@ -34,7 +35,7 @@ export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps
 });
 const styles = StyleSheet.create({
   container: { gap: 6, width: '100%' },
-  field: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14 },
+  field: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 15 }, borderlessField: { borderWidth: 0 },
   input: { flex: 1, minWidth: 0, minHeight: 54, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16 },
   leadingIcon: { marginLeft: 14, marginRight: 8, transform: [{ translateY: -1 }] }, iconInput: { paddingLeft: 0 },
   compactInput: { minHeight: 44, paddingVertical: 10, fontSize: 14 }, prefix: { paddingLeft: 14, fontSize: 16 },

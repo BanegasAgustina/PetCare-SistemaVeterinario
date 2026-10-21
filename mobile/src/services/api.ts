@@ -33,6 +33,7 @@ const messages: Record<string, string> = {
   DB_CONFLICT: 'El email, la matrícula o el nombre ya están registrados.',
   INVALID_PERMISSION: 'No se pueden asignar permisos desconocidos o administrativos.',
   NOT_FOUND: 'No encontramos el registro solicitado.',
+  RECORD_IN_USE: 'El registro tiene servicios o profesionales asociados. Desactivalo para conservar esas relaciones.',
   ACCOUNT_INACTIVE: 'Activá la cuenta antes de enviar una invitación.',
   INVALID_INVITATION: 'La invitación no es válida o venció. Solicitá una nueva al administrador.',
   INVITATION_UNAVAILABLE: 'La activación por correo todavía no está configurada.',
