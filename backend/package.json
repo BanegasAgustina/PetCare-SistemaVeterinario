@@ -19,6 +19,7 @@
     "test:client:readonly": "tsx tests/client-readonly.ts",
     "db:create": "tsx src/database/cli.ts create",
     "db:check": "tsx src/database/cli.ts check",
+    "db:audit:readonly": "tsx src/database/sql-audit-readonly.ts",
     "db:migrate": "tsx src/database/cli.ts migrate",
     "db:migrate:client": "tsx src/database/client-migrate.ts",
     "db:migrate:pet-form": "tsx src/database/pet-form-migrate.ts",

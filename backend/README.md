@@ -479,9 +479,9 @@ Pruebas: `npm test`, `npm run typecheck`, `npm run lint` en backend/mobile. `NOD
 
 
 
-## Clínica compartida, Secretaría y reservas
+## Clínica compartida, Secretaría y turnos
 
-PETCARE NO PROCESA PAGOS. La tienda usa client_orders/client_order_items como reservas para retiro. Profesional, especialidades, peluquería, servicios, disponibilidad, agenda, clínica, stock, estados, notificaciones y administración comparten MySQL y permisos efectivos. Ver [modelo, endpoints, migración nueva y verificaciones](../AMPLIACION_CLINICA_PETCARE.md). Aplicar manualmente clinic-migrations/001_connected_clinic.sql antes de desplegar la ampliación. No ejecutar SQL dos veces ni crear registros para llenar pantallas.
+Profesional, especialidades, servicios, disponibilidad, agenda, clínica, stock, estados, notificaciones y administración comparten MySQL y permisos efectivos. Verificá las migraciones requeridas en el entorno antes de desplegar; este checkout no contiene algunos SQL históricos citados en notas anteriores.
 ## Recuperación de contraseña
 
 `POST /api/auth/password-reset/request` acepta `{ "email": "..." }` y evita confirmar si existe una cuenta. Para usuarios activos y verificados genera 256 bits aleatorios, conserva solo SHA-256 en `password_resets` y envía un enlace por SMTP. El token vence a los 30 minutos; `POST /api/auth/password-reset/confirm` acepta `{ "token": "...", "password": "..." }`, aplica las mismas reglas y bcrypt del registro, consume los tokens pendientes y aumenta `session_version` para revocar sesiones previas. Se limita la solicitud a 5 intentos por IP y el uso del token a 10 por IP en 15 minutos.
@@ -536,13 +536,25 @@ La existencia del esquema de Layerbase no pudo comprobarse desde el entorno actu
 
 Configurar exclusivamente en el backend `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`. Las fotos nuevas de productos también se suben a Cloudinary y su URL HTTPS se guarda en `client_products.image_url`, ya presente en el esquema activo; no requieren una migración adicional. Las claves antiguas `products/...` todavía pueden leerse desde S3 si el bucket está configurado; si no, el producto sigue apareciendo y su foto se muestra vacía hasta volver a subirla. No poner secretos en variables `EXPO_PUBLIC_*`.
 
-## Tienda propia y reservas con vencimiento
+## Catálogo, carrito y checkout de demostración
 
-La tienda consulta `client_products` del inventario PetCare. ADMIN y SUPER_ADMIN crean/actualizan productos mediante el formulario administrativo, sujeto a `products.update`, `products.create`, `products.update_price` y `products.update_stock`. CLIENT crea reservas; SECRETARY, ADMIN y SUPER_ADMIN consultan o gestionan reservas según `reservations.view_all` y `reservations.manage`. El servidor ignora campos de precio o stock enviados al crear reservas.
+La tienda consulta `client_products` y `client_product_categories` del inventario PetCare. ADMIN y SUPER_ADMIN crean/actualizan productos mediante el formulario administrativo, sujeto a `products.update`, `products.create`, `products.update_price` y `products.update_stock`. El carrito usa `client_cart_items`, indexado por propietario y producto. `GET /api/client/cart` consulta el carrito propio; `PUT /api/client/cart/:id` recibe únicamente `{ "quantity": 1 }` (cantidad `0` quita el producto). El propietario sale del JWT. El backend comprueba producto activo, stock disponible descontando reservas históricas y el límite de cantidad; los importes se calculan con los precios actuales del catálogo.
 
-La reserva fija precio, creación y vencimiento en MySQL; el vencimiento es `created_at + 24 horas` según UTC. El stock disponible baja en la misma transacción que inserta la reserva. Cancelar o vencer libera `reserved_stock` una sola vez; retirar descuenta unidades físicas. Un worker del backend revisa vencimientos al iniciar y cada 30 segundos, y el listado/detalle ejecuta además una revisión inmediata.
+El checkout actual es demostrativo y no llama a `POST /api/client/orders`: valida el carrito y el método seleccionado, limpia los datos temporales del formulario y muestra “Servicio no disponible”. No crea un pedido, no marca pagos, no descuenta stock y no vacía el carrito. Las reservas históricas siguen disponibles para consulta y gestión administrativa.
 
-Antes de habilitarlo en Layerbase, inspeccionar el esquema y permisos RBAC del entorno elegido y ejecutar manualmente `npm run db:migrate:reservations` desde `backend` con la conexión correcta. La migración es aditiva, registra permisos faltantes, concede la gestión de reservas a SECRETARY/ADMIN/SUPER_ADMIN y backfillea fechas de pedidos activos con `created_at + 24 horas`; no elimina columnas externas antiguas ni ejecuta cambios al iniciar la API. No se ejecutó contra producción ni se verificó una conexión a Layerbase en esta tarea. Si el proceso backend está detenido, las reservas vencidas se liberan al reiniciar el servicio.
+La API de pedidos existente y sus campos de demostración no se invocan desde el checkout de tienda. El historial del cliente continúa mostrando únicamente operaciones persistidas del usuario autenticado; no se fabrican pedidos para poblarlo.
+
+La migración está preparada, no aplicada. El archivo `002_pet_breed_name.sql` y el historial completo de migraciones previas no están en el checkout. El migrador estándar verifica el historial contra los archivos disponibles; recuperá esa secuencia antes de migrar. `schema-audit.json` es un snapshot local y no coincide con columnas que el backend actual ya consulta (`expires_at`, historial de estados); no verifica la base remota.
+
+## Promociones, retiro y envío de la tienda
+
+La tienda lee banners desde promociones activas de `client_promotions`: el nombre, precio y vigencia de la promoción se combinan con la imagen del producto (o `banner_image_url` opcional), subtítulo y CTA. Administra promociones con `promotions.manage`, categorías con `categories.manage` y productos con los permisos de catálogo ya existentes. El nuevo `GET /api/client/store/promotions` expone solo promociones vigentes cuyo precio realmente está aplicado al producto.
+
+`client-migrations/004_store_fulfillment_settings.sql` agrega configuración singleton de retiro/envío, indicaciones, horarios, días, zonas y tarifas; define `store.settings.view` / `store.settings.manage` sin concederlas a ningún rol. `client-migrations/005_store_promotion_banners.sql` añade imagen opcional, subtítulo y texto de botón a promociones existentes. `client-migrations/006_store_orders_and_addresses.sql` prepara snapshots de pedido, historial separado de estados de pedido/entrega/pago, direcciones guardadas por cliente y permisos `orders.view_all`, `orders.manage`, `orders.payment.manage`, sin grants automáticos. La app requiere aplicar las migraciones necesarias para habilitar esas funciones; no se ejecutaron. El migrador cliente requiere que se restaure/verifique la secuencia histórica ausente antes de usarse. Confirmá respaldo recuperable, permisos de escritura y autorización explícita antes de ejecutar en Layerbase.
+
+Estas migraciones solo agregan columnas, permisos, índices y estructuras. No hay una reversión automática que borre columnas/tablas: eso podría destruir direcciones o el historial que se cree después. Si una migración falla, el migrador la deja marcada como incompleta y no la reintenta; detenerse, comparar el esquema con el respaldo y corregir hacia adelante es la ruta segura.
+
+El checkout de la app es demostrativo: retiro/envío y el cálculo de tarifas se consultan desde backend; los datos de compra y pago no se envían. Las direcciones opcionalmente guardadas se almacenan bajo el usuario autenticado. No se transmiten datos de tarjeta, no se genera una compra ni se modifica stock. La pantalla de resultado informa que el servicio no está disponible. Se preparó gestión administrativa separada para pedidos `is_store_order`, con transiciones validadas y pago manual sujeto a permiso; aparecerá vacía hasta que se habilite la creación de pedidos reales. La dirección del comercio, zonas, horarios, días y textos de entrega deben configurarse desde el panel.
 
 ## Error del panel: «Este módulo requiere actualizar el esquema de la clínica»
 
@@ -580,6 +592,6 @@ Las observaciones privadas se guardan en `client_clinical_records.internal_notes
 
 La migración aditiva es `npm run db:migrate:veterinarian-clinical`. Agrega `internal_notes`, `appointment_id`, `dose`, `frequency`, `duration` y `professional_description`, además de la referencia opcional al turno y una restricción única. No reescribe datos clínicos existentes y no corre al iniciar el servidor. Fue aplicada y verificada en la base MySQL conectada el 16/10/2026. Aplicala una vez en cada entorno después de revisar que esa conexión apunta a la base esperada.
 
-### Verificación
+### Verificación histórica y estado del checkout
 
-`npm run db:check` confirmó una conexión MySQL compatible. Los metadatos de la base mostraron las tres columnas después de la migración. También pasan el typecheck, el lint y las 7 pruebas unitarias existentes del backend.
+Los resultados de conexión/MySQL y de pruebas citados en secciones históricas corresponden a revisiones anteriores, no se repitieron en esta tarea. Este checkout no tiene directorio de pruebas: los archivos bajo `backend/tests` aparecen eliminados en el estado inicial, y se preservaron esas eliminaciones. En esta revisión no se conectó a la base ni se aplicó SQL.

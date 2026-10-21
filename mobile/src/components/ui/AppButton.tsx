@@ -3,14 +3,14 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } f
 import { useTheme } from '../../hooks/useTheme';
 import { softSurfaceShadow } from '../../constants/surface';
 
-type AppButtonProps = Omit<PressableProps, 'children' | 'style'> & { label: string; loading?: boolean; variant?: 'primary' | 'secondary'; compact?: boolean; centered?: boolean; destructive?: boolean };
+type AppButtonProps = Omit<PressableProps, 'children' | 'style'> & { label: string; loading?: boolean; variant?: 'primary' | 'secondary' | 'accent'; compact?: boolean; centered?: boolean; destructive?: boolean };
 export function AppButton({ label, disabled, loading = false, variant = 'primary', compact = false, centered = false, destructive = false, ...props }: AppButtonProps) {
   const { colors } = useTheme();
   const inactive = Boolean(disabled || loading);
-  const foreground = destructive ? colors.background : variant === 'primary' ? colors.onPrimary : colors.primary;
+  const foreground = destructive ? colors.background : variant === 'accent' ? colors.onHighlight : variant === 'primary' ? colors.onPrimary : colors.primary;
   return (
     <Pressable {...props} disabled={inactive} accessibilityRole="button" accessibilityState={{ disabled: inactive, busy: loading }}
-      style={({ pressed }) => [styles.button, compact && styles.compact, compact && centered && styles.compactCentered, variant === 'primary' && !destructive && softSurfaceShadow(colors.primary), { backgroundColor: destructive ? colors.danger : variant === 'primary' ? colors.primary : colors.surface, borderColor: destructive ? colors.danger : colors.primary, opacity: inactive ? 0.65 : pressed ? 0.8 : 1 }]}>
+      style={({ pressed }) => [styles.button, compact && styles.compact, compact && centered && styles.compactCentered, variant !== 'secondary' && !destructive && softSurfaceShadow(colors.primary), { backgroundColor: destructive ? colors.danger : variant === 'accent' ? colors.highlight : variant === 'primary' ? colors.primary : colors.surface, borderColor: destructive ? colors.danger : variant === 'accent' ? colors.highlight : colors.primary, opacity: inactive ? 0.65 : pressed ? 0.8 : 1 }]}>
       {loading && <ActivityIndicator color={foreground} />}<Text style={[styles.label, { color: foreground }]}>{label}</Text>
     </Pressable>
   );

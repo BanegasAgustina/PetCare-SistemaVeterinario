@@ -9,17 +9,18 @@ type AdminPersonRowProps = {
   imageUri: string | null;
   name: string;
   role: string;
+  status?: string;
   onEdit?: () => void;
   onView: () => void;
 };
 
-export function AdminPersonRow({ imageUri, name, role, onEdit, onView }: AdminPersonRowProps) {
+export function AdminPersonRow({ imageUri, name, role, status, onEdit, onView }: AdminPersonRowProps) {
   const { colors } = useTheme();
   return <View style={[styles.row, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>
     <PetImage uri={imageUri} size={48} />
     <View style={styles.identity}>
       <AppText variant="subtitle" numberOfLines={1}>{name}</AppText>
-      <AppText muted numberOfLines={1}>{role}</AppText>
+      <AppText muted numberOfLines={1}>{status ? `${role} · ${status}` : role}</AppText>
     </View>
     {onEdit && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${name}`} onPress={onEdit} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.accent, opacity: pressed ? 0.7 : 1 }]}>
       <Ionicons name="pencil-outline" size={20} color={colors.primary} accessible={false} />

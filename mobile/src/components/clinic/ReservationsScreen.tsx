@@ -4,12 +4,14 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage, QueryState, statusLabel, money, ResponsiveGrid, PetCareBadge } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
+import { CalendarDateField } from '../forms/CalendarDateField';
 import { SelectionRow } from '../ui/SelectionRow';
 import { FilterDisclosure } from '../ui/FilterDisclosure';
 import { CompactPagination } from '../ui/CompactPagination';
@@ -26,6 +28,7 @@ export function ReservationsScreen() {
   const { user, hasPermission } = useAuth();
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search.trim());
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [selectedReservation, setSelectedReservation] = useState<string | null>(null);
   const [confirmReservation, setConfirmReservation] = useState<string | null>(null);
@@ -35,19 +38,19 @@ export function ReservationsScreen() {
   const [rejectionError, setRejectionError] = useState('');
   const { showToast } = useFeedback();
   const [page, setPage] = useState(1);
-  const query = useClientQuery(useCallback(() => api.reservations({ ...filters, fromDate: clinicDateFilterToApi(filters.fromDate ?? ''), toDate: clinicDateFilterToApi(filters.toDate ?? ''), search: submittedSearch, page: String(page) }), [api, filters, submittedSearch, page]));
+  const query = useClientQuery(useCallback(() => api.reservations({ ...filters, fromDate: clinicDateFilterToApi(filters.fromDate ?? ''), toDate: clinicDateFilterToApi(filters.toDate ?? ''), search: user?.role === 'CLIENT' ? submittedSearch : debouncedSearch, page: String(page) }), [api, filters, submittedSearch, debouncedSearch, page, user?.role]));
   const detail = useClientQuery(useCallback(() => selectedReservation ? api.reservation(selectedReservation) : Promise.resolve(null), [api, selectedReservation]));
   const base = user?.role === 'CLIENT' ? '/client' : user?.role === 'SECRETARY' ? '/secretary' : '/admin';
   const update = (key: string, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
-  return <PetCareScreen wide><PetCareHeader title={user?.role === 'CLIENT' ? 'Mis reservas' : 'Reservas para retiro'} subtitle="Se paga y retira en la veterinaria" back/>
+  return <PetCareScreen wide><PetCareHeader title={user?.role === 'CLIENT' ? 'Mis reservas' : 'Reservas para retiro'} subtitle="Se paga y retira en la veterinaria" back hideForAdmin/>
     <SearchFilterBar>
-      <AppInput label="Buscar reservas" placeholder="Número o nombre del cliente" value={search} onChangeText={value => { setSearch(value); if(user?.role!=='CLIENT'){setSubmittedSearch(value.trim());setPage(1);} }} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
+      <AppInput label="Buscar reservas" placeholder="Número o nombre del cliente" value={search} onChangeText={value => { setSearch(value); if(user?.role!=='CLIENT')setPage(1); }} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
       <FilterDisclosure fullWidth activeCount={Object.values(filters).filter(Boolean).length} onApply={() => setPage(1)} onClear={() => { setFilters({}); setPage(1); }}>
         <AppText variant="subtitle">Estado</AppText>
         {['', 'PLACED', 'CONFIRMED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED', 'EXPIRED'].map(status => <SelectionRow key={status || 'all'} label={status ? reservationStatusLabel(status) : 'Todos los estados'} checked={(filters.status ?? '') === status} onPress={() => update('status', status)}/>)}
         <AppText variant="subtitle">Fecha de creación</AppText>
-        <AppInput label="Desde (DD/MM/AAAA)" placeholder="13/10/2026" value={filters.fromDate ?? ''} onChangeText={value => update('fromDate', value)}/>
-        <AppInput label="Hasta (DD/MM/AAAA)" placeholder="13/10/2026" value={filters.toDate ?? ''} onChangeText={value => update('toDate', value)}/>
+        <CalendarDateField label="Desde" value={clinicDateFilterToApi(filters.fromDate ?? '')} onChange={value => update('fromDate', value)}/>
+        <CalendarDateField label="Hasta" value={clinicDateFilterToApi(filters.toDate ?? '')} onChange={value => update('toDate', value)}/>
       </FilterDisclosure>
       {user?.role === 'CLIENT' && <AppButton compact label="Buscar" onPress={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>}
     </SearchFilterBar>
@@ -65,11 +68,12 @@ export function ReservationsScreen() {
         <AppText>Precio reservado: {money(Number(reservation.totalCents))}</AppText>
         <AppButton label="Ver reserva" onPress={() => router.push({ pathname: `${base}/reservation` as never, params: { id: reservation.id } })}/>
       </PetCareCard>;
-      return <PetCareCard key={reservation.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}>{first&&<PetImage uri={typeof first.imageUrl==='string'?first.imageUrl:null} size={64}/>}<View style={{flex:1,minWidth:0,gap:3}}><AppText variant="subtitle" numberOfLines={1}>{String(first?.name??`Reserva #${reservation.id}`)}</AppText>{Boolean(reservation.clientName)&&<AppText numberOfLines={1}>{String(reservation.clientName)}</AppText>}<AppText muted>{items?.reduce((total,item)=>total+Number(item.quantity??0),0)??0} unidades · {reservationStatusLabel(String(reservation.status))}</AppText></View><Pressable accessibilityRole="button" accessibilityLabel={`Ver reserva ${String(reservation.id)}`} onPress={()=>setSelectedReservation(String(reservation.id))} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View>{hasPermission('reservations.manage')&&reservation.status==='PLACED'&&<View style={{flexDirection:'row',gap:10,flexWrap:'wrap'}}><AppButton compact label="Aceptar reserva" onPress={()=>setConfirmReservation(String(reservation.id))}/><AppButton compact label="Rechazar reserva" destructive onPress={()=>{setRejectReservation(String(reservation.id));setRejectionReason('');setRejectionError('');}}/></View>}</PetCareCard>;
+      const demoOrder=reservation.orderType==='DEMO_PURCHASE';
+      return <PetCareCard key={reservation.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}>{first&&<PetImage uri={typeof first.imageUrl==='string'?first.imageUrl:null} size={64}/>}<View style={{flex:1,minWidth:0,gap:3}}><AppText variant="subtitle" numberOfLines={1}>{demoOrder?`Pedido demo #${reservation.id}`:String(first?.name??`Reserva #${reservation.id}`)}</AppText>{Boolean(reservation.clientName)&&<AppText numberOfLines={1}>{String(reservation.clientName)}</AppText>}<AppText muted>{demoOrder?'Pago: no realizado':`${items?.reduce((total,item)=>total+Number(item.quantity??0),0)??0} unidades · ${reservationStatusLabel(String(reservation.status))}`}</AppText></View><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${demoOrder?'pedido':'reserva'} ${String(reservation.id)}`} onPress={()=>setSelectedReservation(String(reservation.id))} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View>{!demoOrder&&hasPermission('reservations.manage')&&reservation.status==='PLACED'&&<View style={{flexDirection:'row',gap:10,flexWrap:'wrap'}}><AppButton compact label="Aceptar reserva" onPress={()=>setConfirmReservation(String(reservation.id))}/><AppButton compact label="Rechazar reserva" destructive onPress={()=>{setRejectReservation(String(reservation.id));setRejectionReason('');setRejectionError('');}}/></View>}</PetCareCard>;
     })}</ResponsiveGrid> : <PetCareEmptyState title="No hay reservas en esta consulta" icon="bag-handle-outline"/>)}
     <CompactPagination page={page} canPrevious={page > 1} canNext={Boolean(query.data && query.data.length>100)} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)}/>
     {user?.role !== 'CLIENT' && <AppModal size="wide" visible={Boolean(selectedReservation)} dismissible onClose={()=>setSelectedReservation(null)}>
-      <AppText variant="title">Detalle de la reserva</AppText>
+      <AppText variant="title">{detail.data?.orderType==='DEMO_PURCHASE'?'Comprobante de demostración':'Detalle de la reserva'}</AppText>
       <QueryState {...detail}/>
       {detail.data && <>
         <PetCareCard>
@@ -84,17 +88,18 @@ export function ReservationsScreen() {
           </View>)}
         </PetCareCard>
         <PetCareCard>
-          <AppText variant="subtitle">Datos de la reserva</AppText>
+          <AppText variant="subtitle">{detail.data.orderType==='DEMO_PURCHASE'?'Datos del pedido':'Datos de la reserva'}</AppText>
           <AppText>Cliente: {String(detail.data.clientName ?? '')}</AppText>
           {Boolean(detail.data.phone) && <AppText>Teléfono: {String(detail.data.phone)}</AppText>}
           <AppText>Creada: {clinicDateTime(String(detail.data.createdAt))}</AppText>
-          {Boolean(detail.data.expiresAt) && <AppText>Vence: {clinicDateTime(String(detail.data.expiresAt))}</AppText>}
+          {detail.data.orderType!=='DEMO_PURCHASE'&&Boolean(detail.data.expiresAt) && <AppText>Vence: {clinicDateTime(String(detail.data.expiresAt))}</AppText>}
           <AppText>Estado: {reservationStatusLabel(String(detail.data.status))}</AppText>
+          {detail.data.orderType==='DEMO_PURCHASE'&&<><AppText>Pago: no realizado</AppText><AppText muted>Pedido informativo. No se reservó ni descontó stock.</AppText></>}
           {['CONFIRMED','PROCESSING','READY'].includes(String(detail.data.status))&&<PetCareBadge label="No retirado"/>}
           <AppText>Total registrado: {money(Number(detail.data.totalCents))}</AppText>
           {Boolean(detail.data.statusHistory?.at(-1)?.reason) && <AppText>Motivo: {String(detail.data.statusHistory?.at(-1)?.reason)}</AppText>}
         </PetCareCard>
-        {hasPermission('reservations.manage') && detail.data.status==='PLACED' && <>
+        {hasPermission('reservations.manage') && detail.data.orderType!=='DEMO_PURCHASE' && detail.data.status==='PLACED' && <>
           <AppButton label="Aceptar reserva" onPress={() => setConfirmReservation(String(detail.data!.id))}/>
           <AppButton label="Rechazar reserva" destructive onPress={() => { setRejectReservation(String(detail.data!.id)); setRejectionReason(''); setRejectionError(''); }}/>
         </>}
@@ -120,7 +125,7 @@ export function ReservationScreen() {
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const transitions: Record<string, string[]> = { PLACED: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['PROCESSING', 'CANCELLED'], PROCESSING: ['READY', 'CANCELLED'], READY: ['COMPLETED', 'CANCELLED'] };
   async function cancelReservation(){const reason=cancellationReason.trim();if(reason.length<3||reason.length>500){setCancellationError('Ingresá un motivo de entre 3 y 500 caracteres.');return;}setCancellationError(null);await cancellationAction.run(async()=>{await api.changeReservation(id,'CANCELLED',reason);setNext(null);setCancellationReason('');showToast('Reserva cancelada','success');query.reload();});}
-  return <PetCareScreen wide><PetCareHeader title={`Reserva #${id}`} back/><QueryState {...query}/>
+  return <PetCareScreen wide><PetCareHeader title={`Reserva #${id}`} back hideForAdmin/><QueryState {...query}/>
     {query.data && <><PetCareCard><AppText variant="subtitle">{reservationStatusLabel(String(query.data.status))}</AppText><AppText>Se paga y se retira en el local de la veterinaria. Sin pagos en línea.</AppText>{Boolean(query.data.clientName) && <AppText>{String(query.data.clientName)}</AppText>}{Boolean(query.data.phone) && <AppText>Contacto: {String(query.data.phone)}</AppText>}<AppText>Reservada: {clinicDateTime(String(query.data.createdAt))}</AppText><AppText>Precio reservado: {money(Number(query.data.totalCents))}</AppText>{Boolean(query.data.expiresAt)&&<AppText>Vencimiento: {clinicDateTime(String(query.data.expiresAt))}</AppText>}{Boolean(query.data.expiresAt)&&['PLACED','CONFIRMED','PROCESSING','READY'].includes(String(query.data.status))&&<AppText>Tiempo restante: {now?remainingTime(String(query.data.expiresAt),now):'Calculando…'}</AppText>}</PetCareCard>
       {/* Cada evento describe un cambio persistido y el usuario que lo registró, sin llamar compra a una reserva. */}
       {query.data.statusHistory?.length ? <PetCareCard><AppText variant="subtitle">Historial de estados</AppText>{query.data.statusHistory.map((event,index)=><AppText key={`${event.occurredAt}-${index}`}>{reservationStatusLabel(event.newStatus)} · {clinicDateTime(event.occurredAt)}{event.actorName?` · ${event.actorName}`:''}</AppText>)}</PetCareCard> : null}

@@ -23,6 +23,7 @@ import { useFeedback } from '../../../contexts/FeedbackContext';
 import { validateIdentityForm } from '../../../utils/auth-validation';
 import type { AdminUserDetail } from '../../../types/admin';
 import { roleLabel } from '../../../utils/role-label';
+import { groupPermissionsByModule } from '../../../utils/admin-permissions';
 const empty={firstName:'',lastName:'',email:'',phone:'',roleId:'',isActive:true};
 export default function UserEditor() {
   const {id}=useLocalSearchParams<{id:string}>();const creating=id==='new';const auth=useAuth();const api=useAdmin();const action=useAsyncAction();const {showToast}=useFeedback();
@@ -61,13 +62,13 @@ export default function UserEditor() {
       {!blocked&&(!creating||auth.hasPermission('roles.manage'))&&<AppButton label={creating?'Crear cuenta':'Revisar y guardar usuario'} disabled={action.loading} onPress={prepare}/>}
       {!creating&&!blocked&&<FormNotice error message={action.error}/>}
       {user&&<PetCareCard><AppText variant="subtitle">Permisos efectivos</AppText><AppText muted>Heredar usa el rol; conceder y negar crean una excepción de este usuario.</AppText>
-        {query.data.catalog.permissions.map(permission=>{const current=user.permissions.find(p=>p.code===permission.code);const override=overrides.find(o=>o.code===permission.code)?.allowed??null;const blockedCritical=permission.critical&&!['ADMIN','SUPER_ADMIN'].includes(user.role);const editable=canPermissions&&permission.canDelegate&&!blockedCritical&&!action.loading;
-          return <View key={permission.code} style={{gap:8}}><AppText>{permission.name}</AppText><AppText variant="caption" muted>{permission.moduleName} · {permission.description}</AppText><AppText muted>Heredado: {current?.inherited?'sí':'no'} · Efectivo: {current?.effective?'sí':'no'}</AppText>
+        {groupPermissionsByModule(query.data.catalog.permissions).map(group=><View key={group.name} style={{gap:12}}><AppText variant="subtitle">{group.name}</AppText>{group.permissions.map(permission=>{const current=user.permissions.find(p=>p.code===permission.code);const override=overrides.find(o=>o.code===permission.code)?.allowed??null;const blockedCritical=permission.critical&&!['ADMIN','SUPER_ADMIN'].includes(user.role);const editable=canPermissions&&permission.canDelegate&&!blockedCritical&&!action.loading;
+          return <View key={permission.code} style={{gap:8}}><AppText>{permission.name}</AppText><AppText variant="caption" muted>{permission.description}</AppText><AppText muted>Heredado: {current?.inherited?'sí':'no'} · Efectivo: {current?.effective?'sí':'no'}</AppText>
             <SelectionRow radio label="Heredar del rol" checked={override===null} disabled={!editable} onPress={()=>setOverrides(v=>v.filter(o=>o.code!==permission.code))}/>
             <SelectionRow radio label="Conceder" checked={override===true} disabled={!editable} onPress={()=>setOverrides(v=>[...v.filter(o=>o.code!==permission.code),{code:permission.code,allowed:true}])}/>
             <SelectionRow radio label="Negar" checked={override===false} disabled={!editable} onPress={()=>setOverrides(v=>[...v.filter(o=>o.code!==permission.code),{code:permission.code,allowed:false}])}/>
           </View>;
-        })}
+        })}</View>)}
         {canPermissions&&<AppButton label="Revisar y guardar permisos" disabled={action.loading} onPress={()=>setConfirm('permissions')}/>}
       </PetCareCard>}
     </>}

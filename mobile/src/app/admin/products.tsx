@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'reac
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
+import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
 import { AppText } from '../../components/ui/AppText';
 import { AppInput } from '../../components/forms/AppInput';
 import { AppButton } from '../../components/ui/AppButton';
@@ -79,7 +80,7 @@ export default function AdminProducts() {
 
   const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.sort !== 'name' ? 1 : 0) + (filters.categoryId ? 1 : 0);
   return <ScreenContainer wide>
-    <AppText variant="title">Productos y stock</AppText>
+    <AdminPageHeading title="Productos y stock"/>
     <SearchFilterBar><AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
       <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}>
         <AppText variant="subtitle">Inventario</AppText>

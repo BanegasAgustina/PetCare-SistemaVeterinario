@@ -4,8 +4,13 @@ import type { ApiFailure } from '../types/api';
 import { DatabaseError } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 
-export const notFoundHandler: RequestHandler = (_request, response) => {
-  const result: ApiFailure = { success: false, error: { code: 'NOT_FOUND', message: 'Ruta no encontrada.' } };
+export const notFoundHandler: RequestHandler = (request, response) => {
+  const path = request.path.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140);
+  const storeRoute = /^\/api\/client\/(?:store(?:\/|$)|cart(?:\/|$))/.test(request.path);
+  if (storeRoute) console.warn('[API_ROUTE_NOT_FOUND]', JSON.stringify({ method: request.method, path }));
+  const result: ApiFailure = { success: false, error: storeRoute
+    ? { code: 'ROUTE_NOT_FOUND', message: 'La ruta de la tienda no está disponible en esta versión del servidor.' }
+    : { code: 'NOT_FOUND', message: 'Ruta no encontrada.' } };
   response.status(404).json(result);
 };
 

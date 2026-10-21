@@ -15,20 +15,24 @@ import { PetCareLogo } from './PetCareLogo';
 
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
 type AdminModule = { code: string; name: string; path: string };
+const noAdminModules: AdminModule[] = [];
 const AdminModulesContext = createContext<AdminModule[]>([]);
+const AdminModulesLoadingContext = createContext(false);
+const scheduleAdminModule: AdminModule = { code: 'schedule.manage', name: 'Horarios', path: '/admin/availability' };
 export function useAdminModules() { return useContext(AdminModulesContext); }
+export function useAdminModulesLoading() { return useContext(AdminModulesLoadingContext); }
 const adminGroups = ['General', 'Clínica', 'Tienda', 'Administración'] as const;
 function adminGroup(path: string): typeof adminGroups[number] {
   if (path === '/admin') return 'General';
-  if (['/admin/patients','/admin/agenda','/admin/veterinarians','/admin/professionals','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
-  if (['/admin/reservations','/admin/products','/admin/catalog/products'].includes(path)) return 'Tienda';
+  if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
+  if (['/admin/reservations','/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders'].includes(path)) return 'Tienda';
   return 'Administración';
 }
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
     '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
-    '/admin/catalog/services':'Servicios','/admin/reservations':'Reservas','/admin/products':'Productos y stock',
-    '/admin/catalog/products':'Productos','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
+    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/reservations':'Reservas','/admin/products':'Productos y stock',
+    '/admin/catalog/products':'Productos','/admin/catalog/categories':'Categorías','/admin/catalog/promotions':'Promociones','/admin/store-settings':'Retiro y envíos','/admin/store-orders':'Pedidos de tienda','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
   };
   return labels[module.path] ?? module.name;
 }
@@ -78,7 +82,10 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const isClient = user?.role === 'CLIENT';
   const isVeterinarian = user?.role === 'VETERINARIAN';
-  const [adminModules, setAdminModules] = useState<AdminModule[]>([]);
+  const [adminModulesResult, setAdminModulesResult] = useState<{ userId: string | null; modules: AdminModule[] }>({ userId: null, modules: [] });
+  const adminModules = adminModulesResult.userId === user?.id ? adminModulesResult.modules : noAdminModules;
+  const adminModulesLoading = isAdmin && adminModulesResult.userId !== user?.id;
+  const visibleAdminModules = useMemo(() => isAdmin && hasPermission('schedule.manage') && !adminModules.some(module => module.path === scheduleAdminModule.path) ? [...adminModules, scheduleAdminModule] : adminModules, [adminModules, hasPermission, isAdmin]);
   const [open, setOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(true);
   const [highlightedAdminPath, setHighlightedAdminPath] = useState<string | null>(null);
@@ -89,8 +96,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/secretary';
   useEffect(() => {
     let active = true;
-    if (!isAdmin) return () => { active = false; };
-    void request<{ modules: AdminModule[] }>('/admin/home').then(result => { if (active) setAdminModules(result.modules); }).catch(() => { if (active) setAdminModules([]); });
+    if (!isAdmin || !user?.id) return () => { active = false; };
+    void request<{ modules: AdminModule[] }>('/admin/home').then(result => { if (active) setAdminModulesResult({ userId: user.id, modules: result.modules }); }).catch(() => { if (active) setAdminModulesResult({ userId: user.id, modules: [] }); });
     return () => { active = false; };
   }, [request, user?.id, user?.role, isAdmin]);
   useEffect(() => {
@@ -107,7 +114,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     if (user.role === 'CLIENT') return clientItems;
     if (isAdmin) return [
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
-      ...[...new Map(adminModules.filter(module=>!['/admin/availability','/admin/catalog/categories','/admin/catalog/promotions','/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
+      ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
     ];
     if (user.role === 'VETERINARIAN') return [...new Map(veterinarianItems.filter(item=>(!item.permission||hasPermission(item.permission)||(item.path==='/vet/products'&&hasPermission('prescriptions.create')))&&(!['/vet/patients','/vet/clients'].includes(item.path)||hasPermission('pets.view_all')||hasPermission('pets.view_assigned'))).map(item=>[item.path,item])).values()];
     const permitted: MenuItem[] = [
@@ -115,7 +122,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       ...staffItems.filter(item => item.permission && hasPermission(item.permission)).map(item => ({ ...item, path: `${base}/${item.path}` })),
     ];
     return [...new Map(permitted.map(item => [item.path, item])).values()];
-  }, [adminModules, hasPermission, user, base, isAdmin]);
+  }, [visibleAdminModules, hasPermission, user, base, isAdmin]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const adminBack = () => {
     if (pathname.startsWith('/admin/users/')) return router.replace('/admin/users');
@@ -152,14 +159,14 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     </ScrollView>
   </View>;
 
-  return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
+  return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><AdminModulesLoadingContext.Provider value={isAdmin && adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
     <SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={[styles.topBar, desktop && isAdmin && styles.adminDesktopTopBar]}>
         {!isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktop && isAdmin ? 'Menú de navegación siempre visible' : desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? (isAdmin ? setDesktopExpanded(true) : setDesktopExpanded(value => !value)) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
           <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
         </Pressable>}
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
-        {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.danger??'#d84343',width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:'#fff',fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
+        {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.highlight,width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:colors.onHighlight,fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
         {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push(isVeterinarian?'/vet/profile':'/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>
@@ -180,7 +187,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
         <Animated.View style={[styles.mobileDrawer, { backgroundColor: colors.surface, borderColor: colors.border, transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [-310, 0] }) }] }]} pointerEvents={open ? 'auto' : 'none'}>{drawer}</Animated.View>
       </View>}
     </View>
-  </View></AdminModulesContext.Provider>;
+  </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 
 const styles = StyleSheet.create({

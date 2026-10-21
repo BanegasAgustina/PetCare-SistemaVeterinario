@@ -4,6 +4,8 @@ import * as client from '../repositories/client.repository';
 import * as clinic from '../repositories/clinic.repository';
 import * as reservations from '../repositories/reservation.repository';
 import * as admin from '../repositories/clinic-admin.repository';
+import * as storefront from '../repositories/storefront.repository';
+import * as storeOrders from '../repositories/store-orders.repository';
 import * as v from '../validators/clinic.validator';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
@@ -20,6 +22,7 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'appointment-update':return clinic.changeAppointment(actor,v.id(id),value);
  case 'patient':return clinic.patient(actor,v.id(id));
  case 'patient-update':return clinic.updatePatient(actor,v.id(id),value);
+ case 'patient-deactivate':return clinic.deactivatePatient(actor,v.id(id));
  case 'patients':return clinic.patients(actor,v.text(query.search,100,true)??'',v.text(query.sort,20,true)??'recent',v.text(query.speciesId,20,true)??undefined);
  case 'clinical':return clinic.clinical(actor,v.id(id),kind!);
  case 'clinical-create':return clinic.saveClinical(actor,v.id(id),kind!,value);
@@ -53,6 +56,11 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'availability':return admin.availability(actor,query);
  case 'availability-save':return admin.saveAvailability(actor,value);
  case 'availability-disable':return admin.disableAvailability(actor,kind!,v.id(id));
+ case 'store-fulfillment':return storefront.adminFulfillment(actor);
+ case 'store-fulfillment-save':return storefront.saveFulfillment(actor,value);
+ case 'store-orders':return storeOrders.list(actor,query);
+ case 'store-order':return storeOrders.detail(actor,v.id(id));
+ case 'store-order-update':return storeOrders.update(actor,id,value);
  default:v.invalid();
  }});
 }

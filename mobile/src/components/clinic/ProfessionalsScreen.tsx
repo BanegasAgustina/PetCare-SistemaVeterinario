@@ -70,7 +70,7 @@ export function ProfessionalsScreen() {
     catalog.reload();
   }
 
-  return <PetCareScreen wide><PetCareHeader title="Profesionales" back/>
+  return <PetCareScreen wide><PetCareHeader title="Profesionales" back hideForAdmin/>
     {hasPermission('users.manage') && <AppButton label="Crear profesional / secretario" onPress={() => router.push({pathname:'/admin/users',params:{create:'1'}})}/>}
     {hasPermission('veterinarians.manage') && <AppButton label="Veterinarios" variant="secondary" onPress={() => router.push('/admin/veterinarians')}/>}
     <SearchFilterBar>

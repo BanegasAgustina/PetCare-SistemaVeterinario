@@ -72,9 +72,10 @@ export async function requestAppointment(owner:string,petId:string,slotId:string
   // Bloquear al profesional serializa reservas y cambios de disponibilidad de sus slots.
   await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[slot.professionalId]);
   const available=await slots(String(slot.serviceId),String(slot.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
-  await c.execute('INSERT INTO client_appointments(owner_id,pet_id,slot_id) VALUES (?,?,?)',[owner,petId,slotId]);
+  await c.execute("INSERT INTO client_appointments(owner_id,pet_id,slot_id,status) VALUES (?,?,?,'REQUESTED')",[owner,petId,slotId]);
+  const created=await one('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id',[],c);
   await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[petId,slot.professionalId]);
-  return {requested:true};
+  return {id:String(created.id),status:'REQUESTED' as const};
  });
 }
 const appointmentSelect=`SELECT a.id,a.owner_id AS ownerId,a.pet_id AS petId,a.slot_id AS slotId,a.status,a.observations,a.cancellation_reason AS cancellationReason,p.name AS petName,p.photo_url AS petPhotoUrl,CONCAT(owner.first_name,' ',owner.last_name) AS ownerName,owner.phone AS ownerPhone,sv.name AS service,sv.id AS serviceId,pt.id AS typeId,pt.name AS typeName,s.professional_user_id AS professionalId,CONCAT(u.first_name,' ',u.last_name) AS veterinarian,s.starts_at AS startsAt,s.ends_at AS endsAt,(s.starts_at>UTC_TIMESTAMP() AND a.status NOT IN ('CANCELLED','COMPLETED')) AS isUpcoming FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id JOIN users u ON u.id=s.professional_user_id JOIN professional_types pt ON pt.id=s.professional_type_id JOIN users owner ON owner.id=a.owner_id`;
@@ -250,5 +251,17 @@ export async function updatePatient(actor:AuthUser,id:string,value:unknown) {
   await c.execute('UPDATE pets SET name=?,sex=?,species_id=?,breed_id=?,birth_date=?,microchip_number=? WHERE id=? AND owner_id=? AND is_active=1',[name,sex,speciesId,breedId,birthDate,microchip,id,scope.ownerId]);
   await c.execute('INSERT INTO client_pet_details(pet_id,weight_kg) VALUES (?,?) ON DUPLICATE KEY UPDATE weight_kg=?',[id,weight,weight]);
   return {updated:true};
+ });
+}
+/** La desactivación conserva historias y relaciones; solo retira al paciente de los listados activos. */
+export async function deactivatePatient(actor:AuthUser,id:string) {
+ return transaction(actor,async(c,fresh)=>{
+  permit(fresh,'pets.update');const scope=await patientScope(fresh,id,c);
+  const [pet]=await c.execute<RowDataPacket[]>('SELECT id FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,scope.ownerId]);
+  if(!pet.length)throw new AppError('NOT_FOUND',404,'Paciente no encontrado.');
+  const [upcoming]=await c.execute<RowDataPacket[]>("SELECT a.id FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE a.pet_id=? AND a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP() LIMIT 1",[id]);
+  if(upcoming.length)throw new AppError('PET_HAS_APPOINTMENTS',409,'La mascota tiene turnos pendientes.');
+  await c.execute('UPDATE pets SET is_active=0 WHERE id=? AND owner_id=? AND is_active=1',[id,scope.ownerId]);
+  return {deactivated:true};
  });
 }

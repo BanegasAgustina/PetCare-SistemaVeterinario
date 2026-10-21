@@ -65,7 +65,10 @@ export async function requestPushPermissionAndToken(): Promise<string> {
   if (!notifications) throw new Error('Las notificaciones del dispositivo no están disponibles en esta plataforma.');
   await ensureAndroidChannel(notifications);
   let permission = await notifications.getPermissionsAsync();
-  if (permission.status !== 'granted') permission = await notifications.requestPermissionsAsync();
+  if (permission.status !== 'granted') {
+    if (!permission.canAskAgain) throw new Error('El permiso está desactivado. Abrí los ajustes del dispositivo para habilitar las notificaciones de PetCare.');
+    permission = await notifications.requestPermissionsAsync();
+  }
   if (permission.status !== 'granted') throw new Error('No se habilitaron las notificaciones de PetCare en este dispositivo.');
   return readExpoPushToken();
 }

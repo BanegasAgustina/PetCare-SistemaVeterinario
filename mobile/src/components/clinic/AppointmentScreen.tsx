@@ -13,6 +13,7 @@ import { AppInput } from '../forms/AppInput';
 import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { FormNotice } from '../ui/FormNotice';
+import { AdminPageHeading } from '../admin/AdminPageHeading';
 import { SelectionRow } from '../ui/SelectionRow';
 import { clinicDate,clinicDateTime } from '../../utils/clinic-date';
 
@@ -53,7 +54,7 @@ export function AppointmentScreen() {
 
   return <PetCareScreen wide>
     <AppModal size="wide" visible dismissible onClose={() => router.back()}>
-    <AppText variant="title">Detalle del turno</AppText>
+    <AdminPageHeading title="Detalle del turno"/>
     <QueryState {...query} />
     {query.data && <>
       <PetCareCard>

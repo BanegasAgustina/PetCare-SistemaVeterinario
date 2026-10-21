@@ -9,7 +9,7 @@ import { AppText } from '../../components/ui/AppText';
 import { AppButton } from '../../components/ui/AppButton';
 import { FormNotice } from '../../components/ui/FormNotice';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { requestPushPermissionAndToken, storedPushToken, clearStoredPushToken, hasRegisteredPushPermission } from '../../services/push-notifications';
@@ -50,7 +50,9 @@ export default function NotificationsScreen(){
     <PetCareHeader title="Notificaciones" back/>
     {Platform.OS!=='web'&&<>
       <AppText variant="caption" muted>Activá las notificaciones para recibir recordatorios de turnos y avisos importantes sobre tus reservas y mascotas.</AppText>
+      <AppText muted>Estado en este dispositivo: {pushEnabled?'activadas':'no activadas'}</AppText>
       <AppButton label={pushEnabled?'Desactivar notificaciones en este dispositivo':'Activar notificaciones en este dispositivo'} variant="secondary" loading={action.loading} onPress={pushEnabled?disablePush:enablePush}/>
+      {action.error?.includes('ajustes')&&<AppButton label="Abrir ajustes del dispositivo" variant="secondary" onPress={()=>void Linking.openSettings()}/>}
     </>}
     {!!query.data?.some(n=>!n.readAt)&&<AppButton label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/>}
     <QueryState {...query}/>

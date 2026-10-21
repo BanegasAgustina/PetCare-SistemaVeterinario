@@ -1,8 +1,10 @@
 /** Tokens visuales basados en imagenes/paleta de colores .png. */
 const sharedColors = {
-  danger: "#c85454",
+  danger: "#c98292",
   logoBackground: "#def1ea",
   onPrimary: "#ffffff",
+  highlight: "#f0b4c5",
+  onHighlight: "#173e35",
 };
 export const themes = {
   light: {
@@ -17,7 +19,7 @@ export const themes = {
   },
   dark: {
     ...sharedColors,
-    danger: "#ffb4b4",
+    danger: "#f0b4c5",
     background: "#0f211c",
     surface: "#214b3f",
     text: "#edf7f2",

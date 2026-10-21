@@ -18,6 +18,7 @@ import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { PetCareCard, PetCareEmptyState } from '../client/PetCareUI';
 import { AdminFormActions, AdminFormSection } from './AdminFormLayout';
+import { AdminPageHeading } from './AdminPageHeading';
 import type { ClinicRow } from '../../types/clinic';
 import type { Specialty } from '../../types/veterinarian';
 
@@ -49,6 +50,8 @@ export default function SpecialtiesScreen() {
       ...(specialties.data ?? []).filter(row => row.name.toLocaleLowerCase().includes(needle)).map(row => ({ kind: 'specialty' as const, row })),
     ];
   }, [types.data, specialties.data, search]);
+  const typeRows = rows.filter(item => item.kind === 'type');
+  const specialtyRows = rows.filter(item => item.kind === 'specialty');
 
   function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
     setEditing(kind === 'type' ? { kind, row: row as ClinicRow | null } : { kind, row: row as Specialty | null });
@@ -90,9 +93,23 @@ export default function SpecialtiesScreen() {
     });
     if (saved) close();
   }
+  function renderRow({ kind, row }: (typeof rows)[number]) {
+    const permitted = kind === 'type' ? canEditTypes : canEditSpecialties;
+    const role = kind === 'type' ? roles.data?.roles.find(item => item.id === String(row.roleId)) : null;
+    return <PetCareCard key={`${kind}-${row.id}`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <AppText variant="subtitle" numberOfLines={1}>{String(row.name)}</AppText>
+          <AppText muted>{kind === 'type' ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}` : `Especialidad veterinaria · ${(row as Specialty).isActive===false?'Inactiva':'Activa'}`}</AppText>
+        </View>
+        {permitted&&kind==='specialty'&&<AppButton compact variant={(row as Specialty).isActive===false?'primary':'secondary'} destructive={(row as Specialty).isActive!==false} label={(row as Specialty).isActive===false?'Reactivar':'Desactivar'} onPress={()=>setStatusTarget(row as Specialty)}/>}
+        {permitted && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} onPress={() => begin(kind, row)} style={{ padding: 10 }}><Ionicons name="create-outline" size={22} /></Pressable>}
+      </View>
+    </PetCareCard>;
+  }
 
   return <ScreenContainer keyboardAvoiding wide>
-    <AppText variant="title">Tipos y especialidades</AppText>
+    <AdminPageHeading title="Tipos y especialidades"/>
     <AppText muted>Administrá cada catálogo por separado; las asignaciones actuales se conservan.</AppText>
     <SearchFilterBar><AppInput icon="search-outline" label="Buscar" placeholder="Nombre" value={search} onChangeText={setSearch} returnKeyType="search" /></SearchFilterBar>
     {(canEditTypes || canEditSpecialties) && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -102,20 +119,9 @@ export default function SpecialtiesScreen() {
     <FormNotice error message={types.error ?? specialties.error ?? roles.error} />
     {(types.loading || specialties.loading) && <AppText muted>Consultando catálogos…</AppText>}
     {!types.loading && !specialties.loading && !rows.length && <PetCareEmptyState title="No hay resultados" message="Probá con otro nombre o creá un registro." />}
-    {rows.map(({ kind, row }) => {
-      const permitted = kind === 'type' ? canEditTypes : canEditSpecialties;
-      const role = kind === 'type' ? roles.data?.roles.find(item => item.id === String(row.roleId)) : null;
-      return <PetCareCard key={`${kind}-${row.id}`}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <AppText variant="subtitle" numberOfLines={1}>{String(row.name)}</AppText>
-            <AppText muted>{kind === 'type' ? `${role?.name ?? 'Tipo profesional'}${row.isClinical ? ' · Atención clínica' : ''}` : `Especialidad veterinaria · ${(row as Specialty).isActive===false?'Inactiva':'Activa'}`}</AppText>
-          </View>
-          {permitted&&kind==='specialty'&&<AppButton compact variant={(row as Specialty).isActive===false?'primary':'secondary'} destructive={(row as Specialty).isActive!==false} label={(row as Specialty).isActive===false?'Reactivar':'Desactivar'} onPress={()=>setStatusTarget(row as Specialty)}/>}
-          {permitted && <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} onPress={() => begin(kind, row)} style={{ padding: 10 }}><Ionicons name="create-outline" size={22} /></Pressable>}
-        </View>
-      </PetCareCard>;
-    })}
+    {typeRows.length > 0 && <AppText variant="subtitle">Tipos profesionales</AppText>}
+    {typeRows.map(renderRow)}
+    {specialtyRows.map(renderRow)}
     <AppModal visible={Boolean(editing)} dismissible onClose={close}>
       {editing && <>
         <AppText variant="title">{editing.row ? 'Editar' : 'Crear'} {editing.kind === 'type' ? 'tipo profesional' : 'especialidad'}</AppText>

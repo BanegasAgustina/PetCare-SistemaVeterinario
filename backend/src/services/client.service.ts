@@ -10,6 +10,8 @@ import { env } from '../config/env';
 import { storePetPhoto,removePetPhoto } from './pet-photo.service';
 import { readName,readPhone,readPassword } from '../validators/auth.validator';
 import { clientBody,clientId,petInput,cartQuantity,requestKey,text,invalid } from '../validators/client.validator';
+import * as storefront from '../repositories/storefront.repository';
+import * as deliveryAddresses from '../repositories/delivery-address.repository';
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>) {
   return runDatabaseOperation(async()=>{
@@ -44,6 +46,12 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'clinical': {if(!clinicalKinds.includes(String(id) as typeof clinicalKinds[number]))invalid();return repository.clinical(owner,String(id),query.petId?clientId(query.petId):undefined);}
       case 'products':{const productType=text(query.productType,20,true);if(productType&&!['MEDICINE','ACCESSORY'].includes(productType))throw new AppError('VALIDATION_ERROR',400,'El tipo de producto no es válido.');return repository.products(text(query.search,200,true)??'',query.categoryId?clientId(query.categoryId):undefined,false,productType??undefined);}
       case 'categories':return repository.categories();
+      case 'fulfillment':return storefront.publicFulfillment();
+      case 'promotions':return storefront.publicPromotions();
+      case 'delivery-quote':return storefront.quoteDelivery(query);
+      case 'delivery-addresses':return deliveryAddresses.list(owner);
+      case 'delivery-address-save':return deliveryAddresses.save(owner,body);
+      case 'delivery-address-update':return deliveryAddresses.save(owner,body,clientId(id));
       case 'product':return repository.product(clientId(id));
       case 'cart':return repository.cart(owner);
       case 'cart-update':{const values=clientBody(body,['quantity']);return repository.updateCart(owner,clientId(id),cartQuantity(values.quantity));}

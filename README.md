@@ -8,7 +8,7 @@ La correspondencia entre los requisitos del trabajo y su implementación está d
 
 La guía de OAuth, configuración de proveedores y builds Android con EAS está en [mobile/README.md](mobile/README.md). OAuth y refresh tokens ya tienen implementación; deben configurarse y verificarse con los proveedores reales. Para DB vacía usar `db:bootstrap`, `db:migrate:auth` y `db:migrate:employee-password`. Las referencias a migraciones históricas más abajo pertenecen a versiones anteriores: esos SQL no están en este checkout; no ejecutarlos sobre una DB nueva. No se aplicó SQL en la base del usuario.
 
-PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. **PETCARE NO PROCESA PAGOS:** la Tienda funciona mediante reservas para retiro/gestión en la veterinaria. Ver [ampliación conectada, SQL manual y pruebas](AMPLIACION_CLINICA_PETCARE.md). El código nuevo requiere aplicar la migración documentada antes de habilitar estos módulos en Layerbase. Ver [implementación, endpoints, rutas y pruebas](IMPLEMENTACION_CLIENTE.md).
+PetCare conecta Cliente, Veterinario, profesionales no clínicos, Secretaría y Administración sobre MySQL. La tienda usa un carrito persistido por cliente. El checkout puede generar un comprobante de demostración con pago no realizado; no envía datos de tarjeta, no procesa pagos y no descuenta ni retiene stock. Las reservas históricas se conservan y se gestionan por su flujo separado.
 
 Aplicación móvil para la gestión integral de una veterinaria. Busca conectar clientes, veterinarios y administradores mediante una experiencia accesible, con prioridad en celulares Android.
 
@@ -18,7 +18,7 @@ Resultados y límites de verificación en [INFORME_FASE_3.md](INFORME_FASE_3.md)
 
 Implementado: Login con logo original, temas claro/oscuro con Context API, Expo Router desde mobile/src/app, API REST con health, pool MySQL 8, comprobación de conexión, cuatro migraciones SQL y seeds mínimos idempotentes. Se conservaron la interfaz de autenticación y el contrato health.
 
-Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Acccess Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica, turnos y reservas tienen implementación compartida en esta ampliación; su habilitación requiere la nueva migración y las verificaciones documentadas. OAuth Google/Facebook/X y refresh tokens rotativos están implementados; su activación en producción requiere credenciales y callbacks externos. Ver mobile/README.md.
+Autenticación tradicional implementada: registro, login, perfil protegido, bcrypt, JWT Access Token y sesión nativa con SecureStore. El registro asigna CLIENT desde backend; no acepta roles enviados por la app. Super Admin puede gestionar veterinarios, especialidades, permisos e invitaciones. Existe un único panel veterinario dinámico. Clínica y turnos comparten registros en el backend; su habilitación requiere revisar las migraciones y verificaciones de cada entorno. OAuth Google/Facebook/X y refresh tokens rotativos están implementados; su activación en producción requiere credenciales y callbacks externos. Ver mobile/README.md.
 
 ## AUTORIZACIÓN Y PERMISOS
 

@@ -13,11 +13,14 @@ const messages: Record<string, string> = {
   PHOTO_STORAGE_UNAVAILABLE: 'El almacenamiento de fotos no está disponible o todavía no está configurado. Revisá la conexión e intentá nuevamente.',
   PHOTO_REFERENCE_UNSUPPORTED: 'Esta foto pertenece al almacenamiento anterior. Volvé a seleccionarla para guardarla.',
   SCHEMA_UPDATE_REQUIRED: 'No pudimos recuperar los datos de la clínica. Intentá nuevamente.',
+  STORE_FULFILLMENT_SCHEMA_REQUIRED: 'Falta aplicar la migración 004 de entregas del ecommerce. El administrador debe actualizar el backend para habilitar retiro y envío.',
+  STORE_ADDRESSES_SCHEMA_REQUIRED: 'Las direcciones guardadas requieren la migración 006. Podés ingresar la dirección manualmente y continuar.',
+  ROUTE_NOT_FOUND: 'El backend conectado todavía no tiene esta ruta. Actualizá el servidor de PetCare para continuar.',
   INVALID_TRANSITION: 'El estado cambió o esa acción no está permitida. Actualizá la consulta.',
   RESERVATION_EXPIRED: 'La reserva venció y las unidades volvieron al stock.',
   PRESCRIPTION_REQUIRED: 'Seleccioná una receta vigente para este producto y mascota.',
   STOCK_CONFLICT: 'El stock reservado requiere revisión administrativa.',
-  RESERVATION_ONLY: 'PetCare funciona mediante reservas para retiro. No procesa compras.',
+  PAYMENT_NOT_INTEGRATED: 'El sistema de pagos todavía no está conectado. Esta operación es una demostración y no se realizará ningún cobro.',
   PAYLOAD_TOO_LARGE: 'La imagen supera el tamaño permitido. Elegí una foto más pequeña.',
   STOCK_UNAVAILABLE: 'No hay stock suficiente. Actualizá la tienda para revisar disponibilidad.',
   SLOT_UNAVAILABLE: 'El horario ya no está disponible. Elegí otro horario.',
@@ -60,8 +63,13 @@ const messages: Record<string, string> = {
 export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
 
 /** Registra solo código y estado; nunca URL, encabezados, tokens ni cuerpo de la respuesta. */
-function reportApiFailure(code: string, status: number): void {
-  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ code, status }));
+function safeEndpoint(path: string): string {
+  const pathname = path.split('?')[0].replace(/^\/api(?=\/|$)/i, '');
+  return pathname.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140) || '/';
+}
+
+function reportApiFailure(code: string, status: number, method: string, endpoint: string): void {
+  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status }));
 }
 
 export function getApiUrl(): string {
@@ -102,25 +110,29 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
       });
     } catch {
-      reportApiFailure('NETWORK_ERROR', 0);
+      reportApiFailure('NETWORK_ERROR', 0, options.method ?? 'GET', path);
       throw new ApiError('NETWORK_ERROR', 'No pudimos conectar con PetCare. Revisá tu conexión e intentá nuevamente.');
     }
     let result: any;
     try { result = await response.json(); }
     catch {
       const code = response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR';
-      reportApiFailure(code, response.status);
+      reportApiFailure(code, response.status, options.method ?? 'GET', path);
       throw new ApiError(code, response.ok ? 'PetCare devolvió una respuesta que no pudimos interpretar.' : 'El servidor respondió con un error.', response.status);
     }
     if (!response.ok || result?.success !== true) {
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
-      reportApiFailure(code, response.status);
-      throw new ApiError(code, messages[code] ?? 'No pudimos completar la operación. Intentá nuevamente.', response.status, result?.error?.verification);
+      reportApiFailure(code, response.status, options.method ?? 'GET', path);
+      const isStoreConfigurationRead = (options.method ?? 'GET') === 'GET' && /^\/client\/(?:cart|store\/(?:promotions|fulfillment|delivery-quote|addresses(?:\/|$)))$/.test(cleanPath.split('?')[0]);
+      const message = code === 'NOT_FOUND' && isStoreConfigurationRead
+        ? messages.ROUTE_NOT_FOUND
+        : messages[code] ?? 'No pudimos completar la operación. Intentá nuevamente.';
+      throw new ApiError(code, message, response.status, result?.error?.verification);
     }
     return result.data as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    reportApiFailure('CLIENT_ERROR', 0);
+    reportApiFailure('CLIENT_ERROR', 0, options.method ?? 'GET', path);
     throw new ApiError('CLIENT_ERROR', 'No pudimos completar la operación. Intentá nuevamente.');
   } finally { clearTimeout(timeout); }
 }

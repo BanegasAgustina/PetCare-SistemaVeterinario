@@ -4,12 +4,14 @@ import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useClinic } from '../../hooks/useClinic';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, QueryState, statusLabel, ResponsiveGrid } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
+import { CalendarDateField } from '../forms/CalendarDateField';
 import { SelectionRow } from '../ui/SelectionRow';
 import { FilterDisclosure } from '../ui/FilterDisclosure';
 import { CompactPagination } from '../ui/CompactPagination';
@@ -22,7 +24,7 @@ export function AgendaScreen() {
   const veterinarian = user?.role === 'VETERINARIAN';
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : user?.role === 'SECRETARY' ? '/secretary' : '/admin';
   const [search, setSearch] = useState('');
-  const [submittedSearch, setSubmittedSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search.trim());
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const [period,setPeriod]=useState<'day'|'week'|'month'>('day');
@@ -34,12 +36,12 @@ export function AgendaScreen() {
   const apiDate=(date:Date)=>date.toISOString().slice(0,10);
   const rangeStartText=apiDate(rangeStart),rangeEndText=apiDate(rangeEnd);
   const catalog = useClientQuery(api.catalog);
-  const query = useClientQuery(useCallback(() => api.appointments({ ...filters, ...(veterinarian?{fromDate:rangeStartText,toDate:rangeEndText}:{fromDate:clinicDateFilterToApi(filters.fromDate ?? ''),toDate:clinicDateFilterToApi(filters.toDate ?? '')}), search: submittedSearch, page: String(page) }), [api, filters, submittedSearch, page,veterinarian,rangeStartText,rangeEndText]));
+  const query = useClientQuery(useCallback(() => api.appointments({ ...filters, ...(veterinarian?{fromDate:rangeStartText,toDate:rangeEndText}:{fromDate:clinicDateFilterToApi(filters.fromDate ?? ''),toDate:clinicDateFilterToApi(filters.toDate ?? '')}), search: debouncedSearch, page: String(page) }), [api, filters, debouncedSearch, page,veterinarian,rangeStartText,rangeEndText]));
   const updateFilter = (key: string, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return <PetCareScreen wide>
-    <PetCareHeader title="Agenda y turnos" subtitle={veterinarian?'Turnos asignados a tu agenda':'Horarios compartidos con la clínica'} back/>
+    <PetCareHeader title="Agenda y turnos" subtitle={veterinarian?'Turnos asignados a tu agenda':'Horarios compartidos con la clínica'} back hideForAdmin/>
     {veterinarian&&<PetCareCard>
       <View style={{flexDirection:'row',gap:8}}>{([{id:'day',label:'Día'},{id:'week',label:'Semana'},{id:'month',label:'Mes'}] as const).map(item=><View key={item.id} style={{flex:1}}><SelectionRow radio label={item.label} checked={period===item.id} onPress={()=>{setPeriod(item.id);setPage(1);}}/></View>)}</View>
       <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
@@ -50,11 +52,11 @@ export function AgendaScreen() {
       <AppButton label="Ir a hoy" variant="secondary" onPress={()=>{setFocusDate(clinicToday());setPage(1);}}/>
     </PetCareCard>}
     <SearchFilterBar>
-      <AppInput label="Buscar turnos" placeholder={veterinarian?(hasPermission('users.view_basic')?'Paciente, propietario o servicio':'Paciente o servicio'):'Paciente, profesional o servicio'} value={search} onChangeText={value => { setSearch(value); setSubmittedSearch(value.trim()); setPage(1); }} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
+      <AppInput label="Buscar turnos" placeholder={veterinarian?(hasPermission('users.view_basic')?'Paciente, propietario o servicio':'Paciente o servicio'):'Paciente, profesional o servicio'} value={search} onChangeText={value => { setSearch(value); setPage(1); }} returnKeyType="search" onSubmitEditing={() => setPage(1)}/>
       <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({}); setPage(1); }}>
         <AppText variant="subtitle">Fecha del turno</AppText>
-        {!veterinarian&&<><AppInput label="Desde (DD/MM/AAAA)" placeholder="13/10/2026" value={filters.fromDate ?? ''} onChangeText={value => updateFilter('fromDate', value)}/>
-        <AppInput label="Hasta (DD/MM/AAAA)" placeholder="13/10/2026" value={filters.toDate ?? ''} onChangeText={value => updateFilter('toDate', value)}/></>}
+        {!veterinarian&&<><CalendarDateField label="Desde" value={clinicDateFilterToApi(filters.fromDate ?? '')} onChange={value => updateFilter('fromDate', value)}/>
+        <CalendarDateField label="Hasta" value={clinicDateFilterToApi(filters.toDate ?? '')} onChange={value => updateFilter('toDate', value)}/></>}
         <AppText variant="subtitle">Estado</AppText>
         {['', 'REQUESTED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map(status => <SelectionRow key={status || 'all-status'} label={status ? statusLabel(status) : 'Todos los estados'} checked={(filters.status ?? '') === status} onPress={() => updateFilter('status', status)}/>)}
         <QueryState {...catalog}/>

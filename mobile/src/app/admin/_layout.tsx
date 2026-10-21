@@ -9,8 +9,11 @@ export default function AdminLayout() {
     <Stack.Screen name="index" /><Stack.Protected guard={hasPermission('pets.view_information','pets.view_all')}><Stack.Screen name="patients"/><Stack.Screen name="patient"/></Stack.Protected>
 <Stack.Protected guard={hasPermission('professionals.manage')}><Stack.Screen name="professionals"/></Stack.Protected>
 <Stack.Protected guard={hasPermission('appointments.view_all')}><Stack.Screen name="agenda"/><Stack.Screen name="appointment"/></Stack.Protected>
+    <Stack.Protected guard={hasPermission('schedule.manage')}><Stack.Screen name="availability" /></Stack.Protected>
 <Stack.Protected guard={hasPermission('reservations.view_all')}><Stack.Screen name="reservations"/><Stack.Screen name="reservation"/></Stack.Protected>
-<Stack.Protected guard={['services.manage','products.update'].some(code=>hasPermission(code))}><Stack.Screen name="catalog/[kind]"/></Stack.Protected>
+<Stack.Protected guard={['services.manage','products.update','categories.manage','promotions.manage'].some(code=>hasPermission(code))}><Stack.Screen name="catalog/[kind]"/></Stack.Protected>
+<Stack.Protected guard={hasPermission('store.settings.view','store.settings.manage')}><Stack.Screen name="store-settings"/></Stack.Protected>
+<Stack.Protected guard={hasPermission('orders.view_all')}><Stack.Screen name="store-orders"/></Stack.Protected>
     <Stack.Protected guard={hasPermission('veterinarians.manage')}><Stack.Screen name="veterinarians" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('users.manage')}><Stack.Screen name="users" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('roles.manage')}><Stack.Screen name="roles" /></Stack.Protected>

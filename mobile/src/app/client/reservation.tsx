@@ -1,4 +1,3 @@
-/**
- * Ruta de detalle de reserva para CLIENT autenticado. Reutiliza el componente compartido exportado; este consulta /client o /clinic según la operación. El layout presenta los accesos y backend aplica los permisos definitivos.
- */
-export { ReservationScreen as default } from '../../components/clinic/ReservationsScreen';
+/** Enlace heredado: conduce al historial de pedidos sin crear nuevas reservas. */
+import { Redirect } from 'expo-router';
+export default function FormerReservation() { return <Redirect href="/client/orders" />; }

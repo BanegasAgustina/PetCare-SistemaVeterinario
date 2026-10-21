@@ -5,7 +5,6 @@ import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import * as clinic from './clinic.repository';
 import type { AuthUser } from '../types/auth';
-import { randomUUID } from 'node:crypto';
 import { invalid, type petInput } from '../validators/client.validator';
 import { isValidExpoPushToken } from '../utils/expo-push-token';
 type PetInput=ReturnType<typeof petInput>;
@@ -89,33 +88,62 @@ export async function products(search='',category?:string,featured=false,product
   const args:unknown[]=[`%${search}%`];let typeClause='';if(category){typeClause+=' AND p.category_id=?';args.push(category);}if(productType){typeClause+=' AND p.product_type=?';args.push(productType);}if(featured)typeClause+=' AND p.is_featured=1';
   const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.is_active=1 AND (c.id IS NULL OR c.is_active=1) AND p.name LIKE ?${typeClause} ORDER BY p.name LIMIT 200`,args as (string|number)[]);return rows.map(mapProduct);
 }
-export async function product(id:string) {const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.id=? AND p.is_active=1 AND (c.id IS NULL OR c.is_active=1)`,[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');return {...mapProduct(rows[0]),reservationKey:randomUUID()};}
+export async function product(id:string) {const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.id=? AND p.is_active=1 AND (c.id IS NULL OR c.is_active=1)`,[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');return mapProduct(rows[0]);}
 export async function categories(){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM client_product_categories WHERE is_active=1 ORDER BY name');return rows.map(r=>({...r,id:String(r.id)}));}
 export async function cart(owner:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect.replace('SELECT p.id','SELECT i.quantity,p.id')} JOIN client_cart_items i ON i.product_id=p.id WHERE i.owner_id=? ORDER BY p.id`,[owner]);
   const items=rows.map(r=>({...mapProduct(r),quantity:Number(r.quantity),subtotalCents:Number(r.quantity)*Number(r.priceCents)}));
-  return {items,totalCents:items.reduce((sum,r)=>sum+r.subtotalCents,0),checkoutKey:randomUUID()};
+  return {items,totalCents:items.reduce((sum,r)=>sum+r.subtotalCents,0)};
 }
 export async function updateCart(owner:string,id:string,quantity:number) {
   await transaction(async c=>{
     // Bloquear usuario serializa carrito y checkout del mismo cliente.
     await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[owner]);
     if(!quantity){await c.execute('DELETE FROM client_cart_items WHERE owner_id=? AND product_id=?',[owner,id]);return;}
-    const [rows]=await c.execute<RowDataPacket[]>('SELECT stock FROM client_products WHERE id=? AND is_active=1 FOR UPDATE',[id]);
-    if(!rows.length||Number(rows[0].stock)<quantity)throw new AppError('STOCK_UNAVAILABLE',409,'No hay stock suficiente.');
+    const [rows]=await c.execute<RowDataPacket[]>('SELECT (stock-reserved_stock) AS availableStock FROM client_products WHERE id=? AND is_active=1 FOR UPDATE',[id]);
+    if(!rows.length||Number(rows[0].availableStock)<quantity)throw new AppError('STOCK_UNAVAILABLE',409,'No hay stock disponible suficiente.');
     const [count]=await c.execute<RowDataPacket[]>('SELECT COUNT(*) AS total FROM client_cart_items WHERE owner_id=?',[owner]);
     const [existing]=await c.execute<RowDataPacket[]>('SELECT product_id FROM client_cart_items WHERE owner_id=? AND product_id=?',[owner,id]);
     if(!existing.length&&Number(count[0].total)>=100)invalid('El carrito admite hasta 100 productos distintos.');
     await c.execute('INSERT INTO client_cart_items (owner_id,product_id,quantity) VALUES (?,?,?) ON DUPLICATE KEY UPDATE quantity=?',[owner,id,quantity,quantity]);
   });return cart(owner);
 }
-export async function orders(owner:string) {const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,status,total_cents AS totalCents,created_at AS createdAt FROM client_orders WHERE owner_id=? ORDER BY id DESC',[owner]);return rows.map(r=>({...r,id:String(r.id),totalCents:Number(r.totalCents),createdAt:utcDate(r.createdAt)}));}
+export async function orders(owner:string) {const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT id,status,total_cents AS totalCents,created_at AS createdAt,order_type AS orderType,payment_status AS paymentStatus,is_store_order AS isStoreOrder,store_order_status AS storeOrderStatus,store_payment_status AS storePaymentStatus,payment_method AS paymentMethod,fulfillment_method AS fulfillmentMethod,delivery_status AS deliveryStatus,subtotal_cents AS subtotalCents,delivery_fee_cents AS deliveryFeeCents,recipient_name AS recipientName,delivery_street AS deliveryStreet,delivery_number AS deliveryNumber,delivery_unit AS deliveryUnit,delivery_city AS deliveryCity,delivery_province AS deliveryProvince,delivery_postal_code AS deliveryPostalCode FROM client_orders WHERE owner_id=? ORDER BY id DESC`,[owner]);return rows.map(r=>({...r,id:String(r.id),isStoreOrder:Boolean(r.isStoreOrder),totalCents:Number(r.totalCents),subtotalCents:r.subtotalCents===null?null:Number(r.subtotalCents),deliveryFeeCents:Number(r.deliveryFeeCents??0),createdAt:utcDate(r.createdAt)}));}
 export async function order(owner:string,id:string) {
-  const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,status,total_cents AS totalCents,created_at AS createdAt FROM client_orders WHERE id=? AND owner_id=?',[id,owner]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Pedido no encontrado.');
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT id,status,total_cents AS totalCents,created_at AS createdAt,order_type AS orderType,payment_status AS paymentStatus,is_store_order AS isStoreOrder,store_order_status AS storeOrderStatus,store_payment_status AS storePaymentStatus,payment_method AS paymentMethod,fulfillment_method AS fulfillmentMethod,delivery_status AS deliveryStatus,subtotal_cents AS subtotalCents,delivery_fee_cents AS deliveryFeeCents,recipient_name AS recipientName,recipient_phone AS recipientPhone,delivery_street AS deliveryStreet,delivery_number AS deliveryNumber,delivery_unit AS deliveryUnit,delivery_city AS deliveryCity,delivery_province AS deliveryProvince,delivery_postal_code AS deliveryPostalCode,delivery_reference AS deliveryReference FROM client_orders WHERE id=? AND owner_id=?`,[id,owner]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Pedido no encontrado.');
   const [items]=await databasePool.execute<RowDataPacket[]>('SELECT product_id AS productId,product_name AS name,quantity,price_cents AS priceCents,quantity*price_cents AS subtotalCents FROM client_order_items WHERE order_id=?',[id]);
-  return {...rows[0],id:String(rows[0].id),totalCents:Number(rows[0].totalCents),createdAt:utcDate(rows[0].createdAt),items:items.map(r=>({...r,productId:String(r.productId),priceCents:Number(r.priceCents),subtotalCents:Number(r.subtotalCents)}))};
+  return {...rows[0],id:String(rows[0].id),isStoreOrder:Boolean(rows[0].isStoreOrder),totalCents:Number(rows[0].totalCents),subtotalCents:rows[0].subtotalCents===null?null:Number(rows[0].subtotalCents),deliveryFeeCents:Number(rows[0].deliveryFeeCents??0),createdAt:utcDate(rows[0].createdAt),items:items.map(r=>({...r,productId:String(r.productId),priceCents:Number(r.priceCents),subtotalCents:Number(r.subtotalCents)}))};
 }
-export async function checkout(owner:string,key:string) {void owner;void key;throw new AppError('RESERVATION_ONLY',410,'PetCare no procesa compras. Reservá desde el detalle del producto.');}
+/** Crea un pedido informativo: valida precio y stock bajo locks, pero nunca reserva ni descuenta unidades. */
+export async function checkout(owner:string,key:string) {
+  if(!/^[a-f0-9-]{36}$/i.test(key))throw new AppError('VALIDATION_ERROR',400,'La clave de solicitud no es válida.');
+  const id=await transaction(async c=>{
+    // Serializa el carrito por cliente y hace que los reintentos con la misma clave devuelvan el pedido previo.
+    await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[owner]);
+    const [previous]=await c.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,order_type AS orderType FROM client_orders WHERE owner_id=? AND request_key=?',[owner,key]);
+    if(previous[0]){if(previous[0].orderType!=='DEMO_PURCHASE')throw new AppError('IDEMPOTENCY_KEY_REUSED',409,'La clave de solicitud ya corresponde a otra operación.');return String(previous[0].id);}
+    const [cartItems]=await c.execute<RowDataPacket[]>(`SELECT i.product_id AS productId,i.quantity,p.name,p.product_type AS productType,p.stock,p.reserved_stock AS reservedStock,p.price_cents AS regularPriceCents,
+      COALESCE((SELECT MIN(pr.price_cents) FROM client_promotions pr WHERE pr.product_id=p.id AND pr.is_active=1 AND pr.starts_at<=UTC_TIMESTAMP() AND pr.ends_at>UTC_TIMESTAMP() AND pr.price_cents<p.price_cents),p.price_cents) AS priceCents
+      FROM client_cart_items i JOIN client_products p ON p.id=i.product_id LEFT JOIN client_product_categories cat ON cat.id=p.category_id
+      WHERE i.owner_id=? AND p.is_active=1 AND (cat.id IS NULL OR cat.is_active=1) ORDER BY p.id FOR UPDATE`,[owner]);
+    const [cartCount]=await c.execute<RowDataPacket[]>('SELECT COUNT(*) AS total FROM client_cart_items WHERE owner_id=?',[owner]);
+    if(!cartItems.length)throw new AppError('CART_EMPTY',409,'El carrito está vacío o sus productos ya no están disponibles.');
+    if(Number(cartCount[0].total)!==cartItems.length)throw new AppError('CART_ITEMS_UNAVAILABLE',409,'Hay productos del carrito que ya no están disponibles. Revisalo antes de continuar.');
+    let total=0;
+    for(const item of cartItems){const quantity=Number(item.quantity),available=Number(item.stock)-Number(item.reservedStock),unitPrice=Number(item.priceCents);
+      if(!Number.isInteger(quantity)||quantity<1||quantity>99||available<quantity)throw new AppError('STOCK_UNAVAILABLE',409,'El stock cambió. Revisá el carrito antes de continuar.');
+      if(!Number.isSafeInteger(unitPrice)||unitPrice<0||!Number.isSafeInteger(unitPrice*quantity))throw new AppError('PRICE_INVALID',409,'No se pudo validar el precio actual del carrito.');
+      total+=unitPrice*quantity;
+    }
+    if(!Number.isSafeInteger(total)||total<=0)throw new AppError('PRICE_INVALID',409,'El total del pedido no es válido.');
+    await c.execute("INSERT INTO client_orders(owner_id,request_key,total_cents,status,created_at,expires_at,order_type,payment_status) VALUES (?,?,?,'PLACED',UTC_TIMESTAMP(3),TIMESTAMPADD(HOUR,24,UTC_TIMESTAMP(3)),'DEMO_PURCHASE','DEMO_NOT_PAID')",[owner,key,total]);
+    const [created]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');const orderId=String(created[0].id);
+    for(const item of cartItems)await c.execute('INSERT INTO client_order_items(order_id,product_id,product_name,quantity,price_cents) VALUES (?,?,?,?,?)',[orderId,item.productId,item.name,item.quantity,item.priceCents]);
+    await c.execute('DELETE FROM client_cart_items WHERE owner_id=?',[owner]);
+    return orderId;
+  });
+  return order(owner,id);
+}
 export async function notifications(owner:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,title,body,event_type AS eventType,reference_type AS referenceType,CAST(reference_id AS CHAR) AS referenceId,read_at AS readAt,created_at AS createdAt FROM client_notifications WHERE owner_id=? ORDER BY created_at DESC,id DESC LIMIT 100',[owner]);return rows.map(r=>({...r,readAt:r.readAt?utcDate(r.readAt):null,createdAt:utcDate(r.createdAt)}));}
 export async function unreadNotificationCount(owner:string){const [rows]=await databasePool.execute<Array<RowDataPacket & {count:number}>>('SELECT COUNT(*) AS count FROM client_notifications WHERE owner_id=? AND read_at IS NULL',[owner]);return Number(rows[0]?.count??0);}
 export async function readNotification(owner:string,id:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id FROM client_notifications WHERE id=? AND owner_id=?',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);return {read:true};}

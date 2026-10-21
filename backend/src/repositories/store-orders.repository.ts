@@ -1,0 +1,78 @@
+import type { RowDataPacket } from 'mysql2/promise';
+import type { AuthUser } from '../types/auth';
+import * as clinic from './clinic.repository';
+import { databasePool } from '../config/database';
+import { AppError } from '../utils/app-error';
+import { clientId } from '../validators/client.validator';
+import * as v from '../validators/clinic.validator';
+
+const select = `o.id,o.owner_id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS clientName,u.email AS clientEmail,u.phone AS clientPhone,
+  o.store_order_status AS orderStatus,o.store_payment_status AS paymentStatus,o.payment_method AS paymentMethod,o.fulfillment_method AS fulfillmentMethod,
+  o.delivery_status AS deliveryStatus,o.subtotal_cents AS subtotalCents,o.delivery_fee_cents AS deliveryFeeCents,o.total_cents AS totalCents,o.created_at AS createdAt,
+  o.recipient_name AS recipientName,o.recipient_phone AS recipientPhone,o.delivery_street AS deliveryStreet,o.delivery_number AS deliveryNumber,o.delivery_unit AS deliveryUnit,
+  o.delivery_city AS deliveryCity,o.delivery_province AS deliveryProvince,o.delivery_postal_code AS deliveryPostalCode,o.delivery_reference AS deliveryReference`;
+const operational = ['PLACED','CONFIRMED','PROCESSING','READY','IN_TRANSIT','DELIVERED','PICKED_UP','CANCELLED'];
+const payment = ['PENDING','PAID','FAILED','REFUNDED'];
+
+export async function list(actor: AuthUser, query: Record<string, unknown>) {
+  clinic.permit(actor,'orders.view_all');
+  const search = typeof query.search === 'string' ? query.search.trim() : '';
+  if(search.length>120) v.invalid('El texto de búsqueda es demasiado largo.');
+  const status = query.status === undefined || query.status === '' ? '' : String(query.status);
+  if(status && !operational.includes(status)) v.invalid('El estado del pedido no es válido.');
+  const method = query.fulfillmentMethod === undefined || query.fulfillmentMethod === '' ? '' : String(query.fulfillmentMethod);
+  if(method && !['PICKUP','DELIVERY'].includes(method)) v.invalid('El método de entrega no es válido.');
+  const from = typeof query.from === 'string' && query.from ? query.from : '';
+  const to = typeof query.to === 'string' && query.to ? query.to : '';
+  for(const date of [from,to]) if(date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) v.invalid('La fecha no es válida.');
+  const where = ['o.is_store_order=1']; const params: (string|number)[]=[];
+  if(search){where.push("(CAST(o.id AS CHAR)=? OR CONCAT(u.first_name,' ',u.last_name) LIKE ? OR u.email LIKE ?)");params.push(search,`%${search}%`,`%${search}%`);}
+  if(status){where.push('o.store_order_status=?');params.push(status);}
+  if(method){where.push('o.fulfillment_method=?');params.push(method);}
+  if(from){where.push('o.created_at>=?');params.push(`${from} 00:00:00`);}
+  if(to){where.push('o.created_at<DATE_ADD(?, INTERVAL 1 DAY)');params.push(to);}
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${select} FROM client_orders o JOIN users u ON u.id=o.owner_id WHERE ${where.join(' AND ')} ORDER BY o.created_at DESC,o.id DESC LIMIT 100`,params);
+  return rows.map(mapOrder);
+}
+
+export async function detail(actor: AuthUser, id: string) {
+  clinic.permit(actor,'orders.view_all');
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${select} FROM client_orders o JOIN users u ON u.id=o.owner_id WHERE o.id=? AND o.is_store_order=1`,[id]);
+  if(!rows[0]) throw new AppError('NOT_FOUND',404,'Pedido de tienda no encontrado.');
+  const [items]=await databasePool.execute<RowDataPacket[]>(`SELECT product_id AS productId,product_name AS name,quantity,price_cents AS priceCents,quantity*price_cents AS subtotalCents FROM client_order_items WHERE order_id=? ORDER BY product_id`,[id]);
+  const [history]=await databasePool.execute<RowDataPacket[]>(`SELECT h.state_type AS stateType,h.previous_status AS previousStatus,h.new_status AS newStatus,h.occurred_at AS occurredAt,h.reason,CONCAT(u.first_name,' ',u.last_name) AS actorName FROM client_order_status_history h LEFT JOIN users u ON u.id=h.actor_user_id WHERE h.order_id=? ORDER BY h.occurred_at,h.id`,[id]);
+  return {...mapOrder(rows[0]),items:items.map(item=>({...item,productId:String(item.productId),quantity:Number(item.quantity),priceCents:Number(item.priceCents),subtotalCents:Number(item.subtotalCents)})),history};
+}
+
+export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
+  const id=clientId(rawId);const body=v.body(value,['orderStatus','paymentStatus']);
+  if((body.orderStatus===undefined)===(body.paymentStatus===undefined)) v.invalid('Indicá un único estado para actualizar.');
+  return clinic.transaction(actor,async(c,fresh)=>{
+    const manageOrder=body.orderStatus!==undefined;clinic.permit(fresh,manageOrder?'orders.manage':'orders.payment.manage');
+    const [rows]=await c.execute<RowDataPacket[]>(`SELECT store_order_status AS orderStatus,store_payment_status AS paymentStatus,fulfillment_method AS fulfillmentMethod,delivery_status AS deliveryStatus FROM client_orders WHERE id=? AND is_store_order=1 FOR UPDATE`,[id]);
+    if(!rows[0]) throw new AppError('NOT_FOUND',404,'Pedido de tienda no encontrado.');
+    const old=String(manageOrder?rows[0].orderStatus:rows[0].paymentStatus);
+    const next=String(manageOrder?body.orderStatus:body.paymentStatus);
+    if(!(manageOrder?operational:payment).includes(next)) v.invalid('El estado indicado no es válido.');
+    if(old===next)return {saved:true};
+    if(manageOrder&&!validTransition(old,next,String(rows[0].fulfillmentMethod))) throw new AppError('INVALID_ORDER_TRANSITION',409,'Ese cambio no está permitido desde el estado actual.');
+    if(!manageOrder&&!(old==='PENDING'&&next==='PAID'||old==='PENDING'&&next==='FAILED'||old==='PAID'&&next==='REFUNDED')) throw new AppError('INVALID_PAYMENT_TRANSITION',409,'Ese cambio de pago no está permitido.');
+    if(manageOrder){
+      const deliveryStatus=String(rows[0].fulfillmentMethod)==='DELIVERY'?(next==='IN_TRANSIT'?'IN_TRANSIT':next==='DELIVERED'?'DELIVERED':next==='CANCELLED'?'CANCELLED':'PENDING'):(next==='PICKED_UP'?'PICKED_UP':next==='CANCELLED'?'CANCELLED':'PENDING');
+      await c.execute('UPDATE client_orders SET store_order_status=?,delivery_status=? WHERE id=?',[next,deliveryStatus,id]);
+      await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,?,?,?,?)',[id,old,next,fresh.id,'ORDER']);
+      const previousDelivery=String(rows[0].deliveryStatus);
+      if(previousDelivery!==deliveryStatus) await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,?,?,?,?)',[id,previousDelivery,deliveryStatus,fresh.id,'DELIVERY']);
+    } else await c.execute('UPDATE client_orders SET store_payment_status=? WHERE id=?',[next,id]);
+    if(!manageOrder) await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,?,?,?,?)',[id,old,next,fresh.id,'PAYMENT']);
+    return {saved:true};
+  });
+}
+
+function validTransition(old:string,next:string,method:string){
+  if(next==='CANCELLED') return ['PLACED','CONFIRMED','PROCESSING'].includes(old);
+  const pickup:Record<string,string[]>={PLACED:['CONFIRMED'],CONFIRMED:['PROCESSING'],PROCESSING:['READY'],READY:['PICKED_UP']};
+  const delivery:Record<string,string[]>={PLACED:['CONFIRMED'],CONFIRMED:['PROCESSING'],PROCESSING:['IN_TRANSIT'],IN_TRANSIT:['DELIVERED']};
+  return (method==='PICKUP'?pickup:delivery)[old]?.includes(next)??false;
+}
+function mapOrder(row:RowDataPacket){return {...row,id:String(row.id),ownerId:String(row.ownerId),subtotalCents:Number(row.subtotalCents??0),deliveryFeeCents:Number(row.deliveryFeeCents??0),totalCents:Number(row.totalCents),createdAt:row.createdAt};}

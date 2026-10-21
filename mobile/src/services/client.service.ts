@@ -1,5 +1,5 @@
 /** Services Cliente usan el request autenticado existente; nunca reciben ownerId. */
-import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,Notification,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot } from '../types/client';
+import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,Notification,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress } from '../types/client';
 export type ClientRequest=<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH';body?:unknown})=>Promise<T>;
 export function clientService(request:ClientRequest){
   const get=<T>(path:string)=>request<T>(`/client${path}`);
@@ -13,10 +13,11 @@ export function clientService(request:ClientRequest){
     }),deactivatePet:(id:string)=>send(`/pets/${encodeURIComponent(id)}/deactivate`,'PATCH',{}),
     appointments:()=>get<Appointment[]>('/appointments'),appointmentCatalog:()=>get<AppointmentCatalog>('/appointments/catalog'),
     slots:(serviceId:string,veterinarianId?:string)=>get<Slot[]>(`/appointments/slots?${new URLSearchParams({serviceId,...(veterinarianId?{veterinarianId}:{})})}`),
-    requestAppointment:(petId:string,slotId:string)=>send('/appointments','POST',{petId,slotId}),
+    requestAppointment:(petId:string,slotId:string)=>send<{id:string;status:'REQUESTED'|'CONFIRMED'}>('/appointments','POST',{petId,slotId}),
     clinical:(kind:ClinicalKind,petId?:string)=>get<ClinicalRecord[]>(`/clinical/${kind}${petId?`?petId=${encodeURIComponent(petId)}`:''}`),
     products:(search='',categoryId?:string,productType?:'MEDICINE'|'ACCESSORY')=>get<Product[]>(`/store/products?${new URLSearchParams({search,...(categoryId?{categoryId}:{}),...(productType?{productType}:{})})}`),
     product:(id:string)=>get<Product>(`/store/products/${encodeURIComponent(id)}`),categories:()=>get<CatalogItem[]>('/store/categories'),
+    fulfillment:()=>get<FulfillmentSettings>('/store/fulfillment'),promotions:()=>get<PromotionBanner[]>('/store/promotions'),deliveryQuote:(address:{province:string;city:string;postalCode:string;subtotalCents:number})=>get<DeliveryQuote>(`/store/delivery-quote?${new URLSearchParams({province:address.province,city:address.city,postalCode:address.postalCode,subtotalCents:String(address.subtotalCents)})}`),deliveryAddresses:()=>get<DeliveryAddress[]>('/store/addresses'),saveDeliveryAddress:(body:Omit<DeliveryAddress,'id'>)=>send<DeliveryAddress>('/store/addresses','POST',body),updateDeliveryAddress:(id:string,body:Omit<DeliveryAddress,'id'>)=>send<DeliveryAddress>(`/store/addresses/${encodeURIComponent(id)}`,'PATCH',body),
     cart:()=>get<Cart>('/cart'),updateCart:(id:string,quantity:number)=>send<Cart>(`/cart/${encodeURIComponent(id)}`,'PUT',{quantity}),
     checkout:(requestKey:string)=>send<OrderDetail>('/orders','POST',{requestKey}),orders:()=>get<Order[]>('/orders'),order:(id:string)=>get<OrderDetail>(`/orders/${encodeURIComponent(id)}`),
     notifications:()=>get<Notification[]>('/notifications'),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),readAllNotifications:()=>send('/notifications/read-all','PATCH',{}),
