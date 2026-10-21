@@ -21,18 +21,18 @@ const AdminModulesLoadingContext = createContext(false);
 const scheduleAdminModule: AdminModule = { code: 'schedule.manage', name: 'Horarios', path: '/admin/availability' };
 export function useAdminModules() { return useContext(AdminModulesContext); }
 export function useAdminModulesLoading() { return useContext(AdminModulesLoadingContext); }
-const adminGroups = ['General', 'Clínica', 'Tienda', 'Administración'] as const;
+const adminGroups = ['Inicio', 'Clínica', 'Tienda', 'Administración'] as const;
 function adminGroup(path: string): typeof adminGroups[number] {
-  if (path === '/admin') return 'General';
+  if (path === '/admin') return 'Inicio';
   if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
-  if (['/admin/reservations','/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders'].includes(path)) return 'Tienda';
+  if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners'].includes(path)) return 'Tienda';
   return 'Administración';
 }
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
     '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
-    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/reservations':'Reservas','/admin/products':'Productos y stock',
-    '/admin/catalog/products':'Productos','/admin/catalog/categories':'Categorías','/admin/catalog/promotions':'Promociones','/admin/store-settings':'Retiro y envíos','/admin/store-orders':'Pedidos de tienda','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
+    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/products':'Inventario y stock',
+    '/admin/catalog/products':'Productos','/admin/catalog/categories':'Categorías','/admin/catalog/promotions':'Promociones y descuentos','/admin/store-banners':'Banners y slider','/admin/store-settings':'Envíos y entregas','/admin/store-orders':'Pedidos','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
   };
   return labels[module.path] ?? module.name;
 }
@@ -114,7 +114,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     if (user.role === 'CLIENT') return clientItems;
     if (isAdmin) return [
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
-      ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
+      ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties','/admin/reservations'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
     ];
     if (user.role === 'VETERINARIAN') return [...new Map(veterinarianItems.filter(item=>(!item.permission||hasPermission(item.permission)||(item.path==='/vet/products'&&hasPermission('prescriptions.create')))&&(!['/vet/patients','/vet/clients'].includes(item.path)||hasPermission('pets.view_all')||hasPermission('pets.view_assigned'))).map(item=>[item.path,item])).values()];
     const permitted: MenuItem[] = [

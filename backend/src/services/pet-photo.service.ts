@@ -11,7 +11,8 @@ const keyPattern=/^pets\/([1-9]\d{0,19})\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[
 const productKeyPattern=/^products\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
 const serviceKeyPattern=/^services\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
 const profileKeyPattern=/^profiles\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
-const cloudinaryPhotoPattern=/^https:\/\/res\.cloudinary\.com\/([a-zA-Z0-9_-]+)\/image\/upload\/(?:v\d+\/)?((?:pets\/[1-9]\d{0,19}|products|services|profiles)\/[a-f0-9-]{36})\.webp$/;
+const bannerKeyPattern=/^banners\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+const cloudinaryPhotoPattern=/^https:\/\/res\.cloudinary\.com\/([a-zA-Z0-9_-]+)\/image\/upload\/(?:v\d+\/)?((?:pets\/[1-9]\d{0,19}|products|services|profiles|banners)\/[a-f0-9-]{36})\.webp$/;
 function cloudinaryClient() {
   const cloud_name=process.env.CLOUDINARY_CLOUD_NAME?.trim(),api_key=process.env.CLOUDINARY_API_KEY?.trim(),api_secret=process.env.CLOUDINARY_API_SECRET?.trim();
   if(!cloud_name||!api_key||!api_secret)throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'Cloudinary no está configurado. Definí CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en el backend.');
@@ -25,12 +26,13 @@ async function uploadCloudinaryPhoto(image:Buffer,folder:string) {
     });stream.end(image);
   });} catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la foto a Cloudinary. Intentá nuevamente.');}
 }
-function cloudinaryPublicId(value:unknown,kind:'pets'|'products'|'services'|'profiles',owner?:string):string|null {
+function cloudinaryPublicId(value:unknown,kind:'pets'|'products'|'services'|'profiles'|'banners',owner?:string):string|null {
   if(typeof value!=='string')return null;const match=cloudinaryPhotoPattern.exec(value);if(!match)return null;
   const {cloud_name}=cloudinaryClient();if(match[1]!==cloud_name)return null;
   const id=match[2];if(kind==='profiles'&&/^profiles\/[a-f0-9-]{36}$/.test(id))return id;
   if(kind==='products'&&/^products\/[a-f0-9-]{36}$/.test(id))return id;
   if(kind==='services'&&/^services\/[a-f0-9-]{36}$/.test(id))return id;
+  if(kind==='banners'&&/^banners\/[a-f0-9-]{36}$/.test(id))return id;
   if(kind==='pets'&&owner&&id.startsWith(`pets/${owner}/`)&&/^pets\/[1-9]\d{0,19}\/[a-f0-9-]{36}$/.test(id))return id;
   return null;
 }
@@ -49,6 +51,7 @@ export function isPetPhotoKey(value:unknown,owner?:string):value is string {
 export function isProductPhotoKey(value:unknown):value is string {return typeof value==='string'&&(productKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'products')));}
 export function isServicePhotoKey(value:unknown):value is string {return typeof value==='string'&&(serviceKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'services')));}
 export function isProfilePhotoKey(value:unknown):value is string {return typeof value==='string'&&(profileKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'profiles')));}
+export function isBannerPhotoKey(value:unknown):value is string {return typeof value==='string'&&(bannerKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'banners')));}
 /** Construye S3 con credenciales privadas del backend; virtual/path debe coincidir con Railway Credentials. */
 export function photoStorage() {
   const bucket=process.env.BUCKET?.trim(),accessKeyId=process.env.ACCESS_KEY_ID?.trim(),secretAccessKey=process.env.SECRET_ACCESS_KEY?.trim(),region=process.env.REGION?.trim(),endpoint=process.env.ENDPOINT?.trim();
@@ -97,6 +100,14 @@ export async function petPhotoUrl(owner:string,key:unknown):Promise<string|null>
 export async function storeProductPhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'products');
   return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
+}
+export async function storeBannerPhoto(value:unknown) {
+  const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'banners');
+  return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
+}
+export async function removeBannerPhoto(key:unknown) {
+  const cloudId=cloudinaryPublicId(key,'banners');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
+  if(!bannerKeyPattern.test(String(key??'')))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:String(key)}));}finally {storage.client.destroy();}
 }
 export async function storeServicePhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'services');

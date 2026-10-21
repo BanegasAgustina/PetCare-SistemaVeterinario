@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { databasePool } from '../src/config/database';
-import { publicFulfillment, publicPromotions, quoteDelivery } from '../src/repositories/storefront.repository';
+import { publicBanners, publicFulfillment, publicPromotions, quoteDelivery } from '../src/repositories/storefront.repository';
 
 type QueryHandler = (sql: string) => unknown[];
 
@@ -49,6 +49,22 @@ test('promotion banner uses the active promotion price and product image', async
   assert.equal(banners[0]?.regularPriceCents, 10000);
   assert.equal(banners[0]?.imageUrl, product.imageUrl);
   assert.equal(banners[0]?.promotionName, 'Promoción vigente');
+});
+
+test('public banners are scheduled, ordered independently and resolve only catalog destinations', async () => {
+  const banners = await withQueryHandler(sql => {
+    assert.match(sql,/FROM client_store_banners b/);
+    assert.match(sql,/b\.is_active=1/);
+    assert.match(sql,/b\.starts_at<=UTC_TIMESTAMP\(\)/);
+    assert.match(sql,/b\.ends_at>UTC_TIMESTAMP\(\)/);
+    assert.match(sql,/ORDER BY b\.sort_order,b\.id/);
+    return [{id:'5',title:'Banner',destinationId:'7',targetProductId:'7',darkOverlay:1,isActive:1,sortOrder:'2'}];
+  },publicBanners);
+  assert.equal(banners[0]?.id,'5');
+  assert.equal(banners[0]?.destinationId,'7');
+  assert.equal(banners[0]?.targetProductId,'7');
+  assert.equal(banners[0]?.darkOverlay,true);
+  assert.equal(banners[0]?.sortOrder,2);
 });
 
 test('missing commercial settings resolve to both delivery methods disabled', async () => {

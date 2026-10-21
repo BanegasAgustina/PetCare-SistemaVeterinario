@@ -9,4 +9,4 @@ export type AdminUser={id:string;firstName:string;lastName:string;email:string;p
 export type UserPermission={code:string;name:string;description:string;module:string;inherited:boolean;override:boolean|null;effective:boolean};
 export type AdminUserDetail=AdminUser&{permissions:UserPermission[]};
 export type AdminUserPage={items:AdminUser[];page:number;total:number;hasMore:boolean};
-export type AdminHome={modules:{code:string;name:string;path:'/admin/users'|'/admin/roles'|'/admin/permissions'|'/admin/veterinarians'|'/admin/specialties'|'/admin/products'}[]};
+export type AdminHome={modules:{code:string;name:string;path:string}[];storeStats?:{newOrders:number;preparingOrders:number;pendingDelivery:number;ordersInTransit:number;salesTodayCents:number;ordersToday:number;pendingPayments:number;outOfStockProducts:number;lowStockProducts:number;promotionsExpiring?:number;expiredBanners?:number;scheduledBanners?:number}};

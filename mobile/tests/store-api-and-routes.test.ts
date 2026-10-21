@@ -11,8 +11,17 @@ test('client store services call the registered route suffixes', async () => {
   const request = async <T,>(endpoint: string): Promise<T> => { paths.push(endpoint); return [] as T; };
   const api = clientService(request);
   await api.promotions();
+  await api.banners();
   await api.fulfillment();
-  assert.deepEqual(paths, ['/client/store/promotions', '/client/store/fulfillment']);
+  assert.deepEqual(paths, ['/client/store/promotions', '/client/store/banners', '/client/store/fulfillment']);
+});
+
+test('client checkout submits only an idempotency key, configured payment type and delivery details',async()=>{
+ const requests:{path:string;method?:string;body?:unknown}[]=[];
+ const request=async<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH';body?:unknown}):Promise<T>=>{requests.push({path,method:options?.method,body:options?.body});return {} as T;};
+ const api=clientService(request);
+ await api.checkout({requestKey:'3a3c6736-c93d-4ac4-b699-8d7a812e4eb1',paymentMethod:'BANK_TRANSFER',paymentReference:'OP-1234',fulfillmentMethod:'DELIVERY',address:{recipientName:'Ana',phone:'1112345678',street:'Calle Uno',streetNumber:'10',unit:'',city:'La Plata',province:'Buenos Aires',postalCode:'1900',reference:''}});
+ assert.deepEqual(requests,[{path:'/client/orders',method:'POST',body:{requestKey:'3a3c6736-c93d-4ac4-b699-8d7a812e4eb1',paymentMethod:'BANK_TRANSFER',paymentReference:'OP-1234',fulfillmentMethod:'DELIVERY',address:{recipientName:'Ana',phone:'1112345678',street:'Calle Uno',streetNumber:'10',unit:'',city:'La Plata',province:'Buenos Aires',postalCode:'1900',reference:''}}}]);
 });
 
 test('administrator store settings read and write the existing clinic configuration endpoint', async () => {
@@ -75,9 +84,11 @@ test('store checkout routes connect storefront, product, cart, delivery and chec
   ]);
   assert.match(store, /router\.navigate\('\/client\/store\/cart'\)/);
   assert.match(product, /router\.push\('\/client\/store\/cart'\)/);
-  assert.match(cart, /router\.push\('\/client\/store\/delivery'\)/);
-  assert.match(delivery, /router\.push\('\/client\/store\/checkout'\)/);
+  assert.match(cart, /router\.push\('\/client\/store\/checkout'\)/);
+  assert.match(delivery, /Redirect href="\/client\/store\/checkout"/);
   const checkout = await readFile(path.join(root, 'checkout.tsx'), 'utf8');
-  assert.match(checkout, /function finishDemo\(\)/);
-  assert.doesNotMatch(checkout, /api\.checkout\(/);
+  assert.match(checkout, /api\.checkout\(/);
+  assert.match(checkout, /Pedido registrado/);
+  assert.match(checkout, /Crypto\.randomUUID/);
+  assert.doesNotMatch(checkout, /cardNumber|securityCode|secureTextEntry/);
 });

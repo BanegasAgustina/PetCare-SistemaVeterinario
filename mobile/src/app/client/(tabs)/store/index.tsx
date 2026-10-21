@@ -1,15 +1,15 @@
 /** Catálogo cliente con búsqueda, filtros reales, banners derivados de promociones activas y carrito existente. */
 import { useCallback, useMemo, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useClient } from '../../../../hooks/useClient';
 import { useClientQuery } from '../../../../hooks/useClientQuery';
 import { useDebouncedValue } from '../../../../hooks/useDebouncedValue';
 import { useFeedback } from '../../../../contexts/FeedbackContext';
-import type { Cart, CatalogItem, Product } from '../../../../types/client';
+import type { Cart, CatalogItem, Product,StoreBanner } from '../../../../types/client';
 import { PetCareScreen, PetCareHeader, PetCareEmptyState, QueryState } from '../../../../components/client/PetCareUI';
-import { ProductDetailModal, PromotionCarousel, StoreProductCard } from '../../../../components/client/Storefront';
+import { ProductDetailModal, PromotionCarousel, StoreBannerCarousel, StoreProductCard } from '../../../../components/client/Storefront';
 import { AppInput } from '../../../../components/forms/AppInput';
 import { AppText } from '../../../../components/ui/AppText';
 import { SelectionRow } from '../../../../components/ui/SelectionRow';
@@ -21,13 +21,14 @@ import { useTheme } from '../../../../hooks/useTheme';
 type ProductSort = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 
 export default function StoreScreen() {
+  const routeParams=useLocalSearchParams<{category?:string|string[]}>();const routeCategory=Array.isArray(routeParams.category)?routeParams.category[0]??'':routeParams.category??'';
   const api = useClient();
   const { showToast } = useFeedback();
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(routeCategory);
   const [productType, setProductType] = useState<'' | 'MEDICINE' | 'ACCESSORY'>('');
   const [sort, setSort] = useState<ProductSort>('name-asc');
   const [minPrice, setMinPrice] = useState('');
@@ -35,7 +36,7 @@ export default function StoreScreen() {
   const [availableOnly, setAvailableOnly] = useState(false);
   const [promotionOnly, setPromotionOnly] = useState(false);
   const [filterError, setFilterError] = useState<string | null>(null);
-  const [draftCategory, setDraftCategory] = useState('');
+  const [draftCategory, setDraftCategory] = useState(routeCategory);
   const [draftType, setDraftType] = useState<'' | 'MEDICINE' | 'ACCESSORY'>('');
   const [draftSort, setDraftSort] = useState<ProductSort>('name-asc');
   const [draftMinPrice, setDraftMinPrice] = useState('');
@@ -53,6 +54,7 @@ export default function StoreScreen() {
   const catalog = useClientQuery(api.categories);
   const cart = useClientQuery(api.cart);
   const promotions = useClientQuery(api.promotions);
+  const banners = useClientQuery(api.banners);
   const reloadCart = cart.reload;
   const loadProducts = useCallback(async () => {
     const result = await api.products(debouncedSearch, category || undefined, productType || undefined);
@@ -119,6 +121,10 @@ export default function StoreScreen() {
     setQuantity('1');
     setModalError(null);
   }, []);
+  const openBanner=useCallback(async(banner:StoreBanner)=>{
+    if((banner.destinationType==='PRODUCT'||banner.destinationType==='PROMOTION')&&banner.targetProductId){try{const product=await api.product(banner.targetProductId);openProduct(product);}catch{setActionError('No pudimos abrir el producto de este banner.');}return;}
+    if(banner.destinationType==='CATEGORY'||(banner.destinationType==='PRODUCT_LIST'&&banner.destinationId)){const categoryId=banner.destinationId??'';router.setParams({category:categoryId||undefined});setCategory(categoryId);setDraftCategory(categoryId);setDraftSort('name-asc');setSort('name-asc');setActionError(null);}
+  },[api,openProduct]);
 
   const categoryChips: CatalogItem[] = catalog.data ?? [];
   const sortCount = sort === 'name-asc' ? 0 : 1;
@@ -161,6 +167,8 @@ export default function StoreScreen() {
       {cartCount > 0 && <View style={[styles.cartBadge, { backgroundColor: colors.accent }]}><AppText variant="caption" style={[styles.cartBadgeText, { color: colors.text }]}>{cartCount > 99 ? '99+' : cartCount}</AppText></View>}
     </Pressable></View>} />
 
+    <QueryState {...banners} />
+    {!!banners.data?.length&&<StoreBannerCarousel banners={banners.data} onOpen={banner=>void openBanner(banner)}/>}
     <QueryState {...promotions} />
     {!!promotions.data?.length && <PromotionCarousel products={promotions.data} onOpen={openProduct} />}
 

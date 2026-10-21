@@ -43,4 +43,5 @@ adminRouter.get('/roles',requirePermission('roles.manage'),handle(async(_req,res
 adminRouter.put('/roles/:id',requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.updateRole(actor(res),identifier(req.params.id),req.body)));
 adminRouter.get('/permissions',requirePermission('permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 adminRouter.get('/products',requireAnyPermission('products.update','products.update_stock','products.update_price'),handle(async req=>presentProductImages(await repository.adminProducts(req.query))));
+adminRouter.get('/products/:id/stock-movements',requirePermission('products.update_stock'),handle(async(req,res)=>repository.adminProductStockMovements(actor(res),identifier(req.params.id))));
 adminRouter.patch('/products/:id',requireAnyPermission('products.update','products.update_stock','products.update_price'),handle(updateProduct));

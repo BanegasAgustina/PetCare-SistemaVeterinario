@@ -24,6 +24,7 @@ clientRouter.get('/clinical/:kind',handle('clinical'));
 clientRouter.get('/store/categories',handle('categories'));
 clientRouter.get('/store/fulfillment',handle('fulfillment'));
 clientRouter.get('/store/promotions',handle('promotions'));
+clientRouter.get('/store/banners',handle('banners'));
 clientRouter.get('/store/delivery-quote',handle('delivery-quote'));
 clientRouter.get('/store/addresses',handle('delivery-addresses'));
 clientRouter.post('/store/addresses',handle('delivery-address-save',201));

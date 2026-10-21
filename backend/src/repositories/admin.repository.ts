@@ -31,11 +31,40 @@ const userColumns='u.id,u.first_name AS firstName,u.last_name AS lastName,u.emai
 const mapUser=(row:RowDataPacket)=>({...row,id:String(row.id),roleId:String(row.roleId),roleName:roleName(row.role,row.roleName),isActive:Boolean(row.isActive),emailVerified:Boolean(row.emailVerified)});
 export async function adminHome(actor:AuthUser) {
   // Este mapa describe rutas implementadas, no otorga permisos ni contiene datos de negocio.
-  const paths:Record<string,string>={'pets.view_all':'/admin/patients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','reservations.view_all':'/admin/reservations','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders'};
+  const paths:Record<string,string>={'pets.view_all':'/admin/patients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','reservations.view_all':'/admin/reservations','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders','store.banners.manage':'/admin/store-banners'};
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT p.code,p.name,m.name AS moduleName FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
   const seen=new Set<string>();const modules: {code:string;name:string;path:string}[]=[];
   for(const row of rows){const path=paths[row.code];if(path==='/admin/patients'&&!actor.permissions?.includes('pets.view_information'))continue;if(path&&actor.permissions?.includes(row.code)&&!seen.has(path)){seen.add(path);modules.push({code:row.code,name:permissionName(row.code,row.name),path});}}
-  return {modules};
+  const result: { modules: typeof modules; storeStats?: { newOrders: number; preparingOrders: number; pendingDelivery: number; ordersInTransit: number; salesTodayCents: number; ordersToday: number; pendingPayments: number; outOfStockProducts: number; lowStockProducts:number; promotionsExpiring?:number; expiredBanners?:number; scheduledBanners?:number }; recentActivity?:{id:string;orderId:string;clientName:string;stateType:string;newStatus:string;occurredAt:string}[] } = {modules};
+  if(actor.permissions?.includes('orders.view_all')) {
+    const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT
+      SUM(o.store_order_status='PLACED') AS newOrders,
+      SUM(o.store_order_status='PROCESSING') AS preparingOrders,
+      SUM(o.fulfillment_method='DELIVERY' AND o.store_order_status IN ('PLACED','CONFIRMED','PROCESSING','READY')) AS pendingDelivery,
+      SUM(o.store_order_status='IN_TRANSIT') AS ordersInTransit,
+      SUM(DATE(CONVERT_TZ(o.created_at,'+00:00','-03:00'))=?) AS ordersToday,
+      COALESCE(SUM(CASE WHEN DATE(CONVERT_TZ(o.created_at,'+00:00','-03:00'))=? AND o.store_payment_status='PAID' AND o.store_order_status<>'CANCELLED' THEN o.total_cents ELSE 0 END),0) AS salesTodayCents,
+      SUM(o.store_payment_status='PENDING') AS pendingPayments,
+      (SELECT COUNT(*) FROM client_products p WHERE p.is_active=1 AND p.stock<=p.reserved_stock) AS outOfStockProducts,
+      (SELECT COUNT(*) FROM client_products p WHERE p.is_active=1 AND p.stock>p.reserved_stock AND p.stock-p.reserved_stock<=p.stock_minimum) AS lowStockProducts
+      FROM client_orders o WHERE o.is_store_order=1`,[today,today]);
+    const row = rows[0] ?? {};
+    result.storeStats = { newOrders:Number(row.newOrders??0),preparingOrders:Number(row.preparingOrders??0),pendingDelivery:Number(row.pendingDelivery??0),ordersInTransit:Number(row.ordersInTransit??0),salesTodayCents:Number(row.salesTodayCents??0),ordersToday:Number(row.ordersToday??0),pendingPayments:Number(row.pendingPayments??0),outOfStockProducts:Number(row.outOfStockProducts??0),lowStockProducts:Number(row.lowStockProducts??0) };
+    const [activity]=await databasePool.execute<RowDataPacket[]>(`SELECT CAST(h.id AS CHAR) AS id,CAST(o.id AS CHAR) AS orderId,CONCAT(u.first_name,' ',u.last_name) AS clientName,h.state_type AS stateType,h.new_status AS newStatus,h.occurred_at AS occurredAt
+      FROM client_order_status_history h JOIN client_orders o ON o.id=h.order_id JOIN users u ON u.id=o.owner_id
+      WHERE o.is_store_order=1 ORDER BY h.occurred_at DESC,h.id DESC LIMIT 8`);
+    result.recentActivity=activity.map(item=>({...item,id:String(item.id),orderId:String(item.orderId),clientName:String(item.clientName),stateType:String(item.stateType),newStatus:String(item.newStatus),occurredAt:String(item.occurredAt)}));
+    if(actor.permissions?.includes('promotions.manage')) {
+      const [promotions]=await databasePool.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM client_promotions WHERE is_active=1 AND ends_at>UTC_TIMESTAMP() AND ends_at<=DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY)`);
+      result.storeStats.promotionsExpiring=Number(promotions[0]?.total??0);
+    }
+    if(actor.permissions?.includes('store.banners.manage')) {
+      const [banners]=await databasePool.execute<RowDataPacket[]>(`SELECT SUM(is_active=1 AND ends_at IS NOT NULL AND ends_at<=UTC_TIMESTAMP()) AS expired,SUM(is_active=1 AND starts_at IS NOT NULL AND starts_at>UTC_TIMESTAMP()) AS scheduled FROM client_store_banners`);
+      result.storeStats.expiredBanners=Number(banners[0]?.expired??0);result.storeStats.scheduledBanners=Number(banners[0]?.scheduled??0);
+    }
+  }
+  return result;
 }
 export async function adminCatalog(actor:AuthUser) {
   const [roles]=await databasePool.execute<RowDataPacket[]>('SELECT id,code,name FROM roles ORDER BY name');
@@ -141,18 +170,18 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
 export async function adminProducts(query:Record<string,unknown>) {
   const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';
   const status=query.status??'all',stock=query.stock??'all',sort=query.sort??'name';
-  if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText)||!['all','active','inactive'].includes(String(status))||!['all','available','out'].includes(String(stock))||!['name','price_low','price_high','stock_low','stock_high'].includes(String(sort)))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
-  const filters:string[]=[];const params:(string|number)[]=[];if(search){filters.push('p.name LIKE ?');params.push(`%${search}%`);}if(status!=='all'){filters.push('p.is_active=?');params.push(status==='active'?1:0);}if(stock!=='all')filters.push(stock==='available'?'p.stock>p.reserved_stock':'p.stock<=p.reserved_stock');
+  if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText)||!['all','active','inactive'].includes(String(status))||!['all','available','out','low'].includes(String(stock))||!['name','price_low','price_high','stock_low','stock_high'].includes(String(sort)))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
+  const filters:string[]=[];const params:(string|number)[]=[];if(search){filters.push('p.name LIKE ?');params.push(`%${search}%`);}if(status!=='all'){filters.push('p.is_active=?');params.push(status==='active'?1:0);}if(stock==='available')filters.push('p.stock>p.reserved_stock');else if(stock==='out')filters.push('p.stock<=p.reserved_stock');else if(stock==='low')filters.push('p.stock>p.reserved_stock AND p.stock-p.reserved_stock<=p.stock_minimum');
   if(query.categoryId){filters.push('p.category_id=?');params.push(clinicValidation.id(query.categoryId));}
   const where=filters.length?`WHERE ${filters.join(' AND ')}`:'';const page=Number(pageText);
   const ordering:Record<string,string>={name:'p.name ASC,p.id',price_low:'p.price_cents ASC,p.name',price_high:'p.price_cents DESC,p.name',stock_low:'(p.stock-p.reserved_stock) ASC,p.name',stock_high:'(p.stock-p.reserved_stock) DESC,p.name'};
   const [count]=await databasePool.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM client_products p ${where}`,params);
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,p.price_cents AS priceCents,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.is_active AS isActive FROM client_products p LEFT JOIN client_product_categories c ON c.id=p.category_id ${where} ORDER BY ${ordering[String(sort)]},p.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,p.price_cents AS priceCents,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.stock_minimum AS stockMinimum,p.is_active AS isActive FROM client_products p LEFT JOIN client_product_categories c ON c.id=p.category_id ${where} ORDER BY ${ordering[String(sort)]},p.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
   return {items:rows.map(p=>({...p,id:String(p.id),isActive:Boolean(p.isActive)})),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
 }
 export async function updateAdminProduct(identity:AuthUser,id:string,value:unknown) {
-  const body=objectBody(value,['name','description','imageUrl','categoryId','isActive','priceCents','stock']);
-  if(!Object.keys(body).length)throw new AppError('VALIDATION_ERROR',400,'No hay cambios para guardar.');
+  const body=objectBody(value,['name','description','imageUrl','categoryId','isActive','priceCents','stock','stockMinimum','stockReason']);
+  if(!Object.keys(body).some(key=>key!=='stockReason'))throw new AppError('VALIDATION_ERROR',400,'No hay cambios para guardar.');
   const assignments:string[]=[];const parameters:(string|number|boolean|null)[]=[];const required=new Set<string>();
   if(body.name!==undefined){assignments.push('name=?');parameters.push(textField(body.name,'El nombre',200));required.add('products.update');}
   if(body.description!==undefined){if(body.description!==null&&(typeof body.description!=='string'||body.description.length>10000))throw new AppError('VALIDATION_ERROR',400,'Revisá la descripción.');assignments.push('description=?');parameters.push(typeof body.description==='string'?body.description.trim()||null:null);required.add('products.update');}
@@ -160,13 +189,19 @@ export async function updateAdminProduct(identity:AuthUser,id:string,value:unkno
   const categoryId=body.categoryId===undefined?undefined:clinicValidation.optionalId(body.categoryId);
   if(body.categoryId!==undefined){assignments.push('category_id=?');parameters.push(categoryId??null);required.add('products.update');}
   if(body.isActive!==undefined){if(typeof body.isActive!=='boolean')throw new AppError('VALIDATION_ERROR',400,'Indicá el estado del producto.');assignments.push('is_active=?');parameters.push(body.isActive);required.add('products.update');}
-  for(const field of ['priceCents','stock'] as const)if(body[field]!==undefined){const number=body[field];if(typeof number!=='number'||!Number.isSafeInteger(number)||number<0||number>(field==='priceCents'?100000000:4294967295))throw new AppError('VALIDATION_ERROR',400,'Precio o stock inválido.');assignments.push(`${field==='priceCents'?'price_cents':'stock'}=?`);parameters.push(number);required.add(field==='priceCents'?'products.update_price':'products.update_stock');}
+  for(const field of ['priceCents','stock','stockMinimum'] as const)if(body[field]!==undefined){const number=body[field];if(typeof number!=='number'||!Number.isSafeInteger(number)||number<0||number>4294967295)throw new AppError('VALIDATION_ERROR',400,'Precio o stock inválido.');assignments.push(`${field==='priceCents'?'price_cents':field==='stock'?'stock':'stock_minimum'}=?`);parameters.push(number);required.add(field==='priceCents'?'products.update_price':'products.update_stock');}
+  const stockReason=body.stockReason===undefined?null:textField(body.stockReason,'El motivo del ajuste',250);
   // La modificación heredada reutiliza los grants efectivos y obtiene el actor actualizado desde MySQL.
-  return transaction(async c=>{const fresh=await freshAdmin(c,identity,...required);if(categoryId){const [categories]=await c.execute<RowDataPacket[]>('SELECT id FROM client_product_categories WHERE id=?',[categoryId]);if(!categories[0])throw new AppError('VALIDATION_ERROR',400,'La categoría seleccionada ya no existe.');}const [rows]=await c.execute<RowDataPacket[]>('SELECT id,reserved_stock AS reservedStock,image_url AS imageUrl FROM client_products WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');if(body.stock!==undefined&&Number(body.stock)<Number(rows[0].reservedStock))throw new AppError('VALIDATION_ERROR',400,'El stock físico no puede ser menor al reservado.');
+  return transaction(async c=>{const fresh=await freshAdmin(c,identity,...required);if(categoryId){const [categories]=await c.execute<RowDataPacket[]>('SELECT id FROM client_product_categories WHERE id=?',[categoryId]);if(!categories[0])throw new AppError('VALIDATION_ERROR',400,'La categoría seleccionada ya no existe.');}const [rows]=await c.execute<RowDataPacket[]>('SELECT id,stock,reserved_stock AS reservedStock,image_url AS imageUrl FROM client_products WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');if(body.stock!==undefined&&Number(body.stock)<Number(rows[0].reservedStock))throw new AppError('VALIDATION_ERROR',400,'El stock físico no puede ser menor al reservado.');const previousStock=Number(rows[0].stock),nextStock=body.stock===undefined?previousStock:Number(body.stock);if(nextStock!==previousStock&&!stockReason)throw new AppError('VALIDATION_ERROR',400,'Indicá el motivo del ajuste de stock.');
     // La actualización conserva el control de stock y registra el último editor en la misma operación.
     await c.execute(`UPDATE client_products SET ${assignments.join(',')},updated_by=? WHERE id=?`,[...parameters,fresh.id,id]);
+    if(nextStock!==previousStock)await c.execute('INSERT INTO client_product_stock_movements(product_id,actor_user_id,quantity_before,quantity_after,quantity_delta,reason) VALUES (?,?,?,?,?,?)',[id,fresh.id,previousStock,nextStock,nextStock-previousStock,stockReason]);
     // El historial solo confirma el nombre de los campos enviados y se revierte si falla el guardado.
     await c.execute('INSERT INTO client_product_change_history(product_id,actor_user_id,action,changed_fields) VALUES (?,?,?,?)',[id,fresh.id,'UPDATED',JSON.stringify(Object.keys(body))]);
     // El servicio elimina la imagen previa únicamente después de que la transacción confirme el cambio.
     return {updated:true,previousImage:rows[0].imageUrl};});
+}
+export async function adminProductStockMovements(identity:AuthUser,id:string) {
+ const rows=await transaction(async c=>{await freshAdmin(c,identity,'products.update_stock');const [product]=await c.execute<RowDataPacket[]>('SELECT id,name,stock,stock_minimum AS stockMinimum,reserved_stock AS reservedStock FROM client_products WHERE id=?',[id]);if(!product[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');const [movements]=await c.execute<RowDataPacket[]>('SELECT m.id,m.quantity_before AS quantityBefore,m.quantity_after AS quantityAfter,m.quantity_delta AS quantityDelta,m.reason,m.created_at AS createdAt,CONCAT(u.first_name,\' \',u.last_name) AS actorName FROM client_product_stock_movements m JOIN users u ON u.id=m.actor_user_id WHERE m.product_id=? ORDER BY m.created_at DESC,m.id DESC LIMIT 100',[id]);return {product:{id:String(product[0].id),name:String(product[0].name),stock:Number(product[0].stock),stockMinimum:Number(product[0].stockMinimum),reservedStock:Number(product[0].reservedStock)},items:movements};});
+ return rows;
 }

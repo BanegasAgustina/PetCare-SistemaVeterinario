@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { Product,PromotionBanner } from '../../types/client';
+import type { Product,PromotionBanner,StoreBanner } from '../../types/client';
 import { PetCareBadge, money } from './PetCareUI';
 import { AppButton } from '../ui/AppButton';
 import { AppModal } from '../ui/AppModal';
@@ -81,6 +81,27 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
   </View>;
 }
 
+export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOpen:(banner:StoreBanner)=>void}) {
+  const {colors}=useTheme();const {width:windowWidth}=useWindowDimensions();const [measuredWidth,setMeasuredWidth]=useState(0);const [active,setActive]=useState(0);const [imageFailed,setImageFailed]=useState(false);const scrollRef=useRef<ComponentRef<typeof ScrollView>>(null);
+  const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=768?260:198;const banner=banners[active];
+  if(!banner)return null;
+  const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
+  return <View onLayout={event=>{const next=event.nativeEvent.layout.width;setMeasuredWidth(current=>Math.abs(current-next)<1?current:next);}} style={styles.storeBannerSection}>
+    <ScrollView ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={event=>{const next=Math.min(banners.length-1,Math.max(0,Math.round(event.nativeEvent.contentOffset.x/width)));setActive(next);setImageFailed(false);}}>
+      {banners.map((item,index)=><View key={item.id} style={[styles.storeBanner,{width,height,backgroundColor:item.backgroundColor}]}>
+        {!imageFailed&&<Image source={{uri:windowWidth>=768?(item.desktopImageUrl??item.mobileImageUrl):item.mobileImageUrl}} resizeMode="cover" onError={()=>{if(index===active)setImageFailed(true);}} style={StyleSheet.absoluteFill}/>}
+        {item.darkOverlay&&<View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.32)'}]}/>}
+        <Pressable accessibilityRole="button" accessibilityLabel={item.ctaText?`${item.title}. ${item.ctaText}`:item.title} disabled={item.destinationType==='INFO'} onPress={()=>onOpen(item)} style={[styles.storeBannerCopy,{alignItems:item.contentAlignment==='CENTER'?'center':item.contentAlignment==='RIGHT'?'flex-end':'flex-start',backgroundColor:'transparent'}]}>
+          <AppText numberOfLines={2} variant="title" style={[styles.storeBannerTitle,{color:item.textColor,textAlign:item.contentAlignment.toLowerCase() as 'left'|'center'|'right'}]}>{item.title}</AppText>
+          {!!item.subtitle&&<AppText numberOfLines={2} style={{color:item.textColor,textAlign:item.contentAlignment.toLowerCase() as 'left'|'center'|'right'}}>{item.subtitle}</AppText>}
+          {item.ctaText&&item.destinationType!=='INFO'&&<View style={[styles.storeBannerCta,{borderColor:item.textColor}]}><AppText style={{color:item.textColor,fontWeight:'700'}}>{item.ctaText}</AppText><Ionicons name="arrow-forward" size={16} color={item.textColor}/></View>}
+        </Pressable>
+      </View>)}
+    </ScrollView>
+    {banners.length>1&&<><Pressable accessibilityRole="button" accessibilityLabel="Banner anterior" onPress={()=>change(active-1)} style={[styles.storeBannerArrow,styles.storeBannerPrev,{backgroundColor:colors.surface}]}><Ionicons name="chevron-back" size={21} color={colors.text}/></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Banner siguiente" onPress={()=>change(active+1)} style={[styles.storeBannerArrow,styles.storeBannerNext,{backgroundColor:colors.surface}]}><Ionicons name="chevron-forward" size={21} color={colors.text}/></Pressable><View style={styles.storeBannerDots} accessibilityLabel={`Banner ${active+1} de ${banners.length}`}>{banners.map((item,index)=><Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Mostrar banner ${index+1}`} accessibilityState={{selected:index===active}} onPress={()=>change(index)} style={[styles.storeBannerDot,{backgroundColor:index===active?colors.primary:colors.border}]}/>)}</View></>}
+  </View>;
+}
+
 export function ProductDetailModal({ product, quantity, inCart, error, saving, cartReady, onQuantityChange, onClose, onAdd }: {
   product: Product | null; quantity: string; inCart: number; error: string | null; saving: boolean; cartReady: boolean;
   onQuantityChange: (value: string) => void; onClose: () => void; onAdd: () => void;
@@ -148,6 +169,7 @@ const styles = StyleSheet.create({
   actionButton: { flex: 1, minWidth: 0, minHeight: 44, paddingHorizontal: 5, paddingVertical: 4, flexDirection: 'row', gap: 4, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontSize: 12, lineHeight: 15, fontWeight: '700', textAlign: 'center' }, cartAddIcon: { position: 'relative' }, cartPlus: { position: 'absolute', right: -3, top: -3, borderRadius: 6 },
   promotionSection: { width: '100%', gap: 8 },
+  storeBannerSection:{width:'100%',position:'relative',gap:8},storeBanner:{borderRadius:18,overflow:'hidden',justifyContent:'center',padding:22},storeBannerCopy:{maxWidth:'72%',gap:7},storeBannerTitle:{fontSize:26,lineHeight:31,fontWeight:'700'},storeBannerCta:{marginTop:4,minHeight:38,paddingHorizontal:12,borderRadius:12,borderWidth:1,flexDirection:'row',alignItems:'center',gap:8},storeBannerArrow:{position:'absolute',top:'43%',width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center',opacity:0.92},storeBannerPrev:{left:10},storeBannerNext:{right:10},storeBannerDots:{flexDirection:'row',justifyContent:'center',gap:8},storeBannerDot:{width:9,height:9,borderRadius:5},
   promotionCard: { minHeight: 166, padding: 12, borderWidth: 1, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 10, overflow: 'hidden' },
   promotionCopy: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' }, promotionBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }, promotionTitle: { fontSize: 17, lineHeight: 20 }, promotionPrice: { flexDirection: 'row', alignItems: 'center', gap: 7 }, promotionCurrent: { fontSize: 16, lineHeight: 20, fontWeight: '700' },
   promotionImageFrame: { width: 94, height: 100, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, promotionImage: { width: '100%', height: '100%' },

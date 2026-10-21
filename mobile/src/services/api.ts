@@ -94,7 +94,7 @@ export function getApiUrl(): string {
   } catch { throw new ApiError('API_NOT_CONFIGURED', 'La conexión con PetCare todavía no está configurada.'); }
 }
 
-export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; body?: unknown; accessToken?: string } = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; accessToken?: string } = {}): Promise<T> {
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const cleanPath = normalizedPath.replace(/^\/api(?=\/|$)/i, '');

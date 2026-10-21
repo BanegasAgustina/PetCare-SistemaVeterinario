@@ -14,6 +14,7 @@ export default function AdminLayout() {
 <Stack.Protected guard={['services.manage','products.update','categories.manage','promotions.manage'].some(code=>hasPermission(code))}><Stack.Screen name="catalog/[kind]"/></Stack.Protected>
 <Stack.Protected guard={hasPermission('store.settings.view','store.settings.manage')}><Stack.Screen name="store-settings"/></Stack.Protected>
 <Stack.Protected guard={hasPermission('orders.view_all')}><Stack.Screen name="store-orders"/></Stack.Protected>
+<Stack.Protected guard={hasPermission('store.banners.manage')}><Stack.Screen name="store-banners"/></Stack.Protected>
     <Stack.Protected guard={hasPermission('veterinarians.manage')}><Stack.Screen name="veterinarians" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('users.manage')}><Stack.Screen name="users" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('roles.manage')}><Stack.Screen name="roles" /></Stack.Protected>

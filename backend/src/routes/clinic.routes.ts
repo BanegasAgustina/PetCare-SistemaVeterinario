@@ -34,6 +34,11 @@ clinicRouter.post('/availability',requireRole('ADMIN','SUPER_ADMIN'),requirePerm
 clinicRouter.patch('/availability/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('schedule.manage'),h('availability-disable'));
 clinicRouter.get('/store-fulfillment',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.settings.view'),h('store-fulfillment'));
 clinicRouter.put('/store-fulfillment',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.settings.manage'),h('store-fulfillment-save'));
+clinicRouter.get('/store-banners',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.banners.manage'),h('store-banners'));
+clinicRouter.put('/store-banners/order',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.banners.manage'),h('store-banners-order'));
+clinicRouter.post('/store-banners',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.banners.manage'),h('store-banner-create',201));
+clinicRouter.patch('/store-banners/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.banners.manage'),h('store-banner-save'));
+clinicRouter.delete('/store-banners/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.banners.manage'),h('store-banner-delete'));
 clinicRouter.get('/store-orders',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('orders.view_all'),h('store-orders'));
 clinicRouter.get('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('orders.view_all'),h('store-order'));
 clinicRouter.patch('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requireAnyPermission('orders.manage','orders.payment.manage'),h('store-order-update'));

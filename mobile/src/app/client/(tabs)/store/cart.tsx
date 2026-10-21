@@ -109,7 +109,7 @@ export default function CartScreen() {
       <View style={styles.summaryRow}><AppText muted>Subtotal</AppText><AppText>{money(cartData.totalCents)}</AppText></View>
       {flow.fulfillment==='delivery'&&<View style={styles.summaryRow}><AppText muted>Envío</AppText><AppText>{flow.quote?.available&&flow.quotedSubtotalCents===cartData.totalCents?money(shipping):'Se calcula al confirmar la dirección'}</AppText></View>}
       <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: colors.border }]}><AppText variant="subtitle">Total</AppText><AppText variant="subtitle">{money(cartData.totalCents+shipping)}</AppText></View>
-      <AppButton variant="primary" label="Comprar ahora" disabled={unavailable || Boolean(pending)} onPress={() => router.push('/client/store/delivery')} />
+      <AppButton variant="primary" label="Comprar ahora" disabled={unavailable || Boolean(pending)} onPress={() => router.push('/client/store/checkout')} />
       <AppButton label="Seguir comprando" variant="secondary" onPress={() => router.navigate('/client/store')} />
     </PetCareCard>}
   </PetCareScreen>;

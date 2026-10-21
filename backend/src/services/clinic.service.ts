@@ -9,7 +9,7 @@ import * as storeOrders from '../repositories/store-orders.repository';
 import * as v from '../validators/clinic.validator';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
-import { isProductPhotoKey,isServicePhotoKey,removeProductPhoto,removeServicePhoto,storeProductPhoto,storeServicePhoto } from './pet-photo.service';
+import { isBannerPhotoKey,isProductPhotoKey,isServicePhotoKey,removeBannerPhoto,removeProductPhoto,removeServicePhoto,storeBannerPhoto,storeProductPhoto,storeServicePhoto } from './pet-photo.service';
 export async function clinicOperation(actor:AuthUser,operation:string,id:unknown,value:unknown,query:Record<string,unknown>,kind?:string) {
  return runDatabaseOperation(async()=>{switch(operation){
  case 'slots':return clinic.slots(v.id(query.serviceId),query.professionalId?v.id(query.professionalId):undefined);
@@ -58,6 +58,25 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'availability-disable':return admin.disableAvailability(actor,kind!,v.id(id));
  case 'store-fulfillment':return storefront.adminFulfillment(actor);
  case 'store-fulfillment-save':return storefront.saveFulfillment(actor,value);
+ case 'store-banners':return storefront.adminBanners(actor);
+ case 'store-banners-order':return storefront.reorderBanners(actor,value);
+ case 'store-banner-create':
+ case 'store-banner-save':{
+  const record=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
+  const {mobilePhotoBase64,desktopPhotoBase64,...fields}=record;
+  if(mobilePhotoBase64===undefined&&desktopPhotoBase64===undefined)return storefront.saveBanner(actor,id,fields);
+  if(!actor.permissions?.includes('store.banners.manage'))throw new AppError('FORBIDDEN',403,'No tenés permiso para modificar banners.');
+  const mobilePhoto=mobilePhotoBase64===undefined?null:await storeBannerPhoto(mobilePhotoBase64);
+  let desktopPhoto:Awaited<ReturnType<typeof storeBannerPhoto>>|null=null;
+  try {
+   if(desktopPhotoBase64!==undefined)desktopPhoto=await storeBannerPhoto(desktopPhotoBase64);
+   const saved=await storefront.saveBanner(actor,operation==='store-banner-create'?undefined:id,{...fields,...(mobilePhoto?{mobileImageUrl:mobilePhoto.url}:{}),...(desktopPhoto?{desktopImageUrl:desktopPhoto.url}:{})});
+   const previous=(saved as {previous?:{mobileImageUrl:string;desktopImageUrl:string|null}}).previous;
+   if(previous){for(const oldImage of [previous.mobileImageUrl,previous.desktopImageUrl])if(oldImage&&isBannerPhotoKey(oldImage)&&oldImage!==(mobilePhoto?.url??fields.mobileImageUrl)&&oldImage!==(desktopPhoto?.url??fields.desktopImageUrl))await removeBannerPhoto(oldImage).catch(()=>console.error('No se pudo limpiar una imagen anterior del banner.'));}
+   return saved;
+  }catch(error){await mobilePhoto?.remove().catch(()=>console.error('No se pudo limpiar la imagen nueva del banner.'));await desktopPhoto?.remove().catch(()=>console.error('No se pudo limpiar la imagen nueva del banner.'));throw error;}
+ }
+ case 'store-banner-delete':{const removed=await storefront.removeBanner(actor,id);for(const image of [removed.mobileImageUrl,removed.desktopImageUrl])if(image&&isBannerPhotoKey(image))await removeBannerPhoto(image).catch(()=>console.error('No se pudo limpiar la imagen del banner eliminado.'));return {deleted:true};}
  case 'store-orders':return storeOrders.list(actor,query);
  case 'store-order':return storeOrders.detail(actor,v.id(id));
  case 'store-order-update':return storeOrders.update(actor,id,value);

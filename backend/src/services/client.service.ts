@@ -9,9 +9,11 @@ import { AppError } from '../utils/app-error';
 import { env } from '../config/env';
 import { storePetPhoto,removePetPhoto } from './pet-photo.service';
 import { readName,readPhone,readPassword } from '../validators/auth.validator';
-import { clientBody,clientId,petInput,cartQuantity,requestKey,text,invalid } from '../validators/client.validator';
+import { clientBody,clientId,petInput,cartQuantity,text,invalid } from '../validators/client.validator';
 import * as storefront from '../repositories/storefront.repository';
 import * as deliveryAddresses from '../repositories/delivery-address.repository';
+import * as storeCheckout from '../repositories/store-checkout.repository';
+import { storeCheckoutInput } from '../validators/store-checkout.validator';
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>) {
   return runDatabaseOperation(async()=>{
@@ -48,6 +50,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'categories':return repository.categories();
       case 'fulfillment':return storefront.publicFulfillment();
       case 'promotions':return storefront.publicPromotions();
+      case 'banners':return storefront.publicBanners();
       case 'delivery-quote':return storefront.quoteDelivery(query);
       case 'delivery-addresses':return deliveryAddresses.list(owner);
       case 'delivery-address-save':return deliveryAddresses.save(owner,body);
@@ -57,7 +60,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'cart-update':{const values=clientBody(body,['quantity']);return repository.updateCart(owner,clientId(id),cartQuantity(values.quantity));}
       case 'orders':return repository.orders(owner);
       case 'order':return repository.order(owner,clientId(id));
-      case 'checkout':{const values=clientBody(body,['requestKey']);return repository.checkout(owner,requestKey(values.requestKey));}
+      case 'checkout':{const input=storeCheckoutInput(body);const orderId=await storeCheckout.create(owner,input.key,input.paymentMethod,input.fulfillmentMethod,input.address,input.paymentReference);return repository.order(owner,orderId);}
       case 'notifications':return repository.notifications(owner);
       case 'notification-read':clientBody(body,[]);return repository.readNotification(owner,clientId(id));
       case 'notification-read-all':clientBody(body,[]);return repository.readAllNotifications(owner);

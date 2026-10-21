@@ -1,6 +1,6 @@
 /** Agenda compartida. Sus filtros y resultados provienen de /clinic/appointments. */
 import { useCallback, useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useClinic } from '../../hooks/useClinic';
@@ -19,13 +19,15 @@ import { SearchFilterBar } from '../ui/SearchFilterBar';
 import { clinicDate,clinicDateFilterToApi, clinicDateTime,clinicToday } from '../../utils/clinic-date';
 
 export function AgendaScreen() {
+  const routeParams=useLocalSearchParams<{status?:string|string[]}>();
+  const requestedStatus=Array.isArray(routeParams.status)?routeParams.status[0]??'':routeParams.status??'';
   const api = useClinic();
   const { user, hasPermission } = useAuth();
   const veterinarian = user?.role === 'VETERINARIAN';
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : user?.role === 'SECRETARY' ? '/secretary' : '/admin';
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search.trim());
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string>>(()=>requestedStatus?{status:requestedStatus}:{} as Record<string,string>);
   const [page, setPage] = useState(1);
   const [period,setPeriod]=useState<'day'|'week'|'month'>('day');
   const [focusDate,setFocusDate]=useState(clinicToday);
