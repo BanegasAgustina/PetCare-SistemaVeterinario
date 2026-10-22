@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { subscribeToNotificationChanges } from '../../services/notification-events';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { softSurfaceShadow } from '../../constants/surface';
 import { AppText } from '../ui/AppText';
 import type { IconName } from '../client/PetCareUI';
 import { PetCareLogo } from './PetCareLogo';
+import { modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
+import { RoleBottomNavigation } from './RoleBottomNavigation';
 
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
 type AdminModule = { code: string; name: string; path: string };
@@ -65,17 +67,53 @@ const groomerItems: MenuItem[] = [
   { label: 'Panel principal', path: '/professional', icon: 'home-outline' },
   { label: 'Mi agenda', path: '/professional/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
   { label: 'Mis mascotas atendidas', path: '/professional/patients', icon: 'paw-outline', permission: 'appointments.view_own' },
+  { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_own' },
   { label: 'Mi perfil', path: '/account', icon: 'person-outline' },
 ];
 function iconFor(code: string): IconName {
   if (code.includes('pet')) return 'paw-outline';
   if (code.includes('appointment') || code.includes('schedule')) return 'calendar-outline';
-  if (code.includes('reservation')) return 'bag-handle-outline';
+  if (code.includes('reservation') || code.includes('store') || code.includes('order')) return 'bag-handle-outline';
+  if (code.includes('profile')) return 'person-outline';
   if (code.includes('professional') || code.includes('veterinarian')) return 'medkit-outline';
   if (code.includes('user')) return 'people-outline';
   if (code.includes('role') || code.includes('permission')) return 'shield-checkmark-outline';
   if (code.includes('product') || code.includes('service') || code.includes('categor')) return 'pricetags-outline';
   return 'settings-outline';
+}
+
+const adminTabs = [
+  { label: 'Inicio', path: '/admin', icon: 'home-outline' as const },
+  { label: 'Clínica', path: '/admin/clinic', icon: 'medkit-outline' as const },
+  { label: 'Tienda', path: '/admin/store', icon: 'bag-handle-outline' as const },
+  { label: 'Administración', path: '/admin/administration', icon: 'settings-outline' as const },
+];
+
+function AdminBottomNavigation({ pathname, personalItems }: { pathname: string; personalItems: MenuItem[] }) {
+  const personalActive=personalItems.find(item=>pathname===item.path||pathname.startsWith(`${item.path}/`))?.path;
+  const active = personalActive??(pathname === '/admin' ? '/admin' : pathname.startsWith('/admin/clinic') ? '/admin/clinic' : pathname.startsWith('/admin/store') || pathname.startsWith('/admin/products') || pathname.startsWith('/admin/catalog/') && !pathname.includes('services') ? '/admin/store' : pathname.startsWith('/admin/catalog/services') || pathname.startsWith('/admin/patients') || pathname.startsWith('/admin/agenda') || pathname.startsWith('/admin/availability') ? '/admin/clinic' : '/admin/administration');
+  return <RoleBottomNavigation items={[...adminTabs,...personalItems]} activePath={active} onNavigate={path=>router.replace(path as never)}/>;
+}
+
+function isAdminFullScreenRoute(pathname: string) {
+  return /^\/admin\/(?:patient|appointment|reservation)(?:\/[^/]+)?$/.test(pathname)
+    || /^\/admin\/(?:users|veterinarians)\/[^/]+$/.test(pathname)
+    || pathname==='/account';
+}
+
+function isVeterinarianFullScreenRoute(pathname: string) {
+  return ['/vet/profile', '/vet/appointment', '/vet/patient', '/vet/record', '/vet/client', '/vet/clients'].includes(pathname);
+}
+function isRoleDetailRoute(pathname:string) {
+  return /^\/(?:professional|secretary)\/(?:appointment|patient|reservation|client)(?:\/[^/]+)?$/.test(pathname)
+    || /^\/admin\/(?:patient|appointment|reservation)$/.test(pathname)
+    || ['/client/store/cart','/client/store/checkout','/client/store/delivery'].includes(pathname)
+    || /^\/client\/store\/[^/]+$/.test(pathname);
+}
+
+function VeterinarianBottomNavigation({ pathname, items }: { pathname: string; items: MenuItem[] }) {
+  const active = [...items].filter(tab => pathname === tab.path || pathname.startsWith(`${tab.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
+  return <RoleBottomNavigation items={items} activePath={active?.path??pathname} onNavigate={path=>router.replace(path as never)}/>;
 }
 
 export function GlobalNavigation({ children }: PropsWithChildren) {
@@ -86,18 +124,16 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'].includes(user.role));
   const isClient = user?.role === 'CLIENT';
   const isVeterinarian = user?.role === 'VETERINARIAN';
   const [adminModulesResult, setAdminModulesResult] = useState<{ userId: string | null; modules: AdminModule[] }>({ userId: null, modules: [] });
   const adminModules = adminModulesResult.userId === user?.id ? adminModulesResult.modules : noAdminModules;
   const adminModulesLoading = isAdmin && adminModulesResult.userId !== user?.id;
   const visibleAdminModules = useMemo(() => isAdmin && hasPermission('schedule.manage') && !adminModules.some(module => module.path === scheduleAdminModule.path) ? [...adminModules, scheduleAdminModule] : adminModules, [adminModules, hasPermission, isAdmin]);
-  const [open, setOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(true);
   const [highlightedAdminPath, setHighlightedAdminPath] = useState<string | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string,boolean>>({});
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [progress] = useState(() => new Animated.Value(0));
   const desktop = Platform.OS === 'web' && Math.min(width, containerWidth) >= 1024;
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/secretary';
   useEffect(() => {
@@ -118,18 +154,31 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const items = useMemo<MenuItem[]>(() => {
     if (!user) return [];
     if (user.role === 'CLIENT') return clientItems;
+    const personalItems: MenuItem[]=personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}));
     if (isAdmin) return [
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
       ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties','/admin/reservations'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
+      ...personalItems,
     ];
-    if (user.role === 'VETERINARIAN') return [...new Map(veterinarianItems.filter(item=>(!item.permission||hasPermission(item.permission)||(item.path==='/vet/products'&&hasPermission('prescriptions.create')))&&(!['/vet/patients','/vet/clients'].includes(item.path)||hasPermission('pets.view_all')||hasPermission('pets.view_assigned'))).map(item=>[item.path,item])).values()];
-    if (user.role === 'GROOMER') return groomerItems.filter(item=>!item.permission||hasPermission(item.permission));
+    if (isCustomRole) return [
+      { label: 'Inicio', path: '/workspace', icon: 'home-outline' },
+      ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
+      { label:'Perfil',path:'/account',icon:'person-outline' },
+    ];
+    if (user.role === 'VETERINARIAN') return [...new Map([
+      ...veterinarianItems.filter(item => (!item.permission || hasPermission(item.permission) || (item.path === '/vet/products' && hasPermission('prescriptions.create')))
+        && (!['/vet/patients','/vet/clients'].includes(item.path) || hasPermission('pets.view_all') || hasPermission('pets.view_assigned'))),
+      ...personalItems,
+    ].map(item => [item.path,item])).values()];
+    if (user.role === 'GROOMER') return [...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)), ...personalItems];
     const permitted: MenuItem[] = [
       { label: 'Inicio', path: base, icon: 'home-outline' },
       ...staffItems.filter(item => item.permission && hasPermission(item.permission)).map(item => ({ ...item, path: `${base}/${item.path}` })),
+      ...personalItems,
+      { label:'Perfil',path:'/account',icon:'person-outline' },
     ];
     return [...new Map(permitted.map(item => [item.path, item])).values()];
-  }, [visibleAdminModules, hasPermission, user, base, isAdmin]);
+  }, [visibleAdminModules, hasPermission, user, base, isAdmin, isCustomRole]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const adminBack = () => {
     if (pathname.startsWith('/admin/users/')) return router.replace('/admin/users');
@@ -138,11 +187,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     return router.canGoBack() ? router.back() : router.replace('/admin');
   };
 
-  useEffect(() => {
-    Animated.timing(progress, { toValue: open ? 1 : 0, duration: 220, useNativeDriver: false }).start();
-  }, [open, progress]);
   if (!user) return <>{children}</>;
-  const navigate = (path: string) => { setOpen(false); router.push(path as never); };
+  const navigate = (path: string) => router.replace(path as never);
   const renderItem = (item: MenuItem) => <Pressable key={item.path} accessibilityRole="button" accessibilityState={{ selected: item.path === selected?.path }} onPress={() => navigate(item.path)} onHoverIn={() => { if (desktop && isAdmin) setHighlightedAdminPath(item.path); }} onHoverOut={() => { if (desktop && isAdmin) setHighlightedAdminPath(value => value === item.path ? null : value); }} onFocus={() => { if (desktop && isAdmin) setHighlightedAdminPath(item.path); }} onBlur={() => { if (desktop && isAdmin) setHighlightedAdminPath(value => value === item.path ? null : value); }} style={[styles.item, desktop && isAdmin && highlightedAdminPath === item.path && { backgroundColor: colors.accent }, item.path === selected?.path && { backgroundColor: colors.accent, borderLeftColor: colors.primary, borderLeftWidth: 3 }]}>
     <Ionicons name={item.icon} size={20} color={item.path === selected?.path ? colors.primary : colors.muted}/><AppText numberOfLines={1} style={styles.itemText}>{item.label}</AppText>
   </Pressable>;
@@ -152,25 +198,38 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       {isAdmin ? adminGroups.map(group => {
         const groupItems = items.filter(item => item.group === group);
         if (!groupItems.length) return null;
-        const collapsed = !desktop && Boolean(collapsedGroups[group]);
         return <View key={group}>
-          {desktop
-            ? <View style={styles.groupHeading}><AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText></View>
-            : <Pressable accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} onPress={() => setCollapsedGroups(value => ({ ...value, [group]: !value[group] }))} style={styles.groupHeading}>
-              <AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText>
-              <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={16} color={colors.muted}/>
-            </Pressable>}
-          {!collapsed && groupItems.map(renderItem)}
+          <View style={styles.groupHeading}><AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText></View>
+          {groupItems.map(renderItem)}
         </View>;
       }) : items.map(renderItem)}
     </ScrollView>
   </View>;
 
+  if (isAdmin) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
+    </SafeAreaView>
+    <View style={styles.adminPage}>{children}</View>
+    {!isAdminFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<AdminBottomNavigation pathname={pathname} personalItems={personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}))}/>}
+  </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
+
+  if (isVeterinarian) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={styles.veterinarianTopBar}>
+        <PetCareLogo style={styles.veterinarianTopLogo}/>
+        <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/vet/profile')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
+      </View>
+    </SafeAreaView>
+    <View style={styles.adminPage}>{children}</View>
+    {!isVeterinarianFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<VeterinarianBottomNavigation pathname={pathname} items={items}/>}
+  </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
+
   return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><AdminModulesLoadingContext.Provider value={isAdmin && adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
     <SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={[styles.topBar, desktop && isAdmin && styles.adminDesktopTopBar]}>
-        {!isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktop && isAdmin ? 'Menú de navegación siempre visible' : desktop ? (desktopExpanded ? 'Contraer menú' : 'Expandir menú') : (open ? 'Cerrar menú' : 'Abrir menú')} onPress={() => desktop ? (isAdmin ? setDesktopExpanded(true) : setDesktopExpanded(value => !value)) : setOpen(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
-          <Ionicons name={desktop ? 'menu' : (open ? 'close' : 'menu')} size={23} color={colors.text}/>
+        {desktop && !isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktopExpanded ? 'Contraer menú' : 'Expandir menú'} onPress={() => setDesktopExpanded(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
+          <Ionicons name="menu" size={23} color={colors.text}/>
         </Pressable>}
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.highlight,width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:colors.onHighlight,fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
@@ -187,20 +246,19 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       </View>
     </View>}
     <View style={styles.body}>
-      {desktop && (isAdmin || desktopExpanded) && drawer}
+      {desktop && !isClient && desktopExpanded && drawer}
       <View style={styles.page}>{children}</View>
-      {!desktop && !isClient && <View pointerEvents={open ? 'auto' : 'none'} style={StyleSheet.absoluteFill}>
-        <Pressable onPress={() => setOpen(false)} style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: open ? 1 : 0 }]}/>
-        <Animated.View style={[styles.mobileDrawer, { backgroundColor: colors.surface, borderColor: colors.border, transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [-310, 0] }) }] }]} pointerEvents={open ? 'auto' : 'none'}>{drawer}</Animated.View>
-      </View>}
     </View>
+    {!isClient&&!desktop&&!isRoleDetailRoute(pathname)&&<RoleBottomNavigation items={items} activePath={selected?.path??null} onNavigate={navigate}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, adminDesktopTopBar:{minHeight:68,paddingHorizontal:28,gap:16},
+  veterinarianTopBar:{minHeight:64,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'},veterinarianTopLogo:{position:'absolute',left:'50%',marginLeft:-58,width:116,height:34},
+  adminTopBar:{minHeight:60,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},adminTopLogo:{width:116,height:34},adminPage:{flex:1,minHeight:0},
   menuButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
   adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},adminDesktopPageBar:{minHeight:72,paddingHorizontal:28,gap:14},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},
-  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},adminDesktopDrawer:{flex:0,flexGrow:0,flexShrink:0,flexBasis:280,width:280,minWidth:280,maxWidth:280,alignSelf:'stretch',minHeight:0,paddingHorizontal:18,paddingVertical:20},adminDesktopDrawerMenu:{flex:1,minHeight:0,width:'100%'},mobileDrawer: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 292, borderRightWidth: 1, elevation: 8 },
-  brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 46, paddingHorizontal: 12, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 }, backdrop: { backgroundColor: 'rgba(0,0,0,0.32)' },
+  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},adminDesktopDrawer:{flex:0,flexGrow:0,flexShrink:0,flexBasis:280,width:280,minWidth:280,maxWidth:280,alignSelf:'stretch',minHeight:0,paddingHorizontal:18,paddingVertical:20},adminDesktopDrawerMenu:{flex:1,minHeight:0,width:'100%'},
+  brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 46, paddingHorizontal: 12, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 },
 });

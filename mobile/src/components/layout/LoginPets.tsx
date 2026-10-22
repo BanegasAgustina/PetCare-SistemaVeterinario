@@ -15,7 +15,7 @@ export function LoginPets({ registration = false }: { registration?: boolean }) 
   const imageHeight = width * 745 / 2110;
   return <View accessible={false} style={[styles.frame, { width, height: imageHeight + 30 }]}>
     {/* El registro termina con la imagen, sin franja verde debajo. */}
-    <Image source={artwork} resizeMode="contain" style={{ position: 'absolute', left: 0, top: 30, width, height: imageHeight }} />
+    <Image source={artwork} resizeMode="contain" style={{ position: 'absolute', left: 0, top: -10, width, height: imageHeight }} />
   </View>;
 }
 const styles = StyleSheet.create({

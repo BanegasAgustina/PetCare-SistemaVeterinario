@@ -3,14 +3,14 @@
  */
 export type CatalogItem={id:string;name:string};
 export type PetSex='MALE'|'FEMALE'|'UNKNOWN';
-export type Pet={id:string;name:string;sex:PetSex|null;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null};
+export type Pet={id:string;name:string;sex:PetSex|null;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null;isActive?:boolean};
 export type PetValues={name:string;sex:PetSex|'';speciesId:string;breedId:string;breedName?:string;birthDate:string;microchipNumber:string;photoUrl:string;weightKg:string;photoBase64?:string};
 export type PetCatalog={species:CatalogItem[];breeds:(CatalogItem&{speciesId:string})[]};
 export type Appointment={id:string;status:string;isUpcoming:boolean;petId:string;petName:string;petPhotoUrl?:string|null;startsAt:string;endsAt:string;service:string;veterinarian:string};
 export type AppointmentCatalog={types:(CatalogItem&{isClinical?:boolean|number})[];services:(CatalogItem&{specialtyId:string|null;typeId:string;description?:string|null;durationMinutes?:number|null;priceCents?:number|null;isActive?:boolean|number})[];specialties:CatalogItem[];veterinarians:(CatalogItem&{typeId:string;isClinical?:boolean|number;isActive?:boolean|number;specialties?:string|null;profilePhotoUrl:string|null})[];assignments:{professionalId:string;serviceId:string}[]};
 export type Slot={id:string;startsAt:string;endsAt:string;veterinarianId:string;veterinarian:string};
 export type ClinicalKind='medical-history'|'vaccines'|'prescriptions'|'recommendations';
-export type ClinicalRecord={isValid?:boolean;productId?:string|null;validUntil?:string|null;dose?:string|null;frequency?:string|null;duration?:string|null;reason?:string|null;diagnosis?:string|null;treatment?:string|null;weightKg?:string|null;id:string;petId:string;petName:string;title:string;content:string;occurredAt:string;nextDueAt:string|null;veterinarian:string};
+export type ClinicalRecord={isValid?:boolean;productId?:string|null;productName?:string|null;validUntil?:string|null;dose?:string|null;frequency?:string|null;duration?:string|null;reason?:string|null;diagnosis?:string|null;treatment?:string|null;weightKg?:string|null;id:string;petId:string;petName:string;title:string;content:string;occurredAt:string;nextDueAt:string|null;veterinarian:string};
 // El producto incluye su tipo y origen persistidos para separar medicamentos reservables de accesorios externos.
 export type Product={requiresPrescription:boolean;speciesId:string|null;productType:'GENERAL'|'MEDICINE'|'ACCESSORY';id:string;name:string;description:string|null;imageUrl:string|null;categoryId:string|null;category:string|null;stock:number;isActive:boolean;priceCents:number;regularPriceCents:number};
 export type PromotionBanner=Product&{promotionName:string;bannerImageUrl?:string|null;bannerSubtitle:string|null;bannerCtaText:string};

@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Request, Response,RequestHandler } from 'express';
 import { authenticate } from '../src/middlewares/auth.middleware';
+import { errorHandler } from '../src/middlewares/error.middleware';
 import { AppError } from '../src/utils/app-error';
 import { apiRouter } from '../src/routes';
 import { clientRouter } from '../src/routes/client.routes';
 import { clinicRouter } from '../src/routes/clinic.routes';
+import { saveFulfillment } from '../src/repositories/storefront.repository';
+import { clientBody } from '../src/validators/client.validator';
 import type { AuthUser } from '../src/types/auth';
 
 type RouteLayer = { route?: { path: string; methods: Record<string, boolean>;stack?:{handle:RequestHandler}[] }; handle: (...args: never[]) => unknown };
@@ -47,6 +50,32 @@ test('store fulfillment administration route is registered behind clinic authent
   assert.equal(layers[0]?.handle, authenticate);
   assert.ok(layers.some(layer => layer.route?.path === '/store-fulfillment' && layer.route.methods.get));
   assert.ok(layers.some(layer => layer.route?.path === '/store-fulfillment' && layer.route.methods.put));
+});
+
+test('store fulfillment reports rejected presentation-only fields by name',()=>{
+ assert.throws(()=>clientBody({pickupEnabled:true,demoModeEnabled:true},['pickupEnabled']),(error:unknown)=>{
+  assert.ok(error instanceof AppError);assert.equal(error.code,'VALIDATION_ERROR');assert.deepEqual(error.fieldErrors,[{field:'demoModeEnabled',message:'Este campo no está permitido.'}]);return true;
+ });
+});
+
+test('store fulfillment requires a pickup address before enabling pickup and reports the field',async()=>{
+ await assert.rejects(saveFulfillment({} as AuthUser,{
+  pickupEnabled:true,pickupAddress:' ',pickupHours:null,pickupInstructions:null,
+  deliveryEnabled:false,deliveryBaseFeeCents:0,freeDeliveryThresholdCents:null,
+  deliveryHours:null,deliveryDays:null,deliveryInformation:null,
+  bankName:null,bankAccountHolder:null,bankCbuCvu:null,bankAlias:null,zones:[],
+ }),(error:unknown)=>{
+  assert.ok(error instanceof AppError);assert.equal(error.code,'VALIDATION_ERROR');
+  assert.deepEqual(error.fieldErrors,[{field:'pickupAddress',message:'Ingresá la dirección del local.'}]);
+  return true;
+ });
+});
+
+test('validation responses serialize field errors without exposing internal details',()=>{
+ let status=0;let payload:unknown;
+ const response={headersSent:false,status:(value:number)=>{status=value;return response;},json:(value:unknown)=>{payload=value;return response;}} as unknown as Response;
+ errorHandler(new AppError('VALIDATION_ERROR',400,'Revisá los datos ingresados.',undefined,[{field:'deliveryBaseFeeCents',message:'El costo de envío no puede ser negativo.'}]),{method:'PUT',baseUrl:'/api/clinic',route:{path:'/store-fulfillment'}} as Request,response,()=>undefined);
+ assert.equal(status,400);assert.deepEqual(payload,{success:false,error:{code:'VALIDATION_ERROR',message:'Revisá los datos ingresados.',errors:[{field:'deliveryBaseFeeCents',message:'El costo de envío no puede ser negativo.'}]}});
 });
 
 test('banner administration routes require the banner permission',()=>{

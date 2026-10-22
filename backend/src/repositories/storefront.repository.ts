@@ -175,34 +175,43 @@ export async function quoteDelivery(query: Record<string, unknown>) {
 
 export async function saveFulfillment(actor: AuthUser, value: unknown) {
   const body = v.body(value, ['pickupEnabled', 'pickupAddress', 'pickupHours', 'pickupInstructions', 'deliveryEnabled', 'deliveryBaseFeeCents', 'freeDeliveryThresholdCents', 'deliveryHours', 'deliveryDays', 'deliveryInformation', 'bankName', 'bankAccountHolder', 'bankCbuCvu', 'bankAlias', 'zones']);
-  if (typeof body.pickupEnabled !== 'boolean' || typeof body.deliveryEnabled !== 'boolean') v.invalid('Indicá si cada método está habilitado.');
+  if (typeof body.pickupEnabled !== 'boolean') v.invalid('Indicá si el retiro en local está habilitado.', 'pickupEnabled');
+  if (typeof body.deliveryEnabled !== 'boolean') v.invalid('Indicá si el envío a domicilio está habilitado.', 'deliveryEnabled');
   const pickupEnabled = body.pickupEnabled as boolean;
   const deliveryEnabled = body.deliveryEnabled as boolean;
-  const pickupAddress = optionalText(body.pickupAddress, 300);
-  const pickupHours = optionalText(body.pickupHours, 500);
-  const pickupInstructions = optionalText(body.pickupInstructions, 500);
-  const deliveryHours = optionalText(body.deliveryHours, 500);
-  const deliveryDays = optionalText(body.deliveryDays, 100);
-  const deliveryInformation = optionalText(body.deliveryInformation, 500);
-  const bankName = optionalText(body.bankName, 120);
-  const bankAccountHolder = optionalText(body.bankAccountHolder, 160);
-  const bankCbuCvu = optionalText(body.bankCbuCvu, 32);
-  const bankAlias = optionalText(body.bankAlias, 80);
-  if ([bankName, bankAccountHolder, bankCbuCvu, bankAlias].some(Boolean) && ![bankName, bankAccountHolder, bankCbuCvu, bankAlias].every(Boolean)) v.invalid('Completá banco, titular, CBU/CVU y alias para habilitar transferencias.');
-  const deliveryBaseFeeCents = v.integer(body.deliveryBaseFeeCents, 0, 100000000);
-  const freeDeliveryThresholdCents = body.freeDeliveryThresholdCents === null || body.freeDeliveryThresholdCents === '' ? null : v.integer(body.freeDeliveryThresholdCents, 0, 100000000);
-  if (!Array.isArray(body.zones) || body.zones.length > 100) v.invalid('Revisá las zonas de entrega.');
+  const pickupAddress = pickupEnabled
+    ? fulfillmentRequiredText(body.pickupAddress, 'la dirección del local', 300, 'pickupAddress')
+    : fulfillmentText(body.pickupAddress, 300, 'pickupAddress', 'La dirección del local');
+  const pickupHours = fulfillmentText(body.pickupHours, 500, 'pickupHours', 'El horario de retiro');
+  const pickupInstructions = fulfillmentText(body.pickupInstructions, 500, 'pickupInstructions', 'Las instrucciones de retiro');
+  const deliveryHours = fulfillmentText(body.deliveryHours, 500, 'deliveryHours', 'El horario de envío');
+  const deliveryDays = fulfillmentText(body.deliveryDays, 100, 'deliveryDays', 'Los días de envío');
+  const deliveryInformation = fulfillmentText(body.deliveryInformation, 500, 'deliveryInformation', 'La información de entrega');
+  const bankName = fulfillmentText(body.bankName, 120, 'bankName', 'El banco o billetera');
+  const bankAccountHolder = fulfillmentText(body.bankAccountHolder, 160, 'bankAccountHolder', 'El titular');
+  const bankCbuCvu = fulfillmentText(body.bankCbuCvu, 32, 'bankCbuCvu', 'El CBU o CVU');
+  const bankAlias = fulfillmentText(body.bankAlias, 80, 'bankAlias', 'El alias');
+  if ([bankName, bankAccountHolder, bankCbuCvu, bankAlias].some(Boolean) && ![bankName, bankAccountHolder, bankCbuCvu, bankAlias].every(Boolean)) {
+    const labels = [['bankName',bankName,'Completá el banco o billetera.'],['bankAccountHolder',bankAccountHolder,'Completá el titular.'],['bankCbuCvu',bankCbuCvu,'Completá el CBU o CVU.'],['bankAlias',bankAlias,'Completá el alias.']] as const;
+    const errors = labels.filter(([, current]) => !current).map(([field,,message]) => ({field,message}));
+    throw new AppError('VALIDATION_ERROR',400,'Completá todos los datos bancarios para habilitar transferencias.',undefined,errors);
+  }
+  const deliveryBaseFeeCents = fulfillmentInteger(body.deliveryBaseFeeCents, 'deliveryBaseFeeCents', 'El costo de envío');
+  const freeDeliveryThresholdCents = body.freeDeliveryThresholdCents === null || body.freeDeliveryThresholdCents === '' ? null : fulfillmentInteger(body.freeDeliveryThresholdCents, 'freeDeliveryThresholdCents', 'El monto mínimo para envío gratis');
+  if (!Array.isArray(body.zones)) v.invalid('Agregá las zonas como una lista válida.', 'zones');
+  if (body.zones.length > 100) v.invalid('No se pueden configurar más de 100 zonas.', 'zones');
 
-  const zones = body.zones.map((raw: unknown) => {
+  const zones = body.zones.map((raw: unknown, index: number) => {
+    const prefix = `zones.${index}`;
     const zone = v.body(raw, ['id', 'name', 'province', 'city', 'postalCodePrefix', 'feeCents', 'isActive']);
-    const id = zone.id === undefined || zone.id === null || zone.id === '' ? null : v.id(zone.id);
-    const name = requiredText(zone.name, 'Nombre de zona', 100);
-    const province = requiredText(zone.province, 'Provincia', 100);
-    const city = requiredText(zone.city, 'Ciudad', 100);
-    const postalCodePrefix = optionalText(zone.postalCodePrefix, 16);
-    if (postalCodePrefix && !/^[\p{L}\d -]+$/u.test(postalCodePrefix)) v.invalid('El prefijo postal contiene caracteres inválidos.');
-    const feeCents = zone.feeCents === null || zone.feeCents === '' ? null : v.integer(zone.feeCents, 0, 100000000);
-    if (typeof zone.isActive !== 'boolean') v.invalid('Indicá si la zona está habilitada.');
+    const id = zone.id === undefined || zone.id === null || zone.id === '' ? null : zoneId(zone.id, `${prefix}.id`);
+    const name = fulfillmentRequiredText(zone.name, 'el nombre de la zona', 100, `${prefix}.name`);
+    const province = fulfillmentRequiredText(zone.province, 'la provincia', 100, `${prefix}.province`);
+    const city = fulfillmentRequiredText(zone.city, 'la ciudad', 100, `${prefix}.city`);
+    const postalCodePrefix = fulfillmentText(zone.postalCodePrefix, 16, `${prefix}.postalCodePrefix`, 'El prefijo postal');
+    if (postalCodePrefix && !/^[\p{L}\d -]+$/u.test(postalCodePrefix)) v.invalid('El prefijo postal admite letras, números, espacios y guiones.', `${prefix}.postalCodePrefix`);
+    const feeCents = zone.feeCents === null || zone.feeCents === '' ? null : fulfillmentInteger(zone.feeCents, `${prefix}.feeCents`, 'El costo de esta zona');
+    if (typeof zone.isActive !== 'boolean') v.invalid('Indicá si la zona está habilitada.', `${prefix}.isActive`);
     return { id, name, province, city, postalCodePrefix, feeCents, isActive: zone.isActive };
   });
 
@@ -228,6 +237,29 @@ export async function saveFulfillment(actor: AuthUser, value: unknown) {
     }
     return { saved: true };
   });
+}
+
+function fulfillmentText(value: unknown, maxLength: number, field: string, label: string): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') v.invalid(`${label} debe ser texto.`, field);
+  const normalized = value.trim();
+  if (normalized.length > maxLength) v.invalid(`${label} admite hasta ${maxLength} caracteres.`, field);
+  return normalized || null;
+}
+
+function fulfillmentRequiredText(value: unknown, label: string, maxLength: number, field: string): string {
+  const normalized = fulfillmentText(value, maxLength, field, label);
+  if (!normalized) v.invalid(`Ingresá ${label}.`, field);
+  return normalized;
+}
+
+function fulfillmentInteger(value: unknown, field: string, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 100000000) v.invalid(`${label} debe ser un importe no negativo y no superar $1.000.000.`, field);
+  return value;
+}
+
+function zoneId(value: unknown, field: string): string {
+  try { return v.id(value); } catch { v.invalid('La zona seleccionada no tiene un identificador válido.', field); }
 }
 
 function optionalText(value: unknown, maxLength: number): string | null {

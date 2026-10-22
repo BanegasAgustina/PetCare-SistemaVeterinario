@@ -18,7 +18,16 @@ test('real transfer validates buyer details and drops DNI before persistence',()
  const input=storeTransferInput({requestKey:key,fulfillmentMethod:'PICKUP',buyerName:'Ana Cliente',buyerEmail:'ana@example.com',buyerDni:'12.345.678'});
  assert.deepEqual(input.buyer,{name:'Ana Cliente',email:'ana@example.com'});assert.equal('buyerDni' in input,false);
  assert.throws(()=>storeTransferInput({requestKey:key,fulfillmentMethod:'PICKUP',buyerName:'Ana',buyerEmail:'ana@example.com',buyerDni:'12345678'}),/nombre y apellido/);
- assert.throws(()=>storeTransferInput({requestKey:key,fulfillmentMethod:'PICKUP',buyerName:'Ana Cliente',buyerEmail:'ana@example.com',buyerDni:'123'}),/DNI válido/);
+ assert.throws(()=>storeTransferInput({requestKey:key,fulfillmentMethod:'PICKUP',buyerName:'Ana Cliente',buyerEmail:'ana@example.com',buyerDni:'123'}),/DNI debe contener/);
+});
+
+test('checkout returns field-specific errors for missing delivery details and invalid buyer identity',()=>{
+ assert.throws(()=>storeCheckoutInput({requestKey:key,paymentMethod:'BANK_TRANSFER',fulfillmentMethod:'DELIVERY',address:{...address,postalCode:' '}}),(error:unknown)=>{
+  assert.ok(error instanceof Error);assert.deepEqual((error as Error & {fieldErrors?:unknown}).fieldErrors,[{field:'postalCode',message:'Ingresá el código postal.'}]);return true;
+ });
+ assert.throws(()=>storeTransferInput({requestKey:key,fulfillmentMethod:'PICKUP',buyerName:'Ana',buyerEmail:'ana@example.com',buyerDni:'12345678'}),(error:unknown)=>{
+  assert.ok(error instanceof Error);assert.deepEqual((error as Error & {fieldErrors?:unknown}).fieldErrors,[{field:'buyerName',message:'Ingresá nombre y apellido.'}]);return true;
+ });
 });
 
 async function withDatabase(handler:(sql:string,params:unknown[])=>unknown[],run:()=>Promise<string>){

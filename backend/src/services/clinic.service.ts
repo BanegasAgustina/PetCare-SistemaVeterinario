@@ -14,7 +14,7 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  return runDatabaseOperation(async()=>{switch(operation){
  case 'slots':return clinic.slots(v.id(query.serviceId),query.professionalId?v.id(query.professionalId):undefined);
  // Autoriza lectura con el permiso existente y aplica el texto recibido como filtro del catálogo manual.
- case 'products':{clinic.permit(actor,actor.permissions?.includes('prescriptions.create')?'prescriptions.create':'products.view');const type=v.text(query.productType,20,true);if(type&& !['MEDICINE','ACCESSORY'].includes(type))v.invalid('El filtro debe ser Medicamento o Accesorio.');return client.products(v.text(query.search,100,true)??'',undefined,false,type??undefined);}
+ case 'products':{if(!['products.view','prescriptions.create','recommendations.create'].some(permission=>actor.permissions?.includes(permission)))throw new AppError('FORBIDDEN',403,'No tenés permiso para consultar el catálogo de productos.');const type=v.text(query.productType,20,true);if(type&& !['MEDICINE','ACCESSORY'].includes(type))v.invalid('El filtro debe ser Medicamento o Accesorio.');return client.products(v.text(query.search,100,true)??'',query.categoryId?v.id(query.categoryId):undefined,false,type??undefined);}
  case 'appointment':{const results=await clinic.appointments(actor,{id:v.id(id)});if(!results[0])throw new AppError('NOT_FOUND',404,'Turno no encontrado.');return results[0];}
  case 'home':return clinic.home(actor);
  case 'catalog':return clinic.catalog(actor);
@@ -64,7 +64,11 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  }
  case 'availability':return admin.availability(actor,query);
  case 'availability-save':return admin.saveAvailability(actor,value);
- case 'availability-disable':return admin.disableAvailability(actor,kind!,v.id(id));
+ case 'availability-disable':{
+  const state=v.body(value,['isActive']).isActive;
+  if(typeof state!=='boolean')v.invalid('Indicá si querés activar o desactivar la disponibilidad.');
+  return admin.setAvailabilityActive(actor,kind!,v.id(id),state);
+ }
  case 'store-fulfillment':return storefront.adminFulfillment(actor);
  case 'store-fulfillment-save':return storefront.saveFulfillment(actor,value);
  case 'store-banners':return storefront.adminBanners(actor);

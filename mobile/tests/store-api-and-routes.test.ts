@@ -5,6 +5,7 @@ import path from 'node:path';
 import { apiRequest, ApiError } from '../src/services/api';
 import { clientService } from '../src/services/client.service';
 import { clinicService } from '../src/services/clinic.service';
+import type { FulfillmentSettings } from '../src/types/client';
 
 test('client store services call the registered route suffixes', async () => {
   const paths: string[] = [];
@@ -58,18 +59,18 @@ test('shared PetCare background keeps the original decor visible and non-interac
 });
 
 test('administrator store settings read and write the existing clinic configuration endpoint', async () => {
-  const requests: { path: string; method?: string }[] = [];
+  const requests: { path: string; method?: string; body?: unknown }[] = [];
   const request = async <T,>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown }): Promise<T> => {
-    requests.push({ path, method: options?.method });
+    requests.push({ path, method: options?.method, body: options?.body });
     return {} as T;
   };
   const api = clinicService(request);
   await api.storeFulfillment();
-  await api.saveStoreFulfillment({ pickupEnabled: true, deliveryEnabled: false, zones: [] });
-  assert.deepEqual(requests, [
-    { path: '/clinic/store-fulfillment', method: undefined },
-    { path: '/clinic/store-fulfillment', method: 'PUT' },
-  ]);
+  const settings: FulfillmentSettings = { demoModeEnabled:true,pickupEnabled:true,pickupAddress:'Mitre 123',pickupHours:'9 a 18',pickupInstructions:null,deliveryEnabled:true,deliveryBaseFeeCents:120000,freeDeliveryThresholdCents:null,deliveryHours:null,deliveryDays:null,deliveryInformation:null,bankName:null,bankAccountHolder:null,bankCbuCvu:null,bankAlias:null,zones:[{id:'7',name:'Centro',province:'Buenos Aires',city:'La Plata',postalCodePrefix:null,feeCents:150000,isActive:true}] };
+  await api.saveStoreFulfillment(settings);
+  assert.equal(requests[0]?.path,'/clinic/store-fulfillment');
+  assert.equal(requests[1]?.path,'/clinic/store-fulfillment');assert.equal(requests[1]?.method,'PUT');
+  assert.deepEqual(requests[1]?.body,{pickupEnabled:true,pickupAddress:'Mitre 123',pickupHours:'9 a 18',pickupInstructions:null,deliveryEnabled:true,deliveryBaseFeeCents:120000,freeDeliveryThresholdCents:null,deliveryHours:null,deliveryDays:null,deliveryInformation:null,bankName:null,bankAccountHolder:null,bankCbuCvu:null,bankAlias:null,zones:[{id:'7',name:'Centro',province:'Buenos Aires',city:'La Plata',postalCodePrefix:null,feeCents:150000,isActive:true}]});
 });
 
 test('API adds /api once, accepts an empty promotions list and reports stale route 404s clearly', async () => {
@@ -95,6 +96,11 @@ test('API adds /api once, accepts an empty promotions list and reports stale rou
       assert.equal(error.status, 404);
       assert.match(error.message, /backend conectado todavía no tiene esta ruta/);
       return true;
+    });
+
+    globalThis.fetch = (async () => new Response(JSON.stringify({ success:false,error:{code:'VALIDATION_ERROR',message:'El costo de envío no puede ser negativo.',errors:[{field:'deliveryBaseFeeCents',message:'El costo de envío no puede ser negativo.'}]} }), { status:400 })) as typeof fetch;
+    await assert.rejects(apiRequest('/clinic/store-fulfillment',{method:'PUT',body:{}}),(error:unknown)=>{
+      assert.ok(error instanceof ApiError);assert.equal(error.message,'El costo de envío no puede ser negativo.');assert.deepEqual(error.fieldErrors,[{field:'deliveryBaseFeeCents',message:'El costo de envío no puede ser negativo.'}]);return true;
     });
   } finally {
     globalThis.fetch = oldFetch;

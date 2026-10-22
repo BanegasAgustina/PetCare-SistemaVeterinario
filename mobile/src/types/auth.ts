@@ -1,5 +1,5 @@
 /** Contratos de autenticación. Ningún formulario puede elegir el rol del usuario. */
-export type AuthUser = { id: string; firstName: string; lastName: string; email: string; phone: string | null; profilePhotoUrl?:string|null; role: 'CLIENT' | 'VETERINARIAN' | 'GROOMER' | 'SECRETARY' | 'ADMIN' | 'SUPER_ADMIN'; permissions?: string[];
+export type AuthUser = { id: string; firstName: string; lastName: string; email: string; phone: string | null; profilePhotoUrl?:string|null; role: string; permissions?: string[];
   veterinarian?: { id: string; licenseNumber: string; professionalDescription?:string|null; specialties: { id: string; name: string }[] } | null; roleName?: string;professional?:{typeId:string;name:string;isClinical:boolean;serviceIds:string[]}|null };
 export type LoginValues = { email: string; password: string };
 export type RegisterValues = { firstName: string; lastName: string; email: string; phone: string; password: string; confirmPassword: string };

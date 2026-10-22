@@ -31,7 +31,8 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, request, respo
       }
     }
     const result: ApiFailure = { success: false, error: { code: error.code, message: error.message,
-      ...(error instanceof AppError && error.verification ? { verification: error.verification } : {}) } };
+      ...(error instanceof AppError && error.verification ? { verification: error.verification } : {}),
+      ...(error instanceof AppError && error.fieldErrors?.length ? { errors: error.fieldErrors } : {}) } };
     response.status(error.status).json(result);
     return;
   }

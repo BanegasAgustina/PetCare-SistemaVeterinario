@@ -8,6 +8,7 @@ import { AppError } from '../utils/app-error';
 import { databasePool } from '../config/database';
 import type { RowDataPacket } from 'mysql2/promise';
 import { runDatabaseOperation } from '../utils/database-error';
+import { canAccessPersonalRoute } from '../utils/personal-access';
 
 export function requireRole(...roles: RoleCode[]): RequestHandler {
   return (_request,response,next) => {
@@ -24,6 +25,11 @@ export function requirePermission(...codes: string[]): RequestHandler {
 export function requireAnyPermission(...codes:string[]):RequestHandler {
   return (_req,res,next)=>{const user=res.locals.authenticatedUser as AuthUser|undefined;next(user&&codes.some(code=>user.permissions?.includes(code))?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para esta acción.'));};
 }
+/** CLIENT conserva su acceso personal; los demás roles requieren grants personales explícitos y actuales. */
+export const requirePersonalAccess:RequestHandler=(req,res,next)=>{
+  const user=res.locals.authenticatedUser as AuthUser|undefined;
+  next(user&&canAccessPersonalRoute(user.role,user.permissions,req.method,req.path)?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para este módulo personal.'));
+};
 /** Reutilizable por futuras rutas clínicas. No confía en un veterinarianId enviado por el cliente. */
 export function requirePatientScope(parameter = 'petId'): RequestHandler {
   return async (request,response,next) => {

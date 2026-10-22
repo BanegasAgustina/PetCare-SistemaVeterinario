@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 export default function AdminLayout() {
   const { hasPermission }=useAuth();
   return <Stack screenOptions={{headerShown:false}}>
-    <Stack.Screen name="index" /><Stack.Protected guard={hasPermission('pets.view_information','pets.view_all')}><Stack.Screen name="patients"/><Stack.Screen name="patient"/></Stack.Protected>
+    <Stack.Screen name="index" /><Stack.Screen name="clinic"/><Stack.Screen name="store"/><Stack.Screen name="administration"/><Stack.Protected guard={hasPermission('pets.view_information','pets.view_all')}><Stack.Screen name="patients"/><Stack.Screen name="patient"/></Stack.Protected>
 <Stack.Protected guard={hasPermission('professionals.manage')}><Stack.Screen name="professionals"/></Stack.Protected>
 <Stack.Protected guard={hasPermission('appointments.view_all')}><Stack.Screen name="agenda"/><Stack.Screen name="appointment"/></Stack.Protected>
     <Stack.Protected guard={hasPermission('schedule.manage')}><Stack.Screen name="availability" /></Stack.Protected>

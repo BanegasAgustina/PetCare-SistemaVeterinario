@@ -5,6 +5,10 @@ export function forbidden(message='No tenés permiso para esta operación.'):nev
 export function assertAdminPermission(actor:AuthUser,...codes:string[]) {
   if(!['ADMIN','SUPER_ADMIN'].includes(actor.role)||!codes.every(code=>actor.permissions?.includes(code)))forbidden();
 }
+/** Autoriza módulos operativos por grant efectivo aunque el actor tenga un rol personalizado. */
+export function assertCapabilityPermission(actor:AuthUser,...codes:string[]) {
+  if(!codes.every(code=>actor.permissions?.includes(code)))forbidden();
+}
 export function assertDelegation(actor:AuthUser,codes:string[]) {
   if(codes.some(code=>!actor.permissions?.includes(code)))forbidden('No podés conceder ni modificar permisos que no tenés.');
 }
@@ -14,6 +18,7 @@ export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
 export function assertRoleAssignment(actor:AuthUser,role:string,permissions:string[]) {
   assertAdminPermission(actor,'roles.manage');
   if(role==='SUPER_ADMIN'&&actor.role!=='SUPER_ADMIN')forbidden('Un ADMIN no puede asignar el rol SUPER_ADMIN.');
+  if(role==='SECRETARY')throw new AppError('ROLE_RETIRED',400,'El rol Secretaría está retirado para nuevas asignaciones. Revisá el reemplazo de los usuarios existentes.');
   if(role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'Creá o editá veterinarios desde el módulo profesional para conservar matrícula y especialidades.');
   assertDelegation(actor,permissions);
 }

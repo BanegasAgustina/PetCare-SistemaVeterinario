@@ -14,16 +14,21 @@ import * as storefront from '../repositories/storefront.repository';
 import * as deliveryAddresses from '../repositories/delivery-address.repository';
 import * as storeCheckout from '../repositories/store-checkout.repository';
 import * as storePayment from '../repositories/store-payment.repository';
+import type { AuthUser } from '../types/auth';
 import { storePaymentProof,removePaymentProof } from './pet-photo.service';
 import { storeCheckoutInput,storeTransferInput } from '../validators/store-checkout.validator';
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
-export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>) {
+export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>,actor?:AuthUser) {
   return runDatabaseOperation(async()=>{
     switch(operation){
       case 'home': {const [pets,appointments,products,unreadNotifications]=await Promise.all([repository.pets(owner),repository.appointments(owner),repository.products('',undefined,true),repository.unreadNotificationCount(owner)]);
         const nextAppointments=appointments.filter(a=>a.isUpcoming&&a.status!=='CANCELLED').sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt))).slice(0,8);
         return {pets,nextAppointment:nextAppointments[0]??null,nextAppointments,featuredProducts:products,unreadNotifications};}
-      case 'pets':return repository.pets(owner);
+      case 'pets':{
+        const includeInactive=query.includeInactive==='true';
+        if(query.includeInactive!==undefined&&!['true','false'].includes(String(query.includeInactive)))invalid('El filtro de estado de mascotas no es válido.');
+        return repository.pets(owner,includeInactive);
+      }
       case 'pet-catalog':return repository.petCatalog();
       case 'pet':return repository.pet(owner,clientId(id));
       case 'create-pet':
@@ -44,11 +49,12 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
         return saved.pet;
       }
       case 'deactivate-pet':clientBody(body,[]);return repository.deactivatePet(owner,clientId(id));
+      case 'reactivate-pet':clientBody(body,[]);return repository.reactivatePet(owner,clientId(id));
       case 'appointments':return repository.appointments(owner);
       case 'appointment':{const results=await repository.appointments(owner);const appointment=results.find(item=>item.id===clientId(id));if(!appointment)throw new AppError('NOT_FOUND',404,'Turno no encontrado.');return appointment;}
       case 'appointment-catalog':return repository.appointmentCatalog();
       case 'slots':return repository.slots(clientId(query.serviceId),query.veterinarianId?clientId(query.veterinarianId):undefined);
-      case 'create-appointment': {const values=clientBody(body,['petId','slotId']);return repository.createAppointment(owner,clientId(values.petId),clientId(values.slotId));}
+      case 'create-appointment': {const values=clientBody(body,['petId','slotId']);return repository.createAppointment(owner,clientId(values.petId),clientId(values.slotId),actor);}
       case 'clinical': {if(!clinicalKinds.includes(String(id) as typeof clinicalKinds[number]))invalid();return repository.clinical(owner,String(id),query.petId?clientId(query.petId):undefined);}
       case 'products':{const productType=text(query.productType,20,true);if(productType&&!['MEDICINE','ACCESSORY'].includes(productType))throw new AppError('VALIDATION_ERROR',400,'El tipo de producto no es válido.');return repository.products(text(query.search,200,true)??'',query.categoryId?clientId(query.categoryId):undefined,false,productType??undefined);}
       case 'categories':return repository.categories();

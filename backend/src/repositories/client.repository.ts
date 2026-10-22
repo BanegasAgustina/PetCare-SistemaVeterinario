@@ -20,8 +20,8 @@ const petColumns=`p.id,p.name,p.sex,p.birth_date AS birthDate,p.microchip_number
  p.breed_id AS breedId,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg`;
 const petJoins='FROM pets p JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id';
 const mapPet=(p:RowDataPacket)=>({...p,id:String(p.id),sex:normalizePetSex(p.sex),photoUrl:p.photoUrl as string|null,speciesId:String(p.speciesId),breedId:p.breedId===null?null:String(p.breedId)});
-export async function pets(owner:string) {
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns} ${petJoins} WHERE p.owner_id=? AND p.is_active=1 ORDER BY p.name,p.id`,[owner]);return rows.map(mapPet);
+export async function pets(owner:string,includeInactive=false) {
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns},p.is_active AS isActive ${petJoins} WHERE p.owner_id=? ${includeInactive?'':'AND p.is_active=1'} ORDER BY p.is_active DESC,p.name,p.id`,[owner]);return rows.map(row=>({...mapPet(row),isActive:Boolean(row.isActive)}));
 }
 export async function pet(owner:string,id:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns} ${petJoins} WHERE p.owner_id=? AND p.id=? AND p.is_active=1`,[owner,id]);
@@ -67,16 +67,24 @@ export async function deactivatePet(owner:string,id:string) {
     await c.execute('UPDATE pets SET is_active=0 WHERE id=? AND owner_id=?',[id,owner]);
   });return {deactivated:true};
 }
+export async function reactivatePet(owner:string,id:string) {
+  await transaction(async c=>{
+    const [rows]=await c.execute<RowDataPacket[]>('SELECT id,is_active AS isActive FROM pets WHERE id=? AND owner_id=? FOR UPDATE',[id,owner]);
+    if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
+    if(!Boolean(rows[0].isActive))await c.execute('UPDATE pets SET is_active=1 WHERE id=? AND owner_id=?',[id,owner]);
+  });
+  return {reactivated:true};
+}
 function utcDate(value:unknown):string {return String(value).replace(' ','T')+'Z';}
 export async function appointments(owner:string) {return clinic.appointments({id:owner,role:'CLIENT'} as AuthUser);}
 export async function appointmentCatalog() {const c=await clinic.catalog();return {...c,veterinarians:c.professionals};}
 export async function slots(service:string,professional?:string) {return clinic.slots(service,professional);}
-export async function createAppointment(owner:string,petId:string,slotId:string) {return clinic.requestAppointment(owner,petId,slotId);}
+export async function createAppointment(owner:string,petId:string,slotId:string,actor:AuthUser={id:owner,role:'CLIENT'} as AuthUser) {return clinic.requestAppointment(actor,petId,slotId);}
 export async function clinical(owner:string,kind:string,petId?:string) {
   if(petId)await pet(owner,petId);
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT r.id,r.pet_id AS petId,p.name AS petName,r.title,r.content,r.product_id AS productId,r.valid_until AS validUntil,(r.occurred_at<=UTC_TIMESTAMP() AND r.valid_until>UTC_TIMESTAMP()) AS isValid,r.dose,r.frequency,r.duration,r.weight_kg AS weightKg,r.occurred_at AS occurredAt,r.next_due_at AS nextDueAt,
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT r.id,r.pet_id AS petId,p.name AS petName,r.title,r.content,r.product_id AS productId,product.name AS productName,r.valid_until AS validUntil,(r.occurred_at<=UTC_TIMESTAMP() AND r.valid_until>UTC_TIMESTAMP()) AS isValid,r.dose,r.frequency,r.duration,r.weight_kg AS weightKg,r.occurred_at AS occurredAt,r.next_due_at AS nextDueAt,
     CONCAT(u.first_name,' ',u.last_name) AS veterinarian FROM client_clinical_records r JOIN pets p ON p.id=r.pet_id
-    JOIN veterinarians v ON v.id=r.veterinarian_id JOIN users u ON u.id=v.user_id WHERE p.owner_id=? AND r.kind=? ${petId?'AND p.id=?':''} ORDER BY r.occurred_at DESC`,petId?[owner,kind,petId]:[owner,kind]);
+    JOIN veterinarians v ON v.id=r.veterinarian_id JOIN users u ON u.id=v.user_id LEFT JOIN client_products product ON product.id=r.product_id WHERE p.owner_id=? AND r.kind=? ${petId?'AND p.id=?':''} ORDER BY r.occurred_at DESC`,petId?[owner,kind,petId]:[owner,kind]);
   return rows.map(r=>({...r,id:String(r.id),petId:String(r.petId),isValid:Boolean(r.isValid),productId:r.productId?String(r.productId):null,validUntil:r.validUntil?utcDate(r.validUntil):null,occurredAt:utcDate(r.occurredAt),nextDueAt:r.nextDueAt?utcDate(r.nextDueAt):null}));
 }
 // La tienda consulta exclusivamente el catálogo propio y su disponibilidad reservable.

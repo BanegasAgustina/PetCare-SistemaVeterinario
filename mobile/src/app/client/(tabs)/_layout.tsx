@@ -1,13 +1,17 @@
-/** Navegación del cliente: cinco pestañas principales; Tienda contiene su propio stack de compra. */
-import { Tabs } from 'expo-router';
+/** Navegación original del cliente: conserva sus cinco pestañas nativas y el stack de compra. */
+import { Stack, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { StoreCheckoutProvider } from '../../../contexts/StoreCheckoutContext';
+import { useAuth } from '../../../hooks/useAuth';
 
 export default function ClientTabs() {
+  const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  if(user?.role!=='CLIENT')return <StoreCheckoutProvider><Stack screenOptions={{headerShown:false,contentStyle:{backgroundColor:colors.background}}}/></StoreCheckoutProvider>;
 
   return <StoreCheckoutProvider><Tabs screenOptions={{
     headerShown: false,

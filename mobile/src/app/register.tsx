@@ -21,7 +21,7 @@ const fields: AuthField<RegistrationFormValues>[] = [
 ];
 export default function RegisterScreen() {
   const auth = useAuth(); const { colors } = useTheme();
-  return <LoginLayout scrollable showDesktopImage petArtwork="register">
+  return <LoginLayout showDesktopImage petArtwork="register">
     <LoginBrand title="Creá tu cuenta" subtitle="Cuidamos a quienes más querés" />
     <AuthForm compact dense centerSubmitButton fields={fields} initialValues={{ fullName: '', email: '', phone: '', password: '', confirmPassword: '' }} validate={validateRegistrationForm}
       onSubmit={async values => { await auth.register(registrationPayload(values)); }} submitLabel="CREAR CUENTA" loadingLabel="Creando tu cuenta…" />

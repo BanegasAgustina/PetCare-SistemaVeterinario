@@ -12,5 +12,6 @@ export function adminService(request:ClientRequest) {
     userPermissions:(id:string,overrides:{code:string;allowed:boolean|null}[])=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}/permissions`,{method:'PUT',body:{overrides}}),
     invitation:(id:string)=>request<{delivery:string}>(`/admin/users/${encodeURIComponent(id)}/invitation`,{method:'POST'}),
     updateRole:(id:string,name:string,permissionCodes:string[])=>request<AdminCatalog>(`/admin/roles/${encodeURIComponent(id)}`,{method:'PUT',body:{name,permissionCodes}}),
+    createRole:(name:string,permissionCodes:string[])=>request<AdminCatalog>('/admin/roles',{method:'POST',body:{name,permissionCodes}}),
   };
 }

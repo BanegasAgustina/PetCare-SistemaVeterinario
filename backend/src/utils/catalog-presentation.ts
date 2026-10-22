@@ -23,6 +23,7 @@ const moduleNames: Record<string, string> = {
   medical_records: 'Historial clínico',
   clinic: 'Operación de la clínica',
   administration: 'Administración',
+  personal: 'Funciones personales',
 };
 
 const roleNames: Record<string, string> = {

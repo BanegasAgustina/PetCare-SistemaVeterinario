@@ -13,6 +13,8 @@ import { VerificationCodeModal } from '../components/ui/VerificationCodeModal';
 import { OAuthRegistrationModal } from '../components/forms/OAuthRegistrationModal';
 import { GlobalNavigation } from '../components/layout/GlobalNavigation';
 import { NotificationBridge } from '../components/notifications/NotificationBridge';
+import { hasCapabilityModule } from '../utils/capability-modules';
+import { canEnterClientRoot, canEnterWorkspace } from '../utils/role-home';
 
 // Completa el retorno de Expo solo en ventanas emergentes; el login web principal usa redirección completa.
 if(Platform.OS==='web'&&(window.opener||window.parent!==window))WebBrowser.maybeCompleteAuthSession();
@@ -29,11 +31,12 @@ function ThemedNavigation() {
     <Stack.Screen name="reset-password" />
     <Stack.Screen name="change-initial-password" />
     <Stack.Protected guard={Boolean(auth.user)&&auth.user?.role!=='CLIENT'}><Stack.Screen name="account" /></Stack.Protected>
-    <Stack.Protected guard={auth.user?.role==='CLIENT'}><Stack.Screen name="client" /></Stack.Protected>
+    <Stack.Protected guard={canEnterClientRoot(auth.user)}><Stack.Screen name="client" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='VETERINARIAN'}><Stack.Screen name="vet" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='GROOMER'}><Stack.Screen name="professional" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='SECRETARY'}><Stack.Screen name="secretary" /></Stack.Protected>
-    <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN'}><Stack.Screen name="admin" /></Stack.Protected>
+    <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN' || hasCapabilityModule(auth.user?.permissions)}><Stack.Screen name="admin" /></Stack.Protected>
+    <Stack.Protected guard={canEnterWorkspace(auth.user)}><Stack.Screen name="workspace" /></Stack.Protected>
   </Stack>;
   return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{auth.user ? <GlobalNavigation>{content}</GlobalNavigation> : content}
     {auth.verificationOpen && auth.pendingVerification && <VerificationCodeModal key={auth.pendingVerification.verificationToken} challenge={auth.pendingVerification} autoSend={auth.verificationFromLogin} />}

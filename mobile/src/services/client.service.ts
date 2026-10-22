@@ -5,12 +5,12 @@ export function clientService(request:ClientRequest){
   const get=<T>(path:string)=>request<T>(`/client${path}`);
   const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/client${path}`,{method,body});
   return {
-    home:()=>get<Home>('/home'),pets:()=>get<Pet[]>('/pets'),pet:(id:string)=>get<Pet>(`/pets/${encodeURIComponent(id)}`),petCatalog:()=>get<PetCatalog>('/pets/catalog'),
+    home:()=>get<Home>('/home'),pets:(includeInactive=false)=>get<Pet[]>(`/pets?${new URLSearchParams(includeInactive?{includeInactive:'true'}:{}).toString()}`),pet:(id:string)=>get<Pet>(`/pets/${encodeURIComponent(id)}`),petCatalog:()=>get<PetCatalog>('/pets/catalog'),
     savePet:(values:PetValues,id?:string)=>send<Pet>(id?`/pets/${encodeURIComponent(id)}`:'/pets',id?'PUT':'POST',{
       ...values,name:values.name.trim(),breedName:values.breedName?.trim()||null,
       microchipNumber:values.microchipNumber.trim()||null,birthDate:values.birthDate||null,
       photoUrl:values.photoUrl||null,weightKg:values.weightKg||null,
-    }),deactivatePet:(id:string)=>send(`/pets/${encodeURIComponent(id)}/deactivate`,'PATCH',{}),
+    }),deactivatePet:(id:string)=>send(`/pets/${encodeURIComponent(id)}/deactivate`,'PATCH',{}),reactivatePet:(id:string)=>send(`/pets/${encodeURIComponent(id)}/reactivate`,'PATCH',{}),
     appointments:()=>get<Appointment[]>('/appointments'),appointment:(id:string)=>get<Appointment>(`/appointments/${encodeURIComponent(id)}`),appointmentCatalog:()=>get<AppointmentCatalog>('/appointments/catalog'),
     slots:(serviceId:string,veterinarianId?:string)=>get<Slot[]>(`/appointments/slots?${new URLSearchParams({serviceId,...(veterinarianId?{veterinarianId}:{})})}`),
     requestAppointment:(petId:string,slotId:string)=>send<{id:string;status:'REQUESTED'|'CONFIRMED'}>('/appointments','POST',{petId,slotId}),

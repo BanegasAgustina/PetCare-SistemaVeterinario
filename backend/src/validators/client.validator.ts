@@ -2,10 +2,12 @@
  * Valida formularios, IDs y filtros del cliente antes de consultar MySQL. Restringe campos y tamaños; la validación frontend es ayuda de UX y no sustituye estos controles.
  */
 import { AppError } from '../utils/app-error';
-export function invalid(message='Revisá los datos ingresados.'): never { throw new AppError('VALIDATION_ERROR',400,message); }
+export function invalid(message='Revisá los datos ingresados.',field?:string): never { throw new AppError('VALIDATION_ERROR',400,message,undefined,field?[{field,message}]:undefined); }
 export function clientId(value:unknown):string { if(typeof value!=='string'||!/^[1-9]\d{0,19}$/.test(value)||BigInt(value)>18446744073709551615n)invalid();return value; }
 export function clientBody(value:unknown,keys:string[]):Record<string,unknown> {
-  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!keys.includes(key)))invalid();
+  if(!value||typeof value!=='object'||Array.isArray(value))invalid();
+  const extra=Object.keys(value).filter(key=>!keys.includes(key));
+  if(extra.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los datos ingresados.',undefined,extra.map(field=>({field,message:'Este campo no está permitido.'})));
   return value as Record<string,unknown>;
 }
 export function text(value:unknown,max:number,optional=false):string|null {

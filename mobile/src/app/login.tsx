@@ -28,7 +28,7 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
-  return <LoginLayout scrollable showDesktopImage petArtwork="login">
+  return <LoginLayout showDesktopImage petArtwork="login">
     <LoginBrand />
     <FormNotice message={auth.restoreError ?? auth.notice} error={Boolean(auth.restoreError)} />
     {auth.restoreError && <AppButton compact variant="secondary" label="Reintentar conexión" onPress={() => void auth.restoreSession()} />}

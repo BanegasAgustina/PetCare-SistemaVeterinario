@@ -46,7 +46,8 @@ clinicRouter.get('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requireP
 clinicRouter.patch('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requireAnyPermission('orders.manage','orders.payment.manage'),h('store-order-update'));
 clinicRouter.get('/store-orders/:id/proof',requireRole('SUPER_ADMIN'),requirePermission('orders.payment.manage'),h('store-order-proof'));
 clinicRouter.post('/store-orders/:id/payment-review',requireRole('SUPER_ADMIN'),requirePermission('orders.payment.manage'),h('store-order-payment-review'));
-clinicRouter.get('/admin/:kind',requireRole('ADMIN','SUPER_ADMIN'),h('admin-list'));
-clinicRouter.post('/admin/:kind',requireRole('ADMIN','SUPER_ADMIN'),createAuthRateLimiter(),h('admin-save',201));
-clinicRouter.patch('/admin/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),h('admin-save'));
-clinicRouter.delete('/admin/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),h('admin-delete'));
+// Los repositories de catálogos validan el permiso efectivo y el alcance de cada entidad.
+clinicRouter.get('/admin/:kind',h('admin-list'));
+clinicRouter.post('/admin/:kind',createAuthRateLimiter(),h('admin-save',201));
+clinicRouter.patch('/admin/:kind/:id',h('admin-save'));
+clinicRouter.delete('/admin/:kind/:id',h('admin-delete'));

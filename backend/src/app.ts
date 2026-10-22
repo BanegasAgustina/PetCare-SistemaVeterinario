@@ -6,7 +6,7 @@ import { env, isVercelRuntime } from './config/env';
 import { apiRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { authenticate } from './middlewares/auth.middleware';
-import { requireRole } from './middlewares/permission.middleware';
+import { requireRole,requirePermission,requirePersonalAccess } from './middlewares/permission.middleware';
 import { createAuthRateLimiter } from './middlewares/auth-rate-limit.middleware';
 import { configureProxyTrust } from './middlewares/proxy-trust.middleware';
 import { pet } from './repositories/client.repository';
@@ -26,24 +26,24 @@ const photoUploadLimiter=createAuthRateLimiter();
 // El cuerpo de fotos se procesa solo tras autenticar; el resto conserva su límite.
 app.use(/^\/api\/client\/pets(?:\/\d+)?$/, (req,res,next)=> {
   if(!['POST','PUT'].includes(req.method))return next();
-  authenticate(req,res,error=>{if(error)return next(error);requireRole('CLIENT')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+  authenticate(req,res,error=>{if(error)return next(error);requirePersonalAccess(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(/^\/api\/client\/payment-intents\/\d+\/proof$/, (req,res,next)=>{
   if(req.method!=='POST')return next();
-  authenticate(req,res,error=>{if(error)return next(error);requireRole('CLIENT')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.raw({type:['application/pdf','image/jpeg','image/png','image/webp'],limit:'5mb'})(req,res,next);});});});
+  authenticate(req,res,error=>{if(error)return next(error);requirePersonalAccess(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.raw({type:['application/pdf','image/jpeg','image/png','image/webp'],limit:'5mb'})(req,res,next);});});});
 });
 app.use('/api/vet/profile/photo',(req,res,next)=>{
   if(req.method!=='PUT')return next();
   authenticate(req,res,error=>{if(error)return next(error);requireRole('VETERINARIAN')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
-app.use(/^\/api\/(?:admin\/(?:products\/\d+|users\/\d+\/photo)|admin\/veterinarians\/\d+\/photo|clinic\/admin\/products(?:\/\d+)?)$/, (req,res,next)=> {
+app.use(/^\/api\/(?:admin\/(?:products\/\d+|users\/\d+\/photo)|admin\/veterinarians\/\d+\/photo|clinic\/admin\/(?:products|services)(?:\/\d+)?)$/, (req,res,next)=> {
   if(!['POST','PATCH','PUT'].includes(req.method))return next();
-  authenticate(req,res,error=>{if(error)return next(error);requireRole('ADMIN','SUPER_ADMIN')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+  authenticate(req,res,error=>{if(error)return next(error);const authorize=/^\/api\/(?:admin\/products\/\d+|clinic\/admin\/products(?:\/\d+)?)$/.test(req.path)?requirePermission('products.update'):/^\/api\/clinic\/admin\/services(?:\/\d+)?$/.test(req.path)?requirePermission('services.manage'):requireRole('ADMIN','SUPER_ADMIN');authorize(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(express.json({ limit: '100kb' }));
 app.use('/api/cron/notifications', notificationJobsRouter);
 // Lectura privada por ID de mascota; nunca aceptar una clave arbitraria del cliente.
-app.get('/media/pets/:id',authenticate,requireRole('CLIENT'),createAuthRateLimiter(120),async(req,res,next)=>{
+app.get('/media/pets/:id',authenticate,requirePersonalAccess,createAuthRateLimiter(120),async(req,res,next)=>{
   try {const owned=await pet(res.locals.authenticatedUser.id,clientId(req.params.id));
     const url=await petPhotoUrl(res.locals.authenticatedUser.id,owned.photoUrl);
     res.setHeader('Cache-Control','no-store');res.json({success:true,data:{url}});

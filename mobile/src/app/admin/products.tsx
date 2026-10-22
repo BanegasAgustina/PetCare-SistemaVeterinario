@@ -17,7 +17,6 @@ import { SearchFilterBar } from '../../components/ui/SearchFilterBar';
 import { PetCareCard, PetImage, QueryState, money, ResponsiveGrid } from '../../components/client/PetCareUI';
 import { SelectionRow } from '../../components/ui/SelectionRow';
 import { useAuth } from '../../hooks/useAuth';
-import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { AdminFormActions, AdminFormSection } from '../../components/admin/AdminFormLayout';
@@ -25,6 +24,7 @@ import { AdminFormActions, AdminFormSection } from '../../components/admin/Admin
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string | null; category: string | null; priceCents: number; stock: number; physicalStock: number; reservedStock: number; stockMinimum:number; isActive: boolean };
 type Page = { items: Product[]; page: number; total: number; hasMore: boolean };
 type StockHistory={product:{id:string;name:string;stock:number;stockMinimum:number;reservedStock:number};items:{id:string;quantityBefore:number;quantityAfter:number;quantityDelta:number;reason:string;createdAt:string;actorName:string}[]};
+type ProductCategories={categories:{id:string;name:string}[]};
 const emptyValues = { name: '', description: '', imageUrl: '', categoryId: '', price: '', stock: '', stockMinimum:'0',stockReason:'',isActive: true };
 
 export default function AdminProducts() {
@@ -32,8 +32,8 @@ export default function AdminProducts() {
   const auth = useAuth();
   const { request } = auth;
   const { showToast } = useFeedback();
-  const catalogApi = useClinic();
-  const catalog = useClientQuery(catalogApi.catalog);
+  const loadCategories=useCallback(()=>request<ProductCategories>('/admin/products/catalog'),[request]);
+  const catalog = useClientQuery(loadCategories);
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [filters, setFilters] = useState({ status: 'all', stock: requestedStock, sort: 'name', categoryId: '' });
@@ -99,7 +99,7 @@ export default function AdminProducts() {
         {[['all', 'Todos'], ['active', 'Activos'], ['inactive', 'Inactivos']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.status === value} onPress={() => updateFilter('status', value)}/>)}
         <AppText variant="subtitle">Ordenar por</AppText>
         {[['name', 'Nombre A-Z'], ['price_low', 'Precio: menor primero'], ['price_high', 'Precio: mayor primero'], ['stock_low', 'Stock: menor primero'], ['stock_high', 'Stock: mayor primero']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.sort === value} onPress={() => updateFilter('sort', value)}/>)}
-        <AppText variant="subtitle">Categoría</AppText><SelectionRow label="Todas" checked={!filters.categoryId} onPress={() => updateFilter('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={String(category.name)} checked={filters.categoryId === category.id} onPress={() => updateFilter('categoryId', category.id)}/>)}
+        <AppText variant="subtitle">Categoría</AppText><SelectionRow label="Todas" checked={!filters.categoryId} onPress={() => updateFilter('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} checked={filters.categoryId === category.id} onPress={() => updateFilter('categoryId', category.id)}/>)}
       </FilterDisclosure>
     </SearchFilterBar>
     <QueryState {...catalog}/><QueryState {...query}/>
@@ -134,7 +134,7 @@ export default function AdminProducts() {
         <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, name: value }))}/>
         <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, description: value }))}/>
         <AppText variant="caption" muted>Imagen del producto</AppText><PetImage uri={photo?.uri??(values.imageUrl||editing.imageUrl)}/><AppButton variant="secondary" label={photo?'Cambiar imagen':'Elegir imagen'} disabled={!auth.hasPermission('products.update')} onPress={()=>void choosePhoto()}/>{Boolean(photo||values.imageUrl)&&<AppButton variant="secondary" label="Quitar imagen" disabled={!auth.hasPermission('products.update')} onPress={()=>{setPhoto(null);setValues(current=>({...current,imageUrl:''}));}}/>}<FormNotice error message={photoError}/><AppInput label="URL HTTPS alternativa" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value => {setPhoto(null);setValues(current => ({ ...current, imageUrl: value }));}}/>
-        {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => setValues(current => ({ ...current, categoryId: '' }))}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={String(category.name)} radio checked={values.categoryId === category.id} onPress={() => setValues(current => ({ ...current, categoryId: category.id }))}/>)}</>}
+        {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => setValues(current => ({ ...current, categoryId: '' }))}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} radio checked={values.categoryId === category.id} onPress={() => setValues(current => ({ ...current, categoryId: category.id }))}/>)}</>}
         </AdminFormSection>
         <AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">
         <AppInput label="Costo del producto (ARS)" prefix="$" placeholder="0,00" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => setValues(current => ({ ...current, price: value.replace(',', '.') }))}/>

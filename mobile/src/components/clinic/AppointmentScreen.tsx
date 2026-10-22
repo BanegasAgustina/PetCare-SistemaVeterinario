@@ -42,6 +42,7 @@ export function AppointmentScreen() {
   const { showToast } = useFeedback();
   const observationValue = observations ?? String(query.data?.observations ?? '');
   const transitions: Record<string, string[]> = { REQUESTED: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'] };
+  const hasSavedConsultation=Boolean(history.data?.some(record=>String(record.appointmentId)===id));
 
   async function saveObservations() {
     const saved = await observationAction.run(() => api.changeAppointment(id, { observations: observationValue }));
@@ -71,7 +72,7 @@ export function AppointmentScreen() {
         <AppText>Estado: {statusLabel(String(query.data.status))}</AppText>
         {Boolean(query.data.cancellationReason) && <AppText>Motivo de cancelación: {String(query.data.cancellationReason)}</AppText>}
         {user?.role==='VETERINARIAN'&&hasPermission('pets.view_information')&&<AppButton label="Abrir ficha del paciente" variant="secondary" onPress={()=>router.push({pathname:'/vet/patient' as never,params:{id:String(query.data!.petId)}})}/>}
-        {user?.role==='VETERINARIAN'&&patientScope&&hasPermission('medical_records.create')&&query.data.status!=='CANCELLED'&&<AppButton label="Registrar consulta" onPress={()=>router.push({pathname:'/vet/record' as never,params:{id:String(query.data!.petId),kind:'medical-history',appointmentId:String(query.data!.id)}})}/>}
+        {user?.role==='VETERINARIAN'&&patientScope&&hasPermission('medical_records.create')&&['CONFIRMED','IN_PROGRESS'].includes(String(query.data.status))&&<AppButton label={query.data.status==='IN_PROGRESS'?'Continuar atención':'Completar ficha de atención'} onPress={()=>router.push({pathname:'/vet/record' as never,params:{id:String(query.data!.petId),kind:'medical-history',appointmentId:String(query.data!.id)}})}/>}
       </PetCareCard>
       {user?.role==='VETERINARIAN'&&<>
         {hasPermission('pets.view_information')&&<QueryState {...patient}/>}
@@ -94,7 +95,7 @@ export function AppointmentScreen() {
         <AppButton label="Guardar observaciones" loading={observationAction.loading} disabled={observationValue === String(query.data.observations ?? '')} onPress={() => void saveObservations()} />
         <FormNotice error message={observationAction.error} />
       </PetCareCard>}
-      {(hasPermission('appointments.manage') || hasPermission('appointments.update_own')) && (transitions[String(query.data.status)] ?? []).filter(status => hasPermission('appointments.manage') || status !== 'CONFIRMED').map(status => <AppButton key={status} label={statusLabel(status)} destructive={status === 'CANCELLED'} onPress={() => { if (status === 'CANCELLED') { setCancellationReason(''); setCancellationError(null); } setNext(status); }} />)}
+      {(hasPermission('appointments.manage') || hasPermission('appointments.update_own')) && (transitions[String(query.data.status)] ?? []).filter(status => hasPermission('appointments.manage') || status !== 'CONFIRMED').filter(status=>user?.role!=='VETERINARIAN'||status!=='COMPLETED'||hasSavedConsultation).map(status => <AppButton key={status} label={user?.role==='VETERINARIAN'&&status==='IN_PROGRESS'?'Iniciar atención':user?.role==='VETERINARIAN'&&status==='COMPLETED'?'Finalizar atención':statusLabel(status)} destructive={status === 'CANCELLED'} onPress={() => { if (status === 'CANCELLED') { setCancellationReason(''); setCancellationError(null); } setNext(status); }} />)}
       {hasPermission('appointments.manage') && !['COMPLETED', 'CANCELLED'].includes(String(query.data.status)) && <>
         <PetCareCard>
           <AppText variant="subtitle">Reprogramar o asignar profesional</AppText>
@@ -116,6 +117,6 @@ export function AppointmentScreen() {
       <AppButton label="Confirmar cancelación" destructive loading={cancellationAction.loading} onPress={() => void cancelAppointment()} />
       <AppButton label="Volver" variant="secondary" disabled={cancellationAction.loading} onPress={() => setNext(null)} />
     </AppModal>
-    <ConfirmModal visible={Boolean(next) && next !== 'CANCELLED'} title="Actualizar turno" message={next === 'reschedule' ? 'Se guardará el nuevo horario y profesional.' : 'El nuevo estado se reflejará en la agenda.'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { await api.changeAppointment(id, next === 'reschedule' ? { slotId: slot } : { status: next }); setNext(null); setSlot(''); showToast('Turno actualizado', 'success'); query.reload(); }} />
+    <ConfirmModal visible={Boolean(next) && next !== 'CANCELLED'} title={user?.role==='VETERINARIAN'&&next==='IN_PROGRESS'?'Iniciar atención':user?.role==='VETERINARIAN'&&next==='COMPLETED'?'Finalizar atención':'Actualizar turno'} message={next === 'reschedule' ? 'Se guardará el nuevo horario y profesional.' : user?.role==='VETERINARIAN'&&next==='COMPLETED'?'La consulta ya está guardada. Se finalizará el turno y quedará registrado en la agenda.':'El nuevo estado se reflejará en la agenda.'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { await api.changeAppointment(id, next === 'reschedule' ? { slotId: slot } : { status: next }); setNext(null); setSlot(''); showToast('Turno actualizado', 'success'); query.reload(); }} />
   </PetCareScreen>;
 }

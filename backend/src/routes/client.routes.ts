@@ -3,11 +3,11 @@
  */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
-import { requireRole } from '../middlewares/permission.middleware';
+import { requirePersonalAccess } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { clientHandler as handle } from '../controllers/client.controller';
 export const clientRouter=Router();
-clientRouter.use(authenticate,requireRole('CLIENT'));
+clientRouter.use(authenticate,requirePersonalAccess);
 clientRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 clientRouter.get('/home',handle('home'));
 clientRouter.get('/pets/catalog',handle('pet-catalog'));
@@ -16,6 +16,7 @@ clientRouter.post('/pets',handle('create-pet',201));
 clientRouter.get('/pets/:id',handle('pet'));
 clientRouter.put('/pets/:id',handle('update-pet'));
 clientRouter.patch('/pets/:id/deactivate',handle('deactivate-pet'));
+clientRouter.patch('/pets/:id/reactivate',handle('reactivate-pet'));
 clientRouter.get('/appointments/catalog',handle('appointment-catalog'));
 clientRouter.get('/appointments/slots',handle('slots'));
 clientRouter.get('/appointments',handle('appointments'));

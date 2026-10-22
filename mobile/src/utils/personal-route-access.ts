@@ -1,0 +1,19 @@
+/** Guardia de presentación para rutas del espacio personal; backend vuelve a validar cada operación. */
+export function personalPermissionsForPathname(pathname:string):string[]|null {
+  const path=pathname.replace(/\/+$/,'')||'/';
+  if(path==='/client/pets'||path.startsWith('/client/pets/'))return ['personal.pets.view','personal.pets.manage'];
+  if(path==='/client/medical-history'||path==='/client/vaccines'||path==='/client/prescriptions'||path==='/client/recommendations')return ['personal.pets.view'];
+  if(path==='/client/appointments/request')return ['personal.appointments.create'];
+  if(path==='/client/appointments'||path.startsWith('/client/appointments/'))return ['personal.appointments.view'];
+  if(path==='/client/store'||path.startsWith('/client/store/'))return ['personal.store.view','personal.store.purchase'];
+  if(path==='/client/orders'||path.startsWith('/client/orders/'))return ['personal.orders.view'];
+  if(path.startsWith('/client/payment-intents/'))return ['personal.store.purchase'];
+  if(path==='/client/profile'||path.startsWith('/client/profile/'))return ['personal.profile.manage'];
+  return null;
+}
+
+export function canEnterPersonalPath(role:string,permissions:string[]|undefined,pathname:string):boolean {
+  if(role==='CLIENT')return true;
+  const required=personalPermissionsForPathname(pathname);
+  return Boolean(required?.some(code=>permissions?.includes(code)));
+}

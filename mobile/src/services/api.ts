@@ -1,7 +1,8 @@
 /** Cliente HTTP con timeout y errores públicos: nunca imprime credenciales ni tokens. */
 export class ApiError extends Error {
-  constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown) { super(message); this.name = 'ApiError'; }
+  constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown, public readonly fieldErrors: readonly ApiFieldError[] = []) { super(message); this.name = 'ApiError'; }
 }
+export type ApiFieldError={field:string;message:string};
 const messages: Record<string, string> = {
   OAUTH_UNAVAILABLE:'Este proveedor todavía no está configurado.',
   OAUTH_INVALID_STATE:'La solicitud OAuth venció o ya fue usada. Iniciá el proceso nuevamente.',
@@ -132,10 +133,15 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
       reportApiFailure(code, response.status, options.method ?? 'GET', path);
       const isStoreConfigurationRead = (options.method ?? 'GET') === 'GET' && /^\/client\/(?:cart|store\/(?:promotions|fulfillment|delivery-quote|addresses(?:\/|$)))$/.test(cleanPath.split('?')[0]);
+      const serverMessage=typeof result?.error?.message==='string'?result.error.message:'';
       const message = code === 'NOT_FOUND' && isStoreConfigurationRead
         ? messages.ROUTE_NOT_FOUND
-        : messages[code] ?? 'No pudimos completar la operación. Intentá nuevamente.';
-      throw new ApiError(code, message, response.status, result?.error?.verification);
+        : code==='VALIDATION_ERROR'&&serverMessage?serverMessage:(messages[code] ?? serverMessage) || 'No pudimos completar la operación. Intentá nuevamente.';
+      const fieldErrors:ApiFieldError[]=Array.isArray(result?.error?.errors)?result.error.errors.flatMap((item:unknown)=>{
+        if(!item||typeof item!=='object')return[];const candidate=item as Record<string,unknown>;
+        return typeof candidate.field==='string'&&typeof candidate.message==='string'?[{field:candidate.field.slice(0,120),message:candidate.message.slice(0,300)}]:[];
+      }):[];
+      throw new ApiError(code, message, response.status, result?.error?.verification,fieldErrors);
     }
     return result.data as T;
   } catch (error) {
