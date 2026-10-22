@@ -1,5 +1,5 @@
 /** Asistente de solicitud de turnos. Solo presenta servicios, mascotas y slots reales del backend. */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -7,7 +7,7 @@ import { useClient } from '../../../hooks/useClient';
 import { useClientQuery } from '../../../hooks/useClientQuery';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import { useTheme } from '../../../hooks/useTheme';
-import { PetCareCard, PetCareEmptyState, PetCareHeader, PetCareScreen, PetImage, QueryState, money, statusLabel, type IconName } from '../../../components/client/PetCareUI';
+import { PetCareCard, PetCareEmptyState, PetCareHeader, PetCareScreen, PetImage, QueryState, money, type IconName } from '../../../components/client/PetCareUI';
 import { AppButton } from '../../../components/ui/AppButton';
 import { AppText } from '../../../components/ui/AppText';
 import { FormNotice } from '../../../components/ui/FormNotice';
@@ -15,7 +15,7 @@ import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { clinicDate, clinicDateFilterToApi, clinicDateTime } from '../../../utils/clinic-date';
 import type { AppointmentCatalog, Pet, Slot } from '../../../types/client';
 
-const stepTitles = ['Tipo de atención', 'Mascota', 'Servicio', 'Fecha y horario', 'Revisar y confirmar'];
+const stepTitles = ['Mascota', 'Servicio', 'Profesional', 'Fecha y horario', 'Confirmación'];
 type Submission = { id: string; status: 'REQUESTED' | 'CONFIRMED' };
 
 export default function RequestAppointment() {
@@ -50,18 +50,11 @@ export default function RequestAppointment() {
   const availableSlots = slots.data ?? [];
   const selectedSlot = availableSlots.find(slot => slot.id === slotId);
   const dates = [...new Set(availableSlots.map(slot => clinicDateFilterToApi(clinicDate(slot.startsAt))))].sort();
-  const activeDate = dates.includes(selectedDate) ? selectedDate : (dates[0] ?? '');
+  const activeDate = dates.includes(selectedDate) ? selectedDate : '';
   const dateSlots = activeDate ? availableSlots.filter(slot => clinicDateFilterToApi(clinicDate(slot.startsAt)) === activeDate) : [];
   const professionals = (data?.catalog.veterinarians ?? []).filter(professional =>
     Boolean(professional.isActive) && data?.catalog.assignments.some(assignment => assignment.professionalId === professional.id && assignment.serviceId === serviceId),
   );
-
-  useEffect(() => {
-    if (!slots.data) return;
-    if (slotId && !slots.data.some(slot => slot.id === slotId)) setSlotId('');
-    const availableDates = [...new Set(slots.data.map(slot => clinicDateFilterToApi(clinicDate(slot.startsAt))))];
-    if (selectedDate && !availableDates.includes(selectedDate)) setSelectedDate('');
-  }, [slots.data, selectedDate, slotId]);
 
   function clearLaterSelections() {
     setVetId('');
@@ -107,16 +100,16 @@ export default function RequestAppointment() {
 
   function continueStep() {
     setFormError(null);
-    if (step === 1 && !availableTypes.some(type => type.id === typeId)) {
-      setFormError('Elegí un tipo de atención que tenga servicios disponibles.');
-      return;
-    }
-    if (step === 2 && !data?.pets.some(pet => pet.id === petId)) {
+    if (step === 1 && !data?.pets.some(pet => pet.id === petId)) {
       setFormError('Elegí la mascota que necesita atención.');
       return;
     }
-    if (step === 3 && !filteredServices.some(service => service.id === serviceId)) {
-      setFormError('Elegí uno de los servicios disponibles.');
+    if (step === 2 && (!availableTypes.some(type => type.id === typeId) || !filteredServices.some(service => service.id === serviceId))) {
+      setFormError('Elegí el tipo de atención y uno de sus servicios.');
+      return;
+    }
+    if (step === 3 && vetId && !professionals.some(professional => professional.id === vetId)) {
+      setFormError('Elegí un profesional disponible o seleccioná cualquiera.');
       return;
     }
     if (step === 4 && !selectedSlot) {
@@ -129,7 +122,7 @@ export default function RequestAppointment() {
   async function submitRequest() {
     if (!petId || !selectedSlot || !serviceId) {
       setFormError('Revisá la mascota, el servicio y el horario antes de enviar.');
-      setStep(!petId ? 2 : !serviceId ? 3 : 4);
+      setStep(!petId ? 1 : !serviceId ? 2 : 4);
       return;
     }
     setFormError(null);
@@ -162,19 +155,6 @@ export default function RequestAppointment() {
     <SelectionSummary step={step} typeName={selectedType?.name} pet={selectedPet} serviceName={selectedService?.name} slot={selectedSlot} />
     <QueryState {...query} />
     {data && step === 1 && <>
-      <AppText>¿Qué atención necesitás?</AppText>
-      {availableTypes.length ? availableTypes.map(type => <ChoiceCard
-        key={type.id}
-        title={type.name}
-        description={typeDescription(type)}
-        icon={typeIcon(type)}
-        selected={typeId === type.id}
-        onPress={() => chooseType(type.id)}
-      />) : <PetCareEmptyState title="No hay tipos de atención disponibles" message="La clínica todavía no ofrece servicios activos para solicitar un turno." icon="calendar-outline" />}
-      <StepHelp text={typeId ? null : 'Elegí una opción para continuar.'} />
-    </>}
-
-    {data && step === 2 && <>
       <AppText>¿A qué mascota vamos a atender?</AppText>
       {!data.pets.length ? <PetCareEmptyState
         title="Todavía no tenés mascotas registradas."
@@ -186,8 +166,18 @@ export default function RequestAppointment() {
       <StepHelp text={petId ? null : 'Elegí una mascota para continuar.'} />
     </>}
 
-    {data && step === 3 && <>
+    {data && step === 2 && <>
       <AppText>¿Qué servicio necesitás?</AppText>
+      <AppText muted>Elegí el tipo de atención y después el servicio.</AppText>
+      {availableTypes.length ? <View style={styles.typeChoices}>{availableTypes.map(type => <ChoiceCard
+        key={type.id}
+        title={type.name}
+        description={typeDescription(type)}
+        icon={typeIcon(type)}
+        selected={typeId === type.id}
+        onPress={() => chooseType(type.id)}
+      />)}</View> : <PetCareEmptyState title="No hay tipos de atención disponibles" message="La clínica todavía no ofrece servicios activos para solicitar un turno." icon="calendar-outline" />}
+      {Boolean(typeId)&&<>
       {specialties.length > 0 && <PetCareCard>
         <AppText variant="subtitle">Especialidad (opcional)</AppText>
         <AppText muted>Podés elegir una para filtrar los servicios relacionados, o continuar sin filtro.</AppText>
@@ -203,13 +193,14 @@ export default function RequestAppointment() {
         detail={[service.durationMinutes ? `${service.durationMinutes} min` : null, service.priceCents !== null && service.priceCents !== undefined ? money(Number(service.priceCents)) : null].filter(Boolean).join(' · ') || undefined}
       />) : <PetCareEmptyState title="No hay servicios disponibles" message="No encontramos servicios activos para esta opción. Volvé atrás para elegir otro tipo de atención." icon="medkit-outline" />}
       <StepHelp text={serviceId ? null : 'Elegí un servicio para continuar.'} />
+      </>}
     </>}
 
-    {data && step === 4 && <>
-      <AppText>¿Cuándo querés venir?</AppText>
+    {data && step === 3 && <>
+      <AppText>¿Tenés preferencia por un profesional?</AppText>
       <PetCareCard>
         <AppText variant="subtitle">Profesional</AppText>
-        <AppText muted>Podés elegir cualquier profesional con horarios publicados para este servicio.</AppText>
+        <AppText muted>Elegí a alguien o dejá que el sistema muestre todos los horarios disponibles para el servicio.</AppText>
         <SelectionRow radio label="Cualquier profesional disponible" checked={!vetId} disabled={action.loading} onPress={() => chooseProfessional('')} />
         {professionals.map(professional => <PetChoiceProfessional
           key={professional.id}
@@ -220,15 +211,16 @@ export default function RequestAppointment() {
           onPress={() => chooseProfessional(professional.id)}
         />)}
       </PetCareCard>
+    </>}
+
+    {data && step === 4 && <>
+      <AppText>¿Cuándo querés venir?</AppText>
       <QueryState {...slots} />
       {slots.data && dates.length > 0 && <>
-        <PetCareCard>
-          <AppText variant="subtitle">Fecha</AppText>
-          <AppText muted>Elegí entre las fechas que tienen horarios publicados.</AppText>
-          {dates.map(date => <SelectionRow key={date} radio label={`${weekday(date)} · ${clinicDate(date)}`} checked={activeDate === date} disabled={action.loading} onPress={() => { setSelectedDate(date); setSlotId(''); setFormError(null); }} />)}
-        </PetCareCard>
+        <MonthCalendar dates={dates} selectedDate={activeDate} disabled={action.loading} onSelect={date=>{setSelectedDate(date);setSlotId('');setFormError(null);}} />
         <PetCareCard>
           <AppText variant="subtitle">Horarios disponibles</AppText>
+          {!activeDate&&<AppText muted>Seleccioná un día disponible en el calendario.</AppText>}
           {dateSlots.map(slot => <SelectionRow key={slot.id} radio label={clinicDateTime(slot.startsAt)} hint={vetId ? undefined : slot.veterinarian} checked={slotId === slot.id} disabled={action.loading} onPress={() => { setSlotId(slot.id); setFormError(null); }} />)}
         </PetCareCard>
       </>}
@@ -241,7 +233,7 @@ export default function RequestAppointment() {
       <AppText>Revisá los datos antes de enviar tu solicitud.</AppText>
       <PetCareCard>
         <AppText variant="subtitle">Resumen del turno</AppText>
-        <SummaryLine label="Tipo de atención" value={selectedType?.name} />
+      <SummaryLine label="Tipo de atención" value={selectedType?.name} />
         <SummaryLine label="Mascota" value={selectedPet?.name} />
         {selectedPet && <AppText muted>{[selectedPet.species, selectedPet.breed].filter(Boolean).join(' · ')}</AppText>}
         <SummaryLine label="Servicio" value={selectedService?.name} />
@@ -255,15 +247,41 @@ export default function RequestAppointment() {
     <FormNotice error message={formError ?? action.error} />
     <View style={styles.actions}>
       {step > 1 && <AppButton label="Volver" variant="secondary" disabled={action.loading} onPress={() => { setFormError(null); action.clearError(); setStep(current => Math.max(1, current - 1)); }} />}
-      {step < 5 ? <AppButton label="Continuar" disabled={action.loading || !canContinue(step, typeId, availableTypes, petId, data?.pets ?? [], serviceId, filteredServices, slotId, selectedSlot)} onPress={continueStep} /> : <AppButton label="Confirmar solicitud" loading={action.loading} onPress={() => void submitRequest()} />}
+      {step < 5 ? <AppButton label="Continuar" disabled={action.loading || !canContinue(step, petId, data?.pets ?? [], serviceId, filteredServices, slotId, selectedSlot)} onPress={continueStep} /> : <AppButton label="Confirmar solicitud" loading={action.loading} onPress={() => void submitRequest()} />}
     </View>
   </PetCareScreen>;
 }
 
-function canContinue(step: number, typeId: string, types: AppointmentCatalog['types'], petId: string, pets: Pet[], serviceId: string, services: AppointmentCatalog['services'], slotId: string, slot?: Slot) {
-  if (step === 1) return types.some(type => type.id === typeId);
-  if (step === 2) return pets.some(pet => pet.id === petId);
-  if (step === 3) return services.some(service => service.id === serviceId);
+function MonthCalendar({dates,selectedDate,disabled,onSelect}:{dates:string[];selectedDate:string;disabled:boolean;onSelect:(date:string)=>void}){
+  const {colors}=useTheme();
+  const [month,setMonth]=useState(()=>new Date());
+  const sorted=[...dates].sort();
+  const monthStart=new Date(month.getFullYear(),month.getMonth(),1);
+  const monthKey=`${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}`;
+  const availableInMonth=new Set(sorted.filter(date=>date.startsWith(monthKey)).map(date=>Number(date.slice(-2))));
+  const leading=(monthStart.getDay()+6)%7;
+  const days=new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
+  const minMonth=sorted[0]?.slice(0,7)??monthKey,maxMonth=sorted.at(-1)?.slice(0,7)??monthKey;
+  const canPrevious=monthKey>minMonth,canNext=monthKey<maxMonth;
+  const monthLabel=new Intl.DateTimeFormat('es-AR',{month:'long',year:'numeric'}).format(monthStart);
+  const cells=Array.from({length:leading+days},(_,index)=>index<leading?null:index-leading+1);
+  return <PetCareCard>
+    <View style={styles.calendarHeading}><AppText variant="subtitle">Elegí una fecha</AppText><View style={styles.calendarNav}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Mes anterior" disabled={disabled||!canPrevious} onPress={()=>setMonth(current=>new Date(current.getFullYear(),current.getMonth()-1,1))} style={[styles.calendarArrow,{backgroundColor:colors.accent,opacity:canPrevious?1:.4}]}><Ionicons name="chevron-back" size={19} color={colors.primary}/></Pressable>
+      <AppText style={styles.calendarMonth}>{monthLabel}</AppText>
+      <Pressable accessibilityRole="button" accessibilityLabel="Mes siguiente" disabled={disabled||!canNext} onPress={()=>setMonth(current=>new Date(current.getFullYear(),current.getMonth()+1,1))} style={[styles.calendarArrow,{backgroundColor:colors.accent,opacity:canNext?1:.4}]}><Ionicons name="chevron-forward" size={19} color={colors.primary}/></Pressable>
+    </View></View>
+    <View style={styles.calendarGrid}>{['L','M','X','J','V','S','D'].map((day,index)=><AppText key={`${day}-${index}`} variant="caption" muted style={styles.calendarWeekday}>{day}</AppText>)}
+      {cells.map((day,index)=>{if(day===null)return <View key={`empty-${index}`} style={styles.calendarCell}/>;const value=`${monthKey}-${String(day).padStart(2,'0')}`;const available=availableInMonth.has(day);const selected=selectedDate===value;return <Pressable key={value} accessibilityRole="button" accessibilityLabel={`${day} ${monthLabel}${available?', disponible':', sin horarios disponibles'}`} accessibilityState={{selected,disabled:!available||disabled}} disabled={!available||disabled} onPress={()=>onSelect(value)} style={[styles.calendarCell,styles.calendarDay,{backgroundColor:selected?colors.primary:available?colors.accent:colors.surface,borderColor:selected?colors.primary:available?colors.border:'transparent',opacity:available?1:.42}]}><AppText style={{color:selected?colors.onPrimary:available?colors.text:colors.muted,fontWeight:available?'700':'400'}}>{day}</AppText>{available&&<View style={[styles.calendarDot,{backgroundColor:selected?colors.onPrimary:colors.primary}]}/>}</Pressable>;})}
+    </View>
+    <AppText variant="caption" muted>Los días marcados tienen horarios reales publicados por la clínica.</AppText>
+  </PetCareCard>;
+}
+
+function canContinue(step: number, petId: string, pets: Pet[], serviceId: string, services: AppointmentCatalog['services'], slotId: string, slot?: Slot) {
+  if (step === 1) return pets.some(pet => pet.id === petId);
+  if (step === 2) return services.some(service => service.id === serviceId);
+  if (step === 3) return true;
   if (step === 4) return Boolean(slotId && slot?.id === slotId);
   return false;
 }
@@ -346,6 +364,8 @@ const styles = StyleSheet.create({
   progressTrack: { flexDirection: 'row', gap: 6, minHeight: 8 },
   progressPart: { flex: 1, height: 8, borderRadius: 8 },
   choice: { minHeight: 88, padding: 16, borderWidth: 2, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  typeChoices: { gap: 10 },
+  calendarHeading:{gap:8},calendarNav:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8},calendarArrow:{width:36,height:36,borderRadius:12,alignItems:'center',justifyContent:'center'},calendarMonth:{flex:1,textAlign:'center',fontWeight:'700',textTransform:'capitalize'},calendarGrid:{flexDirection:'row',flexWrap:'wrap'},calendarWeekday:{width:'14.2857%',height:34,textAlign:'center',textAlignVertical:'center',fontWeight:'700'},calendarCell:{width:'14.2857%',height:42,alignItems:'center',justifyContent:'center'},calendarDay:{borderWidth:1,borderRadius:13,marginBottom:4},calendarDot:{width:4,height:4,borderRadius:2,marginTop:2},
   petChoice: { minHeight: 88, padding: 12, borderWidth: 2, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
   choiceCopy: { flex: 1, minWidth: 0, gap: 4 },
   professionalChoice: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 12 },

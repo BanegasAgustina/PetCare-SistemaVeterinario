@@ -89,6 +89,8 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'store-orders':return storeOrders.list(actor,query);
  case 'store-order':return storeOrders.detail(actor,v.id(id));
  case 'store-order-update':return storeOrders.update(actor,id,value);
+ case 'store-order-proof':return storeOrders.proof(actor,v.id(id));
+ case 'store-order-payment-review':return storeOrders.reviewPayment(actor,v.id(id),value);
  default:v.invalid();
  }});
 }

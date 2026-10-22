@@ -7,7 +7,8 @@ import { clientOperation } from '../services/client.service';
 import { presentPetPhotos } from '../services/pet-photo.service';
 export function clientHandler(operation:string,status=200):RequestHandler {
   return async(req,res,next)=>{try{const user=res.locals.authenticatedUser as AuthUser;
-    const data=await clientOperation(user.id,operation,req.params.id??req.params.kind,req.body,req.query);
+    const body=operation==='payment-proof'?{bytes:req.body,contentType:req.get('content-type'),reference:req.get('x-payment-reference')}:req.body;
+    const data=await clientOperation(user.id,operation,req.params.id??req.params.kind,body,req.query);
     res.status(status).json({success:true,data:await presentPetPhotos(user.id,data)});
   }catch(error){next(error);}};
 }

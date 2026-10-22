@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { Request, Response } from 'express';
+import type { Request, Response,RequestHandler } from 'express';
 import { authenticate } from '../src/middlewares/auth.middleware';
 import { AppError } from '../src/utils/app-error';
 import { apiRouter } from '../src/routes';
 import { clientRouter } from '../src/routes/client.routes';
 import { clinicRouter } from '../src/routes/clinic.routes';
+import type { AuthUser } from '../src/types/auth';
 
-type RouteLayer = { route?: { path: string; methods: Record<string, boolean> }; handle: (...args: never[]) => unknown };
+type RouteLayer = { route?: { path: string; methods: Record<string, boolean>;stack?:{handle:RequestHandler}[] }; handle: (...args: never[]) => unknown };
 
 test('store client routes are registered under /api/client behind authentication', () => {
   const layers = (clientRouter as unknown as { stack: RouteLayer[] }).stack;
@@ -18,6 +19,15 @@ test('store client routes are registered under /api/client behind authentication
     assert.ok(layers.some(layer => layer.route?.path === route && layer.route.methods.get), `missing GET ${route}`);
   }
   assert.ok((apiRouter as unknown as { stack: RouteLayer[] }).stack.some(layer => layer.handle === clientRouter));
+});
+
+test('bank transfer checkout and proof upload routes stay behind client authentication',()=>{
+ const layers=(clientRouter as unknown as {stack:RouteLayer[]}).stack;
+ const checkout=layers.find(layer=>layer.route?.path==='/orders/bank-transfer')?.route;
+ const proof=layers.find(layer=>layer.route?.path==='/payment-intents/:id/proof')?.route;
+ const renew=layers.find(layer=>layer.route?.path==='/orders/:id/payment-intents')?.route;
+ assert.ok(checkout?.methods.post);assert.ok(proof?.methods.post);assert.ok(renew?.methods.post);
+ assert.ok(layers.findIndex(layer=>layer.route?.path==='/orders/bank-transfer')>layers.findIndex(layer=>layer.route?.path==='/orders'));
 });
 
 test('store endpoints reject unauthenticated requests with 401 before database access', async () => {
@@ -43,4 +53,17 @@ test('banner administration routes require the banner permission',()=>{
  const layers=(clinicRouter as unknown as {stack:RouteLayer[]}).stack;
  for(const [path,method] of [['/store-banners','get'],['/store-banners','post'],['/store-banners/:id','patch'],['/store-banners/:id','delete'],['/store-banners/order','put']] as const)
   assert.ok(layers.some(layer=>layer.route?.path===path&&layer.route.methods[method]),`missing ${method.toUpperCase()} ${path}`);
+});
+
+test('transfer proof access and payment review require SUPER_ADMIN and payment permission',async()=>{
+ const layers=(clinicRouter as unknown as {stack:RouteLayer[]}).stack;
+ for(const [path,method] of [['/store-orders/:id/proof','get'],['/store-orders/:id/payment-review','post']] as const){
+  const route=layers.find(layer=>layer.route?.path===path&&layer.route.methods[method])?.route;assert.ok(route,`missing ${method} ${path}`);
+  const guards=(route.stack??[]).slice(0,-1).map(layer=>layer.handle);assert.equal(guards.length,2);
+  const run=(user:AuthUser,index:number)=>new Promise<unknown>(resolve=>guards[index]!({} as Request,{locals:{authenticatedUser:user}} as unknown as Response,error=>resolve(error)));
+  const admin={id:'12',firstName:'Admin',lastName:'Regular',email:'admin@example.test',phone:null,role:'ADMIN',permissions:['orders.payment.manage']} as AuthUser;
+  const superNoPermission={...admin,role:'SUPER_ADMIN',permissions:[]} as AuthUser;
+  const superWithPermission={...admin,role:'SUPER_ADMIN'} as AuthUser;
+  assert.ok(await run(admin,0) instanceof AppError);assert.ok(await run(superNoPermission,1) instanceof AppError);assert.equal(await run(superWithPermission,1),undefined);
+ }
 });

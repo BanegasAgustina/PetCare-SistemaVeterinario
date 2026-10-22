@@ -19,6 +19,7 @@ export default function ClientOrders() {
       <AppText>Estado: {order.isStoreOrder ? order.storeOrderStatus : order.status}</AppText>
       {order.isStoreOrder&&<AppText>Pago: {order.storePaymentStatus} · Entrega: {order.deliveryStatus}</AppText>}
       {order.orderType === 'DEMO_PURCHASE' && <AppText>Pago: {order.paymentStatus === 'DEMO_NOT_PAID' ? 'No realizado' : order.paymentStatus}</AppText>}
+      {order.orderType==='STORE_PURCHASE'&&<AppText>Pago: {order.storePaymentStatus==='PENDING'?'Pendiente de verificación':order.storePaymentStatus}</AppText>}
       <AppText>Fecha: {new Date(order.createdAt).toLocaleString('es-AR')}</AppText>
       <AppText>Total: {money(order.totalCents)}</AppText>
       <AppButton label="Ver comprobante" variant="secondary" onPress={() => router.push({ pathname: '/client/orders/[id]', params: { id: order.id } })} />

@@ -21,6 +21,13 @@ const messages: Record<string, string> = {
   PRESCRIPTION_REQUIRED: 'Seleccioná una receta vigente para este producto y mascota.',
   STOCK_CONFLICT: 'El stock reservado requiere revisión administrativa.',
   PAYMENT_NOT_INTEGRATED: 'El sistema de pagos todavía no está conectado. Esta operación es una demostración y no se realizará ningún cobro.',
+  STORE_DEMO_DISABLED: 'El modo de demostración de la tienda está desactivado por configuración.',
+  PAYMENT_INTENT_UNAVAILABLE: 'El plazo sigue activo o el comprobante ya está en revisión. Actualizá el pedido e intentá nuevamente.',
+  PAYMENT_PROOF_INVALID: 'El comprobante debe ser un PDF, JPG, PNG o WebP válido de hasta 5 MB.',
+  PAYMENT_PROOF_STORAGE_UNAVAILABLE: 'No pudimos guardar el comprobante de forma segura. Intentá nuevamente.',
+  PAYMENT_PROOF_REQUIRED: 'El administrador debe consultar un comprobante enviado antes de verificar el pago.',
+  PAYMENT_ALREADY_CONFIRMED: 'La transferencia ya fue confirmada.',
+  PAYMENT_REVIEW_REQUIRED: 'Las transferencias reales requieren comprobante y revisión del administrador principal.',
   PAYLOAD_TOO_LARGE: 'La imagen supera el tamaño permitido. Elegí una foto más pequeña.',
   STOCK_UNAVAILABLE: 'No hay stock suficiente. Actualizá la tienda para revisar disponibilidad.',
   SLOT_UNAVAILABLE: 'El horario ya no está disponible. Elegí otro horario.',
@@ -95,7 +102,7 @@ export function getApiUrl(): string {
   } catch { throw new ApiError('API_NOT_CONFIGURED', 'La conexión con PetCare todavía no está configurada.'); }
 }
 
-export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; accessToken?: string } = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; contentType?: string; headers?:Record<string,string>;accessToken?: string } = {}): Promise<T> {
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const cleanPath = normalizedPath.replace(/^\/api(?=\/|$)/i, '');
@@ -103,12 +110,12 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    let response: Response;
+    let response: Response;const rawBody=options.body instanceof Blob||options.body instanceof ArrayBuffer||ArrayBuffer.isView(options.body);
     try {
       response = await fetch(url, {
         method: options.method ?? 'GET', signal: controller.signal,
-        headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': options.contentType??(rawBody?'application/octet-stream':'application/json') }), ...(options.headers??{}), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
+        body: options.body === undefined ? undefined : rawBody?options.body as BodyInit:JSON.stringify(options.body),
       });
     } catch {
       reportApiFailure('NETWORK_ERROR', 0, options.method ?? 'GET', path);

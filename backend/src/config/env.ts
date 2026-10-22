@@ -20,6 +20,14 @@ function readPositiveInteger(name: string, fallback: number, maximum: number): n
   return value;
 }
 
+function readBoolean(name:string,fallback:boolean):boolean{
+  const raw=process.env[name];
+  if(raw===undefined)return fallback;
+  if(['1','true','yes'].includes(raw.trim().toLowerCase()))return true;
+  if(['0','false','no'].includes(raw.trim().toLowerCase()))return false;
+  throw new Error(`${name} debe ser true o false.`);
+}
+
 const databaseName = process.env.DB_NAME ?? 'petcare';
 // Los identificadores SQL no aceptan placeholders: el nombre usa una lista permitida estricta.
 if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(databaseName)) {
@@ -95,6 +103,8 @@ export const env = {
   databaseQueueLimit: isVercelRuntime ? 10 : 50,
   databaseConnectTimeout: readPositiveInteger('DB_CONNECT_TIMEOUT_MS', 30000, 60000),
   bcryptSaltRounds: readPositiveInteger('BCRYPT_SALT_ROUNDS', 12, 14),
+  // Los pedidos ficticios solo se habilitan con una decisión explícita del operador.
+  storeDemoEnabled: readBoolean('STORE_DEMO_MODE', false),
   corsAllowedOrigins: [...new Set([...(nodeEnvironment === 'production' ? [] : localWebOrigins), ...petcareWebOrigins, ...configuredCorsOrigins])],
   isCorsOriginAllowed: (origin?: string) => !origin || env.corsAllowedOrigins.includes(origin) || petcareVercelPreviewOrigin.test(origin),
 };

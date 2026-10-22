@@ -5,6 +5,7 @@ const sharedColors = {
   onPrimary: "#ffffff",
   highlight: "#f0b4c5",
   onHighlight: "#173e35",
+  focus: "#146b55",
 };
 export const themes = {
   light: {
@@ -19,6 +20,7 @@ export const themes = {
   },
   dark: {
     ...sharedColors,
+    focus: "#68c6a1",
     danger: "#f0b4c5",
     background: "#0f211c",
     surface: "#214b3f",

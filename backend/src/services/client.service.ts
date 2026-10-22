@@ -13,13 +13,16 @@ import { clientBody,clientId,petInput,cartQuantity,text,invalid } from '../valid
 import * as storefront from '../repositories/storefront.repository';
 import * as deliveryAddresses from '../repositories/delivery-address.repository';
 import * as storeCheckout from '../repositories/store-checkout.repository';
-import { storeCheckoutInput } from '../validators/store-checkout.validator';
+import * as storePayment from '../repositories/store-payment.repository';
+import { storePaymentProof,removePaymentProof } from './pet-photo.service';
+import { storeCheckoutInput,storeTransferInput } from '../validators/store-checkout.validator';
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>) {
   return runDatabaseOperation(async()=>{
     switch(operation){
       case 'home': {const [pets,appointments,products,unreadNotifications]=await Promise.all([repository.pets(owner),repository.appointments(owner),repository.products('',undefined,true),repository.unreadNotificationCount(owner)]);
-        return {pets,nextAppointment:appointments.filter(a=>a.isUpcoming).sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt)))[0]??null,featuredProducts:products,unreadNotifications};}
+        const nextAppointments=appointments.filter(a=>a.isUpcoming&&a.status!=='CANCELLED').sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt))).slice(0,8);
+        return {pets,nextAppointment:nextAppointments[0]??null,nextAppointments,featuredProducts:products,unreadNotifications};}
       case 'pets':return repository.pets(owner);
       case 'pet-catalog':return repository.petCatalog();
       case 'pet':return repository.pet(owner,clientId(id));
@@ -42,6 +45,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       }
       case 'deactivate-pet':clientBody(body,[]);return repository.deactivatePet(owner,clientId(id));
       case 'appointments':return repository.appointments(owner);
+      case 'appointment':{const results=await repository.appointments(owner);const appointment=results.find(item=>item.id===clientId(id));if(!appointment)throw new AppError('NOT_FOUND',404,'Turno no encontrado.');return appointment;}
       case 'appointment-catalog':return repository.appointmentCatalog();
       case 'slots':return repository.slots(clientId(query.serviceId),query.veterinarianId?clientId(query.veterinarianId):undefined);
       case 'create-appointment': {const values=clientBody(body,['petId','slotId']);return repository.createAppointment(owner,clientId(values.petId),clientId(values.slotId));}
@@ -60,7 +64,16 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'cart-update':{const values=clientBody(body,['quantity']);return repository.updateCart(owner,clientId(id),cartQuantity(values.quantity));}
       case 'orders':return repository.orders(owner);
       case 'order':return repository.order(owner,clientId(id));
-      case 'checkout':{const input=storeCheckoutInput(body);const orderId=await storeCheckout.create(owner,input.key,input.paymentMethod,input.fulfillmentMethod,input.address,input.paymentReference);return repository.order(owner,orderId);}
+      case 'checkout':{if(!env.storeDemoEnabled)throw new AppError('STORE_DEMO_DISABLED',409,'El modo de demostración de la tienda está desactivado.');const input=storeCheckoutInput(body);const orderId=await storeCheckout.create(owner,input.key,input.paymentMethod,input.fulfillmentMethod,input.address,input.paymentReference);return repository.order(owner,orderId);}
+      case 'bank-transfer-checkout':{const input=storeTransferInput(body);const orderId=await storeCheckout.create(owner,input.key,'BANK_TRANSFER',input.fulfillmentMethod,input.address,'',input.buyer);return repository.order(owner,orderId);}
+      case 'payment-intent-renew':clientBody(body,[]);await storePayment.createNewIntent(owner,id);return repository.order(owner,clientId(id));
+      case 'payment-proof':{
+        const input=body as {bytes?:unknown;contentType?:unknown;reference?:unknown};if(!Buffer.isBuffer(input?.bytes)||typeof input.contentType!=='string')throw new AppError('PAYMENT_PROOF_INVALID',400,'Seleccioná un archivo PDF o una imagen válida.');
+        const intentId=clientId(id);await storePayment.assertOwnedIntent(owner,intentId);const stored=await storePaymentProof(intentId,input.bytes,input.contentType);
+        const reference=text(input.reference,120,true)??undefined;
+        try{const old=await storePayment.submitProof(owner,intentId,stored.key,input.contentType,input.bytes.length,reference);if(old.previousKey)await removePaymentProof(old.previousKey).catch(()=>undefined);return {submitted:true};}
+        catch(error){await stored.remove().catch(()=>undefined);throw error;}
+      }
       case 'notifications':return repository.notifications(owner);
       case 'notification-read':clientBody(body,[]);return repository.readNotification(owner,clientId(id));
       case 'notification-read-all':clientBody(body,[]);return repository.readAllNotifications(owner);

@@ -12,11 +12,11 @@ export function VerificationCodeInput({ value, onChange, disabled, invalid }: { 
   return <View style={styles.root}>
     <Pressable onPress={() => input.current?.focus()} disabled={disabled} accessible={false} style={styles.cells}>
       {Array.from({ length: 6 }, (_, index) => <View key={index} style={[styles.cell, { backgroundColor: colors.background,
-        borderColor: invalid ? colors.danger : focused && index === Math.min(value.length, 5) ? colors.primary : colors.border,
+        borderColor: invalid ? colors.danger : focused && index === Math.min(value.length, 5) ? colors.focus : colors.border,
         borderWidth: focused && index === Math.min(value.length, 5) ? 2 : 1 }]}><AppText style={styles.digit}>{value[index] ?? ''}</AppText></View>)}
     </Pressable>
     {/* El cursor siempre queda al final. Pegar con espacios también completa las seis casillas. */}
-    <TextInput ref={input} accessibilityLabel="Código de verificación de seis dígitos" keyboardType="number-pad" autoComplete="one-time-code" textContentType="oneTimeCode"
+    <TextInput ref={input} focusable={!disabled} showSoftInputOnFocus={!disabled} selectionColor={colors.focus} underlineColorAndroid="transparent" accessibilityLabel="Código de verificación de seis dígitos" keyboardType="number-pad" autoComplete="one-time-code" textContentType="oneTimeCode"
       value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 6))} selection={{ start: value.length, end: value.length }}
       editable={!disabled} maxLength={24} caretHidden autoFocus onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
       style={styles.input} />

@@ -10,9 +10,10 @@ import { isBannerPhotoKey } from '../services/pet-photo.service';
 import { assertAdminPermission } from '../utils/admin-authorization';
 import { AppError } from '../utils/app-error';
 import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
+import { env } from '../config/env';
 
 export type DeliveryZone = { id: string; name: string; province: string; city: string; postalCodePrefix: string | null; feeCents: number | null; isActive: boolean };
-export type FulfillmentSettings = { pickupEnabled: boolean; pickupAddress: string | null; pickupHours: string | null; pickupInstructions: string | null; deliveryEnabled: boolean; deliveryBaseFeeCents: number; freeDeliveryThresholdCents: number | null; deliveryHours: string | null; deliveryDays: string | null; deliveryInformation: string | null; bankName: string | null; bankAccountHolder: string | null; bankCbuCvu: string | null; bankAlias: string | null; zones: DeliveryZone[] };
+export type FulfillmentSettings = { demoModeEnabled:boolean;pickupEnabled: boolean; pickupAddress: string | null; pickupHours: string | null; pickupInstructions: string | null; deliveryEnabled: boolean; deliveryBaseFeeCents: number; freeDeliveryThresholdCents: number | null; deliveryHours: string | null; deliveryDays: string | null; deliveryInformation: string | null; bankName: string | null; bankAccountHolder: string | null; bankCbuCvu: string | null; bankAlias: string | null; zones: DeliveryZone[] };
 export type PromotionBanner = { id:string;name:string;description:string|null;imageUrl:string|null;categoryId:string|null;category:string|null;stock:number;isActive:boolean;priceCents:number;regularPriceCents:number;requiresPrescription:boolean;speciesId:string|null;productType:'GENERAL'|'MEDICINE'|'ACCESSORY';promotionName:string;bannerSubtitle:string|null;bannerCtaText:string };
 export type StoreBanner={id:string;title:string|null;subtitle:string|null;description:string|null;mobileImageUrl:string;desktopImageUrl:string|null;backgroundColor:string;textColor:string;contentAlignment:'LEFT'|'CENTER'|'RIGHT';darkOverlay:boolean;destinationType:'PRODUCT'|'CATEGORY'|'PROMOTION'|'PRODUCT_LIST'|'INFO';destinationId:string|null;targetProductId:string|null;ctaText:string|null;sortOrder:number;isActive:boolean;startsAt:string|null;endsAt:string|null};
 
@@ -126,6 +127,7 @@ export async function publicFulfillment(): Promise<FulfillmentSettings> {
     throw error;
   }
   return {
+    demoModeEnabled:env.storeDemoEnabled,
     pickupEnabled: Boolean(settings.pickupEnabled), pickupAddress: settings.pickupAddress as string | null,
     pickupHours: settings.pickupHours as string | null, pickupInstructions: settings.pickupInstructions as string | null, deliveryEnabled: Boolean(settings.deliveryEnabled),
     deliveryBaseFeeCents: Number(settings.deliveryBaseFeeCents),
@@ -140,6 +142,7 @@ export async function adminFulfillment(actor: AuthUser): Promise<FulfillmentSett
   clinic.permit(actor, 'store.settings.view');
   const [settings, zones] = await Promise.all([settingsRow(), zoneRows(false)]);
   return {
+    demoModeEnabled:env.storeDemoEnabled,
     pickupEnabled: Boolean(settings.pickupEnabled), pickupAddress: settings.pickupAddress as string | null,
     pickupHours: settings.pickupHours as string | null, pickupInstructions: settings.pickupInstructions as string | null, deliveryEnabled: Boolean(settings.deliveryEnabled),
     deliveryBaseFeeCents: Number(settings.deliveryBaseFeeCents),

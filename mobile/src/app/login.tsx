@@ -33,7 +33,7 @@ export default function LoginScreen() {
     <FormNotice message={auth.restoreError ?? auth.notice} error={Boolean(auth.restoreError)} />
     {auth.restoreError && <AppButton compact variant="secondary" label="Reintentar conexión" onPress={() => void auth.restoreSession()} />}
     {/* Se conservan validación, email de registro, errores/loading y la llamada original al AuthContext. */}
-    <AuthForm compact borderlessInputs fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={submitLogin} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
+    <AuthForm compact fields={fields} initialValues={{ email: auth.registeredEmail, password: '' }} validate={validateLoginForm} onSubmit={submitLogin} submitLabel="INICIAR SESIÓN" loadingLabel="Iniciando sesión…"
       secondaryAction={(loading) => <Pressable disabled={loading} accessibilityRole="button" onPress={() => { Keyboard.dismiss(); setRecoveryVisible(true); }} style={styles.recovery}><AppText variant="caption" style={{ color: colors.primary }}>¿Olvidaste tu contraseña?</AppText></Pressable>} />
     {auth.pendingVerification && <AppButton compact label="Verificar ahora" variant="secondary" onPress={() => { Keyboard.dismiss(); auth.openVerification(); }} />}
     <View style={styles.socialSection}>

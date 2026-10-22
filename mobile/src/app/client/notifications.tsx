@@ -9,7 +9,7 @@ import { AppText } from '../../components/ui/AppText';
 import { AppButton } from '../../components/ui/AppButton';
 import { FormNotice } from '../../components/ui/FormNotice';
 import { useEffect, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { AppState,Linking, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { requestPushPermissionAndToken, storedPushToken, clearStoredPushToken, hasRegisteredPushPermission } from '../../services/push-notifications';
@@ -29,7 +29,8 @@ export default function NotificationsScreen(){
       .catch(()=>console.error('No se pudo consultar el registro de notificaciones del dispositivo.'));
     const unsubscribe=subscribeToNotificationChanges(query.reload);
     const interval=setInterval(query.reload,30_000);
-    return ()=>{active=false;unsubscribe();clearInterval(interval);};
+    const appState=AppState.addEventListener('change',state=>{if(state==='active'&&Platform.OS!=='web')void hasRegisteredPushPermission().then(enabled=>{if(active)setPushEnabled(enabled);}).catch(()=>console.error('No se pudo actualizar el permiso de notificaciones del dispositivo.'));});
+    return ()=>{active=false;unsubscribe();clearInterval(interval);appState.remove();};
   },[query.reload]);
   const enablePush=()=>void action.run(async()=>{
     const token=await requestPushPermissionAndToken();
@@ -49,11 +50,12 @@ export default function NotificationsScreen(){
   return <PetCareScreen>
     <PetCareHeader title="Notificaciones" back/>
     {Platform.OS!=='web'&&<>
-      <AppText variant="caption" muted>Activá las notificaciones para recibir recordatorios de turnos y avisos importantes sobre tus reservas y mascotas.</AppText>
-      <AppText muted>Estado en este dispositivo: {pushEnabled?'activadas':'no activadas'}</AppText>
+      <AppText variant="caption" muted>Activá las notificaciones para recibir novedades de turnos y pedidos. El permiso se verifica de nuevo al regresar desde Ajustes.</AppText>
+      <AppText muted>Estado registrado en este dispositivo: {pushEnabled?'activadas':'desactivadas'}</AppText>
       <AppButton label={pushEnabled?'Desactivar notificaciones en este dispositivo':'Activar notificaciones en este dispositivo'} variant="secondary" loading={action.loading} onPress={pushEnabled?disablePush:enablePush}/>
       {action.error?.includes('ajustes')&&<AppButton label="Abrir ajustes del dispositivo" variant="secondary" onPress={()=>void Linking.openSettings()}/>}
     </>}
+    {Platform.OS==='web'&&<PetCareCard><AppText variant="subtitle">Notificaciones del navegador</AppText><AppText muted>Las notificaciones push no están habilitadas en esta versión web. En Android, el registro remoto requiere una Development Build o un APK propio; Expo Go no está habilitado para este flujo.</AppText></PetCareCard>}
     {!!query.data?.some(n=>!n.readAt)&&<AppButton label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/>}
     <QueryState {...query}/>
     <FormNotice error message={action.error}/>

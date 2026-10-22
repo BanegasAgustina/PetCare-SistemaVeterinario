@@ -7,14 +7,14 @@ type Fulfillment = RowDataPacket & { pickupEnabled:number;pickupAddress:string|n
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es');
 
 /** Crea un pedido de tienda idempotente. Valida nuevamente catálogo, precio, envío y configuración bajo transacción. */
-export async function create(owner:string,key:string,paymentMethod:CheckoutPayment,method:'PICKUP'|'DELIVERY',address:CheckoutAddress|null,paymentReference:string){
+export async function create(owner:string,key:string,paymentMethod:CheckoutPayment,method:'PICKUP'|'DELIVERY',address:CheckoutAddress|null,paymentReference:string,transferBuyer?:{name:string;email:string}){
   const connection=await databasePool.getConnection();let orderId='';
   try{
     await connection.beginTransaction();
     await connection.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[owner]);
-    const [previous]=await connection.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,is_store_order AS isStoreOrder FROM client_orders WHERE owner_id=? AND request_key=?',[owner,key]);
+    const [previous]=await connection.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,order_type AS orderType FROM client_orders WHERE owner_id=? AND request_key=?',[owner,key]);
     if(previous[0]){
-      if(!Boolean(previous[0].isStoreOrder))throw new AppError('IDEMPOTENCY_KEY_REUSED',409,'La clave ya corresponde a otro pedido.');
+      if(previous[0].orderType!=='DEMO_PURCHASE'&&previous[0].orderType!=='STORE_PURCHASE')throw new AppError('IDEMPOTENCY_KEY_REUSED',409,'La clave ya corresponde a otro pedido.');
       orderId=String(previous[0].id);
       await connection.commit();
       return orderId;
@@ -23,6 +23,7 @@ export async function create(owner:string,key:string,paymentMethod:CheckoutPayme
     const settings=settingsRows[0];
     if(!settings)throw new AppError('STORE_NOT_CONFIGURED',409,'La tienda todavía no tiene configurados los métodos de pago y entrega.');
     if(paymentMethod==='BANK_TRANSFER'&&(!settings.bankName||!settings.bankAccountHolder||!settings.bankCbuCvu||!settings.bankAlias))throw new AppError('STORE_PAYMENT_NOT_CONFIGURED',409,'La tienda todavía no configuró los datos para transferencia bancaria.');
+    if(paymentMethod==='BANK_TRANSFER'&&!transferBuyer)throw new AppError('VALIDATION_ERROR',400,'Completá los datos del comprador para iniciar la transferencia.');
     let fee=0;
     if(method==='PICKUP'&&!Boolean(settings.pickupEnabled))throw new AppError('FULFILLMENT_UNAVAILABLE',409,'El retiro en el local no está habilitado.');
     if(method==='PICKUP'&&!settings.pickupAddress?.trim())throw new AppError('FULFILLMENT_NOT_CONFIGURED',409,'El local todavía no configuró la dirección de retiro.');
@@ -49,12 +50,17 @@ export async function create(owner:string,key:string,paymentMethod:CheckoutPayme
     }
     const total=subtotal+fee;if(!Number.isSafeInteger(total))throw new AppError('PRICE_INVALID',409,'El total del pedido no es válido.');
     const d=method==='DELIVERY'?address:null;
+    const isReal=Boolean(transferBuyer);
     await connection.execute(`INSERT INTO client_orders(owner_id,request_key,total_cents,status,created_at,expires_at,order_type,payment_status,is_store_order,store_order_status,store_payment_status,payment_method,fulfillment_method,delivery_status,subtotal_cents,delivery_fee_cents,recipient_name,recipient_phone,delivery_street,delivery_number,delivery_unit,delivery_city,delivery_province,delivery_postal_code,delivery_reference,payment_reference)
-      VALUES (?,?,?,'PLACED',UTC_TIMESTAMP(3),TIMESTAMPADD(HOUR,24,UTC_TIMESTAMP(3)),'DEMO_PURCHASE','DEMO_NOT_PAID',1,'PLACED','PENDING',?,?,'PENDING',?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [owner,key,total,paymentMethod,method,subtotal,fee,d?.recipientName??null,d?.phone??null,d?.street??null,d?.streetNumber??null,d?.unit||null,d?.city??null,d?.province??null,d?.postalCode??null,d?.reference||null,paymentMethod==='BANK_TRANSFER'?paymentReference||null:null]);
+      VALUES (?,?,?,'PLACED',UTC_TIMESTAMP(3),TIMESTAMPADD(HOUR,24,UTC_TIMESTAMP(3)),?,?,?, ?,?,?,?, ?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [owner,key,total,isReal?'STORE_PURCHASE':'DEMO_PURCHASE',isReal?'PENDING_VERIFICATION':'DEMO_NOT_PAID',isReal?1:0,isReal?'PLACED':null,isReal?'PENDING':'NOT_APPLICABLE',paymentMethod,method,isReal?'PENDING':'NOT_APPLICABLE',subtotal,fee,d?.recipientName??null,d?.phone??null,d?.street??null,d?.streetNumber??null,d?.unit||null,d?.city??null,d?.province??null,d?.postalCode??null,d?.reference||null,paymentMethod==='BANK_TRANSFER'?paymentReference||null:null]);
     const [created]=await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');orderId=String(created[0].id);
+    if(isReal)await connection.execute('UPDATE client_orders SET payment_reference=? WHERE id=?',[`PEDIDO-${orderId}`,orderId]);
     for(const item of items)await connection.execute('INSERT INTO client_order_items(order_id,product_id,product_name,quantity,price_cents) VALUES (?,?,?,?,?)',[orderId,item.productId,item.name,item.quantity,item.priceCents]);
-    await connection.execute("INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,NULL,'PLACED',?,'ORDER'),(?,NULL,'PENDING',?,'PAYMENT')",[orderId,owner,orderId,owner]);
+    await connection.execute("INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,NULL,'PLACED',?,'ORDER')",[orderId,owner]);
+    if(isReal) await connection.execute("INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,NULL,'PENDING',?,'PAYMENT')",[orderId,owner]);
+    if(transferBuyer)await connection.execute(`INSERT INTO client_store_payment_intents(order_id,owner_id,buyer_name,buyer_email,expires_at)
+      VALUES (?,?,?, ?,TIMESTAMPADD(MINUTE,5,UTC_TIMESTAMP(3)))`,[orderId,owner,transferBuyer.name,transferBuyer.email]);
     await connection.execute('DELETE FROM client_cart_items WHERE owner_id=?',[owner]);
     await connection.commit();
   }catch(error){await connection.rollback();throw error;}finally{connection.release();}

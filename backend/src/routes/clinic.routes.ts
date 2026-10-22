@@ -44,6 +44,8 @@ clinicRouter.delete('/store-banners/:id',requireRole('ADMIN','SUPER_ADMIN'),requ
 clinicRouter.get('/store-orders',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('orders.view_all'),h('store-orders'));
 clinicRouter.get('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('orders.view_all'),h('store-order'));
 clinicRouter.patch('/store-orders/:id',requireRole('ADMIN','SUPER_ADMIN'),requireAnyPermission('orders.manage','orders.payment.manage'),h('store-order-update'));
+clinicRouter.get('/store-orders/:id/proof',requireRole('SUPER_ADMIN'),requirePermission('orders.payment.manage'),h('store-order-proof'));
+clinicRouter.post('/store-orders/:id/payment-review',requireRole('SUPER_ADMIN'),requirePermission('orders.payment.manage'),h('store-order-payment-review'));
 clinicRouter.get('/admin/:kind',requireRole('ADMIN','SUPER_ADMIN'),h('admin-list'));
 clinicRouter.post('/admin/:kind',requireRole('ADMIN','SUPER_ADMIN'),createAuthRateLimiter(),h('admin-save',201));
 clinicRouter.patch('/admin/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),h('admin-save'));

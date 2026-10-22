@@ -31,7 +31,7 @@ export function LoginLayout({ children, scrollable = false, showDesktopImage = f
   return <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: colors.background }]}>
     <View style={[styles.shape, { backgroundColor: colors.accent }]} />
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {scrollable ? <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, desktopWeb && styles.webScrollContent, desktopWeb && showDesktopImage && styles.desktopScrollContent, keyboardOpen && styles.keyboardScrollContent]}>
+      {scrollable ? <ScrollView keyboardShouldPersistTaps="always" keyboardDismissMode="none" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, desktopWeb && styles.webScrollContent, desktopWeb && showDesktopImage && styles.desktopScrollContent, keyboardOpen && styles.keyboardScrollContent]}>
         {desktopCard || <>{desktopImage}{main}</>}{artwork}
       </ScrollView> : <View style={[styles.fixedContent, desktopWeb && styles.desktopFixedContent]}>
         {desktopCard || <>{desktopImage}{main}</>}

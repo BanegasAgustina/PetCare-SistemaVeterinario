@@ -20,7 +20,7 @@ type AuthContextValue = {
   completeVerifiedSession: (result:unknown)=>Promise<AuthUser|null>;
   hasRole: (...roles:AuthUser['role'][])=>boolean;
   hasPermission: (...codes:string[])=>boolean;
-  request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown }) => Promise<T>;
+  request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown;contentType?:string;headers?:Record<string,string> }) => Promise<T>;
   user: AuthUser | null; restoring: boolean; restoreError: string | null; notice: string | null; registeredEmail: string;
   signIn: (values: LoginValues) => Promise<void>; register: (values: RegisterValues) => Promise<void>;
   signOut: () => Promise<void>; restoreSession: () => Promise<void>; refreshProfile: () => Promise<void>;
@@ -214,7 +214,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [expireSession,renewSession]);
 
   const openVerification = () => setVerificationOpen(true);
-  const request = useCallback(async <T,>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown } = {}): Promise<T> => {
+  const request = useCallback(async <T,>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown;contentType?:string;headers?:Record<string,string> } = {}): Promise<T> => {
     let stored=session.current;
     if (!stored) throw new ApiError('AUTH_REQUIRED','Iniciá sesión para continuar.',401);
     const attempt=generation.current;

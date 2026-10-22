@@ -16,3 +16,15 @@ export function storeCheckoutInput(value:unknown){
   } else if(body.address!==undefined) clientBody(body.address,[]);
   return {key,paymentMethod:body.paymentMethod as CheckoutPayment,paymentReference,fulfillmentMethod:body.fulfillmentMethod as 'PICKUP'|'DELIVERY',address};
 }
+/** DNI se valida en memoria y se descarta antes de persistir la intención. */
+export function storeTransferInput(value:unknown){
+  const body=clientBody(value,['requestKey','fulfillmentMethod','address','buyerName','buyerEmail','buyerDni']);
+  const checkout=storeCheckoutInput({requestKey:body.requestKey,paymentMethod:'BANK_TRANSFER',fulfillmentMethod:body.fulfillmentMethod,address:body.address});
+  const buyerName=text(body.buyerName,160)!;
+  const buyerEmail=text(body.buyerEmail,254)!;
+  const dni=typeof body.buyerDni==='string'?body.buyerDni.replace(/[.\s-]/g,''):'';
+  if(buyerName.trim().split(/\s+/).length<2)throw new AppError('VALIDATION_ERROR',400,'Ingresá nombre y apellido del comprador.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail))throw new AppError('VALIDATION_ERROR',400,'Ingresá un correo electrónico válido.');
+  if(!/^\d{7,9}$/.test(dni))throw new AppError('VALIDATION_ERROR',400,'Ingresá un DNI válido de 7 a 9 números.');
+  return {...checkout,buyer:{name:buyerName.trim(),email:buyerEmail.trim().toLowerCase()}};
+}

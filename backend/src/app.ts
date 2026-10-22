@@ -20,13 +20,17 @@ export default app;
 configureProxyTrust(app, isVercelRuntime);
 app.disable('x-powered-by');
 // Solo se habilitan la web oficial y sus previews de Vercel; el cliente nativo no necesita CORS.
-app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization','X-Payment-Reference'] }));
 app.use(helmet({strictTransportSecurity:env.nodeEnvironment==='production'?undefined:false,contentSecurityPolicy:false}));
 const photoUploadLimiter=createAuthRateLimiter();
 // El cuerpo de fotos se procesa solo tras autenticar; el resto conserva su límite.
 app.use(/^\/api\/client\/pets(?:\/\d+)?$/, (req,res,next)=> {
   if(!['POST','PUT'].includes(req.method))return next();
   authenticate(req,res,error=>{if(error)return next(error);requireRole('CLIENT')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+});
+app.use(/^\/api\/client\/payment-intents\/\d+\/proof$/, (req,res,next)=>{
+  if(req.method!=='POST')return next();
+  authenticate(req,res,error=>{if(error)return next(error);requireRole('CLIENT')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.raw({type:['application/pdf','image/jpeg','image/png','image/webp'],limit:'5mb'})(req,res,next);});});});
 });
 app.use('/api/vet/profile/photo',(req,res,next)=>{
   if(req.method!=='PUT')return next();

@@ -2,8 +2,8 @@
  * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos mediante useClient, selecciona foto con ImagePicker y envía cambios al backend; los errores se muestran inline.
  */
 import { useCallback,useRef,useState } from 'react';
-import { Image,View,StyleSheet,Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image,Pressable,View,StyleSheet,Platform } from 'react-native';
+import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
@@ -82,7 +82,7 @@ export function PetEditor({id}:{id?:string}) {
       {Platform.OS!=='web'&&<AppButton variant="secondary" label="Tomar foto con la cámara" loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('camera')}/>}
       {Boolean(preview)&&<AppButton variant="secondary" label="Quitar foto" disabled={disabled} onPress={()=>{setPhoto(null);change('photoUrl','');}}/>}<FormNotice error message={errors.photoUrl??null}/></PetCareCard>
       <PetCareCard><AppInput label="Nombre" value={values.name} error={errors.name} maxLength={100} editable={!disabled} onChangeText={v=>change('name',v)}/>
-      <AppText variant="subtitle">Especie</AppText><FormNotice error message={errors.speciesId??null}/>{query.data.catalog.species.map(s=><SelectionRow radio key={s.id} label={s.name} checked={s.id===values.speciesId} disabled={disabled} onPress={()=>change('speciesId',s.id)}/>)}
+      <AppText variant="subtitle">Especie</AppText><FormNotice error message={errors.speciesId??null}/><View style={styles.speciesOptions}>{query.data.catalog.species.map(s=>{const name=s.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');const icon=name.includes('perro')||name.includes('dog')?'dog':name.includes('gato')||name.includes('cat')?'cat':'paw';return <Pressable key={s.id} accessibilityRole="radio" accessibilityLabel={s.name} accessibilityState={{checked:s.id===values.speciesId}} disabled={disabled} onPress={()=>change('speciesId',s.id)} style={[styles.speciesChoice,{backgroundColor:s.id===values.speciesId?colors.accent:colors.surface,borderColor:s.id===values.speciesId?colors.primary:colors.border}]}><MaterialCommunityIcons name={icon} size={46} color={s.id===values.speciesId?colors.primary:colors.muted}/><AppText variant="caption" style={{fontWeight:'700'}}>{s.name}</AppText>{s.id===values.speciesId&&<View style={[styles.speciesSelected,{backgroundColor:colors.primary}]}><Ionicons name="checkmark" size={13} color={colors.onPrimary}/></View>}</Pressable>;})}</View>
       <AppText variant="subtitle">Sexo</AppText><FormNotice error message={errors.sex??null}/>{([{value:'FEMALE',label:'Hembra'},{value:'MALE',label:'Macho'},{value:'UNKNOWN',label:'No lo sé'}] as const).map(option=><SelectionRow radio key={option.value} label={option.label} checked={values.sex===option.value} disabled={disabled} onPress={()=>change('sex',option.value)}/>)}
       <AppInput label="Raza (opcional)" placeholder="Escribí la raza de tu mascota" value={values.breedName??''} error={errors.breedName} maxLength={100} editable={!disabled} onChangeText={v=>change('breedName',v)}/>
       <PetBirthDate value={values.birthDate} disabled={disabled} onChange={v=>change('birthDate',v)}/><FormNotice error message={errors.birthDate??null}/>
@@ -92,4 +92,4 @@ export function PetEditor({id}:{id?:string}) {
     </>}
   </>}</PetCareScreen>;
 }
-const styles=StyleSheet.create({photoSection:{alignItems:'center',paddingVertical:8},photo:{width:132,height:132,borderRadius:66,alignItems:'center',justifyContent:'center',overflow:'hidden'}});
+const styles=StyleSheet.create({photoSection:{alignItems:'center',paddingVertical:8},photo:{width:132,height:132,borderRadius:66,alignItems:'center',justifyContent:'center',overflow:'hidden'},speciesOptions:{flexDirection:'row',flexWrap:'wrap',gap:12},speciesChoice:{position:'relative',width:116,minHeight:114,borderWidth:2,borderRadius:20,alignItems:'center',justifyContent:'center',gap:6,padding:12},speciesSelected:{position:'absolute',top:8,right:8,width:22,height:22,borderRadius:11,alignItems:'center',justifyContent:'center'}});

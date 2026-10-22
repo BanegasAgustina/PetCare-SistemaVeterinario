@@ -1,7 +1,7 @@
 /** Objetos privados S3; las imágenes se procesan en memoria, nunca en disco. */
 import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
-import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v2 as cloudinary } from 'cloudinary';
 import { AppError } from '../utils/app-error';
@@ -142,6 +142,29 @@ export async function removeProfilePhoto(key:unknown) {
 export async function profilePhotoUrl(key:unknown):Promise<string|null> {
   if(!key)return null;if(cloudinaryPublicId(key,'profiles'))return String(key);if(!isProfilePhotoKey(key))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto de perfil anterior debe volver a subirse al almacenamiento disponible.');
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
+}
+/** Guarda comprobantes privados, sin conversiones ni URLs públicas. */
+export async function storePaymentProof(intentId:string,bytes:Buffer,contentType:string){
+  if(!/^[1-9]\d{0,19}$/.test(intentId)||bytes.length<8||bytes.length>5*1024*1024)throw new AppError('PAYMENT_PROOF_INVALID',400,'El comprobante debe pesar hasta 5 MB.');
+  const types:Record<string,{extension:string;valid:(b:Buffer)=>boolean}>={
+    'application/pdf':{extension:'pdf',valid:b=>b.subarray(0,5).toString()==='%PDF-'},
+    'image/jpeg':{extension:'jpg',valid:b=>b[0]===0xff&&b[1]===0xd8&&b[2]===0xff},
+    'image/png':{extension:'png',valid:b=>b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))},
+    'image/webp':{extension:'webp',valid:b=>b.subarray(0,4).toString()==='RIFF'&&b.subarray(8,12).toString()==='WEBP'},
+  };
+  const kind=types[contentType];if(!kind||!kind.valid(bytes))throw new AppError('PAYMENT_PROOF_INVALID',400,'Usá un comprobante PDF, JPG, PNG o WebP válido.');
+  const storage=photoStorage(),key=`payment-proofs/${intentId}/${randomUUID()}.${kind.extension}`;
+  try{await storage.client.send(new PutObjectCommand({Bucket:storage.bucket,Key:key,Body:bytes,ContentType:contentType,Metadata:{intent:intentId},ServerSideEncryption:'AES256'}));return {key,remove:async()=>{await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}};}
+  catch{throw new AppError('PAYMENT_PROOF_STORAGE_UNAVAILABLE',503,'No pudimos guardar el comprobante de forma segura. Intentá nuevamente.');}
+  finally{storage.client.destroy();}
+}
+export async function paymentProofUrl(key:unknown):Promise<string>{
+  if(typeof key!=='string'||!/^payment-proofs\/[1-9]\d{0,19}\/[a-f0-9-]{36}\.(?:pdf|jpg|png|webp)$/.test(key))throw new AppError('NOT_FOUND',404,'No encontramos el comprobante.');
+  const storage=photoStorage();try{return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentDisposition:'attachment'}),{expiresIn:300});}finally{storage.client.destroy();}
+}
+export async function removePaymentProof(key:unknown){
+  if(typeof key!=='string'||!/^payment-proofs\/[1-9]\d{0,19}\/[a-f0-9-]{36}\.(?:pdf|jpg|png|webp)$/.test(key))return;
+  const storage=photoStorage();try{await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally{storage.client.destroy();}
 }
 /** Se aplica únicamente a resultados de consultas autorizadas por ownership. */
 export async function presentPetPhotos(owner:string,value:unknown):Promise<unknown> {

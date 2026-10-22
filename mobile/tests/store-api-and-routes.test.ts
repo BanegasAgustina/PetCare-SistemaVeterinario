@@ -24,6 +24,39 @@ test('client checkout submits only an idempotency key, configured payment type a
  assert.deepEqual(requests,[{path:'/client/orders',method:'POST',body:{requestKey:'3a3c6736-c93d-4ac4-b699-8d7a812e4eb1',paymentMethod:'BANK_TRANSFER',paymentReference:'OP-1234',fulfillmentMethod:'DELIVERY',address:{recipientName:'Ana',phone:'1112345678',street:'Calle Uno',streetNumber:'10',unit:'',city:'La Plata',province:'Buenos Aires',postalCode:'1900',reference:''}}}]);
 });
 
+test('real transfer and proof upload use the registered authenticated client routes',async()=>{
+ const requests:{path:string;method?:string;body?:unknown;contentType?:string;headers?:Record<string,string>}[]=[];
+ const request=async<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown;contentType?:string;headers?:Record<string,string>}):Promise<T>=>{requests.push({path,method:options?.method,body:options?.body,contentType:options?.contentType,headers:options?.headers});return {} as T;};
+ const api=clientService(request);await api.bankTransferCheckout({requestKey:'3a3c6736-c93d-4ac4-b699-8d7a812e4eb1',fulfillmentMethod:'PICKUP',buyerName:'Ana Cliente',buyerEmail:'ana@example.com',buyerDni:'12345678'});
+ await api.uploadPaymentProof('27',new Blob(['%PDF-1.7']), 'application/pdf','OP-123');await api.renewTransferIntent('481');
+ assert.equal(requests[0].path,'/client/orders/bank-transfer');assert.equal(requests[0].method,'POST');assert.equal((requests[0].body as Record<string,unknown>).buyerDni,'12345678');
+ assert.deepEqual({path:requests[1].path,method:requests[1].method,contentType:requests[1].contentType,headers:requests[1].headers},{path:'/client/payment-intents/27/proof',method:'POST',contentType:'application/pdf',headers:{'X-Payment-Reference':'OP-123'}});assert.equal(requests[2].path,'/client/orders/481/payment-intents');
+});
+
+test('clinical sections keep a route back to the client home through their shared header',async()=>{
+ const root=path.resolve(process.cwd(),'src');
+ const [home,header,clinical,...routes]=await Promise.all(['app/client/(tabs)/index.tsx','components/client/PetCareUI.tsx','components/client/ClinicalScreen.tsx','app/client/medical-history.tsx','app/client/vaccines.tsx','app/client/prescriptions.tsx'].map(file=>readFile(path.join(root,file),'utf8')));
+ for(const route of routes)assert.match(route,/ClinicalScreen/);
+ assert.match(home,/router\.push\('\/client\/medical-history'\)/);assert.match(home,/router\.push\('\/client\/vaccines'\)/);assert.match(home,/router\.push\('\/client\/prescriptions'\)/);
+ assert.match(clinical,/PetCareHeader[^>]+homeBack/);assert.match(header,/homeBack\?router\.replace\(roleHome\(user\)\)/);
+});
+
+test('shared PetCare background keeps the original decor visible and non-interactive', async () => {
+  const root = path.resolve(process.cwd(), 'src');
+  const [petCare, screenContainer] = await Promise.all([
+    readFile(path.join(root, 'components/client/PetCareUI.tsx'), 'utf8'),
+    readFile(path.join(root, 'components/layout/ScreenContainer.tsx'), 'utf8'),
+  ]);
+  assert.match(petCare, /pointerEvents="none" accessible=\{false\} style=\{styles\.decoration\}/);
+  assert.equal((petCare.match(/<Ionicons name="paw"/g) ?? []).length, 6);
+  assert.equal((petCare.match(/<Ionicons name="leaf/g) ?? []).length, 3);
+  assert.equal((petCare.match(/<Ionicons name="heart/g) ?? []).length, 2);
+  assert.match(petCare, /opacity:0\.09/);
+  assert.match(petCare, /🐱/);
+  assert.match(petCare, /🐶/);
+  assert.match(screenContainer, /pointerEvents="none" accessible=\{false\} style=\{styles\.decoration\}/);
+});
+
 test('administrator store settings read and write the existing clinic configuration endpoint', async () => {
   const requests: { path: string; method?: string }[] = [];
   const request = async <T,>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown }): Promise<T> => {
@@ -88,7 +121,13 @@ test('store checkout routes connect storefront, product, cart, delivery and chec
   assert.match(delivery, /Redirect href="\/client\/store\/checkout"/);
   const checkout = await readFile(path.join(root, 'checkout.tsx'), 'utf8');
   assert.match(checkout, /api\.checkout\(/);
-  assert.match(checkout, /Pedido registrado/);
+  assert.match(checkout, /Pedido de demostración registrado/);
   assert.match(checkout, /Crypto\.randomUUID/);
-  assert.doesNotMatch(checkout, /cardNumber|securityCode|secureTextEntry/);
+  assert.match(checkout, /validateDemoCard\(card\)/);
+  assert.match(checkout, /Transferencia bancaria\{!transferConfigured\?' · No disponible':''\}/);
+  assert.match(checkout, /Tarjeta de prueba · No disponible/);
+  assert.match(checkout, /STORE_DEMO_MODE=true/);
+  assert.match(checkout, /Medios de pago no disponibles/);
+  assert.match(checkout, /secureTextEntry/);
+  assert.doesNotMatch(checkout, /api\.checkout\(\{[^}]*card\./s);
 });
