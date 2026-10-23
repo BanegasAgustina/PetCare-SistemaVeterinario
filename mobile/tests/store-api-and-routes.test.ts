@@ -17,6 +17,19 @@ test('client store services call the registered route suffixes', async () => {
   assert.deepEqual(paths, ['/client/store/promotions', '/client/store/banners', '/client/store/fulfillment']);
 });
 
+test('notification service uses authenticated paginated and owner scoped routes', async()=>{
+  const requests:{path:string;method?:string;body?:unknown}[]=[];
+  const request=async<T,>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown}):Promise<T>=>{requests.push({path,...(options?.method?{method:options.method}:{}),...(options?.body!==undefined?{body:options.body}:{})});return {} as T;};
+  const api=clientService(request);
+  await api.notifications('82');await api.notificationPreferences();await api.updateNotificationPreferences({orderUpdatesEnabled:false});await api.hideNotification('42');
+  assert.deepEqual(requests,[
+    {path:'/client/notifications?cursor=82'},
+    {path:'/client/notifications/preferences'},
+    {path:'/client/notifications/preferences',method:'PATCH',body:{orderUpdatesEnabled:false}},
+    {path:'/client/notifications/42',method:'DELETE',body:{}},
+  ]);
+});
+
 test('client checkout submits only an idempotency key, configured payment type and delivery details',async()=>{
  const requests:{path:string;method?:string;body?:unknown}[]=[];
   const request=async<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown}):Promise<T>=>{requests.push({path,method:options?.method,body:options?.body});return {} as T;};
@@ -129,11 +142,11 @@ test('store checkout routes connect storefront, product, cart, delivery and chec
   assert.match(checkout, /api\.checkout\(/);
   assert.match(checkout, /Pedido de demostración registrado/);
   assert.match(checkout, /Crypto\.randomUUID/);
-  assert.match(checkout, /validateDemoCard\(card\)/);
+  assert.match(checkout, /Pago de demostración\. No se realizará ningún cobro real\./);
   assert.match(checkout, /Transferencia bancaria\{!transferConfigured\?' · No disponible':''\}/);
   assert.match(checkout, /Tarjeta de prueba · No disponible/);
   assert.match(checkout, /STORE_DEMO_MODE=true/);
   assert.match(checkout, /Medios de pago no disponibles/);
-  assert.match(checkout, /secureTextEntry/);
+  assert.doesNotMatch(checkout, /validateDemoCard|DEMO_CARD_NUMBER|Número de tarjeta|Código de seguridad|Titular \(prueba\)|secureTextEntry/);
   assert.doesNotMatch(checkout, /api\.checkout\(\{[^}]*card\./s);
 });

@@ -1,10 +1,12 @@
 /** Services Cliente usan el request autenticado existente; nunca reciben ownerId. */
-import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,Notification,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress,StoreBanner } from '../types/client';
+import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,NotificationPage,NotificationPreferences,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress,StoreBanner } from '../types/client';
+import type { GeneralInformation } from '../types/admin';
 export type ClientRequest=<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown;contentType?:string;headers?:Record<string,string>})=>Promise<T>;
 export function clientService(request:ClientRequest){
   const get=<T>(path:string)=>request<T>(`/client${path}`);
   const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/client${path}`,{method,body});
   return {
+    generalInformation:()=>request<GeneralInformation>('/settings/general-information'),
     home:()=>get<Home>('/home'),pets:(includeInactive=false)=>get<Pet[]>(`/pets?${new URLSearchParams(includeInactive?{includeInactive:'true'}:{}).toString()}`),pet:(id:string)=>get<Pet>(`/pets/${encodeURIComponent(id)}`),petCatalog:()=>get<PetCatalog>('/pets/catalog'),
     savePet:(values:PetValues,id?:string)=>send<Pet>(id?`/pets/${encodeURIComponent(id)}`:'/pets',id?'PUT':'POST',{
       ...values,name:values.name.trim(),breedName:values.breedName?.trim()||null,
@@ -23,7 +25,7 @@ export function clientService(request:ClientRequest){
     bankTransferCheckout:(input:{requestKey:string;fulfillmentMethod:'PICKUP'|'DELIVERY';buyerName:string;buyerEmail:string;buyerDni:string;address?:{recipientName:string;phone:string;street:string;streetNumber:string;unit:string;city:string;province:string;postalCode:string;reference:string}})=>send<OrderDetail>('/orders/bank-transfer','POST',input),
     renewTransferIntent:(orderId:string)=>send<OrderDetail>(`/orders/${encodeURIComponent(orderId)}/payment-intents`,'POST',{}),
     uploadPaymentProof:(intentId:string,body:Blob,contentType:string,reference='')=>request<{submitted:boolean}>(`/client/payment-intents/${encodeURIComponent(intentId)}/proof`,{method:'POST',body,contentType,...(reference?{headers:{'X-Payment-Reference':reference}}:{})}),orders:()=>get<Order[]>('/orders'),order:(id:string)=>get<OrderDetail>(`/orders/${encodeURIComponent(id)}`),
-    notifications:()=>get<Notification[]>('/notifications'),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),readAllNotifications:()=>send('/notifications/read-all','PATCH',{}),
+    notifications:(cursor?:string|null)=>get<NotificationPage>(`/notifications?${new URLSearchParams(cursor?{cursor}:{})}`),notificationPreferences:()=>get<NotificationPreferences>('/notifications/preferences'),updateNotificationPreferences:(values:Partial<NotificationPreferences>)=>send<NotificationPreferences>('/notifications/preferences','PATCH',values),hideNotification:(id:string)=>request(`/client/notifications/${encodeURIComponent(id)}`,{method:'DELETE',body:{}}),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),readAllNotifications:()=>send('/notifications/read-all','PATCH',{}),
     updateProfile:(values:{firstName:string;lastName:string;phone:string})=>send('/profile','PATCH',values),
     changePassword:(currentPassword:string,password:string)=>send('/profile/password','PUT',{currentPassword,password}),
   };

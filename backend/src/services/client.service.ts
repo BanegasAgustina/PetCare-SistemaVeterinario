@@ -80,7 +80,10 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
         try{const old=await storePayment.submitProof(owner,intentId,stored.key,input.contentType,input.bytes.length,reference);if(old.previousKey)await removePaymentProof(old.previousKey).catch(()=>undefined);return {submitted:true};}
         catch(error){await stored.remove().catch(()=>undefined);throw error;}
       }
-      case 'notifications':return repository.notifications(owner);
+      case 'notifications':return repository.notifications(owner,query);
+      case 'notification-preferences':clientBody(body,[]);return repository.notificationPreferences(owner);
+      case 'notification-preferences-update':return repository.updateNotificationPreferences(owner,body);
+      case 'notification-hide':clientBody(body,[]);return repository.hideNotification(owner,clientId(id));
       case 'notification-read':clientBody(body,[]);return repository.readNotification(owner,clientId(id));
       case 'notification-read-all':clientBody(body,[]);return repository.readAllNotifications(owner);
       case 'push-token-register':return repository.registerPushToken(owner,body);

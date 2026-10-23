@@ -24,6 +24,7 @@ const sections: Record<AdminSection, { title: string; subtitle: string; cards: C
     { title: 'Banners y slider', description: 'Imágenes, vigencia, orden y vista previa de la tienda.', path: '/admin/store-banners', icon: 'images-outline', permissions: ['store.banners.manage'] },
   ] },
   administration: { title: 'Administración', subtitle: 'Personas, perfiles de acceso y permisos', cards: [
+    { title: 'Información de PetCare', description: 'Nombre, contacto, ubicación, horarios y presencia pública.', path: '/admin/general-information', icon: 'business-outline', permissions: ['settings.general.manage'] },
     { title: 'Profesionales', description: 'Cuentas, estado, servicios y datos profesionales.', path: '/admin/professionals', icon: 'people-outline', permissions: ['professionals.manage'] },
     { title: 'Veterinarios', description: 'Datos profesionales, especialidades y asignaciones.', path: '/admin/veterinarians', icon: 'medkit-outline', permissions: ['veterinarians.manage'] },
     { title: 'Usuarios', description: 'Cuentas, estado y permisos individuales.', path: '/admin/users', icon: 'person-outline', permissions: ['users.manage'] },

@@ -24,6 +24,7 @@ import { validateIdentityForm } from '../../../utils/auth-validation';
 import type { AdminUserDetail } from '../../../types/admin';
 import { roleLabel } from '../../../utils/role-label';
 import { groupPermissionsByModule } from '../../../utils/admin-permissions';
+import { invitationLabel } from '../../../utils/invitation-label';
 const empty={firstName:'',lastName:'',email:'',phone:'',roleId:'',isActive:true};
 export default function UserEditor() {
   const {id}=useLocalSearchParams<{id:string}>();const creating=id==='new';const auth=useAuth();const api=useAdmin();const action=useAsyncAction();const {showToast}=useFeedback();
@@ -40,9 +41,10 @@ export default function UserEditor() {
   function change<K extends keyof typeof empty>(key:K,value:(typeof empty)[K]){setValues(v=>({...v,[key]:value}));setErrors(e=>({...e,[key]:undefined}));}
   function prepare(){const validation=validateIdentityForm(values);const next={...validation,...(!values.roleId?{roleId:'Seleccioná un rol.'}:{})};setErrors(next);if(!Object.values(next).some(Boolean))setConfirm('identity');}
   async function save(){
-    if(creating){const result=await api.createUser({firstName:values.firstName,lastName:values.lastName,email:values.email,phone:values.phone||null,roleId:values.roleId});setConfirm(null);let photoFailed=false;if(photo){try{await api.updateUserPhoto(result.user.id,{photoBase64:photo.base64});}catch{photoFailed=true;}}showToast(photoFailed?'Cuenta creada; no se pudo guardar la foto. Podés reintentar en el perfil.':'Cuenta creada. Comunicá la contraseña inicial al empleado por un canal seguro; deberá verificar el correo y cambiarla.',photoFailed?'info':'success');router.replace({pathname:'/admin/users/[id]',params:{id:result.user.id}});}
+    if(creating){const result=await api.createUser({firstName:values.firstName,lastName:values.lastName,email:values.email,phone:values.phone||null,roleId:values.roleId});setConfirm(null);let photoFailed=false;if(photo){try{await api.updateUserPhoto(result.user.id,{photoBase64:photo.base64});}catch{photoFailed=true;}}const delivery=result.invitationDelivery==='sent'?'Invitación enviada por correo.':'La cuenta quedó creada, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';showToast(photoFailed?`${delivery} No se pudo guardar la foto.`:delivery,photoFailed?'info':result.invitationDelivery==='sent'?'success':'info');router.replace({pathname:'/admin/users/[id]',params:{id:result.user.id}});}
     else {await api.updateUser(id,{firstName:values.firstName,lastName:values.lastName,phone:values.phone||null,isActive:values.isActive,...(user&&values.roleId!==user.roleId?{roleId:values.roleId}:{})});setConfirm(null);let photoFailed=false;if(photo||removePhoto){try{await api.updateUserPhoto(id,photo?{photoBase64:photo.base64}:{removePhoto:true});setPhoto(null);setRemovePhoto(false);}catch{photoFailed=true;}}query.reload();await auth.refreshProfile();showToast(photoFailed?'Datos guardados; no se pudo actualizar la foto. Podés reintentar.':'Usuario actualizado',photoFailed?'info':'success');}
   }
+  async function resendInvitation(){const sent=await action.run(async()=>{const result=await api.invitation(id);query.reload();showToast(result.delivery==='sent'?'Invitación reenviada.':'No se pudo enviar el correo. Podés intentar más tarde. ',result.delivery==='sent'?'success':'info');});return sent;}
   return <ScreenContainer keyboardAvoiding wide><AppText variant="title">{creating?'Crear usuario':'Usuario'}</AppText><QueryState {...query}/>
     {query.data&&!query.error&&!query.loading&&<>
       {blocked&&<FormNotice message="Un administrador no puede modificar cuentas de administrador principal."/>}
@@ -50,14 +52,14 @@ export default function UserEditor() {
         <AppInput label="Apellido" value={values.lastName} error={errors.lastName} maxLength={100} editable={!blocked&&!action.loading} onChangeText={v=>change('lastName',v)}/>
         <AppInput label="Correo electrónico" value={values.email} error={errors.email} maxLength={254} keyboardType="email-address" autoCapitalize="none" editable={creating&&!action.loading} onChangeText={v=>change('email',v)}/>
         <AppInput label="Teléfono (opcional)" value={values.phone} error={errors.phone} maxLength={40} keyboardType="phone-pad" editable={!blocked&&!action.loading} onChangeText={v=>change('phone',v)}/>
-        {user&&<AppText muted>Correo {user.emailVerified?'verificado':'sin verificar'}.</AppText>}
+        {user&&<><AppText muted>Correo {user.emailVerified?'verificado':'sin verificar'}.</AppText>{user.invitationStatus&&<AppText muted>Invitación: {invitationLabel(user.invitationStatus)}{user.invitationExpiresAt?` · vence ${new Date(user.invitationExpiresAt).toLocaleString('es-AR')}`:''}</AppText>}{auth.hasRole('SUPER_ADMIN')&&user.role!=='CLIENT'&&!user.emailVerified&&<><AppButton variant="secondary" label="Reenviar invitación" loading={action.loading} onPress={()=>void resendInvitation()}/><FormNotice error message={action.error}/></>}</>}
       </PetCareCard>
       <PetCareCard><AppText variant="subtitle">Rol</AppText><FormNotice error message={errors.roleId??null}/>
         {!creating&&Boolean(user?.profilePhotoUrl)&&<PetImage uri={user!.profilePhotoUrl!} size={64}/>}
         {query.data.catalog.roles.map(role=><SelectionRow radio key={role.id} label={roleLabel(role.code,role.name)} hint={role.code==='VETERINARIAN'?'Los perfiles profesionales se gestionan desde Veterinarios':!role.canAssign?'Asignación no disponible con tus permisos':undefined} checked={values.roleId===role.id} disabled={blocked||self||user?.role==='VETERINARIAN'||!role.canAssign||action.loading} onPress={()=>{if(!['VETERINARIAN','GROOMER','SECRETARY'].includes(role.code)){setPhoto(null);setRemovePhoto(false);}change('roleId',role.id);}}/>)}
         {photoRole&&<ProfilePhotoInput currentUri={removePhoto?null:user?.profilePhotoUrl??null} photo={photo} disabled={blocked||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);}}/>}
         {user?.role==='VETERINARIAN'&&<AppButton variant="secondary" label="Ir a Veterinarios" onPress={()=>router.push('/admin/veterinarians')}/>}
-        {!creating&&<View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><AppText>Cuenta activa</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={blocked||self||action.loading||!canChangeStatus} onValueChange={v=>change('isActive',v)}/></View>}
+        {!creating&&<><View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><AppText>Cuenta activa</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={blocked||self||action.loading||!canChangeStatus||!user?.emailVerified&&!values.isActive} onValueChange={v=>change('isActive',v)}/></View>{!user?.emailVerified&&!values.isActive&&<AppText variant="caption" muted>La cuenta se activa cuando la persona verifica su correo desde la invitación.</AppText>}</>}
       </PetCareCard>
       {!blocked&&(!creating||auth.hasPermission('roles.manage'))&&<AppButton label={creating?'Crear cuenta':'Revisar y guardar usuario'} disabled={action.loading} onPress={prepare}/>}
       {!creating&&!blocked&&<FormNotice error message={action.error}/>}
@@ -72,7 +74,7 @@ export default function UserEditor() {
         {canPermissions&&<AppButton label="Revisar y guardar permisos" disabled={action.loading} onPress={()=>setConfirm('permissions')}/>}
       </PetCareCard>}
     </>}
-    <ConfirmModal visible={confirm==='identity'} title={creating?'Crear cuenta real':'Guardar cambios de usuario'} message={creating?'La cuenta se creará con la contraseña inicial empleadoPetCare1234. El empleado tendrá que verificar su correo y cambiarla antes de acceder.':!values.isActive?'La cuenta quedará inactiva y sus sesiones dejarán de ser válidas. Sus registros se conservarán.':'Los cambios de rol revocan las sesiones anteriores y se aplican en el backend.'} destructive={!creating&&!values.isActive} onCancel={()=>setConfirm(null)} onConfirm={save}/>
+    <ConfirmModal visible={confirm==='identity'} title={creating?'Crear cuenta real':'Guardar cambios de usuario'} message={creating?'Se enviará una invitación al correo registrado. La persona podrá configurar su contraseña desde un enlace de un solo uso válido durante 24 horas.':!values.isActive?'La cuenta quedará inactiva y sus sesiones dejarán de ser válidas. Sus registros se conservarán.':'Los cambios de rol revocan las sesiones anteriores y se aplican en el backend.'} destructive={!creating&&!values.isActive} onCancel={()=>setConfirm(null)} onConfirm={save}/>
     <ConfirmModal visible={confirm==='permissions'} title="Cambiar permisos" message="Las excepciones se guardarán en MySQL y afectarán el acceso del usuario en su próxima solicitud." onCancel={()=>setConfirm(null)} onConfirm={async()=>{await api.userPermissions(id,overrides);setConfirm(null);query.reload();showToast('Permisos actualizados','success');}}/>
   </ScreenContainer>;
 }

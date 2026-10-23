@@ -47,10 +47,11 @@ export default function VeterinarianEditor() {
   };
   const save=async()=>{
     if (creating) {
-      const result=await auth.request<{veterinarian:VetDetail}>('/admin/veterinarians',{method:'POST',body:values});
+      const result=await auth.request<{veterinarian:VetDetail;invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:values});
       const created=result.veterinarian;let photoFailed=false;
       if(photo){try{await auth.request<VetDetail>(`/admin/veterinarians/${created.id}/photo`,{method:'PUT',body:{photoBase64:photo.base64}});}catch{photoFailed=true;}}
-      showToast(photoFailed?'Veterinario creado; no se pudo guardar la foto. Podés reintentar en el perfil.':'Cuenta creada con la contraseña inicial empleadoPetCare1234. Debe verificar su correo y cambiarla.',photoFailed?'info':'success');
+      const delivery=result.invitationDelivery==='sent'?'Invitación enviada por correo.':'El veterinario quedó creado, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';
+      showToast(photoFailed?`${delivery} No se pudo guardar la foto.`:delivery,photoFailed?'info':result.invitationDelivery==='sent'?'success':'info');
       router.replace({pathname:'/admin/veterinarians/[id]',params:{id:created.id}});
     } else {
       let vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}`,{method:'PUT',body:values});
@@ -81,16 +82,18 @@ export default function VeterinarianEditor() {
         onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
       <AppText variant="subtitle">Cuenta</AppText>
       <AppText muted>Rol Veterinario · asignado por el servidor</AppText>
-      <View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit||!canChangeStatus}
-        onValueChange={value=>{if (!value&&!creating&&detail?.isActive)setDeactivate(true);else change('isActive',value);}} trackColor={{true:colors.primary}} /></View>
+      {!creating&&<View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit||!canChangeStatus||!detail?.emailVerified&&!values.isActive}
+        onValueChange={value=>{if (!value&&detail?.isActive)setDeactivate(true);else change('isActive',value);}} trackColor={{true:colors.primary}} /></View>}
+      {!creating&&detail&&!detail.emailVerified&&!detail.isActive&&<AppText variant="caption" muted>La cuenta se activa cuando el veterinario verifica su correo desde la invitación.</AppText>}
+      {creating&&<AppText muted>La cuenta quedará pendiente hasta que el veterinario active la invitación recibida por correo.</AppText>}
       {detail && <AppText muted>Correo: {detail.emailVerified?'Verificado':'Sin verificar'}</AppText>}
       <FormNotice error message={action.error} />
       {canEdit && <AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} />}
       {review && <View style={[styles.review,softSurfaceShadow(colors.primary),{backgroundColor:colors.surface,borderColor:colors.border}]}>
         <AppText variant="subtitle">Revisar y {creating?'crear':'guardar'}</AppText>
-        <AppText>{values.firstName} {values.lastName} · {values.email}</AppText><AppText>Matrícula {values.licenseNumber} · Cuenta {values.isActive?'activa':'inactiva'}</AppText>
+        <AppText>{values.firstName} {values.lastName} · {values.email}</AppText><AppText>Matrícula {values.licenseNumber} · Cuenta {creating?'pendiente de activación':values.isActive?'activa':'inactiva'}</AppText>
         <AppText muted>{catalog.specialties.filter(s=>values.specialtyIds.includes(s.id)).map(s=>s.name).join(' · ')}</AppText>
-        <AppText muted>{creating?'Se creará con la contraseña inicial empleadoPetCare1234. Deberá verificar su correo y cambiarla.':'Los cambios de cuenta se aplican al guardar.'}</AppText>
+        <AppText muted>{creating?'Se enviará una invitación de un solo uso, válida durante 24 horas. El veterinario configurará su contraseña para verificar el correo.':'Los cambios de cuenta se aplican al guardar.'}</AppText>
         <AppButton label={creating?'Crear veterinario':'Guardar datos'} loading={action.loading} onPress={()=>void action.run(save)} />
       </View>}
     </>}

@@ -10,6 +10,7 @@ import { useClientQuery } from '../../../hooks/useClientQuery';
 import { PetCareScreen,PetCareHeader,PetCareSection,PetCareEmptyState,PetCareAction,QueryState,PetCareBadge,PetCareIconButton,ResponsiveGrid } from '../../../components/client/PetCareUI';
 import { AppointmentCard,PetCard,ProductCard,ViewAllPetsButton } from '../../../components/client/RecordCards';
 import type { Appointment } from '../../../types/client';
+import { GeneralInformationCard } from '../../../components/client/GeneralInformationCard';
 export default function ClientHome(){const {user}=useAuth();const api=useClient();const query=useClientQuery(api.home);
 const {width}=useWindowDimensions();
 const desktop=Platform.OS==='web'&&width>=768;
@@ -30,6 +31,7 @@ const movePetCarousel=(direction:number)=>{
     <PetCareSection title={query.data.nextAppointments&&query.data.nextAppointments.length>1?'Próximos turnos':'Próximo turno'}>{(()=>{const upcoming=query.data.nextAppointments??(query.data.nextAppointment?[query.data.nextAppointment]:[]);return upcoming.length>1?<UpcomingAppointments appointments={upcoming}/>:upcoming[0]?<AppointmentCard appointment={upcoming[0]} onPress={()=>router.push({pathname:'/client/appointments/[id]',params:{id:upcoming[0].id}})}/>:<PetCareEmptyState title="No tenés próximos turnos" message="Elegí un horario disponible para cuidar su salud." icon="calendar-outline" label="Solicitar turno" action={()=>router.push('/client/appointments/request')}/>})()}</PetCareSection>
   </>}
   <PetCareSection title="Su salud, cerca tuyo"><PetCareAction title="Historial médico" icon="medical-outline" onPress={()=>router.push('/client/medical-history')}/><PetCareAction title="Vacunas" icon="shield-checkmark-outline" onPress={()=>router.push('/client/vaccines')}/><PetCareAction title="Recetas" icon="document-text-outline" onPress={()=>router.push('/client/prescriptions')}/><PetCareAction title="Recomendaciones" icon="heart-outline" onPress={()=>router.push('/client/recommendations')}/></PetCareSection>
+  <PetCareSection title="Conocé PetCare"><GeneralInformationCard/></PetCareSection>
   {query.data&&query.data.featuredProducts.length>0&&<PetCareSection title="Destacados para su cuidado"><ResponsiveGrid>{query.data.featuredProducts.map(product=><ProductCard key={product.id} product={product}/>)}</ResponsiveGrid></PetCareSection>}
 </PetCareScreen>;}
 

@@ -73,6 +73,9 @@ export async function requestAppointment(actor:AuthUser,petId:string,slotId:stri
   const available=await slots(String(slot.serviceId),String(slot.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
   await c.execute("INSERT INTO client_appointments(owner_id,pet_id,slot_id,status) VALUES (?,?,?,'REQUESTED')",[fresh.id,petId,slotId]);
   const created=await one('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id',[],c);
+  const appointment=await one(`${appointmentSelect} WHERE a.id=?`,[created.id],c);
+  const {date,time}=formatNotificationDateTime(appointment.startsAt);
+  await notify(c,fresh.id,'Solicitud de turno recibida',`Recibimos tu solicitud de ${appointment.service} para ${appointment.petName} el ${date} a las ${time}. Te avisaremos cuando la clínica la confirme.`,'APPOINTMENT_REQUESTED','appointment',String(created.id),`appointment:${String(created.id)}:requested`);
   await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[petId,slot.professionalId]);
   return {id:String(created.id),status:'REQUESTED' as const};
  });
@@ -104,13 +107,13 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
   if(!manage){permit(fresh,'appointments.update_own');if(a.professionalId!==fresh.id)forbidden();}
   if(fresh.role==='VETERINARIAN'&&body.observations!==undefined)forbidden();
   if(fresh.role==='GROOMER'&&body.observations!==undefined)forbidden('Usá el registro de peluquería para guardar observaciones del servicio.');
-  if(['COMPLETED','CANCELLED'].includes(String(a.status))&&(body.status!==undefined||body.slotId!==undefined))throw new AppError('INVALID_TRANSITION',409,'El turno se encuentra cerrado.');
+  if(['COMPLETED','CANCELLED','REJECTED'].includes(String(a.status))&&(body.status!==undefined||body.slotId!==undefined))throw new AppError('INVALID_TRANSITION',409,'El turno se encuentra cerrado.');
   let slotId=String(a.slotId);let status=String(a.status);
   if(body.slotId!==undefined){if(!manage)forbidden();slotId=v.id(body.slotId);if(slotId!==a.slotId){const next=await one('SELECT service_id AS serviceId,professional_user_id AS professionalId FROM client_appointment_slots WHERE id=?',[slotId],c);if(next.serviceId!==a.serviceId)v.invalid('El nuevo horario debe corresponder al mismo servicio.');
    await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[next.professionalId]);const available=await slots(String(next.serviceId),String(next.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
    await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[a.petId,next.professionalId]);
   }}
-   if(body.status!==undefined){status=v.text(body.status,20)!;if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status))forbidden();assertTransition(String(a.status),status,'appointment');}
+  if(body.status!==undefined){status=v.text(body.status,20)!;if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status))forbidden();assertTransition(String(a.status),status,'appointment');}
    if(fresh.role==='VETERINARIAN'&&status==='COMPLETED'){
     permit(fresh,'medical_records.create','medical_records.view');
     const consultation=await rows("SELECT id FROM client_clinical_records WHERE appointment_id=? AND pet_id=? AND veterinarian_id=(SELECT id FROM veterinarians WHERE user_id=?) AND kind='medical-history' LIMIT 1",[id,a.petId,fresh.id],c);
@@ -132,11 +135,13 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
    const current=slotChanged?await one(`${appointmentSelect} WHERE a.id=?`,[id],c):a;
    const target=status==='CANCELLED'?a:current;
    const {date,time}=formatNotificationDateTime(target.startsAt);
-   const eventType=status==='CANCELLED'?'APPOINTMENT_CANCELLED':slotChanged?'APPOINTMENT_RESCHEDULED':status==='CONFIRMED'?'APPOINTMENT_CONFIRMED':'APPOINTMENT_UPDATED';
-   const title=status==='CANCELLED'?'Turno cancelado':slotChanged?'Turno reprogramado':status==='CONFIRMED'?'Turno confirmado':'Turno actualizado';
+   const eventType=status==='CANCELLED'?'APPOINTMENT_CANCELLED':status==='REJECTED'?'APPOINTMENT_REJECTED':slotChanged?'APPOINTMENT_RESCHEDULED':status==='CONFIRMED'?'APPOINTMENT_CONFIRMED':'APPOINTMENT_UPDATED';
+   const title=status==='CANCELLED'?'Turno cancelado':status==='REJECTED'?'Turno rechazado':slotChanged?'Turno reprogramado':status==='CONFIRMED'?'Turno confirmado':'Turno actualizado';
    const bodyText=status==='CANCELLED'
     ?`Tu turno de ${target.service} para ${target.petName}, el ${date} a las ${time}, fue cancelado.`
-    :slotChanged
+    :status==='REJECTED'
+     ?`La clínica rechazó tu solicitud de ${target.service} para ${target.petName}, prevista para el ${date} a las ${time}.`
+     :slotChanged
      ?`Tu turno de ${target.service} para ${target.petName} fue reprogramado para el ${date} a las ${time}.`
      :status==='CONFIRMED'
       ?`Tu turno de ${target.service} para ${target.petName} fue confirmado para el ${date} a las ${time}.`

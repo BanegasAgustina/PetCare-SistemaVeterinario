@@ -7,6 +7,7 @@ import { clientId } from '../validators/client.validator';
 import * as v from '../validators/clinic.validator';
 import * as storePayment from './store-payment.repository';
 import { paymentProofUrl } from '../services/pet-photo.service';
+import { createClientNotification } from './notification.repository';
 
 const select = `o.id,o.order_type AS orderType,o.owner_id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS clientName,u.email AS clientEmail,u.phone AS clientPhone,
   o.store_order_status AS orderStatus,o.store_payment_status AS paymentStatus,o.payment_method AS paymentMethod,o.fulfillment_method AS fulfillmentMethod,
@@ -55,7 +56,7 @@ export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
   if((body.orderStatus===undefined)===(body.paymentStatus===undefined)) v.invalid('Indicá un único estado para actualizar.');
   return clinic.transaction(actor,async(c,fresh)=>{
     const manageOrder=body.orderStatus!==undefined;clinic.permit(fresh,manageOrder?'orders.manage':'orders.payment.manage');
-    const [rows]=await c.execute<RowDataPacket[]>(`SELECT store_order_status AS orderStatus,store_payment_status AS paymentStatus,payment_method AS paymentMethod,fulfillment_method AS fulfillmentMethod,delivery_status AS deliveryStatus,order_type AS orderType FROM client_orders WHERE id=? AND is_store_order=1 FOR UPDATE`,[id]);
+    const [rows]=await c.execute<RowDataPacket[]>(`SELECT owner_id AS ownerId,store_order_status AS orderStatus,store_payment_status AS paymentStatus,payment_method AS paymentMethod,fulfillment_method AS fulfillmentMethod,delivery_status AS deliveryStatus,order_type AS orderType FROM client_orders WHERE id=? AND is_store_order=1 FOR UPDATE`,[id]);
     if(!rows[0]) throw new AppError('NOT_FOUND',404,'Pedido de tienda no encontrado.');
     const old=String(manageOrder?rows[0].orderStatus:rows[0].paymentStatus);
     const next=String(manageOrder?body.orderStatus:body.paymentStatus);
@@ -74,6 +75,10 @@ export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
       if(previousDelivery!==deliveryStatus) await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,?,?,?,?)',[id,previousDelivery,deliveryStatus,fresh.id,'DELIVERY']);
     } else await c.execute('UPDATE client_orders SET store_payment_status=? WHERE id=?',[next,id]);
     if(!manageOrder) await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,?,?,?,?)',[id,old,next,fresh.id,'PAYMENT']);
+    const eventType=manageOrder?`ORDER_${next}`:`ORDER_PAYMENT_${next}`;
+    const titles:Record<string,string>={PLACED:'Pedido registrado',CONFIRMED:'Pedido confirmado',PROCESSING:'Pedido en preparación',READY:'Pedido listo para retirar',IN_TRANSIT:'Pedido en camino',DELIVERED:'Pedido entregado',PICKED_UP:'Pedido retirado',CANCELLED:'Pedido cancelado',PAID:'Pago confirmado',FAILED:'Pago rechazado',REFUNDED:'Pago reembolsado'};
+    const descriptions:Record<string,string>={PLACED:'Registramos tu pedido.',CONFIRMED:'La clínica confirmó tu pedido.',PROCESSING:'Tu pedido está en preparación.',READY:'Tu pedido está listo para retirar.',IN_TRANSIT:'Tu pedido salió a reparto.',DELIVERED:'Tu pedido fue entregado.',PICKED_UP:'Tu pedido fue retirado.',CANCELLED:'La clínica canceló tu pedido.',PAID:'La clínica confirmó el pago de tu pedido.',FAILED:'El pago de tu pedido fue rechazado.',REFUNDED:'El pago de tu pedido fue reembolsado.'};
+    await createClientNotification(c,{ownerId:String(rows[0].ownerId),title:titles[next]??'Actualización de pedido',body:`${descriptions[next]??'El pedido cambió de estado.'} Pedido #${id}.`,eventType,eventKey:`store-order:${id}:${manageOrder?'status':'payment'}:${old}:${next}`,referenceType:'order',referenceId:id});
     return {saved:true};
   });
 }

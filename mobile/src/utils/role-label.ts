@@ -7,7 +7,7 @@ export function roleLabel(role: AuthUser['role'], name: string): string {
     GROOMER: 'Peluquería',
     SECRETARY: 'Secretaría',
     ADMIN: 'Administrador',
-    SUPER_ADMIN: 'Administrador principal',
+    SUPER_ADMIN: 'Admin Principal',
   };
   return labels[role] ?? name;
 }

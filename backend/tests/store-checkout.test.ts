@@ -32,7 +32,11 @@ test('checkout returns field-specific errors for missing delivery details and in
 
 async function withDatabase(handler:(sql:string,params:unknown[])=>unknown[],run:()=>Promise<string>){
  const original=Object.getOwnPropertyDescriptor(databasePool,'getConnection');let committed=false,rolledBack=false,released=false;
- const connection={beginTransaction:async()=>{},commit:async()=>{committed=true;},rollback:async()=>{rolledBack=true;},release:()=>{released=true;},execute:async(sql:string,params:unknown[]=[])=>[handler(sql,params),[]]};
+ const connection={beginTransaction:async()=>{},commit:async()=>{committed=true;},rollback:async()=>{rolledBack=true;},release:()=>{released=true;},execute:async(sql:string,params:unknown[]=[])=>{
+  if(sql.startsWith('INSERT INTO client_notifications'))return [{affectedRows:1},[]];
+  if(sql.startsWith('INSERT INTO client_notification_push_deliveries'))return [{affectedRows:0},[]];
+  return [handler(sql,params),[]];
+ }};
  Object.defineProperty(databasePool,'getConnection',{configurable:true,value:async()=>connection});
  try{return {orderId:await run(),get committed(){return committed;},get rolledBack(){return rolledBack;},get released(){return released;}};}finally{if(original)Object.defineProperty(databasePool,'getConnection',original);else Reflect.deleteProperty(databasePool,'getConnection');}
 }

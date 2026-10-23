@@ -1,8 +1,7 @@
 /** Consultas administrativas sobre tablas existentes. Nunca se devuelve password_hash. */
-import bcrypt from 'bcrypt';
 import type { PoolConnection,RowDataPacket } from 'mysql2/promise';
+import { randomBytes } from 'node:crypto';
 import { databasePool } from '../config/database';
-import { env } from '../config/env';
 import { withDatabaseLock } from '../database/lock';
 import { readPermissions } from './authorization.repository';
 import { runDatabaseOperation } from '../utils/database-error';
@@ -15,6 +14,8 @@ import type { AuthUser,RoleCode } from '../types/auth';
 import { isProfilePhotoKey,profilePhotoUrl } from '../services/pet-photo.service';
 import { permissionDescription, permissionModuleName, permissionName, roleName } from '../utils/catalog-presentation';
 import { roleCodeFromName } from '../utils/role-code';
+import { deliverInvitation,renewUserInvitation,saveInvitation } from '../services/invitation.service';
+import { hashPassword } from '../services/password.service';
 
 export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
   const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
@@ -40,7 +41,7 @@ const userColumns='u.id,u.first_name AS firstName,u.last_name AS lastName,u.emai
 const mapUser=(row:RowDataPacket)=>({...row,id:String(row.id),roleId:String(row.roleId),roleName:roleName(row.role,row.roleName),isActive:Boolean(row.isActive),emailVerified:Boolean(row.emailVerified)});
 export async function adminHome(actor:AuthUser) {
   // Este mapa describe rutas implementadas, no otorga permisos ni contiene datos de negocio.
-  const paths:Record<string,string>={'pets.view_all':'/admin/patients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','reservations.view_all':'/admin/reservations','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders','store.banners.manage':'/admin/store-banners'};
+  const paths:Record<string,string>={'pets.view_all':'/admin/patients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','reservations.view_all':'/admin/reservations','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders','store.banners.manage':'/admin/store-banners','settings.general.manage':'/admin/general-information'};
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT p.code,p.name,m.name AS moduleName FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
   const seen=new Set<string>();const modules: {code:string;name:string;path:string}[]=[];
   for(const row of rows){const path=paths[row.code];if(path==='/admin/patients'&&!actor.permissions?.includes('pets.view_information'))continue;if(path&&actor.permissions?.includes(row.code)&&!seen.has(path)){seen.add(path);modules.push({code:row.code,name:permissionName(row.code,row.name),path});}}
@@ -95,9 +96,12 @@ export async function adminUsers(query:Record<string,unknown>) {
   return {items:await Promise.all(rows.map(async row=>({...mapUser(row),profilePhotoUrl:await profilePhotoUrl(row.profilePhotoUrl)}))),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
 }
 export async function adminUser(id:string) {
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=?`,[id]);
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns},i.delivery AS invitationDelivery,i.expires_at AS invitationExpiresAt,i.consumed_at AS invitationConsumedAt
+    FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN veterinarian_invitations i ON i.user_id=u.id WHERE u.id=?`,[id]);
   if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
-  return {...mapUser(rows[0]),profilePhotoUrl:await profilePhotoUrl(rows[0].profilePhotoUrl),permissions:await readPermissions(id)};
+  const user=mapUser(rows[0]);
+  const invitationStatus=rows[0].invitationConsumedAt?'accepted':rows[0].invitationExpiresAt&&new Date(rows[0].invitationExpiresAt).getTime()<=Date.now()?'expired':rows[0].invitationDelivery??null;
+  return {...user,profilePhotoUrl:await profilePhotoUrl(rows[0].profilePhotoUrl),invitationStatus,invitationExpiresAt:rows[0].invitationExpiresAt??null,permissions:await readPermissions(id)};
 }
 export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:string|null) {
   let previous:unknown=null;
@@ -121,15 +125,24 @@ async function roleGrants(c:PoolConnection,id:string) {
 export async function createAdminUser(identity:AuthUser,value:unknown) {
   const body=objectBody(value,['firstName','lastName','email','phone','roleId']);
   const input={firstName:readName(body.firstName,'El nombre'),lastName:readName(body.lastName,'El apellido'),email:normalizeEmail(body.email),phone:readPhone(body.phone),roleId:identifier(body.roleId)};
-  const hash=await bcrypt.hash('empleadoPetCare1234',env.bcryptSaltRounds);
+  const unusablePasswordHash=await hashPassword(randomBytes(32).toString('hex'));
   const saved=await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');const role=await roleGrants(c,input.roleId);
     assertRoleAssignment(actor,role.role,role.permissions);
-    await c.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,1,1)',[input.roleId,input.email,hash,input.firstName,input.lastName,input.phone]);
+    await c.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,0,1)',[input.roleId,input.email,unusablePasswordHash,input.firstName,input.lastName,input.phone]);
     const [rows]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');const id=String(rows[0].id);
-    return {id};
+    const token=await saveInvitation(c,id);
+    return {id,token,email:input.email};
   });
-  return {user:await adminUser(saved.id)};
+  const invitationDelivery=await deliverInvitation(saved.email,saved.token,'account');
+  return {user:await adminUser(saved.id),invitationDelivery};
+}
+export async function resendAdminInvitation(identity:AuthUser,id:string) {
+  return renewUserInvitation(id,async(c,target)=>{
+    const actor=await freshAdmin(c,identity,target.role==='VETERINARIAN'?'veterinarians.manage':'users.manage');
+    if(actor.role!=='SUPER_ADMIN')forbidden('Solo el Admin Principal puede reenviar invitaciones.');
+    assertTarget(actor,target);
+  });
 }
 export async function updateAdminUser(identity:AuthUser,id:string,value:unknown) {
   const body=objectBody(value,['firstName','lastName','phone','roleId','isActive']);
@@ -138,9 +151,10 @@ export async function updateAdminUser(identity:AuthUser,id:string,value:unknown)
   const requestedRole=body.roleId===undefined?undefined:identifier(body.roleId);
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');
-    const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,u.role_id AS roleId,u.is_active,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[id]);
+    const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,u.role_id AS roleId,u.is_active,u.email_verified_at,u.must_change_password,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[id]);
     if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');const target=rows[0];assertTarget(actor,{id,role:target.role});
     const roleChanged=requestedRole!==undefined&&requestedRole!==String(target.roleId);const statusChanged=Boolean(target.is_active)!==body.isActive;
+    if(statusChanged&&body.isActive&&Number(target.must_change_password)===1&&!target.email_verified_at)throw new AppError('INVITATION_REQUIRED',409,'La cuenta debe activarse desde el enlace de invitación enviado al correo.');
     if(statusChanged&&actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede activar o desactivar usuarios.');
     if(id===actor.id&&(roleChanged||statusChanged))forbidden('No podés cambiar tu propio rol ni desactivar tu propia cuenta.');
     if(roleChanged){if(target.role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'No se cambia el rol de un usuario con perfil veterinario.');const role=await roleGrants(c,requestedRole!);assertRoleAssignment(actor,role.role,role.permissions);}

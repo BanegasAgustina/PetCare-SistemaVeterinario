@@ -52,7 +52,9 @@ export async function create(actor:AuthUser,value:unknown) {
   // El evento inicial permite auditar quién solicitó el retiro sin confundirlo con una compra confirmada.
   await c.execute('INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id) VALUES (?,NULL,?,?)',[order.id,'PLACED',actor.id]);
   await c.execute('INSERT INTO client_order_items(order_id,product_id,product_name,quantity,price_cents,pet_id,prescription_id) VALUES (?,?,?,?,?,?,?)',[order.id,productId,p.name,quantity,price,petId,prescriptionId]);
-  await c.execute('UPDATE client_products SET reserved_stock=reserved_stock+? WHERE id=?',[quantity,productId]);return String(order.id);
+   await c.execute('UPDATE client_products SET reserved_stock=reserved_stock+? WHERE id=?',[quantity,productId]);
+   await db.notify(c,actor.id,'Solicitud de reserva recibida',`Recibimos tu solicitud de ${quantity} unidad${quantity===1?'':'es'} de ${p.name}. La clínica confirmará la disponibilidad.`,'RESERVATION_PLACED','reservation',String(order.id),`reservation:${String(order.id)}:PLACED`);
+   return String(order.id);
  });return detail(actor,id);
 }
 /** Valida la transición y actualiza stock reservado/físico una sola vez al cancelar o completar el retiro. */

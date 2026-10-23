@@ -90,3 +90,11 @@ export async function hasRegisteredPushPermission(): Promise<boolean> {
   const [permission, token] = await Promise.all([notifications.getPermissionsAsync(), storedPushToken()]);
   return permission.status === 'granted' && Boolean(token);
 }
+
+export async function devicePushPermissionStatus(): Promise<'granted'|'denied'|'unavailable'> {
+  if (Platform.OS === 'web' || isRunningInExpoGo()) return 'unavailable';
+  const notifications = await loadNotificationsModule();
+  if (!notifications) return 'unavailable';
+  try { return (await notifications.getPermissionsAsync()).status === 'granted' ? 'granted' : 'denied'; }
+  catch { return 'unavailable'; }
+}

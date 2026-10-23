@@ -18,7 +18,8 @@
         "foregroundImage": "./src/assets/petcare-icon.png"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.anonymous.petcare"
+      "package": "com.anonymous.petcare",
+"googleServicesFile": "./google-services.json"
     },
     "icon": "./src/assets/petcare-icon.png",
     "plugins": [

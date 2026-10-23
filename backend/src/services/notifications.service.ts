@@ -154,7 +154,11 @@ async function claimPushDeliveries(): Promise<PushDelivery[]> {
        FROM client_notification_push_deliveries d
        JOIN client_notifications n ON n.id=d.notification_id
        JOIN client_push_tokens t ON t.id=d.push_token_id
-       WHERE t.revoked_at IS NULL AND t.user_id=n.owner_id
+       LEFT JOIN client_notification_preferences p ON p.user_id=n.owner_id
+       WHERE t.revoked_at IS NULL AND t.user_id=n.owner_id AND COALESCE(p.push_enabled,1)=1
+         AND (CASE WHEN n.event_type LIKE 'APPOINTMENT_REMINDER_%' THEN COALESCE(p.appointment_reminders_enabled,1)
+                   WHEN n.event_type LIKE 'ORDER_%' OR n.event_type LIKE 'RESERVATION_%' THEN COALESCE(p.order_updates_enabled,1)
+                   ELSE 1 END)=1
          AND ((d.status='PENDING' AND d.next_attempt_at<=UTC_TIMESTAMP(3))
            OR (d.status='SENDING' AND d.lease_expires_at<=UTC_TIMESTAMP(3)))
        ORDER BY d.id LIMIT 100 FOR UPDATE SKIP LOCKED`,

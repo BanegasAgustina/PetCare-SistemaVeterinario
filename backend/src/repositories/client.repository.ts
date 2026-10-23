@@ -1,5 +1,5 @@
 /** Todas las consultas personales usan la identidad JWT recibida del controller. */
-import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
@@ -125,10 +125,34 @@ export async function order(owner:string,id:string) {
   const [items]=await databasePool.execute<RowDataPacket[]>('SELECT product_id AS productId,product_name AS name,quantity,price_cents AS priceCents,quantity*price_cents AS subtotalCents FROM client_order_items WHERE order_id=?',[id]);
   return {...rows[0],id:String(rows[0].id),paymentIntentId:rows[0].paymentIntentId?String(rows[0].paymentIntentId):null,isStoreOrder:Boolean(rows[0].isStoreOrder),paymentProofLate:Boolean(rows[0].paymentProofLate),totalCents:Number(rows[0].totalCents),subtotalCents:rows[0].subtotalCents===null?null:Number(rows[0].subtotalCents),deliveryFeeCents:Number(rows[0].deliveryFeeCents??0),createdAt:utcDate(rows[0].createdAt),paymentExpiresAt:rows[0].paymentExpiresAt?utcDate(rows[0].paymentExpiresAt):null,proofSubmittedAt:rows[0].proofSubmittedAt?utcDate(rows[0].proofSubmittedAt):null,items:items.map(r=>({...r,productId:String(r.productId),priceCents:Number(r.priceCents),subtotalCents:Number(r.subtotalCents)}))};
 }
-export async function notifications(owner:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,title,body,event_type AS eventType,reference_type AS referenceType,CAST(reference_id AS CHAR) AS referenceId,read_at AS readAt,created_at AS createdAt FROM client_notifications WHERE owner_id=? ORDER BY created_at DESC,id DESC LIMIT 100',[owner]);return rows.map(r=>({...r,readAt:r.readAt?utcDate(r.readAt):null,createdAt:utcDate(r.createdAt)}));}
-export async function unreadNotificationCount(owner:string){const [rows]=await databasePool.execute<Array<RowDataPacket & {count:number}>>('SELECT COUNT(*) AS count FROM client_notifications WHERE owner_id=? AND read_at IS NULL',[owner]);return Number(rows[0]?.count??0);}
-export async function readNotification(owner:string,id:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id FROM client_notifications WHERE id=? AND owner_id=?',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);return {read:true};}
-export async function readAllNotifications(owner:string){await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE owner_id=? AND read_at IS NULL',[owner]);return {read:true};}
+export async function notifications(owner:string,query:Record<string,unknown>={}){
+ const limitValue=Number(query.limit??20);if(!Number.isInteger(limitValue)||limitValue<1||limitValue>50)throw new AppError('VALIDATION_ERROR',400,'El límite de notificaciones no es válido.');
+ const cursor=query.cursor===undefined?null:String(query.cursor);if(cursor!==null&&!/^[1-9]\d{0,19}$/.test(cursor))throw new AppError('VALIDATION_ERROR',400,'El cursor de notificaciones no es válido.');
+ const [rows]=await databasePool.execute<Array<RowDataPacket & {id:string;readAt:string|null;createdAt:string}>>(`SELECT CAST(id AS CHAR) AS id,title,body,event_type AS eventType,reference_type AS referenceType,CAST(reference_id AS CHAR) AS referenceId,read_at AS readAt,created_at AS createdAt FROM client_notifications WHERE owner_id=? AND hidden_at IS NULL ${cursor?'AND id<?':''} ORDER BY id DESC LIMIT ?`,cursor?[owner,cursor,limitValue+1]:[owner,limitValue+1]);
+ const hasMore=rows.length>limitValue;const items=rows.slice(0,limitValue).map(r=>({...r,readAt:r.readAt?utcDate(r.readAt):null,createdAt:utcDate(r.createdAt)}));
+ return {items,nextCursor:hasMore?String(items[items.length-1]?.id??''):null,unreadCount:await unreadNotificationCount(owner)};
+}
+export async function unreadNotificationCount(owner:string){const [rows]=await databasePool.execute<Array<RowDataPacket & {count:number}>>('SELECT COUNT(*) AS count FROM client_notifications WHERE owner_id=? AND hidden_at IS NULL AND read_at IS NULL',[owner]);return Number(rows[0]?.count??0);}
+export async function readNotification(owner:string,id:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id FROM client_notifications WHERE id=? AND owner_id=? AND hidden_at IS NULL',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);return {read:true};}
+export async function readAllNotifications(owner:string){await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE owner_id=? AND hidden_at IS NULL AND read_at IS NULL',[owner]);return {read:true};}
+export async function hideNotification(owner:string,id:string){const [result]=await databasePool.execute<ResultSetHeader>('UPDATE client_notifications SET hidden_at=COALESCE(hidden_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);if(!result.affectedRows)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');return {hidden:true};}
+export async function notificationPreferences(owner:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT push_enabled AS pushEnabled,appointment_reminders_enabled AS appointmentRemindersEnabled,order_updates_enabled AS orderUpdatesEnabled FROM client_notification_preferences WHERE user_id=?',[owner]);const p=rows[0];return {pushEnabled:p?Boolean(p.pushEnabled):true,appointmentRemindersEnabled:p?Boolean(p.appointmentRemindersEnabled):true,orderUpdatesEnabled:p?Boolean(p.orderUpdatesEnabled):true};}
+export async function updateNotificationPreferences(owner:string,value:unknown){
+ if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Las preferencias no son válidas.');
+ const body=value as Record<string,unknown>;const keys=['pushEnabled','appointmentRemindersEnabled','orderUpdatesEnabled'];
+ if(!Object.keys(body).length||Object.keys(body).some(key=>!keys.includes(key))||Object.values(body).some(v=>typeof v!=='boolean'))throw new AppError('VALIDATION_ERROR',400,'Las preferencias no son válidas.');
+ const current=await notificationPreferences(owner);const next={...current,...body} as typeof current;
+ await databasePool.execute(`INSERT INTO client_notification_preferences(user_id,push_enabled,appointment_reminders_enabled,order_updates_enabled) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE push_enabled=VALUES(push_enabled),appointment_reminders_enabled=VALUES(appointment_reminders_enabled),order_updates_enabled=VALUES(order_updates_enabled)`,[owner,next.pushEnabled,next.appointmentRemindersEnabled,next.orderUpdatesEnabled]);
+ await databasePool.execute(`UPDATE client_notification_push_deliveries d
+   JOIN client_notifications n ON n.id=d.notification_id
+   JOIN client_notification_preferences p ON p.user_id=n.owner_id
+   SET d.status='FAILED',d.last_error_code='PREFERENCE_DISABLED',d.lease_expires_at=NULL
+   WHERE n.owner_id=? AND d.status='PENDING'
+     AND (p.push_enabled=0
+       OR (n.event_type LIKE 'APPOINTMENT_REMINDER_%' AND p.appointment_reminders_enabled=0)
+       OR ((n.event_type LIKE 'ORDER_%' OR n.event_type LIKE 'RESERVATION_%') AND p.order_updates_enabled=0))`,[owner]);
+ return next;
+}
 export async function registerPushToken(owner:string,value:unknown){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['token','platform'].includes(key)))throw new AppError('VALIDATION_ERROR',400,'El dispositivo no es válido.');
  const body=value as {token?:unknown;platform?:unknown};

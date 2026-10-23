@@ -53,7 +53,7 @@ export function permissionModuleName(code: string, storedName: string): string {
 }
 
 export function roleName(code: string, storedName: string): string {
-  return roleNames[code] ?? (code === 'SUPER_ADMIN' ? 'Administrador principal' : storedName);
+  return roleNames[code] ?? (code === 'SUPER_ADMIN' ? 'Admin Principal' : storedName);
 }
 
 export function catalogName(storedName: string): string {

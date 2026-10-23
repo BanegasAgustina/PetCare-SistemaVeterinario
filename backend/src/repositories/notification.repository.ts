@@ -37,8 +37,13 @@ export async function createClientNotification(connection: PoolConnection, notif
 
   await connection.execute(
     `INSERT INTO client_notification_push_deliveries(notification_id,push_token_id)
-     SELECT ?,id FROM client_push_tokens WHERE user_id=? AND revoked_at IS NULL`,
-    [notificationId, notification.ownerId],
+     SELECT ?,t.id FROM client_push_tokens t
+     LEFT JOIN client_notification_preferences p ON p.user_id=t.user_id
+     WHERE t.user_id=? AND t.revoked_at IS NULL AND COALESCE(p.push_enabled,1)=1
+       AND (CASE WHEN ? LIKE 'APPOINTMENT_REMINDER_%' THEN COALESCE(p.appointment_reminders_enabled,1)
+                 WHEN ? LIKE 'ORDER_%' OR ? LIKE 'RESERVATION_%'
+                 THEN COALESCE(p.order_updates_enabled,1) ELSE 1 END)=1`,
+    [notificationId, notification.ownerId, notification.eventType, notification.eventType, notification.eventType],
   );
   if (['APPOINTMENT_CONFIRMED', 'APPOINTMENT_RESCHEDULED', 'APPOINTMENT_CANCELLED',
     'CLINICAL_UPDATE', 'RESERVATION_APPROVED', 'RESERVATION_REJECTED'].includes(notification.eventType)) {

@@ -6,3 +6,4 @@ export async function requestPushPermissionAndToken(): Promise<string> {
 }
 export async function pushTokenIfAlreadyGranted(): Promise<string | null> { return null; }
 export async function hasRegisteredPushPermission(): Promise<boolean> { return false; }
+export async function devicePushPermissionStatus(): Promise<'granted'|'denied'|'unavailable'> { return 'unavailable'; }

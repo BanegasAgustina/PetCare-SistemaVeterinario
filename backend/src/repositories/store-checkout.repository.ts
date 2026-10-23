@@ -2,6 +2,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import type { CheckoutAddress, CheckoutPayment } from '../validators/store-checkout.validator';
+import { createClientNotification } from './notification.repository';
 
 type Fulfillment = RowDataPacket & { pickupEnabled:number;pickupAddress:string|null;deliveryEnabled:number;deliveryBaseFeeCents:number;freeDeliveryThresholdCents:number|null;bankName:string|null;bankAccountHolder:string|null;bankCbuCvu:string|null;bankAlias:string|null };
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es');
@@ -61,6 +62,11 @@ export async function create(owner:string,key:string,paymentMethod:CheckoutPayme
     if(isReal) await connection.execute("INSERT INTO client_order_status_history(order_id,previous_status,new_status,actor_user_id,state_type) VALUES (?,NULL,'PENDING',?,'PAYMENT')",[orderId,owner]);
     if(transferBuyer)await connection.execute(`INSERT INTO client_store_payment_intents(order_id,owner_id,buyer_name,buyer_email,expires_at)
       VALUES (?,?,?, ?,TIMESTAMPADD(MINUTE,5,UTC_TIMESTAMP(3)))`,[orderId,owner,transferBuyer.name,transferBuyer.email]);
+    await createClientNotification(connection,{
+      ownerId:owner,title:'Pedido registrado',
+      body:isReal?`Registramos tu pedido #${orderId}. La transferencia todavía está pendiente de revisión.`:`Registramos tu pedido #${orderId}. El pago es demostrativo y la clínica confirmará los próximos pasos.`,
+      eventType:'ORDER_PLACED',eventKey:`store-order:${orderId}:placed`,referenceType:'order',referenceId:orderId,
+    });
     await connection.execute('DELETE FROM client_cart_items WHERE owner_id=?',[owner]);
     await connection.commit();
   }catch(error){await connection.rollback();throw error;}finally{connection.release();}

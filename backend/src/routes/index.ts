@@ -7,10 +7,12 @@ import { clientRouter } from './client.routes';
 import { adminRouter } from './admin.routes';
 import { clinicRouter } from './clinic.routes';
 import { veterinarianAdminRouter, invitationRouter, specialtiesAdminRouter, veterinarianPanelRouter } from './veterinarian.routes';
+import { publicSettingsRouter } from './settings.routes';
 
 export const apiRouter = Router();
 apiRouter.get('/health', getHealth);
 apiRouter.get('/health/database', createDatabaseHealthHandler());
+apiRouter.use('/settings', publicSettingsRouter);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/admin/veterinarians', veterinarianAdminRouter);
 apiRouter.use('/admin/specialties', specialtiesAdminRouter);

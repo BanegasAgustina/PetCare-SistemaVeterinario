@@ -41,7 +41,7 @@ export function AppointmentScreen() {
   const slots = useClientQuery(useCallback(() => query.data && hasPermission('appointments.manage') ? api.slots(String(query.data.serviceId), professional || undefined) : Promise.resolve(null), [api, query.data, professional, hasPermission]));
   const { showToast } = useFeedback();
   const observationValue = observations ?? String(query.data?.observations ?? '');
-  const transitions: Record<string, string[]> = { REQUESTED: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'] };
+  const transitions: Record<string, string[]> = { REQUESTED: ['CONFIRMED', 'REJECTED', 'CANCELLED'], CONFIRMED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'] };
   const hasSavedConsultation=Boolean(history.data?.some(record=>String(record.appointmentId)===id));
 
   async function saveObservations() {
