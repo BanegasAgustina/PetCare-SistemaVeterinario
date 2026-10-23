@@ -180,7 +180,7 @@ Pasos manuales pendientes:
 1. Vincular el proyecto Expo con su EAS Project ID mediante `npx eas-cli@latest init`; el cliente lo obtiene de `Constants.easConfig.projectId`.
 2. Cargar las credenciales FCM v1 Android en EAS para el proyecto y el perfil de build que se va a probar.
 3. Revisar y aprobar `backend/notification-migrations/001_notifications.sql`, verificar primero el esquema Layerbase con la consulta del README del backend y ejecutar el SQL solo con autorización.
-4. Configurar `CRON_SECRET` en Vercel Backend y confirmar que el proyecto Vercel use `backend` como Root Directory para tomar `backend/vercel.json` (cron cada cinco minutos). Configurar SMTP existente en el backend si se desean correos para eventos importantes.
+4. Configurar `CRON_SECRET` en Vercel Backend y confirmar que el proyecto Vercel use `backend` como Root Directory para tomar `backend/vercel.json` (cron diario a las 03:00 UTC en Hobby). Esta frecuencia no cubre la ventana de recordatorios puntuales. Configurar SMTP existente en el backend si se desean correos para eventos importantes.
 5. Desplegar backend y frontend con sus cambios; después generar/distribuir el APK de prueba. Ninguna migración, despliegue ni compilación APK fue ejecutada por esta tarea.
 
 Las pruebas automatizadas de `npm test` verifican el enrutamiento seguro de avisos en cliente. No simulan un proveedor Expo/FCM real, SMTP, una base Layerbase ni la entrega en Android. La prueba real debe usar una cuenta de cliente controlada, un dispositivo con permiso concedido y un turno/reserva legítimos; una invocación manual del cron puede enviar mensajes reales.

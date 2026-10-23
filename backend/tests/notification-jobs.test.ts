@@ -119,9 +119,9 @@ test('la idempotencia de evento corta la cola antes de crear otra entrega de cor
   assert.equal(statements.some(sql => /client_notification_email_deliveries/.test(sql)), false);
 });
 
-test('el cron está configurado cada cinco minutos y los reintentos tienen espera exponencial acotada', () => {
+test('el cron está configurado diariamente y los reintentos tienen espera exponencial acotada', () => {
   const vercel = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { crons: { path: string; schedule: string }[] };
-  assert.deepEqual(vercel.crons, [{ path: '/api/cron/notifications', schedule: '*/5 * * * *' }]);
+  assert.deepEqual(vercel.crons, [{ path: '/api/cron/notifications', schedule: '0 3 * * *' }]);
   assert.equal(retryDelaySeconds(1), 60);
   assert.equal(retryDelaySeconds(2), 120);
   assert.equal(retryDelaySeconds(8), 1800);
