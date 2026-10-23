@@ -5,11 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { StoreCheckoutProvider } from '../../../contexts/StoreCheckoutContext';
 import { useAuth } from '../../../hooks/useAuth';
+import { Platform, useWindowDimensions } from 'react-native';
+import { isWebAtLeast, responsiveLayout } from '../../../constants/responsive';
 
 export default function ClientTabs() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   if(user?.role!=='CLIENT')return <StoreCheckoutProvider><Stack screenOptions={{headerShown:false,contentStyle:{backgroundColor:colors.background}}}/></StoreCheckoutProvider>;
 
@@ -19,6 +22,7 @@ export default function ClientTabs() {
     tabBarActiveTintColor: String(colors.primary),
     tabBarInactiveTintColor: String(colors.muted),
     tabBarStyle: {
+      display: isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.desktop) ? 'none' : undefined,
       backgroundColor: String(colors.background),
       borderTopColor: String(colors.border),
       height: 66 + insets.bottom,

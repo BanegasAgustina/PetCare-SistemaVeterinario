@@ -20,6 +20,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { AdminFormActions, AdminFormSection } from '../../components/admin/AdminFormLayout';
+import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string | null; category: string | null; priceCents: number; stock: number; physicalStock: number; reservedStock: number; stockMinimum:number; isActive: boolean };
 type Page = { items: Product[]; page: number; total: number; hasMore: boolean };
@@ -47,7 +48,7 @@ export default function AdminProducts() {
   const [photo,setPhoto]=useState<{uri:string;base64:string}|null>(null);
   const [photoError,setPhotoError]=useState<string|null>(null);
   const {width}=useWindowDimensions();
-  const desktopGrid=Platform.OS==='web'&&width>=768;
+  const desktopGrid=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);
   const load = useCallback(() => request<Page>(`/admin/products?${new URLSearchParams({ search: submittedSearch, ...filters, page: String(page) })}`), [request, submittedSearch, filters, page]);
   const query = useClientQuery(load);
   const loadHistory=useCallback(()=>historyProductId?request<StockHistory>(`/admin/products/${encodeURIComponent(historyProductId)}/stock-movements`):Promise.resolve(null),[request,historyProductId]);

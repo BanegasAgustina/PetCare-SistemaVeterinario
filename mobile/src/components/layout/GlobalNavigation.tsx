@@ -14,6 +14,8 @@ import type { IconName } from '../client/PetCareUI';
 import { PetCareLogo } from './PetCareLogo';
 import { modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
 import { RoleBottomNavigation } from './RoleBottomNavigation';
+import { ConfirmModal } from '../ui/ConfirmModal';
+import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
 type AdminModule = { code: string; name: string; path: string };
@@ -131,10 +133,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const adminModules = adminModulesResult.userId === user?.id ? adminModulesResult.modules : noAdminModules;
   const adminModulesLoading = isAdmin && adminModulesResult.userId !== user?.id;
   const visibleAdminModules = useMemo(() => isAdmin && hasPermission('schedule.manage') && !adminModules.some(module => module.path === scheduleAdminModule.path) ? [...adminModules, scheduleAdminModule] : adminModules, [adminModules, hasPermission, isAdmin]);
-  const [desktopExpanded, setDesktopExpanded] = useState(true);
-  const [highlightedAdminPath, setHighlightedAdminPath] = useState<string | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const desktop = Platform.OS === 'web' && Math.min(width, containerWidth) >= 1024;
+  const desktop = isWebAtLeast(Platform.OS, Math.min(width, containerWidth), responsiveLayout.breakpoints.desktop);
   const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/secretary';
   useEffect(() => {
     let active = true;
@@ -180,6 +180,10 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     return [...new Map(permitted.map(item => [item.path, item])).values()];
   }, [visibleAdminModules, hasPermission, user, base, isAdmin, isCustomRole]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
+  const desktopItems = useMemo(() => isClient
+    ? [...items, { label: unreadNotifications ? `Notificaciones (${unreadNotifications})` : 'Notificaciones', path: '/client/notifications', icon: 'notifications-outline' as const }]
+    : items, [items, isClient, unreadNotifications]);
+  const desktopSelected = [...desktopItems].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const adminBack = () => {
     if (pathname.startsWith('/admin/users/')) return router.replace('/admin/users');
     if (pathname.startsWith('/admin/veterinarians/')) return router.replace('/admin/veterinarians');
@@ -189,54 +193,45 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 
   if (!user) return <>{children}</>;
   const navigate = (path: string) => router.replace(path as never);
-  const renderItem = (item: MenuItem) => <Pressable key={item.path} accessibilityRole="button" accessibilityState={{ selected: item.path === selected?.path }} onPress={() => navigate(item.path)} onHoverIn={() => { if (desktop && isAdmin) setHighlightedAdminPath(item.path); }} onHoverOut={() => { if (desktop && isAdmin) setHighlightedAdminPath(value => value === item.path ? null : value); }} onFocus={() => { if (desktop && isAdmin) setHighlightedAdminPath(item.path); }} onBlur={() => { if (desktop && isAdmin) setHighlightedAdminPath(value => value === item.path ? null : value); }} style={[styles.item, desktop && isAdmin && highlightedAdminPath === item.path && { backgroundColor: colors.accent }, item.path === selected?.path && { backgroundColor: colors.accent, borderLeftColor: colors.primary, borderLeftWidth: 3 }]}>
-    <Ionicons name={item.icon} size={20} color={item.path === selected?.path ? colors.primary : colors.muted}/><AppText numberOfLines={1} style={styles.itemText}>{item.label}</AppText>
-  </Pressable>;
-  const drawer = <View style={[styles.drawer, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }, desktop && isAdmin && styles.adminDesktopDrawer]}>
-    <View style={styles.brand}><AppText numberOfLines={desktop && isAdmin ? 1 : undefined} ellipsizeMode={desktop && isAdmin ? 'tail' : undefined} muted>{roleLabel(user.role,user.roleName ?? user.role)}</AppText></View>
-    <ScrollView style={[styles.drawerMenu, desktop && isAdmin && styles.adminDesktopDrawerMenu]} contentContainerStyle={styles.menuContent} keyboardShouldPersistTaps="handled">
-      {isAdmin ? adminGroups.map(group => {
-        const groupItems = items.filter(item => item.group === group);
-        if (!groupItems.length) return null;
-        return <View key={group}>
-          <View style={styles.groupHeading}><AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText></View>
-          {groupItems.map(renderItem)}
-        </View>;
-      }) : items.map(renderItem)}
-    </ScrollView>
-  </View>;
+
+  if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
+    <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
+    <View style={styles.desktopPage}>{children}</View>
+  </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   if (isAdmin) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
-    <SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+    {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
-    </SafeAreaView>
+    </SafeAreaView>}
     <View style={styles.adminPage}>{children}</View>
     {!isAdminFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<AdminBottomNavigation pathname={pathname} personalItems={personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}))}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
+  if (isVeterinarian && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
+    <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
+    <View style={styles.desktopPage}>{children}</View>
+  </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
+
   if (isVeterinarian) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
-    <SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+    {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.veterinarianTopBar}>
         <PetCareLogo style={styles.veterinarianTopLogo}/>
         <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/vet/profile')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
       </View>
-    </SafeAreaView>
+    </SafeAreaView>}
     <View style={styles.adminPage}>{children}</View>
     {!isVeterinarianFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<VeterinarianBottomNavigation pathname={pathname} items={items}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><AdminModulesLoadingContext.Provider value={isAdmin && adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
-    <SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={[styles.topBar, desktop && isAdmin && styles.adminDesktopTopBar]}>
-        {desktop && !isClient && <Pressable accessibilityRole="button" accessibilityLabel={desktopExpanded ? 'Contraer menú' : 'Expandir menú'} onPress={() => setDesktopExpanded(value => !value)} style={[styles.menuButton, { backgroundColor: colors.accent }]}>
-          <Ionicons name="menu" size={23} color={colors.text}/>
-        </Pressable>}
+    {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={styles.topBar}>
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.highlight,width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:colors.onHighlight,fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
         {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push(isVeterinarian?'/vet/profile':'/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
-    </SafeAreaView>
-    {isAdmin && pathname !== '/admin' && <View style={[styles.adminPageBar, desktop && styles.adminDesktopPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
+    </SafeAreaView>}
+    {isAdmin && !desktop && pathname !== '/admin' && <View style={[styles.adminPageBar, {backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
       <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={adminBack} style={[styles.backButton,{backgroundColor:colors.accent}]}>
         <Ionicons name="arrow-back" size={21} color={colors.text}/>
       </Pressable>
@@ -245,20 +240,50 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
         <AppText numberOfLines={1} variant="caption" muted>PetCare · Gestión de la clínica</AppText>
       </View>
     </View>}
-    <View style={styles.body}>
-      {desktop && !isClient && desktopExpanded && drawer}
+    {desktop ? <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot,{backgroundColor:colors.background}]}>
+      <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
+      <View style={styles.desktopPage}>{children}</View>
+    </View> : <View style={styles.body}>
       <View style={styles.page}>{children}</View>
-    </View>
+    </View>}
     {!isClient&&!desktop&&!isRoleDetailRoute(pathname)&&<RoleBottomNavigation items={items} activePath={selected?.path??null} onNavigate={navigate}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 
+function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePath:string|null;onNavigate:(path:string)=>void}) {
+  const {colors,mode,setPreference}=useTheme();
+  const {user,signOut}=useAuth();
+  const {width}=useWindowDimensions();
+  const [confirmLogout,setConfirmLogout]=useState(false);
+  const groups=items.some(item=>item.group);
+  const initials=[user?.firstName?.[0],user?.lastName?.[0]].filter(Boolean).join('').toLocaleUpperCase();
+  const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="button" accessibilityState={{selected:item.path===activePath}} onPress={()=>onNavigate(item.path)} style={[styles.desktopNavItem,{backgroundColor:item.path===activePath?colors.accent:'transparent',borderColor:item.path===activePath?colors.primary:'transparent'}]}>
+    <Ionicons name={item.icon} size={20} color={item.path===activePath?colors.primary:colors.muted}/>
+    <AppText numberOfLines={1} style={[styles.itemText,{color:item.path===activePath?colors.primary:colors.text,fontWeight:item.path===activePath?'700':'500'}]}>{item.label}</AppText>
+  </Pressable>;
+  return <View style={[styles.desktopSidebar,{width:desktopSidebarWidth(width),backgroundColor:colors.surface,borderColor:colors.border}]}>
+    <ScrollView style={styles.desktopMenu} contentContainerStyle={styles.desktopMenuContent} keyboardShouldPersistTaps="handled">
+      <View style={styles.desktopBrand}><PetCareLogo style={styles.desktopLogo}/></View>
+      {groups?adminGroups.map(group=>{const groupItems=items.filter(item=>item.group===group);return groupItems.length?<View key={group}><View style={styles.groupHeading}><AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText></View>{groupItems.map(navItem)}</View>:null;}):items.map(navItem)}
+      {groups&&items.filter(item=>!item.group).map(navItem)}
+      <View style={[styles.desktopAccount,{borderColor:colors.border}]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir mi perfil" onPress={()=>onNavigate(user?.role==='CLIENT'?'/client/profile':user?.role==='VETERINARIAN'?'/vet/profile':'/account')} style={styles.desktopIdentity}><View style={[styles.desktopAvatar,{backgroundColor:colors.accent}]}><AppText style={{color:colors.primary,fontWeight:'700'}}>{initials||'•'}</AppText></View><View style={styles.desktopUserCopy}><AppText numberOfLines={1} style={styles.desktopUserName}>{[user?.firstName,user?.lastName].filter(Boolean).join(' ')||roleLabel(user!.role,user!.roleName??user!.role)}</AppText><AppText numberOfLines={1} variant="caption" muted>{user?.email}</AppText></View></Pressable>
+        <AppText numberOfLines={1} variant="caption" muted>{roleLabel(user!.role,user!.roleName??user!.role)}</AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={mode==='dark'?'Usar modo claro':'Usar modo oscuro'} onPress={()=>setPreference(mode==='dark'?'light':'dark')} style={styles.desktopAction}><Ionicons name={mode==='dark'?'sunny-outline':'moon-outline'} size={19} color={colors.muted}/><AppText style={styles.itemText}>{mode==='dark'?'Modo claro':'Modo oscuro'}</AppText></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={()=>setConfirmLogout(true)} style={styles.desktopAction}><Ionicons name="log-out-outline" size={19} color={colors.muted}/><AppText style={styles.itemText}>Cerrar sesión</AppText></Pressable>
+      </View>
+    </ScrollView>
+    <ConfirmModal visible={confirmLogout} title="Cerrar sesión" message="Podés volver a ingresar cuando quieras." confirmLabel="Cerrar sesión" destructive onCancel={()=>setConfirmLogout(false)} onConfirm={signOut}/>
+  </View>;
+}
+
 const styles = StyleSheet.create({
-  root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, adminDesktopTopBar:{minHeight:68,paddingHorizontal:28,gap:16},
+  desktopRoot:{flex:1,minHeight:0,flexDirection:'row'},desktopPage:{flex:1,minWidth:0,minHeight:0},desktopSidebar:{flexShrink:0,minHeight:0,paddingHorizontal:16,paddingVertical:18,borderRightWidth:1},desktopBrand:{minHeight:54,justifyContent:'center',paddingHorizontal:2},desktopLogo:{width:132,height:36,alignSelf:'flex-start'},desktopMenu:{flex:1,minHeight:0},desktopMenuContent:{flexGrow:1,gap:5,paddingBottom:12},desktopNavItem:{minHeight:46,paddingHorizontal:11,borderRadius:13,borderLeftWidth:3,flexDirection:'row',alignItems:'center',gap:11},desktopAccount:{gap:9,paddingTop:14,marginTop:'auto',borderTopWidth:1},desktopIdentity:{minHeight:42,flexDirection:'row',alignItems:'center',gap:10},desktopAvatar:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},desktopUserCopy:{flex:1,minWidth:0,gap:2},desktopUserName:{fontWeight:'700'},desktopAction:{minHeight:38,paddingHorizontal:4,flexDirection:'row',alignItems:'center',gap:10},
+  root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   veterinarianTopBar:{minHeight:64,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'},veterinarianTopLogo:{position:'absolute',left:'50%',marginLeft:-58,width:116,height:34},
   adminTopBar:{minHeight:60,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},adminTopLogo:{width:116,height:34},adminPage:{flex:1,minHeight:0},
-  menuButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
-  adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},adminDesktopPageBar:{minHeight:72,paddingHorizontal:28,gap:14},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},
-  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 }, drawer: { flex:1,width: 292, padding: 16, borderRightWidth: 1, gap: 5, minHeight: '100%' }, drawerMenu:{flex:1},menuContent:{gap:5,paddingBottom:16},adminDesktopDrawer:{flex:0,flexGrow:0,flexShrink:0,flexBasis:280,width:280,minWidth:280,maxWidth:280,alignSelf:'stretch',minHeight:0,paddingHorizontal:18,paddingVertical:20},adminDesktopDrawerMenu:{flex:1,minHeight:0,width:'100%'},
-  brand: { minHeight: 58, justifyContent: 'center', gap: 3, marginBottom: 4 }, logo: { width: 132, height: 34, alignSelf: 'flex-start' }, groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8},item: { minHeight: 46, paddingHorizontal: 12, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 11 }, itemText: { flex: 1, minWidth: 0 },
+  currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
+  adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},
+  body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 },
+  groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8}, itemText: { flex: 1, minWidth: 0 },
 });

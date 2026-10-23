@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../layout/ScreenContainer';
 import { AppText } from '../ui/AppText';
@@ -15,7 +15,8 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { SelectionRow } from '../ui/SelectionRow';
 import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
-import { PetCareEmptyState } from '../client/PetCareUI';
+import { PetCareEmptyState, ResponsiveGrid } from '../client/PetCareUI';
+import { responsiveLayout } from '../../constants/responsive';
 import { useTheme } from '../../hooks/useTheme';
 import type { ClinicRow } from '../../types/clinic';
 import type { Specialty } from '../../types/veterinarian';
@@ -31,7 +32,6 @@ export default function SpecialtiesScreen() {
   const clinic = useClinic();
   const action = useAsyncAction();
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
   const { showToast } = useFeedback();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<EditItem | null>(null);
@@ -143,7 +143,7 @@ export default function SpecialtiesScreen() {
   const saveLabel = editingExisting ? 'Guardar cambios' : editing?.kind === 'type' ? 'Crear tipo profesional' : 'Crear especialidad';
 
   return <ScreenContainer keyboardAvoiding wide>
-    <View style={[styles.content, { maxWidth: width >= 1024 ? 900 : '100%' }]}>
+    <View style={styles.content}>
       {(canEditTypes || canEditSpecialties) && <View style={[styles.tabs, { backgroundColor: colors.accent }]}>
         {canEditTypes && <Pressable accessibilityRole="tab" accessibilityState={{ selected: tab === 'types' }} onPress={() => { setTab('types'); setSearch(''); }} style={[styles.tab, tab === 'types' && { backgroundColor: colors.primary }]}>
           <Ionicons name="people-outline" size={17} color={tab === 'types' ? colors.onPrimary : colors.text} />
@@ -166,7 +166,7 @@ export default function SpecialtiesScreen() {
 
       <FormNotice error message={listError} />
       {loading && <AppText muted>Consultando {tab === 'types' ? 'tipos profesionales' : 'especialidades'}…</AppText>}
-      {!loading && rows.length > 0 && <View style={styles.rows}>{rows.map(renderRow)}</View>}
+      {!loading && rows.length > 0 && <View style={styles.rows}><ResponsiveGrid minItemWidth={responsiveLayout.grid.minWideItemWidth} maxColumns={2}>{rows.map(renderRow)}</ResponsiveGrid></View>}
       {!loading && !rows.length && (currentCount > 0 || search.trim()
         ? <PetCareEmptyState title="No hay coincidencias" message="Probá con otro nombre o limpiá la búsqueda." />
         : <PetCareEmptyState title={tab === 'types' ? 'Todavía no hay tipos profesionales' : 'Todavía no hay especialidades'} message="Los registros que agregues aparecerán en esta lista." />)}

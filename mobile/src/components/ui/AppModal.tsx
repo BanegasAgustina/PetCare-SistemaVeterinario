@@ -4,12 +4,13 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { softSurfaceShadow } from '../../constants/surface';
+import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 type AppModalProps = PropsWithChildren<{ visible: boolean; dismissible?: boolean; onClose?: () => void; size?: 'default' | 'wide'; footer?: ReactNode }>;
 export function AppModal({ visible, dismissible = false, onClose, size = 'default', footer, children }: AppModalProps) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const desktop = Platform.OS === 'web' && width >= 1024;
+  const desktop = isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const close = () => { if (dismissible) onClose?.(); };
   return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={close}>
     <SafeAreaView style={styles.overlay}>

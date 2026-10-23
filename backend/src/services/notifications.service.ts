@@ -136,7 +136,7 @@ export async function createDueAppointmentReminders(): Promise<number> {
   return created;
 }
 
-function retryDelaySeconds(attempts: number): number {
+export function retryDelaySeconds(attempts: number): number {
   return Math.min(60 * (2 ** Math.max(0, attempts - 1)), 1800);
 }
 
@@ -385,10 +385,30 @@ async function sendEmailBatch(deliveries: EmailDelivery[]): Promise<number> {
   return results.filter(Boolean).length;
 }
 
-export async function processNotificationJobs(): Promise<{ remindersCreated: number; pushesAccepted: number; receiptsChecked: number; emailsSent: number }> {
-  const remindersCreated = await createDueAppointmentReminders();
-  const receiptsChecked = await checkPushReceipts();
-  const pushesAccepted = await sendPushBatch(await claimPushDeliveries());
-  const emailsSent = await sendEmailBatch(await claimEmailDeliveries());
+export type NotificationJobTasks = {
+  createDueAppointmentReminders: () => Promise<number>;
+  checkPushReceipts: () => Promise<number>;
+  claimPushDeliveries: () => Promise<PushDelivery[]>;
+  sendPushBatch: (deliveries: PushDelivery[]) => Promise<number>;
+  claimEmailDeliveries: () => Promise<EmailDelivery[]>;
+  sendEmailBatch: (deliveries: EmailDelivery[]) => Promise<number>;
+};
+
+export async function runNotificationJobTasks(tasks: NotificationJobTasks): Promise<{ remindersCreated: number; pushesAccepted: number; receiptsChecked: number; emailsSent: number }> {
+  const remindersCreated = await tasks.createDueAppointmentReminders();
+  const receiptsChecked = await tasks.checkPushReceipts();
+  const pushesAccepted = await tasks.sendPushBatch(await tasks.claimPushDeliveries());
+  const emailsSent = await tasks.sendEmailBatch(await tasks.claimEmailDeliveries());
   return { remindersCreated, pushesAccepted, receiptsChecked, emailsSent };
+}
+
+export async function processNotificationJobs(): Promise<{ remindersCreated: number; pushesAccepted: number; receiptsChecked: number; emailsSent: number }> {
+  return runNotificationJobTasks({
+    createDueAppointmentReminders,
+    checkPushReceipts,
+    claimPushDeliveries,
+    sendPushBatch,
+    claimEmailDeliveries,
+    sendEmailBatch,
+  });
 }

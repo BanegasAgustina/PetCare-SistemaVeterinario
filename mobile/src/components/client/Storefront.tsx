@@ -11,6 +11,7 @@ import { AppInput } from '../forms/AppInput';
 import { FormNotice } from '../ui/FormNotice';
 import { useTheme } from '../../hooks/useTheme';
 import { softSurfaceShadow } from '../../constants/surface';
+import { responsiveLayout } from '../../constants/responsive';
 
 type StoreProductCardProps = { product: Product; adding: boolean; cartReady: boolean; onOpen: () => void; onAdd: () => void };
 
@@ -83,13 +84,13 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
 
 export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOpen:(banner:StoreBanner)=>void}) {
   const {colors}=useTheme();const {width:windowWidth}=useWindowDimensions();const [measuredWidth,setMeasuredWidth]=useState(0);const [active,setActive]=useState(0);const [imageFailed,setImageFailed]=useState(false);const scrollRef=useRef<ComponentRef<typeof ScrollView>>(null);
-  const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=768?260:198;const banner=banners[active];
+  const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=responsiveLayout.breakpoints.tablet?260:198;const banner=banners[active];
   if(!banner)return null;
   const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
   return <View onLayout={event=>{const next=event.nativeEvent.layout.width;setMeasuredWidth(current=>Math.abs(current-next)<1?current:next);}} style={styles.storeBannerSection}>
     <ScrollView ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={event=>{const next=Math.min(banners.length-1,Math.max(0,Math.round(event.nativeEvent.contentOffset.x/width)));setActive(next);setImageFailed(false);}}>
       {banners.map((item,index)=><View key={item.id} style={[styles.storeBanner,{width,height,backgroundColor:item.backgroundColor}]}>
-        {!imageFailed&&<Image source={{uri:windowWidth>=768?(item.desktopImageUrl??item.mobileImageUrl):item.mobileImageUrl}} resizeMode="cover" onError={()=>{if(index===active)setImageFailed(true);}} style={StyleSheet.absoluteFill}/>}
+        {!imageFailed&&<Image source={{uri:windowWidth>=responsiveLayout.breakpoints.tablet?(item.desktopImageUrl??item.mobileImageUrl):item.mobileImageUrl}} resizeMode="cover" onError={()=>{if(index===active)setImageFailed(true);}} style={StyleSheet.absoluteFill}/>}
         {item.darkOverlay&&<View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.32)'}]}/>}
         <Pressable accessibilityRole="button" accessibilityLabel={[item.title,item.ctaText].filter(Boolean).join('. ')||'Banner informativo'} disabled={item.destinationType==='INFO'} onPress={()=>onOpen(item)} style={[styles.storeBannerCopy,{alignItems:item.contentAlignment==='CENTER'?'center':item.contentAlignment==='RIGHT'?'flex-end':'flex-start',backgroundColor:'transparent'}]}>
           {!!item.title&&<AppText numberOfLines={2} variant="title" style={[styles.storeBannerTitle,{color:item.textColor,textAlign:item.contentAlignment.toLowerCase() as 'left'|'center'|'right'}]}>{item.title}</AppText>}

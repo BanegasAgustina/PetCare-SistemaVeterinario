@@ -4,11 +4,12 @@ import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { LoginPets } from './LoginPets';
+import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 export function LoginLayout({ children, scrollable = false, showDesktopImage = false, petArtwork = 'login' }: PropsWithChildren<{ scrollable?: boolean; showDesktopImage?: boolean; petArtwork?: 'login' | 'register' }>) {
   const { colors } = useTheme();
   const { height, width } = useWindowDimensions();
-  const desktopWeb = Platform.OS === 'web' && width >= 900;
+  const desktopWeb = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.authDesktop);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));

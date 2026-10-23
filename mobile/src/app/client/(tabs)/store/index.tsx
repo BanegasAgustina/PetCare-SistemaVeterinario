@@ -8,7 +8,7 @@ import { useClientQuery } from '../../../../hooks/useClientQuery';
 import { useDebouncedValue } from '../../../../hooks/useDebouncedValue';
 import { useFeedback } from '../../../../contexts/FeedbackContext';
 import type { Cart, CatalogItem, Product,StoreBanner } from '../../../../types/client';
-import { PetCareScreen, PetCareHeader, PetCareEmptyState, QueryState } from '../../../../components/client/PetCareUI';
+import { PetCareScreen, PetCareHeader, PetCareEmptyState, QueryState, ResponsiveGrid } from '../../../../components/client/PetCareUI';
 import { ProductDetailModal, PromotionCarousel, StoreBannerCarousel, StoreProductCard } from '../../../../components/client/Storefront';
 import { AppInput } from '../../../../components/forms/AppInput';
 import { AppText } from '../../../../components/ui/AppText';
@@ -17,6 +17,7 @@ import { FilterDisclosure } from '../../../../components/ui/FilterDisclosure';
 import { SearchFilterBar } from '../../../../components/ui/SearchFilterBar';
 import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
+import { isWebAtLeast, responsiveLayout } from '../../../../constants/responsive';
 
 type ProductSort = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 
@@ -49,7 +50,8 @@ export default function StoreScreen() {
   const [cartSnapshot, setCartSnapshot] = useState<Cart | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
-  const columns = windowWidth < 340 ? 1 : Platform.OS === 'web' && windowWidth >= 1200 ? 4 : Platform.OS === 'web' && windowWidth >= 768 ? 3 : 2;
+  const adaptiveGrid = isWebAtLeast(Platform.OS,windowWidth,responsiveLayout.breakpoints.tablet);
+  const columns = windowWidth < 340 ? 1 : 2;
 
   const catalog = useClientQuery(api.categories);
   const cart = useClientQuery(api.cart);
@@ -218,7 +220,7 @@ export default function StoreScreen() {
     <QueryState {...cart} />
     <QueryState {...query} />
     {query.data && <AppText variant="subtitle">Productos disponibles</AppText>}
-    {query.data && (products.length ? <View style={styles.productGrid}>
+    {query.data && (products.length ? adaptiveGrid ? <ResponsiveGrid>{products.map(product=><StoreProductCard key={product.id} product={product} adding={savingProduct===product.id} cartReady={Boolean(currentCart)} onOpen={()=>openProduct(product)} onAdd={()=>void addToCart(product,1)}/>)}</ResponsiveGrid> : <View style={styles.productGrid}>
       {productRows.map((row, index) => <View key={`product-row-${index}`} style={styles.productRow}>
         {row.map(product => <View key={product.id} style={styles.productCell}><StoreProductCard product={product} adding={savingProduct === product.id} cartReady={Boolean(currentCart)} onOpen={() => openProduct(product)} onAdd={() => void addToCart(product, 1)} /></View>)}
         {row.length < columns && <View style={styles.productCell} />}
