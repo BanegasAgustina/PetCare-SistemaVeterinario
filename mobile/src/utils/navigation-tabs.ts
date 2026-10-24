@@ -63,14 +63,5 @@ export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:s
       ||/^\/admin\/catalog\/(?:products|categories|promotions)(?:\/|$)/.test(pathname);
     destination=clinicRoute?'/admin/clinic':storeRoute?'/admin/store':'/admin/administration';
   }
-  const fallback=destination&&items.some(item=>item.path===destination)
-    ?destination
-    :items.find(item=>item.path==='/client'&&role==='CLIENT')?.path
-      ??items.find(item=>item.path==='/admin'&&['ADMIN','SUPER_ADMIN'].includes(role))?.path
-      ??items.find(item=>item.path==='/vet'&&role==='VETERINARIAN')?.path
-      ??items.find(item=>item.path==='/professional'&&role==='GROOMER')?.path
-      ??items.find(item=>item.path==='/secretary'&&role==='SECRETARY')?.path
-      ??items.find(item=>item.path==='/workspace')?.path
-      ??items[0]?.path;
-  return fallback??null;
+  return destination&&items.some(item=>item.path===destination)?destination:null;
 }

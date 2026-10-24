@@ -1,4 +1,4 @@
-/** Navegación original del cliente: conserva sus cinco pestañas nativas y el stack de compra. */
+/** Conserva los stacks y estados de las pestañas del cliente; la barra visible la aporta el layout global. */
 import { Stack, Tabs } from 'expo-router';
 import { useTheme } from '../../../hooks/useTheme';
 import { StoreCheckoutProvider } from '../../../contexts/StoreCheckoutContext';

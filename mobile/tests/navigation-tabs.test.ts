@@ -37,9 +37,11 @@ describe('shared bottom navigation',()=>{
 		assert.equal(activePrimaryNavigationPath('CLIENT','/client/orders/12',items(pathsByRole.CLIENT)),'/client/profile');
 		assert.equal(activePrimaryNavigationPath('VETERINARIAN','/vet/patient',items(pathsByRole.VETERINARIAN)),'/vet/patients');
 		assert.equal(activePrimaryNavigationPath('VETERINARIAN','/vet/profile',items(pathsByRole.VETERINARIAN)),'/vet/profile');
+		assert.equal(activePrimaryNavigationPath('VETERINARIAN','/vet/client',items(pathsByRole.VETERINARIAN)),null);
 		assert.equal(activePrimaryNavigationPath('GROOMER','/professional/appointment',items(pathsByRole.GROOMER)),'/professional/agenda');
 		assert.equal(activePrimaryNavigationPath('SECRETARY','/secretary/reservation',items(pathsByRole.SECRETARY)),'/secretary/reservations');
 		assert.equal(activePrimaryNavigationPath('SECRETARY','/account',items(pathsByRole.SECRETARY)),'/account');
+		assert.equal(activePrimaryNavigationPath('SECRETARY','/secretary/client',items(pathsByRole.SECRETARY)),null);
 		assert.equal(activePrimaryNavigationPath('ADMIN','/admin/catalog/products',items(pathsByRole.ADMIN)),'/admin/store');
 		assert.equal(activePrimaryNavigationPath('ADMIN','/admin/users/12',items(pathsByRole.ADMIN)),'/admin/administration');
 	});
