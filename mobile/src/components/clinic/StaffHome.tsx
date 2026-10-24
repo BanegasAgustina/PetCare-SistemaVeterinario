@@ -8,7 +8,8 @@ import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHeader,PetCareCard,PetCareAction,PetCareEmptyState,PetImage,QueryState,statusLabel,ResponsiveGrid,type IconName } from '../client/PetCareUI';
+import { PetCareScreen,PetCareHeader,PetCareCard,PetCareEmptyState,PetImage,QueryState,statusLabel,ResponsiveGrid,type IconName } from '../client/PetCareUI';
+import { RoleQuickAccess } from '../layout/RoleQuickAccess';
 import { AppText } from '../ui/AppText';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { AppButton } from '../ui/AppButton';
@@ -17,14 +18,11 @@ import { ProfilePhotoInput,type PickedProfilePhoto } from '../forms/ProfilePhoto
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
-function SharedStaffHome(){const {user,hasPermission,request,refreshProfile}=useAuth();const api=useClinic();const query=useClientQuery(api.home);const [photoLoading,setPhotoLoading]=useState(false),[photoError,setPhotoError]=useState<string|null>(null),[photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const {showToast}=useFeedback();const base=user?.role==='VETERINARIAN'?'/vet':user?.role==='GROOMER'?'/professional':'/secretary';
+function SharedStaffHome(){const {user,request,refreshProfile}=useAuth();const api=useClinic();const query=useClientQuery(api.home);const [photoLoading,setPhotoLoading]=useState(false),[photoError,setPhotoError]=useState<string|null>(null),[photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const {showToast}=useFeedback();
  async function savePhoto(){if(!photo)return;setPhotoLoading(true);setPhotoError(null);try{await request('/vet/profile/photo',{method:'PUT',body:{photoBase64:photo.base64}});await refreshProfile();setPhoto(null);showToast('Foto de perfil actualizada','success');}catch(error){setPhotoError(error instanceof Error?error.message:'No pudimos guardar la foto. Intentá nuevamente.');}finally{setPhotoLoading(false);}}
  return <PetCareScreen><PetCareHeader title={`Hola, ${user?.firstName??''}`} subtitle={user?.professional?.name??user?.roleName}/>{user?.role==='VETERINARIAN'&&<PetCareCard><View style={{alignItems:'center',gap:12}}><ProfilePhotoInput currentUri={user.profilePhotoUrl??null} photo={photo} onSelect={setPhoto} onRemove={()=>setPhoto(null)} disabled={photoLoading} allowCamera removable={false} size={84}/>{photo&&<AppButton label="Guardar foto" loading={photoLoading} disabled={photoLoading} onPress={()=>void savePhoto()}/>}<FormNotice error message={photoError}/></View></PetCareCard>}<QueryState {...query}/>{query.data&&<PetCareCard>{query.data.todayCount!==null&&<AppText variant="subtitle">Turnos de hoy: {query.data.todayCount}</AppText>}{query.data.pendingCount!==null&&<AppText>Solicitudes pendientes: {query.data.pendingCount}</AppText>}{query.data.pendingReservations!==null&&<AppText>Reservas solicitadas: {query.data.pendingReservations}</AppText>}</PetCareCard>}{query.data?.nextAppointment&&<PetCareCard><AppText variant="subtitle">Próximo paciente</AppText><AppText>{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText><AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText></PetCareCard>}
- {(hasPermission('appointments.view_own')||hasPermission('appointments.view_all'))&&<PetCareAction title="Agenda y turnos" icon="calendar-outline" onPress={()=>router.push(`${base}/agenda` as never)}/>}
- {user?.role==='VETERINARIAN'&&hasPermission('pets.view_information')&&<PetCareAction title="Mis pacientes" icon="paw-outline" onPress={()=>router.push('/vet/patients' as never)}/>}
- {hasPermission('reservations.view_all')&&<PetCareAction title="Reservas para retiro" icon="bag-handle-outline" onPress={()=>router.push(`${base}/reservations` as never)}/>}
- {user?.role==='SECRETARY'&&hasPermission('users.view_basic')&&<PetCareAction title="Clientes" icon="people-outline" onPress={()=>router.push('/secretary/clients' as never)}/>}
- <AppButton label="Mi perfil" variant="secondary" onPress={()=>router.push('/account')}/></PetCareScreen>;
+ <RoleQuickAccess/>
+ </PetCareScreen>;
 }
 export function StaffLayoutHome(){return <StaffHome/>;}
 export function StaffHome(){const {user}=useAuth();return user?.role==='VETERINARIAN'?<VeterinarianHome/>:user?.role==='GROOMER'?<GroomerHome/>:<SharedStaffHome/>;}
@@ -47,6 +45,7 @@ function GroomerHome(){
    <AppText variant="subtitle">Próximos turnos</AppText>
    {upcoming.length?<ResponsiveGrid maxColumns={3}>{upcoming.map(item=><Pressable key={item.id} accessibilityRole="button" onPress={()=>router.push({pathname:'/professional/appointment' as never,params:{id:item.id}})}><PetCareCard><View style={{flexDirection:'row',alignItems:'center',gap:12}}><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{String(item.petName)}</AppText><AppText muted numberOfLines={1}>{clinicDateTime(String(item.startsAt))} · {String(item.service)}</AppText></View><AppText variant="caption">{statusLabel(String(item.status))}</AppText></View></PetCareCard></Pressable>)}</ResponsiveGrid>:<PetCareEmptyState title="No hay próximos turnos" message="Los nuevos turnos aparecerán acá cuando se asignen a tu agenda." icon="calendar-outline"/>}
   </>}
+  <RoleQuickAccess/>
  </PetCareScreen>;
 }
 
@@ -74,6 +73,7 @@ function VeterinarianHome(){
    {upcoming.length>0&&<AppText variant="subtitle">Próximo paciente</AppText>}
    {upcoming.length>0&&(isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet)?<ResponsiveGrid>{appointmentCards}</ResponsiveGrid>:<ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{gap:12,paddingBottom:8}}>{upcoming.map(item=>renderAppointmentCard(item,260))}</ScrollView>)}
    {query.data&&appointments.length===0&&<AppText muted>Hoy no tenés turnos asignados.</AppText>}
+   <RoleQuickAccess/>
  </PetCareScreen>;
 }
 // Los formularios y listas se comparten sin duplicar registros según el rol.

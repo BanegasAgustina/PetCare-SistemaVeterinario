@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { requestPushPermissionAndToken, storedPushToken, clearStoredPushToken, hasRegisteredPushPermission } from '../../services/push-notifications';
 import { notificationPath } from '../../services/notification-path';
-import { subscribeToNotificationChanges } from '../../services/notification-events';
+import { publishNotificationChange, subscribeToNotificationChanges } from '../../services/notification-events';
 
 export default function NotificationsScreen(){
   const api=useClient();
@@ -32,9 +32,8 @@ export default function NotificationsScreen(){
       .then(enabled=>{if(active)setPushEnabled(enabled);})
       .catch(()=>console.error('No se pudo consultar el registro de notificaciones del dispositivo.'));
     const unsubscribe=subscribeToNotificationChanges(query.reload);
-    const interval=setInterval(query.reload,30_000);
     const appState=AppState.addEventListener('change',state=>{if(state==='active'&&Platform.OS!=='web')void hasRegisteredPushPermission().then(enabled=>{if(active)setPushEnabled(enabled);}).catch(()=>console.error('No se pudo actualizar el permiso de notificaciones del dispositivo.'));});
-    return ()=>{active=false;unsubscribe();clearInterval(interval);appState.remove();};
+    return ()=>{active=false;unsubscribe();appState.remove();};
   },[query.reload]);
   const enablePush=()=>void action.run(async()=>{
     const token=await requestPushPermissionAndToken();
@@ -51,7 +50,7 @@ export default function NotificationsScreen(){
   });
   const readAll=()=>void action.run(async()=>{
     await api.readAllNotifications();
-    query.reload();
+    publishNotificationChange();
   });
   const loadMore=()=>void action.run(async()=>{
     if(!pageCursor||!firstId)return;
@@ -78,11 +77,11 @@ export default function NotificationsScreen(){
       <AppText variant="caption" muted>{dateTime(n.createdAt)}</AppText>
       <AppButton label="Ver detalle" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{
         if(!n.readAt)await api.readNotification(n.id);
-        query.reload();
+        if(!n.readAt)publishNotificationChange();
         router.push(notificationPath(n.referenceType,n.referenceId));
       })}/>
-      {!n.readAt&&<AppButton label="Marcar como leída" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.readNotification(n.id);query.reload();})}/>}
-      <AppButton label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);query.reload();})}/>
+      {!n.readAt&&<AppButton label="Marcar como leída" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.readNotification(n.id);publishNotificationChange();})}/>}
+      <AppButton label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);publishNotificationChange();})}/>
     </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title="Estás al día" message="No tenés notificaciones nuevas." icon="notifications-outline"/>)}
     {!!pageCursor&&<AppButton label="Cargar más notificaciones" variant="secondary" loading={action.loading} onPress={loadMore}/>}
   </PetCareScreen>;

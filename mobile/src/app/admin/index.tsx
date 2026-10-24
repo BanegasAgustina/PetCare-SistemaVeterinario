@@ -11,6 +11,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { AppButton } from '../../components/ui/AppButton';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
+import { RoleQuickAccess } from '../../components/layout/RoleQuickAccess';
 
 type StoreStats = { newOrders:number;preparingOrders:number;pendingDelivery:number;ordersInTransit:number;salesTodayCents:number;ordersToday:number;pendingPayments:number;outOfStockProducts:number;lowStockProducts:number;promotionsExpiring?:number;expiredBanners?:number;scheduledBanners?:number };
 type AdminHomeData = { modules:{code:string;name:string;path:string}[];storeStats?:StoreStats;recentActivity?:{id:string;orderId:string;clientName:string;stateType:string;newStatus:string;occurredAt:string}[] };
@@ -82,6 +83,7 @@ export default function AdminHome() {
       </>}
     </View>}
     {auth.hasPermission('store.banners.manage')&&<View style={styles.section}><View style={styles.bannerHeading}><AppText variant="subtitle">Banners y slider</AppText><AppButton compact label="Gestionar" onPress={()=>router.push('/admin/store-banners')}/></View><QueryState {...bannersQuery}/>{bannersQuery.data?.items.length===0&&<PetCareCard><AppText muted>No hay banners todavía. Creá el primero para mostrar campañas en la tienda.</AppText></PetCareCard>}{bannersQuery.data?.items.slice(0,3).map(banner=><Pressable key={banner.id} onPress={()=>router.push('/admin/store-banners')} accessibilityRole="button" style={[styles.bannerPreview,desktop&&{backgroundColor:colors.surface,borderColor:colors.border,borderWidth:1}]}><Image source={{uri:banner.mobileImageUrl}} resizeMode="cover" style={[styles.bannerImage,desktop&&{backgroundColor:colors.accent}]}/><View style={styles.bannerInfo}><AppText variant="subtitle" numberOfLines={1}>{banner.title||'Banner sin título'}</AppText><AppText variant="caption" muted>{banner.isActive?'Activo':'Inactivo'}{banner.endsAt?` · Hasta ${String(banner.endsAt).slice(0,10)}`:''}</AppText></View><Ionicons name="chevron-forward" size={18} color={desktop?colors.muted:'#6d7b75'}/></Pressable>)}</View>}
+    <RoleQuickAccess/>
   </PetCareScreen>;
 }
 

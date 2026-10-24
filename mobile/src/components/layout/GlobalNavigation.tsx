@@ -14,8 +14,10 @@ import type { IconName } from '../client/PetCareUI';
 import { PetCareLogo } from './PetCareLogo';
 import { modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
 import { RoleBottomNavigation } from './RoleBottomNavigation';
+import { RoleQuickAccessProvider } from './RoleNavigationContext';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
+import { selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
 
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
 type AdminModule = { code: string; name: string; path: string };
@@ -29,13 +31,13 @@ const adminGroups = ['Inicio', 'Clínica', 'Tienda', 'Administración'] as const
 function adminGroup(path: string): typeof adminGroups[number] {
   if (path === '/admin') return 'Inicio';
   if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
-  if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners'].includes(path)) return 'Tienda';
+  if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners','/admin/reservations'].includes(path)) return 'Tienda';
   return 'Administración';
 }
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
     '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
-    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/products':'Inventario y stock',
+    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/products':'Inventario y stock','/admin/reservations':'Reservas',
     '/admin/catalog/products':'Productos','/admin/catalog/categories':'Categorías','/admin/catalog/promotions':'Promociones y descuentos','/admin/store-banners':'Banners y slider','/admin/store-settings':'Envíos y entregas','/admin/store-orders':'Pedidos','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
   };
   return labels[module.path] ?? module.name;
@@ -46,10 +48,15 @@ const clientItems: MenuItem[] = [
   { label: 'Turnos', path: '/client/appointments', icon: 'calendar-outline' },
   { label: 'Tienda', path: '/client/store', icon: 'bag-handle-outline' },
   { label: 'Perfil', path: '/client/profile', icon: 'person-outline' },
+  { label: 'Mis pedidos', path: '/client/orders', icon: 'receipt-outline', group: 'Cuenta' },
+  { label: 'Historial médico', path: '/client/medical-history', icon: 'medical-outline', group: 'Salud' },
+  { label: 'Vacunas', path: '/client/vaccines', icon: 'shield-checkmark-outline', group: 'Salud' },
+  { label: 'Recetas', path: '/client/prescriptions', icon: 'document-text-outline', group: 'Salud' },
+  { label: 'Recomendaciones', path: '/client/recommendations', icon: 'heart-outline', group: 'Salud' },
 ];
 const staffItems: MenuItem[] = [
-  { label: 'Agenda y turnos', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
-  { label: 'Agenda y turnos', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
+  { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
+  { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
   { label: 'Pacientes', path: 'patients', icon: 'paw-outline', permission: 'pets.view_information' },
   { label: 'Reservas', path: 'reservations', icon: 'bag-handle-outline', permission: 'reservations.view_all', group: 'Tienda' },
   // Permite a secretaría consultar el catálogo cuando MySQL le concede products.view.
@@ -58,8 +65,8 @@ const staffItems: MenuItem[] = [
 ];
 const veterinarianItems: MenuItem[] = [
   { label: 'Inicio', path: '/vet', icon: 'home-outline' },
-  { label: 'Agenda y turnos', path: '/vet/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
-  { label: 'Agenda y turnos', path: '/vet/agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
+  { label: 'Agenda', path: '/vet/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
+  { label: 'Agenda', path: '/vet/agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
   { label: 'Pacientes', path: '/vet/patients', icon: 'paw-outline', permission: 'pets.view_information' },
   { label: 'Mis clientes', path: '/vet/clients', icon: 'people-outline', permission: 'pets.view_information' },
   { label: 'Productos', path: '/vet/products', icon: 'pricetags-outline', permission: 'products.view' },
@@ -68,8 +75,11 @@ const veterinarianItems: MenuItem[] = [
 const groomerItems: MenuItem[] = [
   { label: 'Panel principal', path: '/professional', icon: 'home-outline' },
   { label: 'Mi agenda', path: '/professional/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
-  { label: 'Mis mascotas atendidas', path: '/professional/patients', icon: 'paw-outline', permission: 'appointments.view_own' },
+  { label: 'Mi agenda', path: '/professional/agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
+  { label: 'Pacientes', path: '/professional/patients', icon: 'paw-outline', permission: 'appointments.view_own' },
+  { label: 'Pacientes', path: '/professional/patients', icon: 'paw-outline', permission: 'appointments.view_all' },
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_own' },
+  { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_all' },
   { label: 'Mi perfil', path: '/account', icon: 'person-outline' },
 ];
 function iconFor(code: string): IconName {
@@ -91,10 +101,9 @@ const adminTabs = [
   { label: 'Administración', path: '/admin/administration', icon: 'settings-outline' as const },
 ];
 
-function AdminBottomNavigation({ pathname, personalItems }: { pathname: string; personalItems: MenuItem[] }) {
-  const personalActive=personalItems.find(item=>pathname===item.path||pathname.startsWith(`${item.path}/`))?.path;
-  const active = personalActive??(pathname === '/admin' ? '/admin' : pathname.startsWith('/admin/clinic') ? '/admin/clinic' : pathname.startsWith('/admin/store') || pathname.startsWith('/admin/products') || pathname.startsWith('/admin/catalog/') && !pathname.includes('services') ? '/admin/store' : pathname.startsWith('/admin/catalog/services') || pathname.startsWith('/admin/patients') || pathname.startsWith('/admin/agenda') || pathname.startsWith('/admin/availability') ? '/admin/clinic' : '/admin/administration');
-  return <RoleBottomNavigation items={[...adminTabs,...personalItems]} activePath={active} onNavigate={path=>router.replace(path as never)}/>;
+function AdminBottomNavigation({ pathname }: { pathname: string }) {
+  const active = pathname === '/admin' ? '/admin' : pathname.startsWith('/admin/clinic') || ['/admin/patients','/admin/agenda','/admin/availability','/admin/professionals','/admin/veterinarians','/admin/specialties'].includes(pathname) || pathname==='/admin/catalog/services' ? '/admin/clinic' : pathname.startsWith('/admin/store') || pathname.startsWith('/admin/products') || pathname.startsWith('/admin/catalog/') || pathname==='/admin/reservations' ? '/admin/store' : '/admin/administration';
+  return <RoleBottomNavigation items={adminTabs} activePath={active} onNavigate={path=>router.replace(path as never)}/>;
 }
 
 function isAdminFullScreenRoute(pathname: string) {
@@ -115,7 +124,7 @@ function isRoleDetailRoute(pathname:string) {
 
 function VeterinarianBottomNavigation({ pathname, items }: { pathname: string; items: MenuItem[] }) {
   const active = [...items].filter(tab => pathname === tab.path || pathname.startsWith(`${tab.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
-  return <RoleBottomNavigation items={items} activePath={active?.path??pathname} onNavigate={path=>router.replace(path as never)}/>;
+  return <RoleBottomNavigation items={items} activePath={active?.path??items.find(item=>item.path==='/vet')?.path??pathname} onNavigate={path=>router.replace(path as never)}/>;
 }
 
 export function GlobalNavigation({ children }: PropsWithChildren) {
@@ -145,19 +154,18 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     if (!isClient) return () => { active = false; };
-    const refreshUnread=()=>void request<{ unreadNotifications?: number }>('/client/home').then(result => { if (active) setUnreadNotifications(result.unreadNotifications ?? 0); }).catch(() => { if (active) setUnreadNotifications(0); });
+    const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifications?limit=1').then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
     refreshUnread();
     const unsubscribe=subscribeToNotificationChanges(refreshUnread);
-    const interval=setInterval(refreshUnread,30_000);
-    return () => { active = false;unsubscribe();clearInterval(interval); };
-  }, [request, user?.id, isClient, pathname]);
+    return () => { active = false;unsubscribe(); };
+  }, [request, user?.id, isClient]);
   const items = useMemo<MenuItem[]>(() => {
     if (!user) return [];
-    if (user.role === 'CLIENT') return clientItems;
+  if (user.role === 'CLIENT') return clientItems;
     const personalItems: MenuItem[]=personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}));
     if (isAdmin) return [
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
-      ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties','/admin/reservations'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
+      ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
       ...personalItems,
     ];
     if (isCustomRole) return [
@@ -179,11 +187,15 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     ];
     return [...new Map(permitted.map(item => [item.path, item])).values()];
   }, [visibleAdminModules, hasPermission, user, base, isAdmin, isCustomRole]);
+  const primaryItems = useMemo<MenuItem[]>(() => isAdmin ? adminTabs : selectPrimaryNavigation(user?.role??'',items), [isAdmin,items,user?.role]);
+  const quickAccessItems = useMemo<MenuItem[]>(() => selectSecondaryNavigation(user?.role??'',items,primaryItems), [items,primaryItems,user?.role]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const desktopItems = useMemo(() => isClient
     ? [...items, { label: unreadNotifications ? `Notificaciones (${unreadNotifications})` : 'Notificaciones', path: '/client/notifications', icon: 'notifications-outline' as const }]
     : items, [items, isClient, unreadNotifications]);
   const desktopSelected = [...desktopItems].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
+  const primarySelected=primaryItems.filter(item=>pathname===item.path||pathname.startsWith(`${item.path}/`)).sort((a,b)=>b.path.length-a.path.length)[0];
+  const activePrimaryPath=primarySelected?.path??primaryItems.find(item=>item.path===base||item.path==='/workspace')?.path??null;
   const adminBack = () => {
     if (pathname.startsWith('/admin/users/')) return router.replace('/admin/users');
     if (pathname.startsWith('/admin/veterinarians/')) return router.replace('/admin/veterinarians');
@@ -196,20 +208,20 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
 
   if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
     <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-    <View style={styles.desktopPage}>{children}</View>
+    <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   if (isAdmin) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
     </SafeAreaView>}
-    <View style={styles.adminPage}>{children}</View>
-    {!isAdminFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<AdminBottomNavigation pathname={pathname} personalItems={personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}))}/>}
+    <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+    {!isAdminFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<AdminBottomNavigation pathname={pathname}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   if (isVeterinarian && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
     <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-    <View style={styles.desktopPage}>{children}</View>
+    <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   if (isVeterinarian) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -219,8 +231,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
         <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/vet/profile')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
       </View>
     </SafeAreaView>}
-    <View style={styles.adminPage}>{children}</View>
-    {!isVeterinarianFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<VeterinarianBottomNavigation pathname={pathname} items={items}/>}
+    <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+    {!isVeterinarianFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<VeterinarianBottomNavigation pathname={pathname} items={primaryItems}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><AdminModulesLoadingContext.Provider value={isAdmin && adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
@@ -242,11 +254,11 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     </View>}
     {desktop ? <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot,{backgroundColor:colors.background}]}>
       <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-      <View style={styles.desktopPage}>{children}</View>
+      <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
     </View> : <View style={styles.body}>
-      <View style={styles.page}>{children}</View>
+      <View style={styles.page}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
     </View>}
-    {!isClient&&!desktop&&!isRoleDetailRoute(pathname)&&<RoleBottomNavigation items={items} activePath={selected?.path??null} onNavigate={navigate}/>}
+    {!isClient&&!desktop&&!isRoleDetailRoute(pathname)&&<RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>}
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 

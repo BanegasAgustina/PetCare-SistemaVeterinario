@@ -47,11 +47,11 @@ test('real transfer and proof upload use the registered authenticated client rou
  assert.deepEqual({path:requests[1].path,method:requests[1].method,contentType:requests[1].contentType,headers:requests[1].headers},{path:'/client/payment-intents/27/proof',method:'POST',contentType:'application/pdf',headers:{'X-Payment-Reference':'OP-123'}});assert.equal(requests[2].path,'/client/orders/481/payment-intents');
 });
 
-test('clinical sections keep a route back to the client home through their shared header',async()=>{
+test('clinical sections remain reachable through Home quick access and keep their route back home',async()=>{
  const root=path.resolve(process.cwd(),'src');
- const [home,header,clinical,...routes]=await Promise.all(['app/client/(tabs)/index.tsx','components/client/PetCareUI.tsx','components/client/ClinicalScreen.tsx','app/client/medical-history.tsx','app/client/vaccines.tsx','app/client/prescriptions.tsx'].map(file=>readFile(path.join(root,file),'utf8')));
+ const [home,navigation,quickAccess,header,clinical,...routes]=await Promise.all(['app/client/(tabs)/index.tsx','components/layout/GlobalNavigation.tsx','components/layout/RoleQuickAccess.tsx','components/client/PetCareUI.tsx','components/client/ClinicalScreen.tsx','app/client/medical-history.tsx','app/client/vaccines.tsx','app/client/prescriptions.tsx'].map(file=>readFile(path.join(root,file),'utf8')));
  for(const route of routes)assert.match(route,/ClinicalScreen/);
- assert.match(home,/router\.push\('\/client\/medical-history'\)/);assert.match(home,/router\.push\('\/client\/vaccines'\)/);assert.match(home,/router\.push\('\/client\/prescriptions'\)/);
+ assert.match(home,/RoleQuickAccess/);for(const route of ['/client/medical-history','/client/vaccines','/client/prescriptions','/client/recommendations'])assert.ok(navigation.includes(route));assert.match(quickAccess,/router\.push\(item\.path as never\)/);
  assert.match(clinical,/PetCareHeader[^>]+homeBack/);assert.match(header,/homeBack\?router\.replace\(roleHome\(user\)\)/);
 });
 

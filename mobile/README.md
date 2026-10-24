@@ -4,23 +4,25 @@ AAAAAA
 
 La experiencia Cliente está en `src/app/client`, con cinco pestañas y services autenticados. Ver [rutas, componentes, datos y pruebas](../IMPLEMENTACION_CLIENTE.md).
 
-React Native con Expo SDK 58, React 19.3, React Native 0.88.0-rc.3, TypeScript y Expo Router. Login, Registro y perfil protegido con logo real, temas claro/oscuro y sesión mediante AuthContext.
+React Native con Expo SDK 58, React 19.3, React Native 0.88.0, TypeScript y Expo Router. Login, Registro y perfil protegido con logo real, temas claro/oscuro y sesión mediante AuthContext.
 
 Se conserva la arquitectura en src y las imágenes originales. OAuth y gestión de mascotas utilizan servicios del backend y datos reales.
 
 ## Ejecutar
 
-Requisitos: Node.js >= 22.13 y Expo Go compatible con SDK 58.
+Requisitos: Node.js >= 22.13 y un cliente de desarrollo compatible con Expo SDK 58. Expo Go solo sirve si hay una versión instalada que soporte el SDK del proyecto.
 
 ```bash
 cd mobile
 npm install
-npx expo start
+npx expo start --dev-client
 ```
 
 Antes de iniciar Expo, copiar .env.example a .env y completar EXPO_PUBLIC_API_URL, por ejemplo http://192.168.1.20:3000/api (reemplazar por IP LAN real). Android físico: localhost apunta al teléfono; emulador Android estándar: usar http://10.0.2.2:3000/api. Web local: http://localhost:3000/api. Iniciar backend y preparar MySQL según su README. Reiniciar Expo tras cambiar variables.
 
-Android: escanear QR en Expo Go con ambos equipos en la misma red. Para emulador iniciado en Android Studio, presionar a. Un túnel Expo no publica automáticamente la API.
+Android: abrí la Development Build instalada y escaneá el QR con ambos equipos en la misma red. Para un emulador iniciado en Android Studio, presioná `a` después de instalar la build. Un túnel Expo no publica automáticamente la API.
+
+En la transición actual al SDK 58, Expo recomienda SDK 57 para proyectos abiertos con Expo Go en un Android físico. Este proyecto permanece en SDK 58; usá su Development Build para ejecutarlo en Android. `npx expo install --check` valida dependencias del SDK, pero no vuelve compatible una versión de Expo Go con otro SDK.
 
 Alternativas: `npm start`, `npm run android`, `npm run ios` (simulador requiere macOS) y `npm run web` para revisión auxiliar.
 
@@ -96,7 +98,7 @@ Google, Facebook y X usan OAuth Authorization Code en el backend. Google y X usa
 
 ### Expo Go
 
-Expo Go sirve para abrir la app durante desarrollo y probar las pantallas o el login tradicional si `EXPO_PUBLIC_API_URL` apunta a una API alcanzable por el teléfono. El OAuth social actual no puede completar el retorno `petcare://oauth` dentro de Expo Go porque Expo Go no registra el esquema nativo de PetCare. Usa una Development Build para probar OAuth. No guardes client secrets en Expo ni en el frontend de Vercel.
+Expo Go sirve para abrir la app durante desarrollo y probar las pantallas o el login tradicional si `EXPO_PUBLIC_API_URL` apunta a una API alcanzable por el teléfono. Actualizá Expo Go desde Google Play Store; para otra versión compatible, consultá [expo.dev/go](https://expo.dev/go) y seleccioná Android y el SDK disponible. Cada versión de Expo Go soporta un único SDK. Durante la transición al SDK 58, la guía de Expo recomienda SDK 57 para dispositivos físicos; actualizar Expo Go por sí solo no hace compatible este proyecto SDK 58. Usá la Development Build de SDK 58 indicada abajo. Expo Go tampoco admite push remoto en Android; el OAuth social no puede completar `petcare://oauth` porque Expo Go no registra el esquema nativo de PetCare. No guardes client secrets en Expo ni en el frontend de Vercel.
 
 ### Preparar EAS
 

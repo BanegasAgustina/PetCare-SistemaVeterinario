@@ -21,6 +21,7 @@ export const responsiveLayout = {
   grid: {
     minItemWidth: 280,
     minWideItemWidth: 360,
+    quickAccessMinItemWidth: 152,
     maxColumns: 4,
     gap: 16,
   },

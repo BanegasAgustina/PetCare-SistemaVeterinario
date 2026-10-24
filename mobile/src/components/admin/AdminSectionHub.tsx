@@ -21,6 +21,7 @@ const sections: Record<AdminSection, { title: string; subtitle: string; cards: C
     { title: 'Promociones', description: 'Descuentos, vigencia y productos alcanzados.', path: '/admin/catalog/promotions', icon: 'pricetag-outline', permissions: ['promotions.manage'] },
     { title: 'Envíos y entregas', description: 'Modalidades de retiro y envío configuradas para el checkout.', path: '/admin/store-settings', icon: 'bicycle-outline', permissions: ['store.settings.view', 'store.settings.manage'] },
     { title: 'Pedidos', description: 'Pagos, comprobantes, preparación, retiro y entrega.', path: '/admin/store-orders', icon: 'receipt-outline', permissions: ['orders.view_all'] },
+    { title: 'Reservas', description: 'Consultá las reservas de productos habilitadas para tu rol.', path: '/admin/reservations', icon: 'bag-handle-outline', permissions: ['reservations.view_all'] },
     { title: 'Banners y slider', description: 'Imágenes, vigencia, orden y vista previa de la tienda.', path: '/admin/store-banners', icon: 'images-outline', permissions: ['store.banners.manage'] },
   ] },
   administration: { title: 'Administración', subtitle: 'Personas, perfiles de acceso y permisos', cards: [
