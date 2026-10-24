@@ -33,7 +33,7 @@ export default function AdminProducts() {
   const auth = useAuth();
   const { request } = auth;
   const { showToast } = useFeedback();
-  const loadCategories=useCallback(()=>request<ProductCategories>('/admin/products/catalog'),[request]);
+  const loadCategories=useCallback(()=>request<ProductCategories>('/admin/products/catalog',{method:'POST',body:{}}),[request]);
   const catalog = useClientQuery(loadCategories);
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
@@ -49,9 +49,9 @@ export default function AdminProducts() {
   const [photoError,setPhotoError]=useState<string|null>(null);
   const {width}=useWindowDimensions();
   const desktopGrid=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);
-  const load = useCallback(() => request<Page>(`/admin/products?${new URLSearchParams({ search: submittedSearch, ...filters, page: String(page) })}`), [request, submittedSearch, filters, page]);
+  const load = useCallback(() => request<Page>('/admin/products/query',{method:'POST',body:{ search: submittedSearch, ...filters, page: String(page) }}), [request, submittedSearch, filters, page]);
   const query = useClientQuery(load);
-  const loadHistory=useCallback(()=>historyProductId?request<StockHistory>(`/admin/products/${encodeURIComponent(historyProductId)}/stock-movements`):Promise.resolve(null),[request,historyProductId]);
+  const loadHistory=useCallback(()=>historyProductId?request<StockHistory>(`/admin/products/${encodeURIComponent(historyProductId)}/stock-movements`,{method:'POST',body:{}}):Promise.resolve(null),[request,historyProductId]);
   const stockHistory=useClientQuery(loadHistory);
   const updateFilter = (key: keyof typeof filters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
 

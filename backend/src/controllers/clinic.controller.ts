@@ -7,5 +7,5 @@ import { presentProductImages } from '../services/pet-photo.service';
 import type { AuthUser } from '../types/auth';
 import { runDatabaseOperation } from '../utils/database-error';
 export function clinicHandler(operation:string,status=200):RequestHandler {
- return async(req,res,next)=>{try{const data=await runDatabaseOperation(()=>clinicOperation(res.locals.authenticatedUser as AuthUser,operation,req.params.id,req.body,req.query,req.params.kind as string|undefined));res.status(status).json({success:true,data:operation==='products'||operation==='admin-list'&&req.params.kind==='products'?await presentProductImages(data):data});}catch(error){next(error);}};
+ return async(req,res,next)=>{try{const query=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};const data=await runDatabaseOperation(()=>clinicOperation(res.locals.authenticatedUser as AuthUser,operation,req.params.id,req.body,query,req.params.kind as string|undefined));res.status(status).json({success:true,data:operation==='products'||operation==='admin-list'&&req.params.kind==='products'?await presentProductImages(data):data});}catch(error){next(error);}};
 }

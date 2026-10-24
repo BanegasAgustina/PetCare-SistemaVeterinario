@@ -21,7 +21,7 @@ test('no repite automáticamente consultas que reciben errores de esquema o base
 
   try {
     for (const [index, code] of ['SCHEMA_UPDATE_REQUIRED', 'DB_UNAVAILABLE'].entries()) {
-      await assert.rejects(apiRequest('/client/home'), error => error instanceof ApiError && error.code === code);
+      await assert.rejects(apiRequest('/client/home',{method:'POST',body:{}}), error => error instanceof ApiError && error.code === code);
       assert.equal(requests.length, index + 1);
     }
   } finally {

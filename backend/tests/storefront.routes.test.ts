@@ -19,7 +19,7 @@ test('store client routes are registered under /api/client behind authentication
   assert.ok(firstRoute >= 2, 'client auth and role middleware must precede routes');
   assert.equal(layers[0]?.handle, authenticate);
   for (const route of ['/store/promotions', '/store/fulfillment', '/store/banners']) {
-    assert.ok(layers.some(layer => layer.route?.path === route && layer.route.methods.get), `missing GET ${route}`);
+    assert.ok(layers.some(layer => layer.route?.path === route && layer.route.methods.post), `missing POST ${route}`);
   }
   assert.ok((apiRouter as unknown as { stack: RouteLayer[] }).stack.some(layer => layer.handle === clientRouter));
 });
@@ -48,7 +48,7 @@ test('store endpoints reject unauthenticated requests with 401 before database a
 test('store fulfillment administration route is registered behind clinic authentication', () => {
   const layers = (clinicRouter as unknown as { stack: RouteLayer[] }).stack;
   assert.equal(layers[0]?.handle, authenticate);
-  assert.ok(layers.some(layer => layer.route?.path === '/store-fulfillment' && layer.route.methods.get));
+  assert.ok(layers.some(layer => layer.route?.path === '/store-fulfillment' && layer.route.methods.post));
   assert.ok(layers.some(layer => layer.route?.path === '/store-fulfillment' && layer.route.methods.put));
 });
 
@@ -80,13 +80,13 @@ test('validation responses serialize field errors without exposing internal deta
 
 test('banner administration routes require the banner permission',()=>{
  const layers=(clinicRouter as unknown as {stack:RouteLayer[]}).stack;
- for(const [path,method] of [['/store-banners','get'],['/store-banners','post'],['/store-banners/:id','patch'],['/store-banners/:id','delete'],['/store-banners/order','put']] as const)
+ for(const [path,method] of [['/store-banners/query','post'],['/store-banners','post'],['/store-banners/:id','patch'],['/store-banners/:id','delete'],['/store-banners/order','put']] as const)
   assert.ok(layers.some(layer=>layer.route?.path===path&&layer.route.methods[method]),`missing ${method.toUpperCase()} ${path}`);
 });
 
 test('transfer proof access and payment review require SUPER_ADMIN and payment permission',async()=>{
  const layers=(clinicRouter as unknown as {stack:RouteLayer[]}).stack;
- for(const [path,method] of [['/store-orders/:id/proof','get'],['/store-orders/:id/payment-review','post']] as const){
+ for(const [path,method] of [['/store-orders/:id/proof','post'],['/store-orders/:id/payment-review','post']] as const){
   const route=layers.find(layer=>layer.route?.path===path&&layer.route.methods[method])?.route;assert.ok(route,`missing ${method} ${path}`);
   const guards=(route.stack??[]).slice(0,-1).map(layer=>layer.handle);assert.equal(guards.length,2);
   const run=(user:AuthUser,index:number)=>new Promise<unknown>(resolve=>guards[index]!({} as Request,{locals:{authenticatedUser:user}} as unknown as Response,error=>resolve(error)));

@@ -45,7 +45,7 @@ export default function SpecialtiesScreen() {
   const canEditSpecialties = auth.hasPermission('specialties.manage');
   const [tab, setTab] = useState<Tab>(() => canEditTypes || !canEditSpecialties ? 'types' : 'specialties');
   const request = auth.request;
-  const specialties = useClientQuery(useCallback(() => canEditSpecialties ? request<Specialty[]>('/admin/specialties') : Promise.resolve([]), [request, canEditSpecialties]));
+  const specialties = useClientQuery(useCallback(() => canEditSpecialties ? request<Specialty[]>('/admin/specialties/query',{method:'POST',body:{}}) : Promise.resolve([]), [request, canEditSpecialties]));
   const types = useClientQuery(useCallback(() => canEditTypes ? clinic.adminList('types') : Promise.resolve([]), [clinic, canEditTypes]));
   const roles = useClientQuery(useCallback(() => canEditTypes ? admin.catalog() : Promise.resolve(null), [admin, canEditTypes]));
 

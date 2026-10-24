@@ -16,8 +16,8 @@ async function main(){
   const [users]=await connection.execute("SELECT u.id,u.session_version FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='CLIENT' AND u.is_active=1 AND u.email_verified_at IS NOT NULL LIMIT 1");
   assert.ok(users.length,'QA requiere un CLIENT real verificado.');
   const token=jwt.sign({sessionVersion:Number(users[0].session_version)},process.env.JWT_ACCESS_SECRET,{algorithm:'HS256',subject:String(users[0].id),issuer:process.env.JWT_ISSUER||'petcare-api',audience:process.env.JWT_AUDIENCE||'petcare-mobile',expiresIn:900});
-  const me=await fetch('http://localhost:3097/api/auth/me',{headers:{Authorization:`Bearer ${token}`}});assert.equal(me.status,200);const user=(await me.json()).data.user;
-  const petsResponse=await fetch('http://localhost:3097/api/client/pets',{headers:{Authorization:`Bearer ${token}`}});const pets=(await petsResponse.json()).data;
+  const me=await fetch('http://localhost:3097/api/auth/me',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});assert.equal(me.status,200);const user=(await me.json()).data.user;
+  const petsResponse=await fetch('http://localhost:3097/api/client/pets/query',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});const pets=(await petsResponse.json()).data;
   await fs.mkdir(path.join(__dirname,'client'),{recursive:true});
   browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   const results=[];const errors=[];

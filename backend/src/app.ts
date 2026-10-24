@@ -25,7 +25,8 @@ app.use(helmet({strictTransportSecurity:env.nodeEnvironment==='production'?undef
 const photoUploadLimiter=createAuthRateLimiter();
 // El cuerpo de fotos se procesa solo tras autenticar; el resto conserva su límite.
 app.use(/^\/api\/client\/pets(?:\/\d+)?$/, (req,res,next)=> {
-  if(!['POST','PUT'].includes(req.method))return next();
+  const petUpload=(req.method==='POST'&&req.path==='/api/client/pets')||(req.method==='PUT'&&/^\/api\/client\/pets\/\d+$/.test(req.path));
+  if(!petUpload)return next();
   authenticate(req,res,error=>{if(error)return next(error);requirePersonalAccess(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(/^\/api\/client\/payment-intents\/\d+\/proof$/, (req,res,next)=>{

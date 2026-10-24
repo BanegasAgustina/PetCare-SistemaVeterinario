@@ -38,11 +38,11 @@ export default function VeterinariansScreen() {
   const [loading,setLoading]=useState(false);const sequence=useRef(0);
   const [createOpen,setCreateOpen]=useState(false);const [createValues,setCreateValues]=useState(emptyVet);const [createErrors,setCreateErrors]=useState<Partial<Record<keyof VetValues,string>>>({});const [createPhoto,setCreatePhoto]=useState<PickedProfilePhoto|null>(null);
   const [selectedVetId,setSelectedVetId]=useState<string|null>(null);const [selectedVet,setSelectedVet]=useState<VetDetail|null>(null);const [detailLoading,setDetailLoading]=useState(false);const [detailError,setDetailError]=useState<string|null>(null);const [statusTarget,setStatusTarget]=useState<boolean|null>(null);
-  useEffect(()=>{if(!selectedVetId)return;let current=true;void request<VetDetail>(`/admin/veterinarians/${selectedVetId}`).then(vet=>{if(current)setSelectedVet(vet);}).catch(err=>{if(current)setDetailError(friendlyError(err));}).finally(()=>{if(current)setDetailLoading(false);});return()=>{current=false;};},[request,selectedVetId]);
+  useEffect(()=>{if(!selectedVetId)return;let current=true;void request<VetDetail>(`/admin/veterinarians/${selectedVetId}`,{method:'POST',body:{}}).then(vet=>{if(current)setSelectedVet(vet);}).catch(err=>{if(current)setDetailError(friendlyError(err));}).finally(()=>{if(current)setDetailLoading(false);});return()=>{current=false;};},[request,selectedVetId]);
   const load=useCallback(()=>{
     const attempt=++sequence.current;setLoading(true);setError(null);setResult(null);
-    const query=new URLSearchParams({search:submittedSearch,status,sort,page:String(page),...(specialty?{specialtyId:specialty}:{})});
-    void Promise.all([request<VetPage>(`/admin/veterinarians?${query}`),request<VetCatalog>('/admin/veterinarians/catalog')])
+    const filters={search:submittedSearch,status,sort,page:String(page),...(specialty?{specialtyId:specialty}:{})};
+    void Promise.all([request<VetPage>('/admin/veterinarians/query',{method:'POST',body:filters}),request<VetCatalog>('/admin/veterinarians/catalog',{method:'POST',body:{}})])
       .then(([value,options])=>{if(attempt===sequence.current){setResult(value);setCatalog(options);}})
       .catch(err=>{if(attempt===sequence.current)setError(friendlyError(err));}).finally(()=>{if(attempt===sequence.current)setLoading(false);});
     return ()=>{sequence.current++;};
@@ -98,7 +98,7 @@ export default function VeterinariansScreen() {
         <AppText><AppText variant="caption" muted>Estado · </AppText>{selectedVet.isActive?'Activo':'Inactivo'}</AppText>
         <AppText><AppText variant="caption" muted>Correo · </AppText>{selectedVet.emailVerified?'Verificado':'Sin verificar'}</AppText>
         <AppText><AppText variant="caption" muted>Invitación · </AppText>{invitationLabel(selectedVet.invitationStatus)}</AppText>
-        {auth.hasRole('SUPER_ADMIN')&&selectedVet.userId!==auth.user?.id&&!selectedVet.emailVerified&&<AppButton variant="secondary" label="Reenviar invitación" onPress={()=>void action.run(async()=>{const result=await request<{delivery:'sent'|'failed'}>(`/admin/users/${selectedVet.userId}/invitation`,{method:'POST'});const updated=await request<VetDetail>(`/admin/veterinarians/${selectedVet.id}`);setSelectedVet(updated);showToast(result.delivery==='sent'?'Invitación reenviada.':'No se pudo enviar el correo. Podés intentar más tarde.',result.delivery==='sent'?'success':'info');})}/>}
+        {auth.hasRole('SUPER_ADMIN')&&selectedVet.userId!==auth.user?.id&&!selectedVet.emailVerified&&<AppButton variant="secondary" label="Reenviar invitación" onPress={()=>void action.run(async()=>{const result=await request<{delivery:'sent'|'failed'}>(`/admin/users/${selectedVet.userId}/invitation`,{method:'POST'});const updated=await request<VetDetail>(`/admin/veterinarians/${selectedVet.id}`,{method:'POST',body:{}});setSelectedVet(updated);showToast(result.delivery==='sent'?'Invitación reenviada.':'No se pudo enviar el correo. Podés intentar más tarde.',result.delivery==='sent'?'success':'info');})}/>}
         {auth.hasRole('SUPER_ADMIN')&&selectedVet.userId!==auth.user?.id&&selectedVet.emailVerified&&<AppButton variant={selectedVet.isActive?'secondary':'primary'} destructive={selectedVet.isActive} label={selectedVet.isActive?'Desactivar veterinario':'Activar veterinario'} onPress={()=>setStatusTarget(!selectedVet.isActive)}/>}
       </>}
       <AppButton label="Cerrar" variant="secondary" onPress={()=>setSelectedVetId(null)}/>

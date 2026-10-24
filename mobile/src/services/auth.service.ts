@@ -64,6 +64,6 @@ export async function revokePushToken(accessToken:string,token:string):Promise<v
   await apiRequest('/client/notifications/push-token/revoke',{method:'POST',body:{token},accessToken});
 }
 export async function getCurrentUser(accessToken: string): Promise<AuthUser> {
-  const result = await apiRequest<{ user: unknown }>('/auth/me', { accessToken });
+  const result = await apiRequest<{ user: unknown }>('/auth/me', { method: 'POST', body: {}, accessToken });
   return readUser(result.user);
 }

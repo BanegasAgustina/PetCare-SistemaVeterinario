@@ -30,7 +30,7 @@ export default function AdminHome() {
   const clinicQuery=useClientQuery(clinic.home);
   const { hasPermission } = auth;
   const canManageBanners=hasPermission('store.banners.manage');
-  const loadBanners=useCallback(()=>request<BannersResult>('/clinic/store-banners'),[request]);
+  const loadBanners=useCallback(()=>request<BannersResult>('/clinic/store-banners/query',{method:'POST',body:{}}),[request]);
   const bannersQuery=useClientQuery(loadBanners);
   const clinicMetrics:Metric[]=[];
   if(auth.hasPermission('appointments.view_all')) {

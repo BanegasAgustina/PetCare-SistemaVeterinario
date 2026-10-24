@@ -8,13 +8,17 @@ import { clinicService } from '../src/services/clinic.service';
 import type { FulfillmentSettings } from '../src/types/client';
 
 test('client store services call the registered route suffixes', async () => {
-  const paths: string[] = [];
-  const request = async <T,>(endpoint: string): Promise<T> => { paths.push(endpoint); return [] as T; };
+  const requests: { path: string; method?: string; body?: unknown }[] = [];
+  const request = async <T,>(endpoint: string, options?: { method?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE'; body?: unknown }): Promise<T> => { requests.push({ path: endpoint, method: options?.method, body: options?.body }); return [] as T; };
   const api = clientService(request);
   await api.promotions();
   await api.banners();
   await api.fulfillment();
-  assert.deepEqual(paths, ['/client/store/promotions', '/client/store/banners', '/client/store/fulfillment']);
+  assert.deepEqual(requests, [
+    { path: '/client/store/promotions', method: 'POST', body: {} },
+    { path: '/client/store/banners', method: 'POST', body: {} },
+    { path: '/client/store/fulfillment', method: 'POST', body: {} },
+  ]);
 });
 
 test('notification service uses authenticated paginated and owner scoped routes', async()=>{
@@ -23,8 +27,8 @@ test('notification service uses authenticated paginated and owner scoped routes'
   const api=clientService(request);
   await api.notifications('82');await api.notificationPreferences();await api.updateNotificationPreferences({orderUpdatesEnabled:false});await api.hideNotification('42');
   assert.deepEqual(requests,[
-    {path:'/client/notifications?cursor=82'},
-    {path:'/client/notifications/preferences'},
+    {path:'/client/notifications',method:'POST',body:{cursor:'82'}},
+    {path:'/client/notifications/preferences/query',method:'POST',body:{}},
     {path:'/client/notifications/preferences',method:'PATCH',body:{orderUpdatesEnabled:false}},
     {path:'/client/notifications/42',method:'DELETE',body:{}},
   ]);
@@ -98,13 +102,13 @@ test('API adds /api once, accepts an empty promotions list and reports stale rou
     return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });
   }) as typeof fetch;
   try {
-    assert.deepEqual(await apiRequest('/client/store/promotions'), []);
+    assert.deepEqual(await apiRequest('/client/store/promotions',{method:'POST',body:{}}), []);
     assert.equal(requests[0], 'https://petcare.example/api/client/store/promotions');
 
     globalThis.fetch = (async () => new Response(JSON.stringify({
       success: false, error: { code: 'NOT_FOUND', message: 'Ruta no encontrada.' },
     }), { status: 404 })) as typeof fetch;
-    await assert.rejects(apiRequest('/client/store/promotions'), (error: unknown) => {
+    await assert.rejects(apiRequest('/client/store/promotions',{method:'POST',body:{}}), (error: unknown) => {
       assert.ok(error instanceof ApiError);
       assert.equal(error.status, 404);
       assert.match(error.message, /backend conectado todavía no tiene esta ruta/);

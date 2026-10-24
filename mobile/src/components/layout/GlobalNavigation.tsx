@@ -17,7 +17,7 @@ import { RoleBottomNavigation } from './RoleBottomNavigation';
 import { RoleQuickAccessProvider } from './RoleNavigationContext';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
-import { selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
+import { activePrimaryNavigationPath, selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
 
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
 type AdminModule = { code: string; name: string; path: string };
@@ -101,32 +101,6 @@ const adminTabs = [
   { label: 'Administración', path: '/admin/administration', icon: 'settings-outline' as const },
 ];
 
-function AdminBottomNavigation({ pathname }: { pathname: string }) {
-  const active = pathname === '/admin' ? '/admin' : pathname.startsWith('/admin/clinic') || ['/admin/patients','/admin/agenda','/admin/availability','/admin/professionals','/admin/veterinarians','/admin/specialties'].includes(pathname) || pathname==='/admin/catalog/services' ? '/admin/clinic' : pathname.startsWith('/admin/store') || pathname.startsWith('/admin/products') || pathname.startsWith('/admin/catalog/') || pathname==='/admin/reservations' ? '/admin/store' : '/admin/administration';
-  return <RoleBottomNavigation items={adminTabs} activePath={active} onNavigate={path=>router.replace(path as never)}/>;
-}
-
-function isAdminFullScreenRoute(pathname: string) {
-  return /^\/admin\/(?:patient|appointment|reservation)(?:\/[^/]+)?$/.test(pathname)
-    || /^\/admin\/(?:users|veterinarians)\/[^/]+$/.test(pathname)
-    || pathname==='/account';
-}
-
-function isVeterinarianFullScreenRoute(pathname: string) {
-  return ['/vet/profile', '/vet/appointment', '/vet/patient', '/vet/record', '/vet/client', '/vet/clients'].includes(pathname);
-}
-function isRoleDetailRoute(pathname:string) {
-  return /^\/(?:professional|secretary)\/(?:appointment|patient|reservation|client)(?:\/[^/]+)?$/.test(pathname)
-    || /^\/admin\/(?:patient|appointment|reservation)$/.test(pathname)
-    || ['/client/store/cart','/client/store/checkout','/client/store/delivery'].includes(pathname)
-    || /^\/client\/store\/[^/]+$/.test(pathname);
-}
-
-function VeterinarianBottomNavigation({ pathname, items }: { pathname: string; items: MenuItem[] }) {
-  const active = [...items].filter(tab => pathname === tab.path || pathname.startsWith(`${tab.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
-  return <RoleBottomNavigation items={items} activePath={active?.path??items.find(item=>item.path==='/vet')?.path??pathname} onNavigate={path=>router.replace(path as never)}/>;
-}
-
 export function GlobalNavigation({ children }: PropsWithChildren) {
   const auth = useAuth();
   const { colors } = useTheme();
@@ -148,13 +122,13 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     if (!isAdmin || !user?.id) return () => { active = false; };
-    void request<{ modules: AdminModule[] }>('/admin/home').then(result => { if (active) setAdminModulesResult({ userId: user.id, modules: result.modules }); }).catch(() => { if (active) setAdminModulesResult({ userId: user.id, modules: [] }); });
+    void request<{ modules: AdminModule[] }>('/admin/home',{method:'POST',body:{}}).then(result => { if (active) setAdminModulesResult({ userId: user.id, modules: result.modules }); }).catch(() => { if (active) setAdminModulesResult({ userId: user.id, modules: [] }); });
     return () => { active = false; };
   }, [request, user?.id, user?.role, isAdmin]);
   useEffect(() => {
     let active = true;
     if (!isClient) return () => { active = false; };
-    const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifications?limit=1').then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
+    const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifications',{method:'POST',body:{limit:1}}).then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
     refreshUnread();
     const unsubscribe=subscribeToNotificationChanges(refreshUnread);
     return () => { active = false;unsubscribe(); };
@@ -187,15 +161,16 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     ];
     return [...new Map(permitted.map(item => [item.path, item])).values()];
   }, [visibleAdminModules, hasPermission, user, base, isAdmin, isCustomRole]);
-  const primaryItems = useMemo<MenuItem[]>(() => isAdmin ? adminTabs : selectPrimaryNavigation(user?.role??'',items), [isAdmin,items,user?.role]);
+  const primaryItems = useMemo<MenuItem[]>(() => isAdmin
+    ? adminTabs.filter(tab=>tab.path==='/admin'||items.some(item=>item.group===tab.label))
+    : selectPrimaryNavigation(user?.role??'',items), [isAdmin,items,user?.role]);
   const quickAccessItems = useMemo<MenuItem[]>(() => selectSecondaryNavigation(user?.role??'',items,primaryItems), [items,primaryItems,user?.role]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const desktopItems = useMemo(() => isClient
     ? [...items, { label: unreadNotifications ? `Notificaciones (${unreadNotifications})` : 'Notificaciones', path: '/client/notifications', icon: 'notifications-outline' as const }]
     : items, [items, isClient, unreadNotifications]);
   const desktopSelected = [...desktopItems].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
-  const primarySelected=primaryItems.filter(item=>pathname===item.path||pathname.startsWith(`${item.path}/`)).sort((a,b)=>b.path.length-a.path.length)[0];
-  const activePrimaryPath=primarySelected?.path??primaryItems.find(item=>item.path===base||item.path==='/workspace')?.path??null;
+  const activePrimaryPath=activePrimaryNavigationPath(user?.role??'',pathname,primaryItems);
   const adminBack = () => {
     if (pathname.startsWith('/admin/users/')) return router.replace('/admin/users');
     if (pathname.startsWith('/admin/veterinarians/')) return router.replace('/admin/veterinarians');
@@ -203,12 +178,15 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     return router.canGoBack() ? router.back() : router.replace('/admin');
   };
 
-  if (!user) return <>{children}</>;
-  const navigate = (path: string) => router.replace(path as never);
+  if (!user || ['/login','/register','/reset-password','/change-initial-password','/oauth','/activate-account','/activate-vet'].includes(pathname)) return <>{children}</>;
+  const navigate = (path: string) => router.navigate(path as never);
 
-  if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
-    <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-    <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+  if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
+      <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
+      <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+    </View>
+    <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   if (isAdmin) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
@@ -216,12 +194,15 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
     </SafeAreaView>}
     <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
-    {!isAdminFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<AdminBottomNavigation pathname={pathname}/>}
+    <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
-  if (isVeterinarian && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
-    <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-    <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+  if (isVeterinarian && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
+      <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
+      <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+    </View>
+    <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   if (isVeterinarian) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -232,7 +213,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       </View>
     </SafeAreaView>}
     <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
-    {!isVeterinarianFullScreenRoute(pathname)&&!isRoleDetailRoute(pathname)&&<VeterinarianBottomNavigation pathname={pathname} items={primaryItems}/>}
+    <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
   return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><AdminModulesLoadingContext.Provider value={isAdmin && adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
@@ -258,7 +239,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     </View> : <View style={styles.body}>
       <View style={styles.page}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
     </View>}
-    {!isClient&&!desktop&&!isRoleDetailRoute(pathname)&&<RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>}
+    <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 

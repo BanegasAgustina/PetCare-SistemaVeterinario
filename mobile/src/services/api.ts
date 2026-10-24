@@ -132,7 +132,7 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
     if (!response.ok || result?.success !== true) {
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
       reportApiFailure(code, response.status, options.method ?? 'GET', path);
-      const isStoreConfigurationRead = (options.method ?? 'GET') === 'GET' && /^\/client\/(?:cart|store\/(?:promotions|fulfillment|delivery-quote|addresses(?:\/|$)))$/.test(cleanPath.split('?')[0]);
+      const isStoreConfigurationRead = (options.method ?? 'GET') === 'POST' && /^\/client\/(?:cart|store\/(?:categories|fulfillment|promotions|banners|delivery-quote|addresses\/query|products(?:\/.*)?))$/.test(cleanPath.split('?')[0]);
       const serverMessage=typeof result?.error?.message==='string'?result.error.message:'';
       const message = code === 'NOT_FOUND' && isStoreConfigurationRead
         ? messages.ROUTE_NOT_FOUND

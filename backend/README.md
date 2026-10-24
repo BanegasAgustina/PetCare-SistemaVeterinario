@@ -4,6 +4,8 @@
 
 El módulo `/api/client` incorpora mascotas, turnos, clínica, tienda, carrito, pedidos, notificaciones y perfil con JWT/ownership. Ver [contratos, migración aditiva y verificación](../IMPLEMENTACION_CLIENTE.md).
 
+Las rutas internas de lectura autenticadas usan `POST` para transportar filtros en JSON. El inventario de rutas migradas y las excepciones `GET` están en [migración de lecturas GET a POST](../docs/api-read-post-migration.md).
+
 ## Autenticación tradicional
 
 Configurar además estas variables en .env:
@@ -44,7 +46,7 @@ Respuesta 200:
 {"success":true,"data":{"user":{"id":"1","firstName":"María","lastName":"Pérez","email":"maria@example.com","phone":"+541112345678","role":"CLIENT"},"accessToken":"<JWT emitido>","tokenType":"Bearer","expiresIn":900}}
 ```
 
-`GET /api/auth/me` exige `Authorization: Bearer <accessToken>` y devuelve 200 con el mismo contrato `data.user` de registro. Cada consulta verifica firma HS256, issuer, audience, expiración, sujeto, usuario activo y email verificado en MySQL. El JWT contiene identidad/fechas, no contraseña ni rol confiado desde mobile. Los ejemplos son ilustrativos, nunca seeds.
+`POST /api/auth/me` exige `Authorization: Bearer <accessToken>` y devuelve 200 con el mismo contrato `data.user` de registro. Cada consulta verifica firma HS256, issuer, audience, expiración, sujeto, usuario activo y email verificado en MySQL. El JWT contiene identidad/fechas, no contraseña ni rol confiado desde mobile. Los ejemplos son ilustrativos, nunca seeds.
 
 Las respuestas omiten password_hash, secretos y detalles internos. Usuario inexistente, inactivo y contraseña incorrecta comparten 401/INVALID_CREDENTIALS. Se compara un hash dummy cuando no existe usuario para reducir diferencias de tiempo. Login/registro admiten 30 intentos por IP en 15 minutos, con contadores independientes en memoria; múltiples instancias requerirán un almacén compartido. No configurar trust proxy sin conocer el despliegue.
 
@@ -431,23 +433,23 @@ Todas las respuestas usan `{success:true,data:...}` y errores seguros `{success:
 
 | Método / ruta | Acceso | Resultado |
 | --- | --- | --- |
-| GET /admin/veterinarians/catalog | SUPER_ADMIN + veterinarians.manage | Especialidades y permisos agrupables, flags critical e inherited |
-| GET /admin/veterinarians | Igual | items/page/pageSize/total/hasMore; 20 por página |
-| GET /admin/veterinarians/:id | Igual | Perfil, especialidades, estado de cuenta/correo/invitación, permisos efectivos y overrides |
+| POST /admin/veterinarians/catalog | SUPER_ADMIN + veterinarians.manage | Especialidades y permisos agrupables, flags critical e inherited |
+| POST /admin/veterinarians/query | Igual | items/page/pageSize/total/hasMore; filtros JSON en el cuerpo |
+| POST /admin/veterinarians/:id | Igual | Perfil, especialidades, estado de cuenta/correo/invitación, permisos efectivos y overrides |
 | POST /admin/veterinarians | Igual + permissions.manage | 201; veterinarian y delivery sent/failed/pending |
 | PUT /admin/veterinarians/:id | Igual + permissions.manage | Reemplaza datos, especialidades y excepciones en transacción |
 | PUT /admin/veterinarians/:id/permissions | Igual + permissions.manage | Reemplaza excepciones; devuelve perfil actualizado |
 | PATCH /admin/veterinarians/:id/status | SUPER_ADMIN + veterinarians.manage | Activación/desactivación sin borrar historial |
 | POST /admin/veterinarians/:id/invitation | Igual | Invita o inicia restablecimiento; delivery sent/failed |
-| GET /admin/specialties | SUPER_ADMIN + specialties.manage | Catálogo real |
+| POST /admin/specialties/query | SUPER_ADMIN + specialties.manage | Catálogo real |
 | POST /admin/specialties | Igual | 201; crea nombre único |
 | PUT /admin/specialties/:id | Igual | Renombra manteniendo relaciones; no ofrece DELETE |
 | POST /auth/veterinarian-invitations/accept | Público, rate limit | accepted:true; no inicia sesión ni retorna secretos |
-| GET /vet/home | VETERINARIAN autenticado | Perfil y módulos dinámicos; clinicalAvailable:false, sin métricas clínicas hasta implementar las consultas reales |
-| GET /vet/modules/:module | Igual + permiso de entrada del catálogo | Metadatos; 403 si no habilitado |
-| POST /auth/login / GET /auth/me | Contratos existentes | user incorpora roleName, permissions y veterinarian |
+| POST /vet/home | VETERINARIAN autenticado | Perfil y módulos dinámicos; clinicalAvailable:false, sin métricas clínicas hasta implementar las consultas reales |
+| POST /vet/modules/:module | Igual + permiso de entrada del catálogo | Metadatos; 403 si no habilitado |
+| POST /auth/login / POST /auth/me | Contratos existentes | user incorpora roleName, permissions y veterinarian |
 
-GET listado: `search` busca nombre/apellido/matrícula/email; `status=all|active|inactive`, `specialtyId=<string>`, `order=asc|desc`, `page=<entero positivo>`. ORDER y paginación usan listas blancas; consultas parametrizadas. El ID del recurso veterinario es `veterinarians.id`, no `users.id`.
+POST `/admin/veterinarians/query`: `search` busca nombre/apellido/matrícula/email; `status=all|active|inactive`, `specialtyId=<string>`, `sort=recent|oldest|az|za`, `page=<entero positivo>` se envían como JSON. ORDER y paginación usan listas blancas; consultas parametrizadas. El ID del recurso veterinario es `veterinarians.id`, no `users.id`.
 
 Cuerpo de crear/editar (sin role/password):
 
@@ -526,7 +528,7 @@ Compará los tipos de IDs/FKs con el SQL y confirmá que estén desplegadas las 
 - El endpoint `GET /api/cron/notifications` está montado en `backend/src/app.ts` y requiere `CRON_SECRET` de al menos 32 bytes y el header Bearer correcto. Una invocación autorizada puede enviar correos y push reales; probalo solo en Preview/test con cuentas controladas. Revisá Vercel Runtime Logs por `notification_cron_failed` y `notification_email_not_configured`; no habilites logs de Nodemailer ni imprimas headers, tokens o cuerpos.
 - Las suites automatizadas (`npm test` en backend y mobile) validan los utilitarios de token/fecha/ruta, contratos y flujos de checkout con mocks. No conectan Layerbase ni envían correo/push reales. La entrega externa requiere probar con un Android físico/development build o APK, permisos habilitados y credenciales EAS/FCM válidas.
 
-La API de cliente expone `GET /api/client/notifications?cursor=...`, `GET/PATCH /api/client/notifications/preferences`, `PATCH /api/client/notifications/read-all`, `PATCH /api/client/notifications/:id/read`, `DELETE /api/client/notifications/:id`, `POST /api/client/notifications/push-token` y `POST /api/client/notifications/push-token/revoke`; todos obtienen el destinatario del JWT/rol autenticado, nunca de un `userId` del cuerpo. El historial devuelve hasta 20 elementos por página (máximo 50), cursor y contador sin leer.
+La API de cliente expone `POST /api/client/notifications` (cursor/límite en JSON), `POST /api/client/notifications/preferences/query`, `PATCH /api/client/notifications/preferences`, `PATCH /api/client/notifications/read-all`, `PATCH /api/client/notifications/:id/read`, `DELETE /api/client/notifications/:id`, `POST /api/client/notifications/push-token` y `POST /api/client/notifications/push-token/revoke`; todos obtienen el destinatario del JWT/rol autenticado, nunca de un `userId` del cuerpo. El historial devuelve hasta 20 elementos por página (máximo 50), cursor y contador sin leer.
 
 ## Fotos persistentes
 
@@ -538,7 +540,7 @@ Configurar exclusivamente en el backend `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API
 
 ## Catálogo, carrito y checkout de demostración
 
-La tienda consulta `client_products` y `client_product_categories` del inventario PetCare. ADMIN y SUPER_ADMIN crean/actualizan productos mediante el formulario administrativo, sujeto a `products.update`, `products.create`, `products.update_price` y `products.update_stock`. El carrito usa `client_cart_items`, indexado por propietario y producto. `GET /api/client/cart` consulta el carrito propio; `PUT /api/client/cart/:id` recibe únicamente `{ "quantity": 1 }` (cantidad `0` quita el producto). El propietario sale del JWT. El backend comprueba producto activo, stock disponible descontando reservas históricas y el límite de cantidad; los importes se calculan con los precios actuales del catálogo.
+La tienda consulta `client_products` y `client_product_categories` del inventario PetCare. ADMIN y SUPER_ADMIN crean/actualizan productos mediante el formulario administrativo, sujeto a `products.update`, `products.create`, `products.update_price` y `products.update_stock`. El carrito usa `client_cart_items`, indexado por propietario y producto. `POST /api/client/cart` consulta el carrito propio; `PUT /api/client/cart/:id` recibe únicamente `{ "quantity": 1 }` (cantidad `0` quita el producto). El propietario sale del JWT. El backend comprueba producto activo, stock disponible descontando reservas históricas y el límite de cantidad; los importes se calculan con los precios actuales del catálogo.
 
 `POST /api/client/orders` crea únicamente pedidos `DEMO_PURCHASE` cuando `STORE_DEMO_MODE=true`. La variable vale `false` por defecto, incluso en desarrollo; habilitala explícitamente en el backend local o en un entorno de demostración. La app informa el estado y permite consultar el pedido en **Mis pedidos**. Los datos de tarjeta se validan solo en el dispositivo: el servidor nunca recibe PAN ni CVV. Acepta únicamente el número ficticio documentado en el checkout y no conecta una pasarela.
 
@@ -550,7 +552,7 @@ La migración está preparada, no aplicada. El archivo `002_pet_breed_name.sql` 
 
 ## Promociones, retiro y envío de la tienda
 
-La tienda lee banners desde promociones activas de `client_promotions`: el nombre, precio y vigencia de la promoción se combinan con la imagen del producto (o `banner_image_url` opcional), subtítulo y CTA. Administra promociones con `promotions.manage`, categorías con `categories.manage` y productos con los permisos de catálogo ya existentes. El nuevo `GET /api/client/store/promotions` expone solo promociones vigentes cuyo precio realmente está aplicado al producto.
+La tienda lee banners desde promociones activas de `client_promotions`: el nombre, precio y vigencia de la promoción se combinan con la imagen del producto (o `banner_image_url` opcional), subtítulo y CTA. Administra promociones con `promotions.manage`, categorías con `categories.manage` y productos con los permisos de catálogo ya existentes. `POST /api/client/store/promotions` expone solo promociones vigentes cuyo precio realmente está aplicado al producto.
 
 `client-migrations/004_store_fulfillment_settings.sql` agrega configuración singleton de retiro/envío, indicaciones, horarios, días, zonas y tarifas; define `store.settings.view` / `store.settings.manage` sin concederlas a ningún rol. `client-migrations/005_store_promotion_banners.sql` añade imagen opcional, subtítulo y texto de botón a promociones existentes. `client-migrations/006_store_orders_and_addresses.sql` prepara snapshots de pedido, historial separado de estados de pedido/entrega/pago, direcciones guardadas por cliente y permisos `orders.view_all`, `orders.manage`, `orders.payment.manage`, sin grants automáticos. `client-migrations/013_store_transfer_intents.sql` agrega compras reales por transferencia, intención con expiración persistida de cinco minutos y revisión de comprobantes; DNI se valida y descarta y nunca se almacena. `client-migrations/014_general_information.sql` crea la configuración pública de PetCare y otorga `settings.general.manage` al rol `SUPER_ADMIN`. La migración 014 es aditiva y está preparada, pero no fue aplicada durante esta tarea. El comprobante requiere el bucket S3 privado ya configurado por `BUCKET`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`, `REGION` y `ENDPOINT`. Las compras reales solo descuentan stock después de la aprobación administrativa. El migrador cliente requiere que se restaure/verifique la secuencia histórica ausente antes de usarse. Revisá respaldo recuperable, permisos de escritura e historial antes de ejecutar en Layerbase.
 

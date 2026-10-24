@@ -4,9 +4,9 @@ const primaryPathsByRole:Record<string,string[]>={
   CLIENT:['/client','/client/pets','/client/appointments','/client/store','/client/profile'],
   ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
   SUPER_ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
-  VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/clients','/vet/products'],
+  VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/products','/vet/profile'],
   GROOMER:['/professional','/professional/agenda','/professional/patients','/professional/services','/account'],
-  SECRETARY:['/secretary','/secretary/agenda','/secretary/patients','/secretary/clients','/secretary/reservations'],
+  SECRETARY:['/secretary','/secretary/agenda','/secretary/patients','/secretary/reservations','/account'],
 };
 const profileShortcutPathsByRole:Record<string,string[]>={
   VETERINARIAN:['/vet/profile'],
@@ -32,4 +32,45 @@ export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:str
   return [...new Map(items
     .filter(item=>!primaryPaths.has(item.path)&&!profileShortcuts.has(item.path)&&!(['ADMIN','SUPER_ADMIN'].includes(role)&&item.group))
     .map(item=>[item.path,item])).values()];
+}
+
+/** Resolves detail and secondary screens to the closest permitted primary destination. */
+export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:string,pathname:string,items:T[]):string|null{
+  const homePath:Record<string,string>={CLIENT:'/client',ADMIN:'/admin',SUPER_ADMIN:'/admin',VETERINARIAN:'/vet',GROOMER:'/professional',SECRETARY:'/secretary'};
+  const match=items
+    .filter(item=>pathname===item.path||(item.path!==homePath[role]&&pathname.startsWith(`${item.path}/`)))
+    .sort((a,b)=>b.path.length-a.path.length)[0];
+  if(match)return match.path;
+
+  const aliases:Record<string,Record<string,string>>={
+    CLIENT:{
+      '/client/orders':'/client/profile','/client/notifications':'/client/profile',
+      '/client/medical-history':'/client/pets','/client/vaccines':'/client/pets',
+      '/client/prescriptions':'/client/pets','/client/recommendations':'/client/pets',
+      '/client/reservation':'/client/appointments','/client/payment-intents':'/client/store',
+    },
+    VETERINARIAN:{'/vet/appointment':'/vet/agenda','/vet/patient':'/vet/patients','/vet/client':'/vet/clients','/vet/record':'/vet/patients'},
+    GROOMER:{'/professional/appointment':'/professional/agenda','/professional/patient':'/professional/patients'},
+    SECRETARY:{'/secretary/appointment':'/secretary/agenda','/secretary/patient':'/secretary/patients','/secretary/client':'/secretary/clients','/secretary/reservation':'/secretary/reservations','/account':'/account'},
+  };
+  let destination=Object.entries(aliases[role]??{})
+    .filter(([prefix])=>pathname===prefix||pathname.startsWith(`${prefix}/`))
+    .sort(([a],[b])=>b.length-a.length)[0]?.[1];
+  if(!destination&&['ADMIN','SUPER_ADMIN'].includes(role)){
+    const clinicRoute=/^\/admin\/(?:clinic|patient|patients|appointment|agenda|availability|professionals|veterinarians|specialties)(?:\/|$)/.test(pathname)
+      ||pathname==='/admin/catalog/services';
+    const storeRoute=/^\/admin\/(?:store|products|reservations|reservation|store-orders|store-banners)(?:\/|$)/.test(pathname)
+      ||/^\/admin\/catalog\/(?:products|categories|promotions)(?:\/|$)/.test(pathname);
+    destination=clinicRoute?'/admin/clinic':storeRoute?'/admin/store':'/admin/administration';
+  }
+  const fallback=destination&&items.some(item=>item.path===destination)
+    ?destination
+    :items.find(item=>item.path==='/client'&&role==='CLIENT')?.path
+      ??items.find(item=>item.path==='/admin'&&['ADMIN','SUPER_ADMIN'].includes(role))?.path
+      ??items.find(item=>item.path==='/vet'&&role==='VETERINARIAN')?.path
+      ??items.find(item=>item.path==='/professional'&&role==='GROOMER')?.path
+      ??items.find(item=>item.path==='/secretary'&&role==='SECRETARY')?.path
+      ??items.find(item=>item.path==='/workspace')?.path
+      ??items[0]?.path;
+  return fallback??null;
 }

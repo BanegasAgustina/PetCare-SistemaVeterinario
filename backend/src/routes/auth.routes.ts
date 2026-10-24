@@ -15,7 +15,7 @@ authRouter.post('/password-reset/confirm', createAuthRateLimiter(10), resetPassw
 authRouter.post('/change-initial-password',createAuthRateLimiter(10),changeInitialPassword);
 authRouter.post('/verify-email', createAuthRateLimiter(), verify);
 authRouter.post('/resend-verification', createAuthRateLimiter(), resend);
-authRouter.get('/me', authenticate, getCurrentUser);
+authRouter.post('/me', authenticate, getCurrentUser);
 authRouter.post('/refresh',createAuthRateLimiter(),oauth.refresh);
 authRouter.post('/logout',createAuthRateLimiter(),oauth.logout);
 authRouter.post('/oauth/exchange',createAuthRateLimiter(),oauth.exchange);

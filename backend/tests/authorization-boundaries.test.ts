@@ -116,14 +116,14 @@ test('peluquería no puede consultar registros clínicos aunque envíe la ruta d
 });
 
 test('administrador sin permiso recibe 403 en el endpoint administrativo directo', async () => {
-  const guards = routeGuards('/users', 'get');
+  const guards = routeGuards('/users/query', 'post');
   const error = await runGuards(guards, admin);
   assert.ok(error instanceof AppError);
   assert.equal((error as AppError).status, 403);
 });
 
 test('un rol personalizado solo entra al inventario cuando tiene un permiso de producto', async () => {
-  const guards=routeGuards('/products','get');
+  const guards=routeGuards('/products/query','post');
   const stockkeeper:AuthUser={id:'606',firstName:'Encargado',lastName:'Depósito',email:'stock@example.test',phone:null,role:'ENCARGADO_DE_DEPOSITO',permissions:['products.update_stock']};
   const noGrant={...stockkeeper,permissions:[]};
   assert.equal(await runGuards(guards,stockkeeper),undefined);
@@ -184,13 +184,13 @@ test('authenticate vuelve a leer permisos revocados y el endpoint directo los de
       const first = await runAuthentication(token);
       assert.equal(first.error, undefined);
       assert.equal(first.user?.permissions?.includes('users.manage'), true);
-      const firstCheck = await runGuards(routeGuards('/users', 'get'), first.user!);
+      const firstCheck = await runGuards(routeGuards('/users/query', 'post'), first.user!);
       assert.equal(firstCheck, undefined);
 
       const second = await runAuthentication(token);
       assert.equal(second.error, undefined);
       assert.equal(second.user?.permissions?.includes('users.manage'), false);
-      const secondCheck = await runGuards(routeGuards('/users', 'get'), second.user!);
+      const secondCheck = await runGuards(routeGuards('/users/query', 'post'), second.user!);
       assert.ok(secondCheck instanceof AppError);
       assert.equal((secondCheck as AppError).status, 403);
     });

@@ -33,7 +33,7 @@ export default function VeterinarianEditor() {
     specialtyIds:vet.specialties.map(s=>s.id)});};
   useEffect(()=>{
     let active=true;
-    void Promise.all([request<VetCatalog>('/admin/veterinarians/catalog'),creating?Promise.resolve(null):request<VetDetail>(`/admin/veterinarians/${id}`)])
+    void Promise.all([request<VetCatalog>('/admin/veterinarians/catalog',{method:'POST',body:{}}),creating?Promise.resolve(null):request<VetDetail>(`/admin/veterinarians/${id}`,{method:'POST',body:{}})])
       .then(([options,vet])=>{if(active){setLoadError(null);setCatalog(options);if(vet)fill(vet);}}).catch(err=>{if(active)setLoadError(friendlyError(err));});
     return ()=>{active=false;};
   },[request,id,creating,retry]);
