@@ -34,6 +34,7 @@ clinicRouter.put('/professionals/:id/services',requireRole('ADMIN','SUPER_ADMIN'
 clinicRouter.post('/availability/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('schedule.manage'),h('availability'));
 clinicRouter.post('/availability',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('schedule.manage'),h('availability-save',201));
 clinicRouter.patch('/availability/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('schedule.manage'),h('availability-disable'));
+clinicRouter.delete('/availability/:kind/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('schedule.manage'),h('availability-archive'));
 clinicRouter.post('/store-fulfillment',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.settings.view'),h('store-fulfillment'));
 clinicRouter.put('/store-fulfillment',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.settings.manage'),h('store-fulfillment-save'));
 clinicRouter.post('/store-banners/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('store.banners.manage'),h('store-banners'));

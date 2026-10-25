@@ -4,12 +4,12 @@ const primaryPathsByRole:Record<string,string[]>={
   CLIENT:['/client','/client/pets','/client/appointments','/client/store','/client/profile'],
   ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
   SUPER_ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
-  VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/products','/vet/profile'],
-  GROOMER:['/professional','/professional/agenda','/professional/patients','/professional/services','/account'],
+  VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/products'],
+  GROOMER:['/professional','/professional/agenda','/professional/patients','/professional/services'],
   SECRETARY:['/secretary','/secretary/agenda','/secretary/patients','/secretary/reservations','/account'],
 };
 const profileShortcutPathsByRole:Record<string,string[]>={
-  VETERINARIAN:['/vet/profile'],
+  VETERINARIAN:['/account','/client/profile'],
   SECRETARY:['/account'],
   ADMIN:['/account'],
   SUPER_ADMIN:['/account'],
@@ -28,7 +28,7 @@ export function selectPrimaryNavigation<T extends RoleNavigationItem>(role:strin
 /** Keeps secondary role-enabled destinations for the reusable Home quick-access section. */
 export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:string,items:T[],primaryItems:RoleNavigationItem[]):T[]{
   const primaryPaths=new Set(primaryItems.map(item=>item.path));
-  const profileShortcuts=new Set(role==='CLIENT'?[]:role==='VETERINARIAN'?['/vet/profile']:['/account']);
+  const profileShortcuts=new Set(role==='CLIENT'?[]:role==='VETERINARIAN'?['/account','/client/profile']:['/account']);
   return [...new Map(items
     .filter(item=>!primaryPaths.has(item.path)&&!profileShortcuts.has(item.path)&&!(['ADMIN','SUPER_ADMIN'].includes(role)&&item.group))
     .map(item=>[item.path,item])).values()];

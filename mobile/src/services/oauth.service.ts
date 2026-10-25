@@ -31,8 +31,8 @@ export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Pro
   const challenge=base64Url(await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,proof,{encoding:Crypto.CryptoEncoding.BASE64}));
   const destination=returnUrl();
   const start=await apiRequest<OAuthStart>(`/auth/oauth/${provider}/${accessToken?'link':'start'}`,{method:'POST',accessToken,body:{challenge,returnUrl:destination}});
-  if(start.configured===false){const issue=start.reason==='CREDENTIALS_MISSING'?'Faltan las credenciales X_CLIENT_ID/X_CLIENT_SECRET (o TWITTER_* anteriores) en el backend.':start.reason==='RETURN_URL_NOT_ALLOWED'?'El backend no permite este destino. Revisá OAUTH_RETURN_URLS.':start.reason==='BACKEND_URL_INVALID'?'BACKEND_URL debe ser el origen HTTPS del backend, sin /api.':'El proveedor no está configurado correctamente.';throw new ApiError('OAUTH_UNAVAILABLE',issue);}
-  if(typeof start.url!=='string')throw new ApiError('INVALID_RESPONSE','No pudimos iniciar la autorizaci?n. Volv? a intentar.');
+  if(start.configured===false){const issue=start.reason==='CREDENTIALS_MISSING'?'El inicio de sesión con X no está disponible en este momento. Elegí otra opción o intentá más tarde.':start.reason==='RETURN_URL_NOT_ALLOWED'||start.reason==='BACKEND_URL_INVALID'?'No pudimos iniciar sesión con este proveedor. Intentá nuevamente más tarde.':'El inicio de sesión con este proveedor no está disponible en este momento.';throw new ApiError('OAUTH_UNAVAILABLE',issue);}
+  if(typeof start.url!=='string')throw new ApiError('INVALID_RESPONSE','No pudimos iniciar el acceso. Volvé a intentarlo.');
   if(Platform.OS==='web'&&!accessToken){
     saveWebOAuthProof(proof);
     globalThis.location.assign(start.url);
@@ -42,7 +42,7 @@ export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Pro
   if(result.type!=='success')throw new ApiError('OAUTH_CANCELLED','La autorización no se completó.');
   const callback=new URL(result.url);
   const callbackError=callback.searchParams.get('error');
-  if(callbackError)throw new ApiError(callbackError,callbackError==='OAUTH_PROVIDER_DENIED'?'X rechazó o canceló la autorización. Revisá OAuth 2.0, permisos y callback URL en X Developer Portal.':callbackError==='OAUTH_PROVIDER_ERROR'?'X autorizó el acceso, pero PetCare no pudo completar el intercambio o leer el perfil. Revisá los logs seguros del backend.':'PetCare no pudo finalizar el callback OAuth. Revisá los logs del backend.');
+  if(callbackError)throw new ApiError(callbackError,callbackError==='OAUTH_PROVIDER_DENIED'?'X rechazó o canceló la autorización. Revisá los permisos de tu cuenta e intentá nuevamente.':callbackError==='OAUTH_PROVIDER_ERROR'?'X autorizó el acceso, pero no pudimos completar el inicio de sesión. Intentá nuevamente más tarde.':'No pudimos completar el inicio de sesión. Intentá nuevamente.');
   if(`${callback.protocol}//${callback.host}${callback.pathname}`!==destination||callback.searchParams.has('error'))throw new ApiError('OAUTH_FAILED','El proveedor no completó el acceso. Volvé a intentar.');
   const ticket=callback.searchParams.get('ticket');
   if(!ticket||!/^[a-f0-9]{64}$/.test(ticket))throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');

@@ -28,7 +28,7 @@ export default function GeneralInformationScreen(){
   async function save(){const saved=await api.saveGeneralInformation(nullableFields(values));setValues(saved);query.reload();showToast('Información de PetCare guardada','success');}
   return <ScreenContainer wide><AdminPageHeading title="Información de PetCare"/><AppText muted>Estos datos aparecen en el inicio público de la aplicación.</AppText><QueryState {...query}/>
     {query.data&&<>
-      {!query.data.configured&&<FormNotice message="La migración 014 todavía no está aplicada. La información se puede revisar, pero no guardar hasta que el operador aplique la migración."/>}
+      {!query.data.configured&&<FormNotice message="No es posible editar esta información en este momento. Intentá nuevamente más tarde."/>}
       <AdminFormSection title="Identidad" description="Nombre y presentación institucional.">
         <AppInput label="Nombre de PetCare" required maxLength={120} value={values.clinicName} onChangeText={value=>change('clinicName',value)}/>
         <AppInput label="Mensaje de bienvenida" maxLength={500} value={values.welcomeMessage??''} onChangeText={value=>change('welcomeMessage',value)}/>

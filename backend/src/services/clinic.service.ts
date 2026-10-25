@@ -64,6 +64,7 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  }
  case 'availability':return admin.availability(actor,query);
  case 'availability-save':return admin.saveAvailability(actor,value);
+ case 'availability-archive':return admin.archiveAvailability(actor,kind!,v.id(id));
  case 'availability-disable':{
   const state=v.body(value,['isActive']).isActive;
   if(typeof state!=='boolean')v.invalid('Indicá si querés activar o desactivar la disponibilidad.');

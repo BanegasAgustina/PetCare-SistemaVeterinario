@@ -138,7 +138,7 @@ export default function RequestAppointment() {
       <PetCareCard>
         <View style={styles.resultIcon}><Ionicons name={pending ? 'time-outline' : 'checkmark-circle-outline'} size={36} color="#28795D" /></View>
         <AppText variant="subtitle">{pending ? 'Pendiente de confirmación' : 'Tu turno está confirmado'}</AppText>
-        <AppText>{pending ? 'La clínica todavía debe confirmar esta solicitud.' : 'El servidor confirmó el turno.'}</AppText>
+        <AppText>{pending ? 'La clínica todavía debe confirmar esta solicitud.' : 'El turno quedó confirmado.'}</AppText>
         <AppText>Solicitud #{submission.id}</AppText>
         <AppButton label="Ver mis turnos" onPress={() => router.replace('/client/appointments')} />
         <AppButton label="Solicitar otro turno" variant="secondary" onPress={() => {

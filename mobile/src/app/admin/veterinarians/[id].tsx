@@ -81,7 +81,7 @@ export default function VeterinarianEditor() {
       {catalog.specialties.map(s=><SelectionRow key={s.id} label={s.name} checked={values.specialtyIds.includes(s.id)} disabled={!canEdit||action.loading}
         onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
       <AppText variant="subtitle">Cuenta</AppText>
-      <AppText muted>Rol Veterinario · asignado por el servidor</AppText>
+      <AppText muted>Rol Veterinario · asignado automáticamente</AppText>
       {!creating&&<View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit||!canChangeStatus||!detail?.emailVerified&&!values.isActive}
         onValueChange={value=>{if (!value&&detail?.isActive)setDeactivate(true);else change('isActive',value);}} trackColor={{true:colors.primary}} /></View>}
       {!creating&&detail&&!detail.emailVerified&&!detail.isActive&&<AppText variant="caption" muted>La cuenta se activa cuando el veterinario verifica su correo desde la invitación.</AppText>}

@@ -11,18 +11,18 @@ const messages: Record<string, string> = {
   OAUTH_ACCOUNT_CONFLICT:'Esta identidad ya está vinculada a otra cuenta.',
   OAUTH_LINK_REQUIRED:'Ese email ya tiene una cuenta. Iniciá sesión con contraseña y vinculá el proveedor desde tu perfil.',
   VET_PROFILE_REQUIRED: 'Gestioná ese usuario desde Veterinarios para conservar su matrícula y especialidades.',
-  PHOTO_STORAGE_UNAVAILABLE: 'El almacenamiento de fotos no está disponible o todavía no está configurado. Revisá la conexión e intentá nuevamente.',
-  PHOTO_REFERENCE_UNSUPPORTED: 'Esta foto pertenece al almacenamiento anterior. Volvé a seleccionarla para guardarla.',
+  PHOTO_STORAGE_UNAVAILABLE: 'No pudimos guardar la foto. Intentá nuevamente más tarde.',
+  PHOTO_REFERENCE_UNSUPPORTED: 'No pudimos usar esta foto. Volvé a seleccionarla e intentá nuevamente.',
   SCHEMA_UPDATE_REQUIRED: 'No pudimos recuperar los datos de la clínica. Intentá nuevamente.',
-  STORE_FULFILLMENT_SCHEMA_REQUIRED: 'Falta aplicar la migración 004 de entregas del ecommerce. El administrador debe actualizar el backend para habilitar retiro y envío.',
-  STORE_ADDRESSES_SCHEMA_REQUIRED: 'Las direcciones guardadas requieren la migración 006. Podés ingresar la dirección manualmente y continuar.',
-  ROUTE_NOT_FOUND: 'El backend conectado todavía no tiene esta ruta. Actualizá el servidor de PetCare para continuar.',
-  INVALID_TRANSITION: 'El estado cambió o esa acción no está permitida. Actualizá la consulta.',
+  STORE_FULFILLMENT_SCHEMA_REQUIRED: 'Las opciones de retiro y envío no están disponibles en este momento. Intentá nuevamente más tarde.',
+  STORE_ADDRESSES_SCHEMA_REQUIRED: 'No pudimos cargar tus direcciones guardadas. Podés ingresarla manualmente para continuar.',
+  ROUTE_NOT_FOUND: 'Esta función no está disponible en este momento. Intentá nuevamente más tarde.',
+  INVALID_TRANSITION: 'El estado cambió y ya no se puede realizar esa acción. Actualizá la información e intentá nuevamente.',
   RESERVATION_EXPIRED: 'La reserva venció y las unidades volvieron al stock.',
   PRESCRIPTION_REQUIRED: 'Seleccioná una receta vigente para este producto y mascota.',
-  STOCK_CONFLICT: 'El stock reservado requiere revisión administrativa.',
-  PAYMENT_NOT_INTEGRATED: 'El sistema de pagos todavía no está conectado. Esta operación es una demostración y no se realizará ningún cobro.',
-  STORE_DEMO_DISABLED: 'El modo de demostración de la tienda está desactivado por configuración.',
+  STOCK_CONFLICT: 'No pudimos reservar esas unidades. Actualizá el carrito e intentá nuevamente.',
+  PAYMENT_NOT_INTEGRATED: 'Los pagos con tarjeta no están disponibles todavía. No se realizó ningún cobro.',
+  STORE_DEMO_DISABLED: 'Los pagos con tarjeta no están disponibles en este momento. Elegí otra forma de pago.',
   PAYMENT_INTENT_UNAVAILABLE: 'El plazo sigue activo o el comprobante ya está en revisión. Actualizá el pedido e intentá nuevamente.',
   PAYMENT_PROOF_INVALID: 'El comprobante debe ser un PDF, JPG, PNG o WebP válido de hasta 5 MB.',
   PAYMENT_PROOF_STORAGE_UNAVAILABLE: 'No pudimos guardar el comprobante de forma segura. Intentá nuevamente.',
@@ -44,11 +44,11 @@ const messages: Record<string, string> = {
   RECORD_IN_USE: 'El registro tiene servicios o profesionales asociados. Desactivalo para conservar esas relaciones.',
   ACCOUNT_INACTIVE: 'Activá la cuenta antes de enviar una invitación.',
   INVALID_INVITATION: 'La invitación no es válida o venció. Solicitá una nueva al administrador.',
-  INVITATION_UNAVAILABLE: 'La activación por correo todavía no está configurada.',
+  INVITATION_UNAVAILABLE: 'No se pueden enviar invitaciones en este momento. Intentá nuevamente más tarde.',
   INVITATION_COOLDOWN: 'Esperá un minuto antes de reenviar la invitación.',
   EMAIL_ALREADY_EXISTS: 'Ya existe una cuenta con ese email.',
   INVALID_CREDENTIALS: 'Correo electrónico o contraseña incorrectos.',
-  VALIDATION_ERROR: 'Revisá los datos ingresados.',
+  VALIDATION_ERROR: 'Revisá los campos marcados e intentá nuevamente.',
   AUTH_REQUIRED: 'Iniciá sesión para continuar.',
   TOKEN_EXPIRED: 'Tu sesión venció. Iniciá sesión nuevamente.',
   INVALID_TOKEN: 'La sesión no es válida. Iniciá sesión nuevamente.',
@@ -57,9 +57,9 @@ const messages: Record<string, string> = {
   DB_UNAVAILABLE: 'PetCare no está disponible en este momento. Intentá más tarde.',
   EMAIL_NOT_VERIFIED: 'Tu correo todavía no está verificado.',
   EMAIL_UNAVAILABLE: 'El envío de correo no está disponible. Intentá más tarde.',
-  PASSWORD_RESET_UNAVAILABLE: 'La recuperación de contraseña no está configurada en el servidor.',
+  PASSWORD_RESET_UNAVAILABLE: 'No se puede recuperar la contraseña en este momento. Intentá nuevamente más tarde.',
   PASSWORD_RESET_INVALID: 'El enlace no es válido, venció o ya se utilizó. Solicitá uno nuevo.',
-  EMAIL_DELIVERY_FAILED: 'No pudimos enviar el correo. Revisá el servicio de email e intentá más tarde.',
+  EMAIL_DELIVERY_FAILED: 'No pudimos enviar el correo. Intentá nuevamente más tarde.',
   EMAIL_ALREADY_VERIFIED: 'Tu correo ya está verificado. Podés iniciar sesión.',
   VERIFICATION_SESSION_EXPIRED: 'Volvé a iniciar sesión para retomar la verificación.',
   VERIFICATION_CODE_INVALID: 'El código ingresado no es correcto.',
@@ -68,6 +68,12 @@ const messages: Record<string, string> = {
   VERIFICATION_COOLDOWN: 'Esperá unos segundos antes de reenviar.',
   VERIFICATION_SEND_LIMIT: 'Alcanzaste el límite de envíos. Intentá más tarde.',
 };
+
+const internalMessagePattern = /\b(?:mysql|mariadb|layerbase|backend|server|endpoint|route|sql|sqlstate|http|servidor|base de datos|database|tabla|columnas?|schema|migraci[oó]n|persistencia|persistido|stack trace|exception)\b|\b(?:ER_[A-Z_]+|ECONN[A-Z_]+|ENOTFOUND)\b|\b(?:error|c[oó]digo)\s*[45]\d{2}\b/i;
+function publicMessage(message: string): string | null {
+  const clean = message.trim();
+  return clean && !internalMessagePattern.test(clean) ? clean.slice(0, 500) : null;
+}
 
 export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
 
@@ -100,7 +106,7 @@ export function getApiUrl(): string {
     const path = url.pathname.replace(/\/+$/, '');
     if (!/\/api$/i.test(path)) url.pathname = `${path}/api`;
     return url.toString().replace(/\/+$/, '');
-  } catch { throw new ApiError('API_NOT_CONFIGURED', 'La conexión con PetCare todavía no está configurada.'); }
+  } catch { throw new ApiError('API_NOT_CONFIGURED', 'PetCare no está disponible en este momento. Intentá más tarde.'); }
 }
 
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; contentType?: string; headers?:Record<string,string>;accessToken?: string } = {}): Promise<T> {
@@ -127,19 +133,20 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
     catch {
       const code = response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR';
       reportApiFailure(code, response.status, options.method ?? 'GET', path);
-      throw new ApiError(code, response.ok ? 'PetCare devolvió una respuesta que no pudimos interpretar.' : 'El servidor respondió con un error.', response.status);
+      throw new ApiError(code, 'No pudimos completar la operación. Intentá nuevamente.', response.status);
     }
     if (!response.ok || result?.success !== true) {
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
       reportApiFailure(code, response.status, options.method ?? 'GET', path);
       const isStoreConfigurationRead = (options.method ?? 'GET') === 'POST' && /^\/client\/(?:cart|store\/(?:categories|fulfillment|promotions|banners|delivery-quote|addresses\/query|products(?:\/.*)?))$/.test(cleanPath.split('?')[0]);
-      const serverMessage=typeof result?.error?.message==='string'?result.error.message:'';
+      const serverMessage=typeof result?.error?.message==='string'?publicMessage(result.error.message):null;
       const message = code === 'NOT_FOUND' && isStoreConfigurationRead
         ? messages.ROUTE_NOT_FOUND
         : code==='VALIDATION_ERROR'&&serverMessage?serverMessage:(messages[code] ?? serverMessage) || 'No pudimos completar la operación. Intentá nuevamente.';
       const fieldErrors:ApiFieldError[]=Array.isArray(result?.error?.errors)?result.error.errors.flatMap((item:unknown)=>{
         if(!item||typeof item!=='object')return[];const candidate=item as Record<string,unknown>;
-        return typeof candidate.field==='string'&&typeof candidate.message==='string'?[{field:candidate.field.slice(0,120),message:candidate.message.slice(0,300)}]:[];
+        if(typeof candidate.field!=='string'||typeof candidate.message!=='string')return[];
+        return [{field:candidate.field.slice(0,120),message:publicMessage(candidate.message)?.slice(0,300)??'Revisá este campo.'}];
       }):[];
       throw new ApiError(code, message, response.status, result?.error?.verification,fieldErrors);
     }

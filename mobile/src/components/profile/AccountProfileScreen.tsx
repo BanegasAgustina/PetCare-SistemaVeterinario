@@ -18,13 +18,12 @@ import { AppButton } from '../ui/AppButton';
 import { FormNotice } from '../ui/FormNotice';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { SelectionRow } from '../ui/SelectionRow';
-import { OAuthLinks } from '../ui/OAuthLinks';
 import { ProfilePhotoInput, type PickedProfilePhoto } from '../forms/ProfilePhotoInput';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { responsiveLayout } from '../../constants/responsive';
 
-type ProfileSection = 'all' | 'personal' | 'security';
+type ProfileSection = 'all' | 'personal' | 'security' | 'theme';
 type ProfileValues = { firstName: string; lastName: string; phone: string };
 type ProfileErrors = Partial<Record<keyof ProfileValues, string>>;
 type PasswordValues = { currentPassword: string; password: string; confirmPassword: string };
@@ -60,8 +59,12 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
   const canEditProfile = isClient || isVet || isAdmin || auth.hasPermission('personal.profile.manage');
   const canEditPassword = canEditProfile;
-  const showPersonal = section === 'all' || section === 'personal';
-  const showSecurity = section === 'all' || section === 'security';
+  const showPersonal = section === 'personal';
+  const showSecurity = section === 'security';
+  const showTheme = section === 'theme';
+  const personalEditPath = isClient ? '/client/profile/edit' : '/account?section=personal';
+  const securityEditPath = isClient ? '/client/profile/security' : '/account?section=security';
+  const themePath = isClient ? '/client/profile/appearance' : '/account?section=theme';
 
   async function saveProfile() {
     setErrors({});
@@ -136,7 +139,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     if (saved) showToast('Descripción profesional actualizada', 'success');
   }
 
-  const title = section === 'personal' ? 'Mis datos' : section === 'security' ? 'Seguridad' : 'Mi perfil';
+  const title = section === 'personal' ? 'Mis datos' : section === 'security' ? 'Seguridad' : section === 'theme' ? 'Tema' : 'Mi perfil';
   return <PetCareScreen wide>
     <PetCareHeader title={title} subtitle={section === 'all' ? 'Información y configuración de tu cuenta' : undefined} back={section !== 'all' || !isClient}/>
     {section === 'all' && <PetCareCard>
@@ -165,7 +168,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
       </PetCareCard>
     </PetCareSection>}
 
-    {isVet && section !== 'security' && <VeterinarianDetails user={user} description={professionalDescription} setDescription={setProfessionalDescription} onSave={() => void saveProfessionalDescription()} loading={profileAction.loading} error={profileAction.error}/>}
+    {isVet && section === 'personal' && <VeterinarianDetails user={user} description={professionalDescription} setDescription={setProfessionalDescription} onSave={() => void saveProfessionalDescription()} loading={profileAction.loading} error={profileAction.error}/>}
 
     {showSecurity && <PetCareSection title="Seguridad">
       <PetCareCard>
@@ -180,30 +183,27 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
       </PetCareCard>
     </PetCareSection>}
 
-    {section === 'all' && <PetCareSection title="Configuración de cuenta">
+    {showTheme && <PetCareSection title="Tema">
       <PetCareCard>
-        <AppText variant="subtitle">Apariencia</AppText>
         <SelectionRow label="Usar tema del dispositivo" checked={preference === 'system'} onPress={() => setPreference('system')}/>
         <SelectionRow label="Modo oscuro" checked={preference === 'dark'} onPress={() => setPreference('dark')}/>
         <SelectionRow label="Modo claro" checked={preference === 'light'} onPress={() => setPreference('light')}/>
       </PetCareCard>
-      <PetCareCard><OAuthLinks/></PetCareCard>
     </PetCareSection>}
 
-    {isClient && section === 'all' && <PetCareSection title="Accesos de cliente">
-      <PetCareAction title="Mis pedidos" icon="receipt-outline" onPress={() => router.push('/client/orders')}/>
-      <PetCareAction title="Notificaciones" icon="notifications-outline" onPress={() => router.push('/client/notifications')}/>
-      <PetCareAction title="Preferencias de notificaciones" icon="options-outline" onPress={() => router.push('/client/profile/notifications')}/>
-      <PetCareAction title="Apariencia" icon="contrast-outline" onPress={() => router.push('/client/profile/appearance')}/>
+    {section === 'all' && <PetCareSection title="Configuración de cuenta">
+      <PetCareAction title="Editar datos personales" icon="person-outline" onPress={() => router.push(personalEditPath as never)}/>
+      <PetCareAction title="Cambiar contraseña" icon="lock-closed-outline" onPress={() => router.push(securityEditPath as never)}/>
+      <PetCareAction title="Tema" icon="contrast-outline" onPress={() => router.push(themePath as never)}/>
     </PetCareSection>}
 
     {section === 'all' && <PetCareSection title="Sesión">
       {!isClient && <AppButton label="Volver a mi espacio" variant="secondary" onPress={() => router.replace(roleHome(user) as never)}/>}
       <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={() => setLogoutOpen(true)} style={({ pressed }) => [styles.logout, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.82 : 1 }]}>
-        <AppText style={{ color: colors.primary, fontWeight: '600' }}>Cerrar sesión</AppText>
+        <AppText style={{ color: colors.text, fontWeight: '600' }}>Cerrar sesión</AppText>
       </Pressable>
     </PetCareSection>}
-    <ConfirmModal visible={logoutOpen} title="Cerrar sesión" message="Podés volver a ingresar cuando quieras." confirmLabel="Cerrar sesión" destructive onCancel={() => setLogoutOpen(false)} onConfirm={auth.signOut}/>
+    <ConfirmModal visible={logoutOpen} title="Cerrar sesión" message="Podés volver a ingresar cuando quieras." confirmLabel="Cerrar sesión" onCancel={() => setLogoutOpen(false)} onConfirm={auth.signOut}/>
   </PetCareScreen>;
 }
 

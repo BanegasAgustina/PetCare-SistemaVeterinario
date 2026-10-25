@@ -50,6 +50,7 @@ SMTP requiere `SMTP_*`, `MAIL_FROM` y secretos de códigos; el cron requiere `CR
 | `npm run oauth:callbacks` | Imprime callbacks configurados. |
 | `npm run db:check`, `npm run db:audit:readonly` | Verificaciones no mutantes. |
 | `npm run db:migrate`, `npm run db:bootstrap`, `npm run db:seed` | Operaciones potencialmente mutantes; revisar antes de usar. |
+| `npm run db:migrate:availability-archive` | Agrega el indicador para ocultar horarios desactivados conservando sus filas. |
 
 El resto de comandos está listado en `package.json`. `test:db` y `test:clinic:db` requieren entorno DB preparado.
 

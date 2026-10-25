@@ -63,7 +63,18 @@ export async function deleteService(actor:AuthUser,id:string) {
 export async function assignServices(actor:AuthUser,id:string,value:unknown) {const body=v.body(value,['serviceIds']);if(!Array.isArray(body.serviceIds)||body.serviceIds.length>100)v.invalid();const ids=[...new Set(body.serviceIds.map(v.id))];return db.transaction(actor,async(c,fresh)=>{assertCapabilityPermission(fresh,'professionals.manage');const p=await db.one('SELECT u.id,pt.id AS typeId,vt.id AS veterinarianId FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians vt ON vt.user_id=u.id WHERE u.id=? FOR UPDATE',[id],c);
  for(const serviceId of ids){const s=await db.one('SELECT professional_type_id AS typeId,specialty_id AS specialtyId FROM client_services WHERE id=?',[serviceId],c);if(s.typeId!==p.typeId)v.invalid('El servicio no corresponde al tipo profesional.');if(s.specialtyId)await db.one('SELECT specialty_id AS id FROM veterinarian_specialties WHERE veterinarian_id=? AND specialty_id=?',[p.veterinarianId,s.specialtyId],c);}
  await c.execute('DELETE FROM professional_services WHERE user_id=?',[id]);for(const serviceId of ids)await c.execute('INSERT INTO professional_services(user_id,service_id) VALUES (?,?)',[id,serviceId]);return {saved:true};});}
-export async function availability(actor:AuthUser,query:Record<string,unknown>) {assertCapabilityPermission(actor,'schedule.manage');const id=v.id(query.professionalId);return {slots:await db.rows('SELECT id,service_id AS serviceId,starts_at AS startsAt,ends_at AS endsAt,is_active AS isActive FROM client_appointment_slots WHERE professional_user_id=? ORDER BY starts_at DESC LIMIT 300',[id]),blocks:await db.rows('SELECT id,starts_at AS startsAt,ends_at AS endsAt,reason,is_active AS isActive FROM professional_blocks WHERE user_id=? ORDER BY starts_at DESC LIMIT 100',[id])};}
+export async function availability(actor:AuthUser,query:Record<string,unknown>) {assertCapabilityPermission(actor,'schedule.manage');const id=v.id(query.professionalId);return {slots:await db.rows('SELECT id,service_id AS serviceId,starts_at AS startsAt,ends_at AS endsAt,is_active AS isActive FROM client_appointment_slots WHERE professional_user_id=? AND is_archived=0 ORDER BY starts_at DESC LIMIT 300',[id]),blocks:await db.rows('SELECT id,starts_at AS startsAt,ends_at AS endsAt,reason,is_active AS isActive FROM professional_blocks WHERE user_id=? ORDER BY starts_at DESC LIMIT 100',[id])};}
+export async function archiveAvailability(actor:AuthUser,kind:string,id:string) {
+ if(kind!=='slot')v.invalid('Solo se pueden quitar de la lista los horarios desactivados.');
+ return db.transaction(actor,async(c,fresh)=>{
+  assertCapabilityPermission(fresh,'schedule.manage');
+  const row=await db.one('SELECT is_active AS isActive,is_archived AS isArchived FROM client_appointment_slots WHERE id=? FOR UPDATE',[id],c);
+  if(Boolean(row.isActive))v.invalid('Desactivá el horario antes de quitarlo de la lista.');
+  if(Boolean(row.isArchived))return {archived:true};
+  await c.execute('UPDATE client_appointment_slots SET is_archived=1 WHERE id=?',[id]);
+  return {archived:true};
+ });
+}
 export async function saveAvailability(actor:AuthUser,value:unknown) {const body=v.body(value,['professionalId','serviceId','startsAt','endsAt','block','reason']);const professionalId=v.id(body.professionalId),starts=v.instant(body.startsAt),ends=v.instant(body.endsAt);if(ends<=starts||starts<new Date().toISOString().slice(0,19).replace('T',' '))v.invalid('Revisá el intervalo futuro de atención.');const block=body.block===true;
  return db.transaction(actor,async(c,fresh)=>{assertCapabilityPermission(fresh,'schedule.manage');const professional=await db.one('SELECT u.id,pt.id AS typeId FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) WHERE u.id=? AND u.is_active=1 FOR UPDATE',[professionalId],c);
   const overlaps=await db.rows(`SELECT s.id FROM client_appointment_slots s WHERE s.professional_user_id=? AND s.is_active=1 AND s.starts_at<? AND s.ends_at>? ${block?"AND EXISTS(SELECT 1 FROM client_appointments a WHERE a.slot_id=s.id AND a.status<>'CANCELLED')":''}`,[professionalId,ends,starts],c);if(overlaps.length)v.invalid('El intervalo se superpone con un horario o turno existente.');
@@ -79,7 +90,8 @@ export async function setAvailabilityActive(actor:AuthUser,kind:string,id:string
  return db.transaction(actor,async(c,fresh)=>{
   assertCapabilityPermission(fresh,'schedule.manage');
   const slot=kind==='slot';const table=slot?'client_appointment_slots':'professional_blocks';
-  const row=await db.one(`SELECT ${slot?'professional_user_id':'user_id'} AS professionalId,starts_at AS startsAt,ends_at AS endsAt${slot?',service_id AS serviceId,professional_type_id AS professionalTypeId':''},is_active AS isActive FROM ${table} WHERE id=? FOR UPDATE`,[id],c);
+  const row=await db.one(`SELECT ${slot?'professional_user_id':'user_id'} AS professionalId,starts_at AS startsAt,ends_at AS endsAt${slot?',service_id AS serviceId,professional_type_id AS professionalTypeId,is_archived AS isArchived':''},is_active AS isActive FROM ${table} WHERE id=? FOR UPDATE`,[id],c);
+  if(slot&&Boolean(row.isArchived)&&isActive)v.invalid('El horario ya fue quitado de la lista y no se puede reactivar.');
   if(Boolean(row.isActive)===isActive)return {saved:true,isActive};
   await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[row.professionalId]);
   if(!isActive){

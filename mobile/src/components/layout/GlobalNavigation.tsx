@@ -47,7 +47,7 @@ const clientItems: MenuItem[] = [
   { label: 'Mis mascotas', path: '/client/pets', icon: 'paw-outline' },
   { label: 'Turnos', path: '/client/appointments', icon: 'calendar-outline' },
   { label: 'Tienda', path: '/client/store', icon: 'bag-handle-outline' },
-  { label: 'Perfil', path: '/client/profile', icon: 'person-outline' },
+  { label: 'Mi perfil', path: '/client/profile', icon: 'person-outline' },
   { label: 'Mis pedidos', path: '/client/orders', icon: 'receipt-outline', group: 'Cuenta' },
   { label: 'Historial médico', path: '/client/medical-history', icon: 'medical-outline', group: 'Salud' },
   { label: 'Vacunas', path: '/client/vaccines', icon: 'shield-checkmark-outline', group: 'Salud' },
@@ -70,7 +70,6 @@ const veterinarianItems: MenuItem[] = [
   { label: 'Pacientes', path: '/vet/patients', icon: 'paw-outline', permission: 'pets.view_information' },
   { label: 'Mis clientes', path: '/vet/clients', icon: 'people-outline', permission: 'pets.view_information' },
   { label: 'Productos', path: '/vet/products', icon: 'pricetags-outline', permission: 'products.view' },
-  { label: 'Mi perfil', path: '/vet/profile', icon: 'person-outline' },
 ];
 const groomerItems: MenuItem[] = [
   { label: 'Panel principal', path: '/professional', icon: 'home-outline' },
@@ -80,7 +79,6 @@ const groomerItems: MenuItem[] = [
   { label: 'Pacientes', path: '/professional/patients', icon: 'paw-outline', permission: 'appointments.view_all' },
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_own' },
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_all' },
-  { label: 'Mi perfil', path: '/account', icon: 'person-outline' },
 ];
 function iconFor(code: string): IconName {
   if (code.includes('pet')) return 'paw-outline';
@@ -209,7 +207,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.veterinarianTopBar}>
         <PetCareLogo style={styles.veterinarianTopLogo}/>
-        <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/vet/profile')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
       </View>
     </SafeAreaView>}
     <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
@@ -221,7 +219,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
       <View style={styles.topBar}>
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.highlight,width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:colors.onHighlight,fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
-        {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push(isVeterinarian?'/vet/profile':'/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
+        {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>}
     {isAdmin && !desktop && pathname !== '/admin' && <View style={[styles.adminPageBar, {backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
@@ -260,7 +258,7 @@ function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePa
       {groups?adminGroups.map(group=>{const groupItems=items.filter(item=>item.group===group);return groupItems.length?<View key={group}><View style={styles.groupHeading}><AppText variant="caption" muted style={styles.groupLabel}>{group}</AppText></View>{groupItems.map(navItem)}</View>:null;}):items.map(navItem)}
       {groups&&items.filter(item=>!item.group).map(navItem)}
       <View style={[styles.desktopAccount,{borderColor:colors.border}]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Abrir mi perfil" onPress={()=>onNavigate(user?.role==='CLIENT'?'/client/profile':user?.role==='VETERINARIAN'?'/vet/profile':'/account')} style={styles.desktopIdentity}><View style={[styles.desktopAvatar,{backgroundColor:colors.accent}]}><AppText style={{color:colors.primary,fontWeight:'700'}}>{initials||'•'}</AppText></View><View style={styles.desktopUserCopy}><AppText numberOfLines={1} style={styles.desktopUserName}>{[user?.firstName,user?.lastName].filter(Boolean).join(' ')||roleLabel(user!.role,user!.roleName??user!.role)}</AppText><AppText numberOfLines={1} variant="caption" muted>{user?.email}</AppText></View></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir mi perfil" onPress={()=>onNavigate(user?.role==='CLIENT'?'/client/profile':'/account')} style={styles.desktopIdentity}><View style={[styles.desktopAvatar,{backgroundColor:colors.accent}]}><AppText style={{color:colors.primary,fontWeight:'700'}}>{initials||'•'}</AppText></View><View style={styles.desktopUserCopy}><AppText numberOfLines={1} style={styles.desktopUserName}>{[user?.firstName,user?.lastName].filter(Boolean).join(' ')||roleLabel(user!.role,user!.roleName??user!.role)}</AppText><AppText numberOfLines={1} variant="caption" muted>{user?.email}</AppText></View></Pressable>
         <AppText numberOfLines={1} variant="caption" muted>{roleLabel(user!.role,user!.roleName??user!.role)}</AppText>
         <Pressable accessibilityRole="button" accessibilityLabel={mode==='dark'?'Usar modo claro':'Usar modo oscuro'} onPress={()=>setPreference(mode==='dark'?'light':'dark')} style={styles.desktopAction}><Ionicons name={mode==='dark'?'sunny-outline':'moon-outline'} size={19} color={colors.muted}/><AppText style={styles.itemText}>{mode==='dark'?'Modo claro':'Modo oscuro'}</AppText></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={()=>setConfirmLogout(true)} style={styles.desktopAction}><Ionicons name="log-out-outline" size={19} color={colors.muted}/><AppText style={styles.itemText}>Cerrar sesión</AppText></Pressable>

@@ -31,6 +31,7 @@
     "db:seed:client:reference": "tsx src/database/client-reference-seed.ts",
     "db:seed": "tsx src/database/cli.ts seed",
     "db:migrate:clinic": "tsx src/database/clinic-migrate.ts",
+    "db:migrate:availability-archive": "tsx src/database/availability-archive-migrate.ts",
     "db:migrate:appointment-details": "tsx src/database/appointment-details-migrate.ts",
     "db:migrate:veterinarian-clinical": "tsx src/database/veterinarian-clinical-migrate.ts",
     "db:migrate:reservation-reason": "tsx src/database/reservation-reason-migrate.ts",

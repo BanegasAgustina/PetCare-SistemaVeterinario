@@ -53,7 +53,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const expireSession = useCallback((message: string) => {
     renewing.current=null;
     generation.current += 1; session.current = null; setUser(null); setExpiresAt(null); setNotice(message);
-    void clearSession().catch(() => setNotice('Tu sesión venció. No pudimos limpiar el almacenamiento; volvé a intentar.'));
+    void clearSession().catch(() => setNotice('Tu sesión venció. No pudimos cerrarla por completo; iniciá sesión nuevamente.'));
   }, []);
 
   /** Una promesa compartida evita usar dos veces el refresh token ante requests concurrentes. */
@@ -168,7 +168,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const result=await beginOAuth(provider,stored.accessToken);if('redirecting' in result||!result.linked)throw new ApiError('INVALID_RESPONSE','No se pudo vincular el proveedor.');
   },[renewSession]);
   const registerOAuth=useCallback(async(profile:RegisterValues)=>{
-    if(!oauthPending)throw new ApiError('OAUTH_FAILED','Iniciá OAuth nuevamente.');const attempt=generation.current;
+    if(!oauthPending)throw new ApiError('OAUTH_FAILED','Volvé a iniciar sesión con este proveedor.');const attempt=generation.current;
     const verification=readVerification(await completeOAuth(oauthPending,profile));if(attempt!==generation.current)return;
     setOAuthPending(null);setPendingVerification(verification);setRegisteredEmail(profile.email);setVerificationFromLogin(false);setVerificationOpen(true);
   },[oauthPending]);
@@ -196,7 +196,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if(refreshToken)try{await authApi.logout(refreshToken);}catch{sessionRevocationFailed=true;}
     if(pushRevocationFailed||sessionRevocationFailed)setNotice(pushRevocationFailed
       ?'Se cerró la sesión en este dispositivo, pero no pudimos desactivar las notificaciones privadas. Conectate e iniciá sesión de nuevo para actualizar el registro.'
-      :'Se cerró la sesión en este dispositivo. No pudimos revocarla en el servidor; requiere conexión.');
+      :'Se cerró la sesión en este dispositivo, pero no pudimos completar el cierre en tus otros dispositivos. Conectate e intentá nuevamente.');
   }, [user?.role]);
 
   const refreshProfile = useCallback(async () => {
