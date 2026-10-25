@@ -1,5 +1,5 @@
 /** Catálogo cliente con búsqueda, filtros reales, banners derivados de promociones activas y carrito existente. */
-import { useCallback, useMemo, useState, type ComponentProps } from 'react';
+import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +47,7 @@ export default function StoreScreen() {
   const [selected, setSelected] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [savingProduct, setSavingProduct] = useState<string | null>(null);
+  const addInFlight = useRef(false);
   const [cartSnapshot, setCartSnapshot] = useState<Cart | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export default function StoreScreen() {
   const currentCart = cart.data ?? cartSnapshot;
   const cartCount = currentCart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
   const addToCart = useCallback(async (product: Product, amount: number) => {
+    if (addInFlight.current) return;
     if (!Number.isInteger(amount) || amount < 1 || amount > 99 || amount > product.stock) {
       const message = 'Ingresá una cantidad válida dentro del stock disponible.';
       setActionError(message);
@@ -101,6 +103,7 @@ export default function StoreScreen() {
       setModalError(message);
       return;
     }
+    addInFlight.current = true;
     setSavingProduct(product.id);
     setActionError(null);
     setModalError(null);
@@ -114,6 +117,7 @@ export default function StoreScreen() {
       setActionError(message);
       setModalError(message);
     } finally {
+      addInFlight.current = false;
       setSavingProduct(null);
     }
   }, [api, reloadCart, currentCart, showToast]);
@@ -208,7 +212,7 @@ export default function StoreScreen() {
 
       {catalog.data && <View style={styles.categorySection}>
         <View style={styles.categoryHeading}><AppText variant="subtitle">Categorías</AppText><Pressable accessibilityRole="button" onPress={() => { setCategory(''); setDraftCategory(''); }}><AppText variant="caption" style={{ color: colors.primary }}>Ver todas</AppText></Pressable></View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
+        <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-store-categories':undefined} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
           <CategoryTile name="Todas" icon="grid-outline" selected={!category} onPress={() => { setCategory(''); setDraftCategory(''); }} />
           {categoryChips.map(item => <CategoryTile key={item.id} name={item.name} icon={categoryIcon(item.name)} selected={category === item.id} onPress={() => { setCategory(item.id); setDraftCategory(item.id); }} />)}
         </ScrollView>
@@ -220,15 +224,15 @@ export default function StoreScreen() {
     <QueryState {...cart} />
     <QueryState {...query} />
     {query.data && <AppText variant="subtitle">Productos disponibles</AppText>}
-    {query.data && (products.length ? adaptiveGrid ? <ResponsiveGrid>{products.map(product=><StoreProductCard key={product.id} product={product} adding={savingProduct===product.id} cartReady={Boolean(currentCart)} onOpen={()=>openProduct(product)} onAdd={()=>void addToCart(product,1)}/>)}</ResponsiveGrid> : <View style={styles.productGrid}>
+    {query.data && (products.length ? adaptiveGrid ? <ResponsiveGrid>{products.map(product=><StoreProductCard key={product.id} product={product} adding={savingProduct===product.id} cartReady={Boolean(currentCart)&&!savingProduct} onOpen={()=>openProduct(product)} onAdd={()=>void addToCart(product,1)}/>)}</ResponsiveGrid> : <View style={styles.productGrid}>
       {productRows.map((row, index) => <View key={`product-row-${index}`} style={styles.productRow}>
-        {row.map(product => <View key={product.id} style={styles.productCell}><StoreProductCard product={product} adding={savingProduct === product.id} cartReady={Boolean(currentCart)} onOpen={() => openProduct(product)} onAdd={() => void addToCart(product, 1)} /></View>)}
+        {row.map(product => <View key={product.id} style={styles.productCell}><StoreProductCard product={product} adding={savingProduct === product.id} cartReady={Boolean(currentCart)&&!savingProduct} onOpen={() => openProduct(product)} onAdd={() => void addToCart(product, 1)} /></View>)}
         {row.length < columns && <View style={styles.productCell} />}
       </View>)}
-    </View> : <PetCareEmptyState title="No hay productos disponibles" message="Probá cambiar la búsqueda o los filtros." icon="bag-handle-outline" />)}
+    </View> : <PetCareEmptyState title="No hay productos disponibles" message={search||activeFilterCount?'Probá cambiar la búsqueda o limpiar los filtros aplicados.':'La tienda no tiene productos disponibles en este momento.'} icon="bag-handle-outline" action={search||activeFilterCount?()=>{setSearch('');clearFilters();}:undefined} label={search||activeFilterCount?'Limpiar búsqueda y filtros':undefined} />)}
 
     <View style={styles.bottomScrollSpace} />
-    <ProductDetailModal product={selected} quantity={quantity} inCart={selected ? currentCart?.items.find(item => item.id === selected.id)?.quantity ?? 0 : 0} error={modalError} saving={Boolean(selected && savingProduct === selected.id)} cartReady={Boolean(currentCart)} onQuantityChange={setQuantity} onClose={() => { setSelected(null); setModalError(null); }} onAdd={() => { if (selected) void addToCart(selected, Number(quantity)); }} />
+    <ProductDetailModal product={selected} quantity={quantity} inCart={selected ? currentCart?.items.find(item => item.id === selected.id)?.quantity ?? 0 : 0} error={modalError} saving={Boolean(selected && savingProduct === selected.id)} cartReady={Boolean(currentCart)&&!savingProduct} onQuantityChange={setQuantity} onClose={() => { setSelected(null); setModalError(null); }} onAdd={() => { if (selected) void addToCart(selected, Number(quantity)); }} />
   </PetCareScreen>;
 }
 

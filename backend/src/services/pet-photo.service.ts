@@ -126,6 +126,11 @@ export async function productPhotoUrl(key:unknown):Promise<string|null> {
   try {const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:String(key),ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}}
   catch {return null;}
 }
+export async function servicePhotoUrl(key:unknown):Promise<string|null> {
+  if(!key)return null;if(cloudinaryPublicId(key,'services'))return String(key);if(!serviceKeyPattern.test(String(key)))return String(key);
+  try {const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:String(key),ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}}
+  catch {return null;}
+}
 /** Fotos de perfiles profesionales: solo el backend escribe, las respuestas usan URL firmada. */
 export async function storeProfilePhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'profiles');
@@ -182,5 +187,5 @@ export async function presentProductImages(value:unknown):Promise<unknown> {
 export async function presentServiceImages(value:unknown):Promise<unknown> {
   if(Array.isArray(value))return Promise.all(value.map(presentServiceImages));
   if(!value||typeof value!=='object')return value;
-  const result:Record<string,unknown>={};for(const [key,item] of Object.entries(value))result[key]=key==='imageUrl'&&isServicePhotoKey(item)?String(item):await presentServiceImages(item);return result;
+  const result:Record<string,unknown>={};for(const [key,item] of Object.entries(value))result[key]=key==='imageUrl'?await servicePhotoUrl(item):await presentServiceImages(item);return result;
 }

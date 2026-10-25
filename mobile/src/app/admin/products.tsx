@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
@@ -14,13 +14,14 @@ import { FormNotice } from '../../components/ui/FormNotice';
 import { FilterDisclosure } from '../../components/ui/FilterDisclosure';
 import { CompactPagination } from '../../components/ui/CompactPagination';
 import { SearchFilterBar } from '../../components/ui/SearchFilterBar';
-import { PetCareCard, PetImage, QueryState, money, ResponsiveGrid } from '../../components/client/PetCareUI';
+import { PetCareCard, PetCareEmptyState, PetImage, QueryState, money, ResponsiveGrid } from '../../components/client/PetCareUI';
 import { SelectionRow } from '../../components/ui/SelectionRow';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { AdminFormActions, AdminFormSection } from '../../components/admin/AdminFormLayout';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
+import { ApiError } from '../../services/api';
 
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string | null; category: string | null; priceCents: number; stock: number; physicalStock: number; reservedStock: number; stockMinimum:number; isActive: boolean };
 type Page = { items: Product[]; page: number; total: number; hasMore: boolean };
@@ -54,6 +55,10 @@ export default function AdminProducts() {
   const loadHistory=useCallback(()=>historyProductId?request<StockHistory>(`/admin/products/${encodeURIComponent(historyProductId)}/stock-movements`,{method:'POST',body:{}}):Promise.resolve(null),[request,historyProductId]);
   const stockHistory=useClientQuery(loadHistory);
   const updateFilter = (key: keyof typeof filters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
+  function changeField<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
+    setValues(current => ({ ...current, [key]: value }));
+    setErrors(current => { const next = { ...current }; delete next[key as keyof typeof errors]; return next; });
+  }
 
   function openEditor(product: Product) {
     setDetail(null);
@@ -90,8 +95,13 @@ export default function AdminProducts() {
   async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setPhotoError('Permití el acceso a la galería para elegir una imagen.');return;}}const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});if(result.canceled)return;const asset=result.assets[0];if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setPhotoError('Elegí una imagen de hasta 5 MB y 25 megapíxeles.');return;}setPhoto({uri:asset.uri,base64:asset.base64});setValues(current=>({...current,imageUrl:editing?.imageUrl??''}));}catch{setPhotoError('No pudimos abrir la imagen. Intentá elegir otra.');}}
 
   const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.sort !== 'name' ? 1 : 0) + (filters.categoryId ? 1 : 0);
+  const hasRestrictiveFilters = Boolean(submittedSearch) || filters.status !== 'all' || filters.stock !== 'all' || Boolean(filters.categoryId);
   return <ScreenContainer wide>
     <AdminPageHeading title="Productos y stock"/>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      {auth.hasPermission('products.update') && auth.hasPermission('products.create') && auth.hasPermission('products.update_price') && auth.hasPermission('products.update_stock') && <AppButton compact label="Crear producto" onPress={() => router.push('/admin/catalog/products')}/>}
+      {auth.hasPermission('categories.manage') && <AppButton compact variant="secondary" label="Gestionar categorías" onPress={() => router.push('/admin/catalog/categories')}/>}
+    </View>
     <SearchFilterBar><AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
       <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}>
         <AppText variant="subtitle">Inventario</AppText>
@@ -106,7 +116,7 @@ export default function AdminProducts() {
     <QueryState {...catalog}/><QueryState {...query}/>
     {query.data && <>
       <AppText muted>{query.data.total} productos</AppText>
-      {!query.data.items.length && <AppText muted>No hay productos para esta consulta.</AppText>}
+      {!query.data.items.length && <PetCareEmptyState title={hasRestrictiveFilters ? 'No hay productos para estos filtros' : 'Todavía no hay productos'} message={hasRestrictiveFilters ? 'Probá con otro nombre o limpiá los filtros para revisar el inventario.' : 'Los productos que cargues aparecerán en este inventario.'} action={hasRestrictiveFilters ? () => { setSearch(''); setSubmittedSearch(''); setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); } : undefined} label={hasRestrictiveFilters ? 'Limpiar búsqueda y filtros' : undefined} />}
       {desktopGrid?<ResponsiveGrid>{query.data.items.map(product => <PetCareCard key={product.id}>
         <View style={styles.productRow}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${product.name}`} onPress={() => setDetail(product)} style={styles.productInfo}>
@@ -132,22 +142,22 @@ export default function AdminProducts() {
     <AppModal size="wide" visible={Boolean(editing)} dismissible onClose={() => setEditing(null)}>
       {editing && <><AppText variant="title">Editar producto</AppText>
         <AdminFormSection title="Información del producto" description="Nombre, descripción e imagen que se muestran en la tienda.">
-        <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, name: value }))}/>
-        <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => setValues(current => ({ ...current, description: value }))}/>
-        <AppText variant="caption" muted>Imagen del producto</AppText><PetImage uri={photo?.uri??(values.imageUrl||editing.imageUrl)}/><AppButton variant="secondary" label={photo?'Cambiar imagen':'Elegir imagen'} disabled={!auth.hasPermission('products.update')} onPress={()=>void choosePhoto()}/>{Boolean(photo||values.imageUrl)&&<AppButton variant="secondary" label="Quitar imagen" disabled={!auth.hasPermission('products.update')} onPress={()=>{setPhoto(null);setValues(current=>({...current,imageUrl:''}));}}/>}<FormNotice error message={photoError}/><AppInput label="URL HTTPS alternativa" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value => {setPhoto(null);setValues(current => ({ ...current, imageUrl: value }));}}/>
-        {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => setValues(current => ({ ...current, categoryId: '' }))}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} radio checked={values.categoryId === category.id} onPress={() => setValues(current => ({ ...current, categoryId: category.id }))}/>)}</>}
+        <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('name', value)}/>
+        <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('description', value)}/>
+        <AppText variant="caption" muted>Imagen del producto</AppText><PetImage uri={photo?.uri??(values.imageUrl||editing.imageUrl)}/><AppButton variant="secondary" label={photo?'Cambiar imagen':'Elegir imagen'} disabled={!auth.hasPermission('products.update')} onPress={()=>void choosePhoto()}/>{Boolean(photo||values.imageUrl)&&<AppButton variant="secondary" label="Quitar imagen" disabled={!auth.hasPermission('products.update')} onPress={()=>{setPhoto(null);changeField('imageUrl','');}}/>}<FormNotice error message={photoError}/><AppInput label="URL HTTPS alternativa" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value => {setPhoto(null);changeField('imageUrl', value);}}/>
+        {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => changeField('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} radio checked={values.categoryId === category.id} onPress={() => changeField('categoryId', category.id)}/>)}</>}
         </AdminFormSection>
         <AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">
-        <AppInput label="Costo del producto (ARS)" prefix="$" placeholder="0,00" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => setValues(current => ({ ...current, price: value.replace(',', '.') }))}/>
-        <AppInput label="Stock físico" value={values.stock} error={errors.stock} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => setValues(current => ({ ...current, stock: value }))}/>
-        <AppInput label="Stock mínimo" value={values.stockMinimum} error={errors.stockMinimum} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => setValues(current => ({ ...current, stockMinimum: value }))}/>
-        {editing&&values.stock!==String(editing.physicalStock)&&<AppInput label="Motivo del ajuste de stock" value={values.stockReason} error={errors.stockReason} maxLength={250} editable={auth.hasPermission('products.update_stock')} onChangeText={stockReason=>setValues(current=>({...current,stockReason}))}/>}
-        <SelectionRow label="Producto activo" checked={values.isActive} disabled={!auth.hasPermission('products.update')} onPress={() => setValues(current => ({ ...current, isActive: !current.isActive }))}/>
+        <AppInput label="Precio de venta (ARS)" prefix="$" placeholder="0,00" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => changeField('price', value.replace(',', '.'))}/>
+        <AppInput label="Stock físico" value={values.stock} error={errors.stock} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stock', value)}/>
+        <AppInput label="Stock mínimo" value={values.stockMinimum} error={errors.stockMinimum} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stockMinimum', value)}/>
+        {editing&&values.stock!==String(editing.physicalStock)&&<AppInput label="Motivo del ajuste de stock" value={values.stockReason} error={errors.stockReason} maxLength={250} editable={auth.hasPermission('products.update_stock')} onChangeText={stockReason=>changeField('stockReason', stockReason)}/>}
+        <SelectionRow label="Producto activo" checked={values.isActive} disabled={!auth.hasPermission('products.update')} onPress={() => changeField('isActive', !values.isActive)}/>
         </AdminFormSection>
         <AdminFormActions><AppButton label="Revisar y guardar" onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => setEditing(null)}/></AdminFormActions>
       </>}
     </AppModal>
-    <ConfirmModal visible={body !== null} title="Guardar cambios de producto" message="Los cambios se guardarán en el inventario real de PetCare." onCancel={() => setBody(null)} onConfirm={async () => { if (!editing || !body) return; await request(`/admin/products/${editing.id}`, { method: 'PATCH', body }); setBody(null); setEditing(null); query.reload(); showToast('Producto actualizado', 'success'); }}/>
+    <ConfirmModal visible={body !== null} title="Guardar cambios de producto" message="Los cambios se guardarán en el inventario real de PetCare." onCancel={() => setBody(null)} onConfirm={async () => { if (!editing || !body) return; try { await request(`/admin/products/${editing.id}`, { method: 'PATCH', body }); setBody(null); setEditing(null); query.reload(); showToast('Producto actualizado', 'success'); } catch (failure) { if (failure instanceof ApiError && failure.fieldErrors.length) { const fields: Record<string, keyof typeof errors> = { name: 'name', imageUrl: 'imageUrl', priceCents: 'price', stock: 'stock', stockMinimum: 'stockMinimum', stockReason: 'stockReason' }; const next: typeof errors = {}; for (const item of failure.fieldErrors) { const field = fields[item.field]; if (field) next[field] = item.message; } if (Object.keys(next).length) { setErrors(current => ({ ...current, ...next })); setBody(null); return; } } throw failure; } }}/>
   </ScreenContainer>;
 }
 

@@ -16,6 +16,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { ApiError } from '../../services/api';
 import { parseArsToCents, validatePostalCodePrefix, validateStoreFulfillment, type StoreFulfillmentFieldErrors } from '../../utils/store-fulfillment-validation';
 import { createSubmissionGate } from '../../utils/submission-gate';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const blank: FulfillmentSettings = { demoModeEnabled: false, pickupEnabled: false, pickupAddress: null, pickupHours: null, pickupInstructions: null, deliveryEnabled: false, deliveryBaseFeeCents: 0, freeDeliveryThresholdCents: null, deliveryHours: null, deliveryDays: null, deliveryInformation: null, bankName: null, bankAccountHolder: null, bankCbuCvu: null, bankAlias: null, zones: [] };
 const formatCents = (cents: number | null) => cents === null ? '' : (cents / 100).toFixed(2);
@@ -36,6 +37,15 @@ export default function StoreSettings() {
   const [didSubmit, setDidSubmit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const hasFeeDraftChanges = Object.entries(feeDrafts).some(([key, value]) => {
+    if (key === 'base') return value !== formatCents(query.data?.deliveryBaseFeeCents ?? 0);
+    if (key === 'free') return value !== formatCents(query.data?.freeDeliveryThresholdCents ?? null);
+    const zoneIndex = Number(key.replace('zone-', ''));
+    return value !== formatCents(query.data?.zones[zoneIndex]?.feeCents ?? null);
+  });
+  const hasSettingsChanges = Boolean(query.data) && JSON.stringify(settings) !== JSON.stringify(query.data);
+  const hasNewZoneChanges = Boolean(newZone.name || newZone.province || newZone.city || newZone.postalCodePrefix || newZone.fee);
+  const { confirmation: unsavedChangesPrompt } = useUnsavedChangesGuard(hasSettingsChanges || hasFeeDraftChanges || hasNewZoneChanges);
   const saveGate = useRef(createSubmissionGate());
   const inputRefs = useRef<Record<string, ComponentRef<typeof TextInput> | null>>({});
   const canManage = auth.hasPermission('store.settings.manage');
@@ -157,6 +167,7 @@ export default function StoreSettings() {
       {canManage && <AppButton variant="accent" label="Guardar configuración" loading={saving} disabled={saving} onPress={() => void save()} />}
       {!canManage && <AppText muted>Tenés acceso de consulta. Se requiere el permiso store.settings.manage para editar.</AppText>}
     </>}
+    {unsavedChangesPrompt}
   </PetCareScreen>;
 }
 

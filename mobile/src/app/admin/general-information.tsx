@@ -14,6 +14,7 @@ import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import type { GeneralInformation,OpeningHours,Weekday } from '../../types/admin';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const weekdays:Weekday[]=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 const dayNames:Record<Weekday,string>={monday:'Lunes',tuesday:'Martes',wednesday:'Miércoles',thursday:'Jueves',friday:'Viernes',saturday:'Sábado',sunday:'Domingo'};
@@ -22,10 +23,10 @@ const empty:GeneralInformation={clinicName:'PetCare',description:null,logoUrl:nu
 const nullableFields=(information:GeneralInformation)=>({...information,description:information.description||null,logoUrl:information.logoUrl||null,welcomeMessage:information.welcomeMessage||null,phone:information.phone||null,whatsapp:information.whatsapp||null,publicEmail:information.publicEmail||null,address:information.address||null,city:information.city||null,province:information.province||null,mapUrl:information.mapUrl||null,instagramUrl:information.instagramUrl||null,facebookUrl:information.facebookUrl||null,xUrl:information.xUrl||null,websiteUrl:information.websiteUrl||null});
 
 export default function GeneralInformationScreen(){
-  const api=useAdmin();const action=useAsyncAction();const {showToast}=useFeedback();const query=useClientQuery(api.generalInformation);const [savedValues,setValues]=useState<GeneralInformation|null>(null);const values=savedValues??query.data?.information??empty;
+  const api=useAdmin();const action=useAsyncAction();const {showToast}=useFeedback();const query=useClientQuery(api.generalInformation);const [savedValues,setValues]=useState<GeneralInformation|null>(null);const [baseline,setBaseline]=useState<GeneralInformation|null>(null);const values=savedValues??query.data?.information??empty;const {confirmation:unsavedChangesPrompt}=useUnsavedChangesGuard(Boolean(query.data)&&JSON.stringify(values)!==JSON.stringify(baseline??query.data?.information));
   function change<K extends keyof GeneralInformation>(key:K,value:GeneralInformation[K]){setValues({...values,[key]:value});}
   function updateHours(day:Weekday,update:(current:OpeningHours[Weekday])=>OpeningHours[Weekday]){setValues({...values,openingHours:{...values.openingHours,[day]:update(values.openingHours[day])}});}
-  async function save(){const saved=await api.saveGeneralInformation(nullableFields(values));setValues(saved);query.reload();showToast('Información de PetCare guardada','success');}
+  async function save(){const saved=await api.saveGeneralInformation(nullableFields(values));setValues(saved);setBaseline(saved);query.reload();showToast('Información de PetCare guardada','success');}
   return <ScreenContainer wide><AdminPageHeading title="Información de PetCare"/><AppText muted>Estos datos aparecen en el inicio público de la aplicación.</AppText><QueryState {...query}/>
     {query.data&&<>
       {!query.data.configured&&<FormNotice message="No es posible editar esta información en este momento. Intentá nuevamente más tarde."/>}
@@ -64,5 +65,6 @@ export default function GeneralInformationScreen(){
       </AdminFormSection>
       <FormNotice error message={action.error}/><AdminFormActions><AppButton label="Guardar información" loading={action.loading} disabled={!query.data.configured||query.loading} onPress={()=>void action.run(save)}/></AdminFormActions>
     </>}
+    {unsavedChangesPrompt}
   </ScreenContainer>;
 }

@@ -3,6 +3,9 @@ import isEmail from 'validator/lib/isEmail';
 import type { LoginValues, RegisterValues, RegistrationFormValues } from '../types/auth';
 
 export type FieldErrors<T> = Partial<Record<keyof T, string>>;
+export function firstInvalidField<T extends PropertyKey>(order: readonly T[], errors: Partial<Record<T, string>>): T | undefined {
+  return order.find(field => Boolean(errors[field]));
+}
 export const normalizeEmail = (email: string) => email.trim().normalize('NFC').toLowerCase();
 const namePattern = /^[\p{L}][\p{L}\p{M}]*(?:[ '\u2019-][\p{L}][\p{L}\p{M}]*)*$/u;
 

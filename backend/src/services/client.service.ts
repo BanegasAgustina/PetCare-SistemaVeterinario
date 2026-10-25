@@ -7,7 +7,7 @@ import { findUserById } from '../repositories/user.repository';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { env } from '../config/env';
-import { storePetPhoto,removePetPhoto } from './pet-photo.service';
+import { storePetPhoto,removePetPhoto,presentServiceImages } from './pet-photo.service';
 import { readName,readPhone,readPassword } from '../validators/auth.validator';
 import { clientBody,clientId,petInput,cartQuantity,text,invalid } from '../validators/client.validator';
 import * as storefront from '../repositories/storefront.repository';
@@ -52,7 +52,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'reactivate-pet':clientBody(body,[]);return repository.reactivatePet(owner,clientId(id));
       case 'appointments':return repository.appointments(owner);
       case 'appointment':{const results=await repository.appointments(owner);const appointment=results.find(item=>item.id===clientId(id));if(!appointment)throw new AppError('NOT_FOUND',404,'Turno no encontrado.');return appointment;}
-      case 'appointment-catalog':return repository.appointmentCatalog();
+      case 'appointment-catalog':return presentServiceImages(await repository.appointmentCatalog());
       case 'slots':return repository.slots(clientId(query.serviceId),query.veterinarianId?clientId(query.veterinarianId):undefined);
       case 'create-appointment': {const values=clientBody(body,['petId','slotId']);return repository.createAppointment(owner,clientId(values.petId),clientId(values.slotId),actor);}
       case 'clinical': {if(!clinicalKinds.includes(String(id) as typeof clinicalKinds[number]))invalid();return repository.clinical(owner,String(id),query.petId?clientId(query.petId):undefined);}

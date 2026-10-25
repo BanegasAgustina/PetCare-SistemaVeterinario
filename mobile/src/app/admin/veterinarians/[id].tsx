@@ -77,7 +77,7 @@ export default function VeterinarianEditor() {
       <AppInput label="Matrícula profesional" value={values.licenseNumber} error={errors.licenseNumber} editable={canEdit&&!action.loading} onChangeText={v=>change('licenseNumber',v)} />
       <AppText variant="subtitle">3. Especialidades</AppText>
       <FormNotice error message={errors.specialtyIds??null} />
-      {!catalog.specialties.length && <AppText muted>No hay especialidades registradas. Es necesario crear una antes de guardar un veterinario.</AppText>}
+      {!catalog.specialties.length && <View style={styles.section}><AppText muted>No hay especialidades activas. Se necesita al menos una para completar el perfil veterinario y validar los servicios clínicos que puede brindar.</AppText>{auth.hasPermission('specialties.manage')&&<AppButton compact variant="secondary" label="Administrar especialidades" onPress={()=>router.push('/admin/veterinarians/specialties')}/>}</View>}
       {catalog.specialties.map(s=><SelectionRow key={s.id} label={s.name} checked={values.specialtyIds.includes(s.id)} disabled={!canEdit||action.loading}
         onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
       <AppText variant="subtitle">Cuenta</AppText>

@@ -7,6 +7,7 @@ import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { PetCareScreen, PetCareCard, PetImage, QueryState, statusLabel } from '../client/PetCareUI';
+import { SlotSelectionCard } from '../client/SlotSelectionCard';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
@@ -103,7 +104,7 @@ export function AppointmentScreen() {
           {catalog.data?.professionals.filter(person => catalog.data?.assignments.some(item => item.professionalId === person.id && item.serviceId === query.data?.serviceId)).map(person => <SelectionRow key={person.id} label={String(person.name)} checked={professional === person.id} onPress={() => { setProfessional(person.id); setSlot(''); }} />)}
         </PetCareCard>
         <QueryState {...slots} />
-        {slots.data && <PetCareCard>{slots.data.map(item => <SelectionRow key={item.id} label={clinicDateTime(item.startsAt)} hint={item.veterinarian} checked={slot === item.id} onPress={() => setSlot(item.id)} />)}</PetCareCard>}
+        {slots.data && <SlotSelectionCard emptyMessage="No hay horarios disponibles para reasignar en este momento.">{slots.data.map(item => <SelectionRow key={item.id} label={clinicDateTime(item.startsAt)} hint={item.veterinarian} checked={slot === item.id} onPress={() => setSlot(item.id)} />)}</SlotSelectionCard>}
         <AppButton label="Confirmar nuevo horario" disabled={!slot} onPress={() => setNext('reschedule')} />
       </>}
     </>}

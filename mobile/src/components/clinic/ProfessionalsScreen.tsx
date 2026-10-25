@@ -1,6 +1,6 @@
 /** Gestión de profesionales y asignaciones reales de la clínica. */
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform,Pressable,StyleSheet,View,useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,8 +21,11 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { AppModal } from '../ui/AppModal';
 import { AdminFormActions, AdminFormSection } from '../admin/AdminFormLayout';
 import { FormNotice } from '../ui/FormNotice';
+import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 
 export function ProfessionalsScreen() {
+  const {width}=useWindowDimensions();
+  const desktopWeb=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const { hasPermission, hasRole } = useAuth();
   const api = useClinic();
   const admin = useAdmin();
@@ -49,6 +52,7 @@ export function ProfessionalsScreen() {
   const pageSize = 20;
   const visibleProfessionals = professionals.slice((page - 1) * pageSize, page * pageSize);
   const selectedProfessional = query.data?.find(person => person.id === selected);
+  const selectedIsVeterinarian = Boolean(selectedProfessional && 'veterinarianId' in selectedProfessional && selectedProfessional.veterinarianId);
 
   async function changeActiveStatus() {
     if (!selectedProfessional) return;
@@ -71,8 +75,10 @@ export function ProfessionalsScreen() {
   }
 
   return <PetCareScreen wide><PetCareHeader title="Profesionales" back hideForAdmin/>
-    {hasPermission('users.manage') && <AppButton label="Crear profesional / secretario" onPress={() => router.push({pathname:'/admin/users',params:{create:'1'}})}/>}
-    {hasPermission('veterinarians.manage') && <AppButton label="Veterinarios" variant="secondary" onPress={() => router.push('/admin/veterinarians')}/>}
+    {(hasPermission('users.manage')||hasPermission('veterinarians.manage'))&&<View style={[styles.actions,desktopWeb&&styles.desktopActions]}>
+      {hasPermission('users.manage') && <AppButton compact={desktopWeb} label="Crear profesional / secretario" onPress={() => router.push({pathname:'/admin/users',params:{create:'1'}})}/>}
+      {hasPermission('veterinarians.manage') && <AppButton compact={desktopWeb} label="Veterinarios" variant="secondary" onPress={() => router.push('/admin/veterinarians')}/>}
+    </View>}
     <SearchFilterBar>
       <AppInput icon="search-outline" label="Buscar profesionales" placeholder="Nombre" value={search} onChangeText={value => { setSearch(value); setPage(1); }}/>
       <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => { setPage(1); void query.reload(); }} onClear={() => { setType(''); setActive(''); setSort('recent'); setPage(1); }}>
@@ -82,25 +88,39 @@ export function ProfessionalsScreen() {
       </FilterDisclosure>
     </SearchFilterBar>
     <QueryState {...catalog}/><QueryState {...query}/>
-    {query.data && (professionals.length ? <ResponsiveGrid>{visibleProfessionals.map(person => <PetCareCard key={person.id}><View style={{flexDirection:'row',alignItems:'center',gap:14}}><PetImage uri={typeof person.profilePhotoUrl==='string'?person.profilePhotoUrl:null} size={56}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{String(person.name)}</AppText><AppText muted>{String(person.typeName)} · {person.isActive?'Activo':'Inactivo'}</AppText>{Boolean(person.specialties)&&<AppText muted numberOfLines={1}>{String(person.specialties)}</AppText>}</View><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${String(person.name)}`} onPress={()=>load(person.id)} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View></PetCareCard>)}</ResponsiveGrid> : <PetCareEmptyState title="No hay profesionales para estos filtros"/>)}
+    {query.data && (professionals.length ? <ResponsiveGrid minItemWidth={desktopWeb?320:responsiveLayout.grid.minItemWidth} maxColumns={3}>{visibleProfessionals.map(person => {
+      const assigned = (catalog.data?.assignments ?? []).filter(item => item.professionalId === person.id)
+        .map(link => catalog.data?.services.find(service => service.id === link.serviceId))
+        .filter((service): service is NonNullable<typeof service> => Boolean(service));
+      const assignedNames = assigned.slice(0, 2).map(service => String(service.name));
+      return <PetCareCard key={person.id}><View style={{flexDirection:'row',alignItems:'center',gap:12}}><PetImage uri={typeof person.profilePhotoUrl==='string'?person.profilePhotoUrl:null} size={desktopWeb?56:48}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={desktopWeb?2:1}>{String(person.name)}</AppText><AppText muted numberOfLines={1}>{String(person.typeName)} · {person.isActive?'Activo':'Inactivo'}</AppText>{Boolean(person.specialties)&&<AppText muted numberOfLines={desktopWeb?2:1}>{String(person.specialties)}</AppText>}</View><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${String(person.name)}`} onPress={()=>load(person.id)} style={{padding:10}}><Ionicons name="eye-outline" size={22}/></Pressable></View>
+        {catalog.data && <View style={{paddingTop:8,gap:2}}><AppText variant="caption" muted numberOfLines={2}>{assigned.length ? `Servicios · ${assignedNames.join(' · ')}${assigned.length>2?` · +${assigned.length-2}`:''}` : 'Sin servicios asignados'}</AppText>{assigned.some(service=>!service.isActive)&&<AppText variant="caption" muted>Incluye servicios inactivos; no publican nuevos horarios.</AppText>}</View>}
+      </PetCareCard>;
+    })}</ResponsiveGrid> : <PetCareEmptyState title="No hay profesionales para estos filtros" message="Probá limpiar la búsqueda o los filtros para revisar el listado completo."/>)}
     <CompactPagination page={page} canPrevious={page > 1} canNext={page * pageSize < professionals.length} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)} summary={`${professionals.length} profesionales`}/>
     <AppModal size="wide" visible={Boolean(selected)} dismissible onClose={() => { setSelected(''); setNewType(''); }}>
       {Boolean(selected) && catalog.data && selectedProfessional && <>
-        <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><AppText variant="title">Detalle del profesional</AppText>{hasPermission('users.manage')&&<Pressable accessibilityRole="button" accessibilityLabel="Editar profesional" onPress={()=>{const id=selected;setSelected('');router.push({pathname:'/admin/users/[id]',params:{id}});}} style={{padding:10}}><Ionicons name="create-outline" size={22}/></Pressable>}</View>
+        <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><AppText variant="title">Detalle del profesional</AppText>{(selectedIsVeterinarian?hasPermission('veterinarians.manage'):hasPermission('users.manage'))&&<Pressable accessibilityRole="button" accessibilityLabel="Editar profesional" onPress={()=>{const id=selected;setSelected('');router.push(selectedIsVeterinarian?{pathname:'/admin/veterinarians/[id]',params:{id}}:{pathname:'/admin/users/[id]',params:{id}});}} style={{padding:10}}><Ionicons name="create-outline" size={22}/></Pressable>}</View>
         <PetImage uri={typeof selectedProfessional.profilePhotoUrl === 'string' ? selectedProfessional.profilePhotoUrl : null} size={76}/>
         <AppText variant="subtitle">{String(selectedProfessional.name)}</AppText>
         <AppText>Tipo: {String(selectedProfessional.typeName)}</AppText>
         <AppText>Estado: {selectedProfessional.isActive ? 'Activo' : 'Inactivo'}</AppText>
         {Boolean(selectedProfessional.specialties) && <AppText>Especialidad: {String(selectedProfessional.specialties)}</AppText>}
         {selectedProfessional.emailVerified !== undefined && <AppText>Correo: {selectedProfessional.emailVerified ? 'Verificado' : 'Sin verificar'}</AppText>}
-        {hasPermission('users.manage') && hasRole('SUPER_ADMIN') && <AppButton label={selectedProfessional.isActive ? 'Desactivar profesional' : 'Reactivar profesional'} destructive={Boolean(selectedProfessional.isActive)} variant={selectedProfessional.isActive ? 'secondary' : 'primary'} onPress={() => setStatusConfirm(true)} />}
+        {catalog.data && <AdminFormSection title={`Servicios asignados (${services.length})`} description="La asignación se conserva hasta que confirmes un cambio. Los servicios inactivos no permiten publicar nuevos horarios.">
+          {services.map(id => catalog.data?.services.find(service => service.id === id)).filter((service): service is NonNullable<typeof service> => Boolean(service)).map(service => <AppText key={service.id} muted>{String(service.name)} · {String(catalog.data?.types.find(item => item.id === service.typeId)?.name ?? 'Tipo no disponible')} · {service.isActive ? 'Activo' : 'Inactivo'}</AppText>)}
+          {!services.length && <AppText muted>No tiene servicios asignados.</AppText>}
+          {hasPermission('schedule.manage') && <AppButton compact variant="secondary" label="Consultar disponibilidad" onPress={() => { setSelected(''); router.push({ pathname: '/admin/availability', params: { professionalId: selectedProfessional.id } }); }} />}
+        </AdminFormSection>}
+        {!selectedIsVeterinarian && hasPermission('users.manage') && hasRole('SUPER_ADMIN') && <AppButton label={selectedProfessional.isActive ? 'Desactivar profesional' : 'Reactivar profesional'} destructive={Boolean(selectedProfessional.isActive)} variant={selectedProfessional.isActive ? 'secondary' : 'primary'} onPress={() => setStatusConfirm(true)} />}
         <FormNotice error message={statusAction.error} />
         <AdminFormSection title="Tipo profesional" description="Cambiarlo puede quitar servicios incompatibles. Primero reprogramá los turnos vigentes.">
           {catalog.data.types.filter(item => Boolean(item.isClinical) === Boolean(query.data?.find(person => person.id === selected)?.isClinical)).map(item => <SelectionRow key={item.id} radio label={String(item.name)} checked={newType === item.id} onPress={() => setNewType(item.id)}/>)}
           <AdminFormActions><AppButton label="Revisar cambio de tipo" variant="secondary" disabled={!newType} onPress={() => setTypeConfirm(true)}/></AdminFormActions>
         </AdminFormSection>
         <AdminFormSection title="Servicios asignados" description="Seleccioná qué servicios puede atender este profesional.">
-          {catalog.data.services.filter(service => service.typeId === query.data?.find(person => person.id === selected)?.typeId).map(service => <SelectionRow key={service.id} label={String(service.name)} checked={services.includes(service.id)} onPress={() => setServices(current => current.includes(service.id) ? current.filter(id => id !== service.id) : [...current, service.id])}/>)}
+          {catalog.data.services.filter(service => service.typeId === selectedProfessional.typeId && (Boolean(service.isActive) || services.includes(service.id))).map(service => <SelectionRow key={service.id} label={`${String(service.name)} · ${service.isActive ? 'Activo' : 'Inactivo, sin nuevos horarios'}`} checked={services.includes(service.id)} onPress={() => setServices(current => current.includes(service.id) ? current.filter(id => id !== service.id) : service.isActive ? [...current, service.id] : current)}/>)}
+          {catalog.data.services.filter(service => service.typeId === selectedProfessional.typeId && Boolean(service.isActive)).length === 0 && <AppText muted>No hay servicios activos compatibles con este tipo profesional. Podés revisar el catálogo de servicios si tenés ese permiso.</AppText>}
           <AdminFormActions><AppButton label="Revisar asignación" onPress={() => setConfirm(true)}/><AppButton label="Cerrar" variant="secondary" onPress={() => setSelected('')}/></AdminFormActions>
         </AdminFormSection>
       </>}
@@ -110,3 +130,5 @@ export function ProfessionalsScreen() {
     <ConfirmModal visible={statusConfirm} title={selectedProfessional?.isActive ? 'Desactivar profesional' : 'Reactivar profesional'} message={selectedProfessional?.isActive ? 'La cuenta dejará de acceder a PetCare. Se conservarán sus datos, turnos e historial.' : 'El profesional volverá a tener acceso a PetCare con sus datos e historial actuales.'} destructive={Boolean(selectedProfessional?.isActive)} confirmLabel={selectedProfessional?.isActive ? 'Desactivar' : 'Reactivar'} onCancel={() => setStatusConfirm(false)} onConfirm={async() => { await changeActiveStatus(); }} />
   </PetCareScreen>;
 }
+
+const styles=StyleSheet.create({actions:{gap:16},desktopActions:{gap:10,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});

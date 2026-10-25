@@ -24,7 +24,7 @@ export default function ResetPasswordScreen(){
     if(password!==confirm){setValidationError('Las contraseñas no coinciden.');return;}
     setValidationError('');void action.run(async()=>{await resetPassword(token,password);setDone(true);setPassword('');setConfirm('');});
   };
-  return <LoginLayout scrollable>
+  return <LoginLayout scrollable petDecorations>
     <LoginBrand title="Nueva contraseña" subtitle="Elegí una contraseña segura para tu cuenta"/>
     {done?<><AppText muted>Tu contraseña se actualizó. Ya podés iniciar sesión con la nueva contraseña.</AppText><AppButton label="Volver al inicio de sesión" onPress={()=>router.replace('/login')}/></>:<>
       {!!token&&<><AppInput label="Nueva contraseña" password value={password} editable={!action.loading} onChangeText={setPassword}/><AppText variant="caption" muted>8 caracteres, mayúscula, minúscula, número y símbolo.</AppText><AppInput label="Repetir contraseña" password value={confirm} editable={!action.loading} onChangeText={setConfirm}/></>}

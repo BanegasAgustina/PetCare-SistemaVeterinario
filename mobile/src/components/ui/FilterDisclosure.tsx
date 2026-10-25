@@ -1,5 +1,5 @@
 import { useState, type PropsWithChildren } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { AppText } from './AppText';
@@ -15,7 +15,7 @@ export function FilterDisclosure({ children, activeCount = 0, onApply, onClear, 
       <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted}/>
     </Pressable>
     {open && <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <ScrollView style={styles.options} contentContainerStyle={styles.optionsContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-filter-options':undefined} style={styles.options} contentContainerStyle={styles.optionsContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">{children}</ScrollView>
       <View style={styles.actions}><AppButton compact variant="secondary" label="Limpiar" onPress={onClear}/><AppButton compact label="Aplicar" onPress={() => { onApply(); setOpen(false); }}/></View>
     </View>}
   </View>;

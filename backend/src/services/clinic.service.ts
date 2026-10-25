@@ -9,7 +9,7 @@ import * as storeOrders from '../repositories/store-orders.repository';
 import * as v from '../validators/clinic.validator';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
-import { isBannerPhotoKey,isProductPhotoKey,isServicePhotoKey,removeBannerPhoto,removeProductPhoto,removeServicePhoto,storeBannerPhoto,storeProductPhoto,storeServicePhoto } from './pet-photo.service';
+import { isBannerPhotoKey,isProductPhotoKey,isServicePhotoKey,presentServiceImages,removeBannerPhoto,removeProductPhoto,removeServicePhoto,storeBannerPhoto,storeProductPhoto,storeServicePhoto } from './pet-photo.service';
 export async function clinicOperation(actor:AuthUser,operation:string,id:unknown,value:unknown,query:Record<string,unknown>,kind?:string) {
  return runDatabaseOperation(async()=>{switch(operation){
  case 'slots':return clinic.slots(v.id(query.serviceId),query.professionalId?v.id(query.professionalId):undefined);
@@ -37,7 +37,7 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'professionals':admin.administrative(actor);clinic.permit(actor,'professionals.manage');return clinic.professionals();
  case 'professional-type':return admin.assignType(actor,v.id(id),value);
  case 'professional-services':return admin.assignServices(actor,v.id(id),value);
- case 'admin-list':return admin.list(actor,admin.entity(kind!),query);
+ case 'admin-list':{const entity=admin.entity(kind!);const result=await admin.list(actor,entity,query);return entity==='services'?presentServiceImages(result):result;}
  case 'admin-save':{
   const entity=admin.entity(kind!);const record=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
   if(!record||!['products','services'].includes(entity))return admin.save(actor,entity,id===undefined?undefined:v.id(id),value);

@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHeader,PetCareCard,PetCareEmptyState,PetImage,QueryState,statusLabel,ResponsiveGrid,type IconName } from '../client/PetCareUI';
+import { PetCareScreen,PetCareHero,PetCareCard,PetCareEmptyState,PetImage,QueryState,statusLabel,ResponsiveGrid,type IconName } from '../client/PetCareUI';
 import { RoleQuickAccess } from '../layout/RoleQuickAccess';
 import { AppText } from '../ui/AppText';
 import { clinicDateTime } from '../../utils/clinic-date';
@@ -20,7 +20,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 function SharedStaffHome(){const {user,request,refreshProfile}=useAuth();const api=useClinic();const query=useClientQuery(api.home);const [photoLoading,setPhotoLoading]=useState(false),[photoError,setPhotoError]=useState<string|null>(null),[photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const {showToast}=useFeedback();
  async function savePhoto(){if(!photo)return;setPhotoLoading(true);setPhotoError(null);try{await request('/vet/profile/photo',{method:'PUT',body:{photoBase64:photo.base64}});await refreshProfile();setPhoto(null);showToast('Foto de perfil actualizada','success');}catch(error){setPhotoError(error instanceof Error?error.message:'No pudimos guardar la foto. Intentá nuevamente.');}finally{setPhotoLoading(false);}}
- return <PetCareScreen><PetCareHeader title={`Hola, ${user?.firstName??''}`} subtitle={user?.professional?.name??user?.roleName}/>{user?.role==='VETERINARIAN'&&<PetCareCard><View style={{alignItems:'center',gap:12}}><ProfilePhotoInput currentUri={user.profilePhotoUrl??null} photo={photo} onSelect={setPhoto} onRemove={()=>setPhoto(null)} disabled={photoLoading} allowCamera removable={false} size={84}/>{photo&&<AppButton label="Guardar foto" loading={photoLoading} disabled={photoLoading} onPress={()=>void savePhoto()}/>}<FormNotice error message={photoError}/></View></PetCareCard>}<QueryState {...query}/>{query.data&&<PetCareCard>{query.data.todayCount!==null&&<AppText variant="subtitle">Turnos de hoy: {query.data.todayCount}</AppText>}{query.data.pendingCount!==null&&<AppText>Solicitudes pendientes: {query.data.pendingCount}</AppText>}{query.data.pendingReservations!==null&&<AppText>Reservas solicitadas: {query.data.pendingReservations}</AppText>}</PetCareCard>}{query.data?.nextAppointment&&<PetCareCard><AppText variant="subtitle">Próximo paciente</AppText><AppText>{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText><AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText></PetCareCard>}
+ return <PetCareScreen><PetCareHero eyebrow={user?.roleName??'TU JORNADA'} title={user?.firstName?`Hola, ${user.firstName}`:'Tu jornada'} subtitle={user?.professional?.name??user?.roleName} icon="medical-outline"/>{user?.role==='VETERINARIAN'&&<PetCareCard><View style={{alignItems:'center',gap:12}}><ProfilePhotoInput currentUri={user.profilePhotoUrl??null} photo={photo} onSelect={setPhoto} onRemove={()=>setPhoto(null)} disabled={photoLoading} allowCamera removable={false} size={84}/>{photo&&<AppButton label="Guardar foto" loading={photoLoading} disabled={photoLoading} onPress={()=>void savePhoto()}/>}<FormNotice error message={photoError}/></View></PetCareCard>}<QueryState {...query}/>{query.data&&<PetCareCard>{query.data.todayCount!==null&&<AppText variant="subtitle">Turnos de hoy: {query.data.todayCount}</AppText>}{query.data.pendingCount!==null&&<AppText>Solicitudes pendientes: {query.data.pendingCount}</AppText>}{query.data.pendingReservations!==null&&<AppText>Reservas solicitadas: {query.data.pendingReservations}</AppText>}</PetCareCard>}{query.data?.nextAppointment&&<PetCareCard><AppText variant="subtitle">Próximo paciente</AppText><AppText>{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText><AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText></PetCareCard>}
  <RoleQuickAccess/>
  </PetCareScreen>;
 }
@@ -38,7 +38,7 @@ function StaffMetricCards({items}:{items:{label:string;value:number|null;icon:Ic
 /** Inicio operativo del peluquero: resumen real de su agenda y enlaces directos a sus turnos. */
 function GroomerHome(){
  const {user}=useAuth();const api=useClinic();const query=useClientQuery(api.home);const upcoming=query.data?.upcomingAppointments??[];
- return <PetCareScreen wide><PetCareHeader title={`Hola, ${user?.firstName??''}`} subtitle="Tu jornada de peluquería"/><QueryState {...query}/>
+ return <PetCareScreen wide><PetCareHero eyebrow="PELUQUERÍA" title={user?.firstName?`Hola, ${user.firstName}`:'Tu jornada'} subtitle="Tu jornada de peluquería" icon="cut-outline"/><QueryState {...query}/>
   {query.data&&<>
    <StaffMetricCards items={[{label:'Turnos de hoy',value:query.data.todayCount,icon:'calendar-outline'}]}/>
    {query.data.nextAppointment&&<PetCareCard><AppText variant="caption" muted>PRÓXIMO TURNO</AppText><AppText variant="subtitle">{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText><AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText></PetCareCard>}
@@ -63,7 +63,7 @@ function VeterinarianHome(){
  </Pressable>;
  const appointmentCards=upcoming.map(item=>renderAppointmentCard(item,'100%'));
  return <PetCareScreen wide>
-   <PetCareHeader title={`Hola, ${user?.firstName??''}`} subtitle="Este es el resumen de tu jornada"/>
+   <PetCareHero eyebrow="ATENCIÓN VETERINARIA" title={user?.firstName?`Hola, ${user.firstName}`:'Tu jornada'} subtitle="Este es el resumen de tu jornada" icon="medkit-outline"/>
   <QueryState {...query}/>
    {query.data&&<StaffMetricCards items={[{label:'Turnos de hoy',value:query.data.todayCount,icon:'calendar-outline' as const},...(Number(query.data.attentionCount)>0?[{label:'Consultas en atención',value:query.data.attentionCount,icon:'time-outline' as const}]:[]),...(hasPermission('appointments.manage')&&Number(query.data.pendingCount)>0?[{label:'Solicitudes pendientes',value:query.data.pendingCount,icon:'notifications-outline' as const}]:[])]}/>}
    {Number(query.data?.attentionCount)>0&&<PetCareCard><AppText variant="subtitle">Requiere tu atención</AppText><AppText>{query.data?.attentionCount} {Number(query.data?.attentionCount)===1?'consulta en atención':'consultas en atención'}</AppText><AppButton compact variant="secondary" label="Continuar atenciones" onPress={()=>router.push({pathname:'/vet/agenda' as never,params:{status:'IN_PROGRESS'}})}/></PetCareCard>}
@@ -71,7 +71,7 @@ function VeterinarianHome(){
    {query.data&&Number(query.data.attentionCount)===0&&(!hasPermission('appointments.manage')||Number(query.data.pendingCount)===0)&&<AppText muted>No hay tareas pendientes para revisar.</AppText>}
    {query.data&&upcoming.length===0&&<PetCareEmptyState title="No tenés próximos turnos" icon="calendar-outline"/>}
    {upcoming.length>0&&<AppText variant="subtitle">Próximo paciente</AppText>}
-   {upcoming.length>0&&(isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet)?<ResponsiveGrid>{appointmentCards}</ResponsiveGrid>:<ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{gap:12,paddingBottom:8}}>{upcoming.map(item=>renderAppointmentCard(item,260))}</ScrollView>)}
+   {upcoming.length>0&&(isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet)?<ResponsiveGrid>{appointmentCards}</ResponsiveGrid>:<ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-staff-appointments':undefined} horizontal showsHorizontalScrollIndicator contentContainerStyle={{gap:12,paddingBottom:8}}>{upcoming.map(item=>renderAppointmentCard(item,260))}</ScrollView>)}
    {query.data&&appointments.length===0&&<AppText muted>Hoy no tenés turnos asignados.</AppText>}
    <RoleQuickAccess/>
  </PetCareScreen>;

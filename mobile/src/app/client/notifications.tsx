@@ -9,18 +9,21 @@ import { AppText } from '../../components/ui/AppText';
 import { AppButton } from '../../components/ui/AppButton';
 import { FormNotice } from '../../components/ui/FormNotice';
 import { useEffect, useState } from 'react';
-import { AppState,Linking, Platform } from 'react-native';
+import { AppState,Linking, Platform,StyleSheet,View,useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { requestPushPermissionAndToken, storedPushToken, clearStoredPushToken, hasRegisteredPushPermission } from '../../services/push-notifications';
 import { notificationPath } from '../../services/notification-path';
 import { publishNotificationChange, subscribeToNotificationChanges } from '../../services/notification-events';
+import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 
 export default function NotificationsScreen(){
   const api=useClient();
   const query=useClientQuery(api.notifications);
   const action=useAsyncAction();
   const {request}=useAuth();
+  const {width}=useWindowDimensions();
+  const desktopWeb=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const [pushEnabled,setPushEnabled]=useState(false);
   const [extraPages,setExtraPages]=useState<{baseId:string;items:import('../../types/client').Notification[];cursor:string|null}|null>(null);
   const firstId=query.data?.items[0]?.id??'';
@@ -65,24 +68,26 @@ export default function NotificationsScreen(){
       <AppButton label={pushEnabled?'Desactivar notificaciones en este dispositivo':'Activar notificaciones en este dispositivo'} variant="secondary" loading={action.loading} onPress={pushEnabled?disablePush:enablePush}/>
       {action.error?.includes('ajustes')&&<AppButton label="Abrir ajustes del dispositivo" variant="secondary" onPress={()=>void Linking.openSettings()}/>}
     </>}
-    {Platform.OS==='web'&&<PetCareCard><AppText variant="subtitle">Notificaciones del navegador</AppText><AppText muted>Las notificaciones push no están habilitadas en esta versión web. En Android, el registro remoto requiere una Development Build o un APK propio; Expo Go no está habilitado para este flujo.</AppText></PetCareCard>}
+    {Platform.OS==='web'&&<PetCareCard><AppText variant="subtitle">Notificaciones del navegador</AppText><AppText muted>Las notificaciones push no están disponibles en la web. En Android requieren una Development Build o un APK propio; no funcionan en Expo Go.</AppText></PetCareCard>}
     {!!query.data?.unreadCount&&<PetCareBadge label={`${query.data.unreadCount} sin leer`}/>}
     {!!query.data?.unreadCount&&<AppButton label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/>}
     <QueryState {...query}/>
     <FormNotice error message={action.error}/>
-    {query.data&&(query.data.items.length||extraItems.length?<ResponsiveGrid>{[...query.data.items,...extraItems].map(n=><PetCareCard key={n.id}>
+    {query.data&&(query.data.items.length||extraItems.length?<ResponsiveGrid minItemWidth={320} maxColumns={3}>{[...query.data.items,...extraItems].map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
       <PetCareBadge label={n.readAt?'Leída':'Nueva'}/>
       <AppText variant="subtitle">{n.title}</AppText>
-      <AppText>{n.body}</AppText>
+      <AppText style={desktopWeb?styles.desktopBody:undefined}>{n.body}</AppText>
       <AppText variant="caption" muted>{dateTime(n.createdAt)}</AppText>
-      <AppButton label="Ver detalle" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{
+      <View style={[styles.actions,desktopWeb&&styles.desktopActions]}><AppButton compact={desktopWeb} label="Ver detalle" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{
         if(!n.readAt)await api.readNotification(n.id);
         if(!n.readAt)publishNotificationChange();
         router.push(notificationPath(n.referenceType,n.referenceId));
       })}/>
-      {!n.readAt&&<AppButton label="Marcar como leída" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.readNotification(n.id);publishNotificationChange();})}/>}
-      <AppButton label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);publishNotificationChange();})}/>
+      {!n.readAt&&<AppButton compact={desktopWeb} label="Marcar como leída" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.readNotification(n.id);publishNotificationChange();})}/>}
+      <AppButton compact={desktopWeb} label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);publishNotificationChange();})}/></View>
     </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title="Estás al día" message="No tenés notificaciones nuevas." icon="notifications-outline"/>)}
     {!!pageCursor&&<AppButton label="Cargar más notificaciones" variant="secondary" loading={action.loading} onPress={loadMore}/>}
   </PetCareScreen>;
 }
+
+const styles=StyleSheet.create({desktopCard:{flex:1,minWidth:0},desktopBody:{flexGrow:1},actions:{gap:16},desktopActions:{gap:8,marginTop:'auto',paddingTop:8,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});

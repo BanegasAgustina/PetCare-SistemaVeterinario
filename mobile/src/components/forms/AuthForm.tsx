@@ -5,7 +5,7 @@ import { AppInput } from './AppInput';
 import { AppButton } from '../ui/AppButton';
 import { FormNotice } from '../ui/FormNotice';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
-import type { FieldErrors } from '../../utils/auth-validation';
+import { firstInvalidField, type FieldErrors } from '../../utils/auth-validation';
 
 export type AuthField<T> = {
   key: keyof T; label: string; hint?: string; password?: boolean; icon?: 'mail-outline' | 'lock-closed-outline';
@@ -30,8 +30,8 @@ export function AuthForm<T extends Record<string, string>>({ fields, initialValu
     if (action.loading) return;
     const nextErrors = validate(values);
     setErrors(nextErrors);
-    const firstInvalid = fields.find((field) => nextErrors[field.key]);
-    if (firstInvalid) { inputs.current[firstInvalid.key]?.focus(); return; }
+    const firstInvalid = firstInvalidField(fields.map(field => field.key), nextErrors);
+    if (firstInvalid) { inputs.current[firstInvalid]?.focus(); return; }
     await action.run(async () => {
       // Cerrar el teclado del formulario antes de abrir el modal permite enfocar su código.
       Keyboard.dismiss(); await onSubmit(values);

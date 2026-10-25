@@ -1,20 +1,23 @@
 /** Contenedor desplazable que respeta notch y barra inferior en distintos celulares. */
 import { useRef,useState,type ComponentRef,type PropsWithChildren } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView,useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
+import { PetCareDecorativeBackground } from '../client/PetCareDecorations';
 
 export function ScreenContainer({ children, keyboardAvoiding = false, wide = false }: PropsWithChildren<{ keyboardAvoiding?: boolean; wide?: boolean }>) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const webTablet = isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet) && !isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const webDesktop = isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
+  const webLargeDesktop = isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.largeDesktop);
   const insets=useSafeAreaInsets();const scrollRef=useRef<ComponentRef<typeof ScrollView>>(null);const [showTop,setShowTop]=useState(false);
-  const scroll = <><ScrollView ref={scrollRef} onScroll={event=>setShowTop(event.nativeEvent.contentOffset.y>560)} scrollEventThrottle={80} contentContainerStyle={[styles.content,wide&&styles.wideContent,webTablet&&styles.tabletContent,webDesktop&&styles.desktopContent,webDesktop&&wide&&styles.wideDesktopContent,webDesktop&&styles.desktopOverflow]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"><View pointerEvents="none" accessible={false} style={styles.decoration}><Ionicons name="paw" size={25} color={colors.muted}/><Ionicons name="paw" size={19} color={colors.muted}/><Ionicons name="paw" size={29} color={colors.muted}/></View>{children}</ScrollView>{showTop&&<Pressable accessibilityRole="button" accessibilityLabel="Volver arriba" onPress={()=>scrollRef.current?.scrollTo({y:0,animated:true})} style={[styles.scrollTop,{backgroundColor:colors.primary,bottom:14+insets.bottom}]}><Ionicons name="arrow-up" size={22} color={colors.onPrimary}/></Pressable>}</>;
+  const scroll = <><ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-screen-container':undefined} ref={scrollRef} onScroll={event=>setShowTop(event.nativeEvent.contentOffset.y>560)} scrollEventThrottle={80} contentContainerStyle={[styles.content,wide&&styles.wideContent,webTablet&&styles.tabletContent,webDesktop&&styles.desktopContent,webLargeDesktop&&wide&&styles.wideDesktopContent,webDesktop&&styles.desktopOverflow]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{children}</ScrollView>{showTop&&<Pressable accessibilityRole="button" accessibilityLabel="Volver arriba" onPress={()=>scrollRef.current?.scrollTo({y:0,animated:true})} style={[styles.scrollTop,{backgroundColor:colors.primary,bottom:14+insets.bottom}]}><Ionicons name="arrow-up" size={22} color={colors.onPrimary}/></Pressable>}</>;
   return (
     <SafeAreaView edges={['left','right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <PetCareDecorativeBackground variant="care" />
       {/* iOS desplaza con padding; Android reduce la ventana con softwareKeyboardLayoutMode=resize. */}
       {keyboardAvoiding ? <KeyboardAvoidingView style={styles.safeArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{scroll}</KeyboardAvoidingView> : scroll}
     </SafeAreaView>
@@ -28,6 +31,5 @@ const styles = StyleSheet.create({
   desktopContent: { maxWidth: responsiveLayout.content.desktopMaxWidth, paddingHorizontal: 32 },
   wideDesktopContent: { maxWidth: responsiveLayout.content.wideDesktopMaxWidth },
   desktopOverflow: { overflow: 'visible' },
-  decoration:{position:'absolute',top:115,right:12,opacity:0.07,gap:25,alignItems:'flex-end'},
   scrollTop:{position:'absolute',right:20,width:48,height:48,borderRadius:24,alignItems:'center',justifyContent:'center',elevation:5},
 });

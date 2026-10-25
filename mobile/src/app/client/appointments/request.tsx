@@ -12,6 +12,8 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { AppText } from '../../../components/ui/AppText';
 import { FormNotice } from '../../../components/ui/FormNotice';
 import { SelectionRow } from '../../../components/ui/SelectionRow';
+import { SlotSelectionCard } from '../../../components/client/SlotSelectionCard';
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard';
 import { clinicDate, clinicDateFilterToApi, clinicDateTime } from '../../../utils/clinic-date';
 import type { AppointmentCatalog, Pet, Slot } from '../../../types/client';
 
@@ -31,6 +33,7 @@ export default function RequestAppointment() {
   const [slotId, setSlotId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const { confirmation: unsavedChangesPrompt } = useUnsavedChangesGuard(!submission && Boolean(petId || typeId || specialtyId || serviceId || vetId || selectedDate || slotId));
 
   const query = useClientQuery(useCallback(async () => ({ pets: await api.pets(), catalog: await api.appointmentCatalog() }), [api]));
   const slots = useClientQuery(useCallback(
@@ -145,6 +148,7 @@ export default function RequestAppointment() {
           setSubmission(null); setStep(1); setTypeId(''); setPetId(''); setSpecialtyId(''); setServiceId(''); clearLaterSelections();
         }} />
       </PetCareCard>
+      {unsavedChangesPrompt}
     </PetCareScreen>;
   }
 
@@ -188,6 +192,7 @@ export default function RequestAppointment() {
         key={service.id}
         title={service.name}
         description={service.description || undefined}
+        imageUrl={service.imageUrl || undefined}
         selected={serviceId === service.id}
         onPress={() => chooseService(service.id)}
         detail={[service.durationMinutes ? `${service.durationMinutes} min` : null, service.priceCents !== null && service.priceCents !== undefined ? money(Number(service.priceCents)) : null].filter(Boolean).join(' · ') || undefined}
@@ -218,11 +223,9 @@ export default function RequestAppointment() {
       <QueryState {...slots} />
       {slots.data && dates.length > 0 && <>
         <MonthCalendar dates={dates} selectedDate={activeDate} disabled={action.loading} onSelect={date=>{setSelectedDate(date);setSlotId('');setFormError(null);}} />
-        <PetCareCard>
-          <AppText variant="subtitle">Horarios disponibles</AppText>
-          {!activeDate&&<AppText muted>Seleccioná un día disponible en el calendario.</AppText>}
-          {dateSlots.map(slot => <SelectionRow key={slot.id} radio label={clinicDateTime(slot.startsAt)} hint={vetId ? undefined : slot.veterinarian} checked={slotId === slot.id} disabled={action.loading} onPress={() => { setSlotId(slot.id); setFormError(null); }} />)}
-        </PetCareCard>
+        <SlotSelectionCard subtitle={activeDate ? `Fecha seleccionada: ${clinicDate(activeDate)}` : undefined} emptyMessage="Seleccioná un día disponible en el calendario.">
+          {activeDate ? dateSlots.map(slot => <SelectionRow key={slot.id} radio label={clinicDateTime(slot.startsAt)} hint={vetId ? undefined : slot.veterinarian} checked={slotId === slot.id} disabled={action.loading} onPress={() => { setSlotId(slot.id); setFormError(null); }} />) : null}
+        </SlotSelectionCard>
       </>}
       {slots.data && dates.length === 0 && <PetCareEmptyState title="No encontramos horarios disponibles para esta selección. Probá con otra fecha o profesional." message="Podés cambiar el profesional o elegir otro servicio." icon="time-outline" />}
       <StepHelp text={slotId ? null : 'Elegí una fecha y un horario para continuar.'} />
@@ -249,6 +252,7 @@ export default function RequestAppointment() {
       {step > 1 && <AppButton label="Volver" variant="secondary" disabled={action.loading} onPress={() => { setFormError(null); action.clearError(); setStep(current => Math.max(1, current - 1)); }} />}
       {step < 5 ? <AppButton label="Continuar" disabled={action.loading || !canContinue(step, petId, data?.pets ?? [], serviceId, filteredServices, slotId, selectedSlot)} onPress={continueStep} /> : <AppButton label="Confirmar solicitud" loading={action.loading} onPress={() => void submitRequest()} />}
     </View>
+    {unsavedChangesPrompt}
   </PetCareScreen>;
 }
 
@@ -314,10 +318,10 @@ function StepProgress({ step }: { step: number }) {
   </PetCareCard>;
 }
 
-function ChoiceCard({ title, description, detail, icon = 'checkmark-circle-outline', selected, onPress }: { title: string; description?: string; detail?: string; icon?: IconName; selected: boolean; onPress: () => void }) {
+function ChoiceCard({ title, description, detail, imageUrl, icon = 'checkmark-circle-outline', selected, onPress }: { title: string; description?: string; detail?: string; imageUrl?: string; icon?: IconName; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityLabel={title} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.choice, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }]}>
-    <Ionicons name={icon} size={28} color={selected ? colors.primary : colors.muted} />
+    {imageUrl ? <PetImage uri={imageUrl} size={56}/> : <Ionicons name={icon} size={28} color={selected ? colors.primary : colors.muted} />}
     <View style={styles.choiceCopy}>
       <AppText variant="subtitle">{title}</AppText>
       {Boolean(description) && <AppText muted>{description}</AppText>}

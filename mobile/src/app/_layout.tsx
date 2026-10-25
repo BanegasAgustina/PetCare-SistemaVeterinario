@@ -12,6 +12,7 @@ import { FeedbackProvider } from '../contexts/FeedbackContext';
 import { VerificationCodeModal } from '../components/ui/VerificationCodeModal';
 import { OAuthRegistrationModal } from '../components/forms/OAuthRegistrationModal';
 import { GlobalNavigation } from '../components/layout/GlobalNavigation';
+import { WebScrollStyles } from '../components/layout/WebScrollStyles';
 import { NotificationBridge } from '../components/notifications/NotificationBridge';
 import { hasCapabilityModule } from '../utils/capability-modules';
 import { canEnterClientRoot, canEnterWorkspace } from '../utils/role-home';
@@ -38,7 +39,7 @@ function ThemedNavigation() {
     <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN' || hasCapabilityModule(auth.user?.permissions)}><Stack.Screen name="admin" /></Stack.Protected>
     <Stack.Protected guard={canEnterWorkspace(auth.user)}><Stack.Screen name="workspace" /></Stack.Protected>
   </Stack>;
-  return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{auth.user ? <GlobalNavigation>{content}</GlobalNavigation> : content}
+  return <><WebScrollStyles/><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{auth.user ? <GlobalNavigation>{content}</GlobalNavigation> : content}
     {auth.verificationOpen && auth.pendingVerification && <VerificationCodeModal key={auth.pendingVerification.verificationToken} challenge={auth.pendingVerification} autoSend={auth.verificationFromLogin} />}
     {auth.oauthPending && <OAuthRegistrationModal key={auth.oauthPending.ticket}/>}
     <NotificationBridge />

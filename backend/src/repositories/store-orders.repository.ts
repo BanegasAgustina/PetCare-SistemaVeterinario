@@ -8,6 +8,7 @@ import * as v from '../validators/clinic.validator';
 import * as storePayment from './store-payment.repository';
 import { paymentProofUrl } from '../services/pet-photo.service';
 import { createClientNotification } from './notification.repository';
+import { allowedOrderTransitions, operationalOrderStatuses, validOrderTransition } from '../utils/store-order-transitions';
 
 const select = `o.id,o.order_type AS orderType,o.owner_id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS clientName,u.email AS clientEmail,u.phone AS clientPhone,
   o.store_order_status AS orderStatus,o.store_payment_status AS paymentStatus,o.payment_method AS paymentMethod,o.fulfillment_method AS fulfillmentMethod,
@@ -15,7 +16,6 @@ const select = `o.id,o.order_type AS orderType,o.owner_id AS ownerId,CONCAT(u.fi
   o.recipient_name AS recipientName,o.recipient_phone AS recipientPhone,o.delivery_street AS deliveryStreet,o.delivery_number AS deliveryNumber,o.delivery_unit AS deliveryUnit,
   o.delivery_city AS deliveryCity,o.delivery_province AS deliveryProvince,o.delivery_postal_code AS deliveryPostalCode,o.delivery_reference AS deliveryReference,o.payment_reference AS paymentReference,
   pi.buyer_name AS buyerName,pi.buyer_email AS buyerEmail,pi.transfer_reference AS transferReference,pi.expires_at AS paymentExpiresAt,pi.intent_status AS paymentIntentStatus,pi.proof_submitted_at AS proofSubmittedAt,(pi.proof_submitted_at>pi.expires_at) AS paymentProofLate,pi.review_status AS paymentReviewStatus,pi.review_reason AS paymentReviewReason,pi.verified_at AS paymentVerifiedAt,CONCAT(v.first_name,' ',v.last_name) AS verifiedBy`;
-const operational = ['PLACED','CONFIRMED','PROCESSING','READY','IN_TRANSIT','DELIVERED','PICKED_UP','CANCELLED'];
 const payment = ['PENDING','PAID','FAILED','REFUNDED'];
 
 export async function list(actor: AuthUser, query: Record<string, unknown>) {
@@ -23,7 +23,7 @@ export async function list(actor: AuthUser, query: Record<string, unknown>) {
   const search = typeof query.search === 'string' ? query.search.trim() : '';
   if(search.length>120) v.invalid('El texto de búsqueda es demasiado largo.');
   const status = query.status === undefined || query.status === '' ? '' : String(query.status);
-  if(status && !operational.includes(status)) v.invalid('El estado del pedido no es válido.');
+  if(status && !operationalOrderStatuses.includes(status as typeof operationalOrderStatuses[number])) v.invalid('El estado del pedido no es válido.');
   const method = query.fulfillmentMethod === undefined || query.fulfillmentMethod === '' ? '' : String(query.fulfillmentMethod);
   if(method && !['PICKUP','DELIVERY'].includes(method)) v.invalid('El método de entrega no es válido.');
   const paymentStatus = query.paymentStatus === undefined || query.paymentStatus === '' ? '' : String(query.paymentStatus);
@@ -48,7 +48,8 @@ export async function detail(actor: AuthUser, id: string) {
   if(!rows[0]) throw new AppError('NOT_FOUND',404,'Pedido de tienda no encontrado.');
   const [items]=await databasePool.execute<RowDataPacket[]>(`SELECT product_id AS productId,product_name AS name,quantity,price_cents AS priceCents,quantity*price_cents AS subtotalCents FROM client_order_items WHERE order_id=? ORDER BY product_id`,[id]);
   const [history]=await databasePool.execute<RowDataPacket[]>(`SELECT h.state_type AS stateType,h.previous_status AS previousStatus,h.new_status AS newStatus,h.occurred_at AS occurredAt,h.reason,CONCAT(u.first_name,' ',u.last_name) AS actorName FROM client_order_status_history h LEFT JOIN users u ON u.id=h.actor_user_id WHERE h.order_id=? ORDER BY h.occurred_at,h.id`,[id]);
-  return {...mapOrder(rows[0]),items:items.map(item=>({...item,productId:String(item.productId),quantity:Number(item.quantity),priceCents:Number(item.priceCents),subtotalCents:Number(item.subtotalCents)})),history};
+  const row=rows[0];
+  return {...mapOrder(row),allowedOrderStatuses:allowedOrderTransitions(String(row.orderStatus),String(row.paymentStatus),typeof row.fulfillmentMethod==='string'?row.fulfillmentMethod:null,actor.permissions?.includes('orders.manage')??false),items:items.map(item=>({...item,productId:String(item.productId),quantity:Number(item.quantity),priceCents:Number(item.priceCents),subtotalCents:Number(item.subtotalCents)})),history};
 }
 
 export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
@@ -60,12 +61,13 @@ export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
     if(!rows[0]) throw new AppError('NOT_FOUND',404,'Pedido de tienda no encontrado.');
     const old=String(manageOrder?rows[0].orderStatus:rows[0].paymentStatus);
     const next=String(manageOrder?body.orderStatus:body.paymentStatus);
-    if(!(manageOrder?operational:payment).includes(next)) v.invalid('El estado indicado no es válido.');
+    const recognizedStatus=manageOrder?operationalOrderStatuses.some(status=>status===next):payment.includes(next);
+    if(!recognizedStatus) v.invalid('El estado indicado no es válido.');
     if(old===next)return {saved:true};
     if(!manageOrder&&String(rows[0].orderType)==='STORE_PURCHASE') throw new AppError('PAYMENT_REVIEW_REQUIRED',409,'Las transferencias reales requieren comprobante, motivo y revisión del administrador principal.');
     if(!manageOrder&&String(rows[0].paymentMethod)!=='BANK_TRANSFER') throw new AppError('PAYMENT_NOT_VERIFIABLE',409,'Este pedido no tiene un pago real que se pueda verificar.');
     if(manageOrder&&next!=='CANCELLED'&&String(rows[0].paymentStatus)!=='PAID') throw new AppError('PAYMENT_NOT_CONFIRMED',409,'Confirmá el pago antes de avanzar con la preparación o entrega.');
-    if(manageOrder&&!validTransition(old,next,String(rows[0].fulfillmentMethod))) throw new AppError('INVALID_ORDER_TRANSITION',409,'Ese cambio no está permitido desde el estado actual.');
+    if(manageOrder&&!validOrderTransition(old,next,String(rows[0].fulfillmentMethod))) throw new AppError('INVALID_ORDER_TRANSITION',409,'Ese cambio no está permitido desde el estado actual.');
     if(!manageOrder&&!(old==='PENDING'&&next==='PAID'||old==='PENDING'&&next==='FAILED'||old==='PAID'&&next==='REFUNDED')) throw new AppError('INVALID_PAYMENT_TRANSITION',409,'Ese cambio de pago no está permitido.');
     if(manageOrder){
       const deliveryStatus=String(rows[0].fulfillmentMethod)==='DELIVERY'?(next==='IN_TRANSIT'?'IN_TRANSIT':next==='DELIVERED'?'DELIVERED':next==='CANCELLED'?'CANCELLED':'PENDING'):(next==='PICKED_UP'?'PICKED_UP':next==='CANCELLED'?'CANCELLED':'PENDING');
@@ -85,10 +87,4 @@ export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
 export async function proof(actor:AuthUser,id:string){const result=await storePayment.proofForAdmin(actor,id);if(!result.objectKey)throw new AppError('PAYMENT_PROOF_REQUIRED',404,'El cliente todavía no envió un comprobante.');return {...result,url:await paymentProofUrl(result.objectKey)};}
 export async function reviewPayment(actor:AuthUser,id:string,value:unknown){return storePayment.review(actor,id,value);}
 
-function validTransition(old:string,next:string,method:string){
-  if(next==='CANCELLED') return ['PLACED','CONFIRMED','PROCESSING'].includes(old);
-  const pickup:Record<string,string[]>={PLACED:['CONFIRMED'],CONFIRMED:['PROCESSING'],PROCESSING:['READY'],READY:['PICKED_UP']};
-  const delivery:Record<string,string[]>={PLACED:['CONFIRMED'],CONFIRMED:['PROCESSING'],PROCESSING:['IN_TRANSIT'],IN_TRANSIT:['DELIVERED']};
-  return (method==='PICKUP'?pickup:delivery)[old]?.includes(next)??false;
-}
 function mapOrder(row:RowDataPacket){return {...row,id:String(row.id),ownerId:String(row.ownerId),paymentProofLate:Boolean(row.paymentProofLate),subtotalCents:Number(row.subtotalCents??0),deliveryFeeCents:Number(row.deliveryFeeCents??0),totalCents:Number(row.totalCents),createdAt:row.createdAt};}

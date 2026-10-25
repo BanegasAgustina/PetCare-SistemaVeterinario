@@ -17,7 +17,7 @@ export function AppModal({ visible, dismissible = false, onClose, size = 'defaul
       <Pressable style={StyleSheet.absoluteFill} onPress={close} disabled={!dismissible} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <View role="dialog" accessibilityViewIsModal style={[styles.card, size === 'wide' && styles.wideCard, desktop && styles.desktopCard, desktop && size === 'wide' && styles.desktopWideCard, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <ScrollView style={footer ? styles.scrollContent : undefined} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-modal':undefined} style={footer ? styles.scrollContent : undefined} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
             {children}
           </ScrollView>
           {footer && <View style={[styles.footer, { borderTopColor: colors.border }]}>{footer}</View>}

@@ -22,7 +22,8 @@ export default function CartScreen() {
   const { showToast } = useFeedback();
   const { colors } = useTheme();
   const flow = useStoreCheckout();
-  const shipping = flow.fulfillment === 'delivery' && flow.quote?.available && flow.quotedSubtotalCents===cart.data?.totalCents ? flow.quote.feeCents : 0;
+  const shippingQuoted = flow.fulfillment === 'delivery' && Boolean(flow.quote?.available) && flow.quotedSubtotalCents===cart.data?.totalCents;
+  const shipping = shippingQuoted ? flow.quote!.feeCents : 0;
   const [pending, setPending] = useState<string | null>(null);
   const pendingRef = useRef(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -107,8 +108,8 @@ export default function CartScreen() {
     {!!cartData?.items.length && <PetCareCard>
       <AppText variant="subtitle">Resumen</AppText>
       <View style={styles.summaryRow}><AppText muted>Subtotal</AppText><AppText>{money(cartData.totalCents)}</AppText></View>
-      {flow.fulfillment==='delivery'&&<View style={styles.summaryRow}><AppText muted>Envío</AppText><AppText>{flow.quote?.available&&flow.quotedSubtotalCents===cartData.totalCents?money(shipping):'Se calcula al confirmar la dirección'}</AppText></View>}
-      <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: colors.border }]}><AppText variant="subtitle">Total</AppText><AppText variant="subtitle">{money(cartData.totalCents+shipping)}</AppText></View>
+      {flow.fulfillment==='delivery'&&<View style={styles.summaryRow}><AppText muted>Envío</AppText><AppText>{shippingQuoted?money(shipping):'A confirmar en el checkout'}</AppText></View>}
+      <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: colors.border }]}><AppText variant="subtitle">{flow.fulfillment==='delivery'&&!shippingQuoted?'Total a confirmar':'Total'}</AppText><AppText variant="subtitle">{flow.fulfillment==='delivery'&&!shippingQuoted?'A confirmar':money(cartData.totalCents+shipping)}</AppText></View>
       <AppButton variant="primary" label="Comprar ahora" disabled={unavailable || Boolean(pending)} onPress={() => router.push('/client/store/checkout')} />
       <AppButton label="Seguir comprando" variant="secondary" onPress={() => router.navigate('/client/store')} />
     </PetCareCard>}

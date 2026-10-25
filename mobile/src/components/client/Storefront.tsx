@@ -1,6 +1,6 @@
 /** Presentación de catálogo, promociones vigentes y detalle de productos en la tienda cliente. */
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Product,PromotionBanner,StoreBanner } from '../../types/client';
 import { PetCareBadge, money } from './PetCareUI';
@@ -62,7 +62,7 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
 
   if (!products.length) return null;
   return <View onLayout={event => { const nextWidth = event.nativeEvent.layout.width; setMeasuredWidth(current => Math.abs(current - nextWidth) < 1 ? current : nextWidth); }} style={styles.promotionSection}>
-    <ScrollView ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onScrollBeginDrag={() => setInteracting(true)} onScrollEndDrag={() => setInteracting(false)} onMomentumScrollEnd={event => { setActive(Math.round(event.nativeEvent.contentOffset.x / width)); setInteracting(false); }} scrollEventThrottle={16}>
+    <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-store-hero':undefined} ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onScrollBeginDrag={() => setInteracting(true)} onScrollEndDrag={() => setInteracting(false)} onMomentumScrollEnd={event => { setActive(Math.round(event.nativeEvent.contentOffset.x / width)); setInteracting(false); }} scrollEventThrottle={16}>
       {products.map(product => <View key={product.id} style={[styles.promotionCard, { width, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.promotionCopy}>
           <View style={[styles.promotionBadge, { backgroundColor: colors.accent }]}><AppText variant="caption" style={{ color: colors.text }}>Ahorra {discountPercentage(product)}%</AppText></View>
@@ -88,7 +88,7 @@ export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOp
   if(!banner)return null;
   const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
   return <View onLayout={event=>{const next=event.nativeEvent.layout.width;setMeasuredWidth(current=>Math.abs(current-next)<1?current:next);}} style={styles.storeBannerSection}>
-    <ScrollView ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={event=>{const next=Math.min(banners.length-1,Math.max(0,Math.round(event.nativeEvent.contentOffset.x/width)));setActive(next);setImageFailed(false);}}>
+    <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-store-banners':undefined} ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={event=>{const next=Math.min(banners.length-1,Math.max(0,Math.round(event.nativeEvent.contentOffset.x/width)));setActive(next);setImageFailed(false);}}>
       {banners.map((item,index)=><View key={item.id} style={[styles.storeBanner,{width,height,backgroundColor:item.backgroundColor}]}>
         {!imageFailed&&<Image source={{uri:windowWidth>=responsiveLayout.breakpoints.tablet?(item.desktopImageUrl??item.mobileImageUrl):item.mobileImageUrl}} resizeMode="cover" onError={()=>{if(index===active)setImageFailed(true);}} style={StyleSheet.absoluteFill}/>}
         {item.darkOverlay&&<View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.32)'}]}/>}

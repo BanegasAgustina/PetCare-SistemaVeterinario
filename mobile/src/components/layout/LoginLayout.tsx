@@ -5,8 +5,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../../hooks/useTheme';
 import { LoginPets } from './LoginPets';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
+import { PetCareDecorativeBackground } from '../client/PetCareDecorations';
 
-export function LoginLayout({ children, scrollable = false, showDesktopImage = false, petArtwork = 'login' }: PropsWithChildren<{ scrollable?: boolean; showDesktopImage?: boolean; petArtwork?: 'login' | 'register' }>) {
+export function LoginLayout({ children, scrollable = false, showDesktopImage = false, petArtwork = 'login', petDecorations = false }: PropsWithChildren<{ scrollable?: boolean; showDesktopImage?: boolean; petArtwork?: 'login' | 'register'; petDecorations?: boolean }>) {
   const { colors } = useTheme();
   const { height, width } = useWindowDimensions();
   const desktopWeb = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.authDesktop);
@@ -30,9 +31,10 @@ export function LoginLayout({ children, scrollable = false, showDesktopImage = f
     {desktopImage}{main}
   </View>;
   return <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: colors.background }]}>
+    {petDecorations && <PetCareDecorativeBackground variant="care" />}
     <View style={[styles.shape, { backgroundColor: colors.accent }]} />
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {scrollable ? <ScrollView keyboardShouldPersistTaps="always" keyboardDismissMode="none" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, desktopWeb && styles.webScrollContent, desktopWeb && showDesktopImage && styles.desktopScrollContent, keyboardOpen && styles.keyboardScrollContent]}>
+      {scrollable ? <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-login':undefined} keyboardShouldPersistTaps="always" keyboardDismissMode="none" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, desktopWeb && styles.webScrollContent, desktopWeb && showDesktopImage && styles.desktopScrollContent, keyboardOpen && styles.keyboardScrollContent]}>
         {desktopCard || <>{desktopImage}{main}</>}{artwork}
       </ScrollView> : <View style={[styles.fixedContent, desktopWeb && styles.desktopFixedContent]}>
         {desktopCard || <>{desktopImage}{main}</>}

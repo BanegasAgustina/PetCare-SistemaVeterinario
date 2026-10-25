@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,12 +13,16 @@ import { ServiceScheduleModal } from './CatalogScreen';
 
 /** Punto único para publicar y revisar horarios de todos los servicios activos. */
 export function AvailabilityScreen() {
+  const { professionalId } = useLocalSearchParams<{ professionalId?: string }>();
   const api = useClinic();
   const { hasPermission } = useAuth();
   const catalog = useClientQuery(api.catalog);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<{ id: string; name: string; duration: number } | null>(null);
-  const services = (catalog.data?.services ?? []).filter(service => Boolean(service.isActive) && String(service.name).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  const services = (catalog.data?.services ?? []).filter(service => Boolean(service.isActive)
+    && (!professionalId || catalog.data?.assignments.some(link => link.professionalId === professionalId && link.serviceId === service.id)
+      && (!service.specialtyId || catalog.data?.professionals.some(person => person.id === professionalId && Boolean(person.isActive) && String(person.specialtyIds ?? '').split(',').includes(String(service.specialtyId)))))
+    && String(service.name).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return <PetCareScreen wide>
     <PetCareHeader title="Horarios de servicios" subtitle="Publicá los turnos disponibles de cada servicio" back hideForAdmin />
     <AppText muted>Elegí un servicio para indicar quién lo brinda, los días de atención y el período en que ofrecerá turnos.</AppText>
@@ -36,11 +41,11 @@ export function AvailabilityScreen() {
           <AppText variant="subtitle">{String(service.name)}</AppText>
           <AppText muted>{String(type ?? 'Servicio')} · {String(service.durationMinutes)} minutos · {professionals.length} profesionales asignados</AppText>
           {Boolean(service.description) && <AppText>{String(service.description)}</AppText>}
-          <AppButton label="Publicar horarios" onPress={() => setSelected({ id: service.id, name: String(service.name), duration: Number(service.durationMinutes) || 30 })} />
+          <AppButton label="Publicar horarios" onPress={() => setSelected({ id: service.id, name: String(service.name), duration: Number(service.durationMinutes) || 0 })} />
         </PetCareCard>;
       })}
     </View>}
-    {catalog.data && services.length === 0 && <PetCareEmptyState title={search ? 'No hay servicios para esta búsqueda' : 'No hay servicios activos'} message={!search && hasPermission('services.manage') ? 'Creá o activá un servicio para poder publicar sus horarios.' : undefined} icon="calendar-outline" />}
-    {selected && <ServiceScheduleModal serviceId={selected.id} serviceName={selected.name} durationMinutes={selected.duration} onClose={() => setSelected(null)} />}
+    {catalog.data && services.length === 0 && <PetCareEmptyState title={professionalId ? 'No hay servicios activos compatibles' : search ? 'No hay servicios para esta búsqueda' : 'No hay servicios activos'} message={professionalId ? 'No tiene un servicio activo asignado compatible con sus especialidades. Revisá el servicio y la ficha profesional antes de publicar horarios.' : !search && hasPermission('services.manage') ? 'Creá o activá un servicio para poder publicar sus horarios.' : undefined} icon="calendar-outline" />}
+    {selected && <ServiceScheduleModal key={selected.id} serviceId={selected.id} serviceName={selected.name} durationMinutes={selected.duration} initialProfessionalId={professionalId} onClose={() => setSelected(null)} />}
   </PetCareScreen>;
 }

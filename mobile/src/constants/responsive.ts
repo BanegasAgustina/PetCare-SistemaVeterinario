@@ -3,8 +3,9 @@ export const responsiveLayout = {
   breakpoints: {
     compactCards: 520,
     tablet: 768,
-    authDesktop: 900,
+    authDesktop: 1024,
     desktop: 1024,
+    largeDesktop: 1440,
   },
   sidebar: {
     minWidth: 248,
