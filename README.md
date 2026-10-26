@@ -38,11 +38,11 @@ En otra terminal:
 cd mobile
 npm ci
 cp .env.example .env
-# En mobile/.env configure EXPO_PUBLIC_API_URL=http://localhost:3000/api
+# En mobile/.env puede configurar EXPO_PUBLIC_DEV_API_URL=https://<host-de-la-api>/api para el backend remoto durante desarrollo.
 npm start
 ```
 
-Use `http://10.0.2.2:3000/api` desde emulador Android o la IP LAN del equipo desde teléfono físico. No incluya secretos en `mobile/.env` ni en variables `EXPO_PUBLIC_*`. Para una instalación paso a paso, DB, OAuth, SMTP, Vercel y EAS consulte [Guía de instalación](docs/GUIA_INSTALACION_CONFIGURACION.md).
+Sin esa variable, el cliente puede usar un backend local configurado en `EXPO_PUBLIC_API_URL` o detectar el host de Metro y el puerto local 3000. Use `http://10.0.2.2:3000/api` para el emulador Android cuando corresponda. No incluya secretos en `mobile/.env` ni en variables `EXPO_PUBLIC_*`. Para una instalación paso a paso, DB, OAuth, SMTP, Vercel y EAS consulte [Guía de instalación](docs/GUIA_INSTALACION_CONFIGURACION.md).
 
 ## Ejecución y verificación
 

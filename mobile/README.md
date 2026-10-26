@@ -13,7 +13,9 @@ cp .env.example .env
 npm start
 ```
 
-Defina `EXPO_PUBLIC_API_URL` en `mobile/.env`, por ejemplo `http://localhost:3000/api` para navegador, `http://10.0.2.2:3000/api` para emulador Android, o una IP LAN para teléfono físico. En producción use la URL HTTPS de API. Esta variable queda incorporada en el cliente; no guardar contraseñas ni secretos allí.
+Para usar desde Expo el mismo backend remoto que la web, defina `EXPO_PUBLIC_DEV_API_URL=https://<host-de-la-api>/api` en `mobile/.env`. Esta URL HTTPS explícita tiene prioridad solo en desarrollo y queda incorporada al bundle local; no incluya credenciales ni secretos.
+
+Si no define `EXPO_PUBLIC_DEV_API_URL`, puede apuntar `EXPO_PUBLIC_API_URL` a un backend local. Si tampoco está configurada (o contiene por error la URL de producción), el cliente usa el host LAN de Metro y el puerto `3000` (`EXPO_PUBLIC_API_PORT` permite cambiarlo). Para un emulador Android con Metro en localhost, `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000/api` es una opción local válida. La configuración EAS de producción conserva su propia `EXPO_PUBLIC_API_URL` HTTPS y no usa `EXPO_PUBLIC_DEV_API_URL`.
 
 Comandos: `npm start`, `npm run web`, `npm run android`, `npm run typecheck`, `npm run lint`, `npm test`. Android local requiere Android Studio/SDK.
 

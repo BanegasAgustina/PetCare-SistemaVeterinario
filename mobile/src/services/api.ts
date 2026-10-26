@@ -90,11 +90,17 @@ function reportApiFailure(code: string, status: number, method: string, endpoint
   if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status, ...(cause?{cause:cause.slice(0,180)}:{}) }));
 }
 
+function reportApiSuccess(method:string,endpoint:string,status:number):void {
+  if(__DEV__)console.info('[PetCare API]',JSON.stringify({method,endpoint:safeEndpoint(endpoint),status,success:true}));
+}
+
 /** En desarrollo, deriva el host del teléfono/emulador desde el host LAN que Expo usa para Metro. */
-export function developmentApiUrl(configuredValue: string | undefined, hostUri: string | undefined, portValue: string | undefined, isDev: boolean): string | undefined {
+export function developmentApiUrl(configuredValue: string | undefined, hostUri: string | undefined, portValue: string | undefined, isDev: boolean, explicitDevelopmentUrl?: string): string | undefined {
+  const explicit=explicitDevelopmentUrl?.trim();
+  if (isDev && explicit) return explicit;
   const configured = configuredValue?.trim();
   if (!isDev) return configured || undefined;
-  if (configured && !configured.startsWith(PRODUCTION_API_URL)) return configured;
+  if (configured && !isProductionApiUrl(configured)) return configured;
   if (!hostUri) return configured || undefined;
   try {
     const host = new URL(`http://${hostUri}`).hostname;
@@ -105,7 +111,14 @@ export function developmentApiUrl(configuredValue: string | undefined, hostUri: 
   } catch { return configured || undefined; }
 }
 
-export function resolveApiUrl(configuredValue: string | undefined, appEnvironment: string | undefined, isDev: boolean): string {
+function isProductionApiUrl(value: string): boolean {
+  try {
+    const candidate=new URL(value), production=new URL(PRODUCTION_API_URL);
+    return candidate.origin===production.origin&&candidate.pathname.replace(/\/+$/,'')===production.pathname.replace(/\/+$/,'');
+  } catch { return false; }
+}
+
+export function resolveApiUrl(configuredValue: string | undefined, appEnvironment: string | undefined, isDev: boolean, explicitDevelopmentUrl = false): string {
   try {
     // Un build release sin API explícita debe fallar cerrado; nunca asumir producción.
     const value = configuredValue?.trim() ?? '';
@@ -119,9 +132,10 @@ export function resolveApiUrl(configuredValue: string | undefined, appEnvironmen
     const expectedProductionPath = expectedProductionUrl.pathname.replace(/\/+$/, '');
     const isProductionEnvironment = appEnvironment?.trim().toLowerCase() === 'production';
     // Ningún entorno no productivo puede apuntar al origen de producción.
-    if (!isProductionEnvironment && url.origin === expectedProductionUrl.origin) {
+    if (!isProductionEnvironment && url.origin === expectedProductionUrl.origin && !explicitDevelopmentUrl) {
       throw new Error();
     }
+    if (explicitDevelopmentUrl && (!isDev || url.protocol !== 'https:')) throw new Error();
     // En producción solo se acepta la URL configurada para el backend publicado.
     // Si una variable EAS la reemplaza, el cliente falla cerrado.
     if (isProductionEnvironment && (url.origin !== expectedProductionUrl.origin || effectivePath !== expectedProductionPath)) {
@@ -141,8 +155,9 @@ export function getApiUrl(): string {
     // Solo se consulta al ejecutar la app: evita cargar React Native al importar utilidades puras en pruebas Node.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const expoHostUri=(()=>{try{return require('expo-constants').default?.expoConfig?.hostUri as string|undefined;}catch{return undefined;}})();
-    const configuredValue=developmentApiUrl(process.env.EXPO_PUBLIC_API_URL,expoHostUri,process.env.EXPO_PUBLIC_API_PORT,__DEV__);
-    return resolveApiUrl(configuredValue, process.env.EXPO_PUBLIC_APP_ENV, __DEV__);
+    const explicitDevelopmentUrl=__DEV__?process.env.EXPO_PUBLIC_DEV_API_URL?.trim():undefined;
+    const configuredValue=developmentApiUrl(process.env.EXPO_PUBLIC_API_URL,expoHostUri,process.env.EXPO_PUBLIC_API_PORT,__DEV__,explicitDevelopmentUrl);
+    return resolveApiUrl(configuredValue, process.env.EXPO_PUBLIC_APP_ENV, __DEV__, Boolean(explicitDevelopmentUrl));
   } catch {
     if(__DEV__)reportApiFailure('API_NOT_CONFIGURED',0,'CONFIG','/api','Development API URL rejected or Expo hostUri unavailable');
     throw new ApiError('API_NOT_CONFIGURED', 'PetCare no está disponible en este momento. Intentá más tarde.');
@@ -205,6 +220,7 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
       }):[];
       throw new ApiError(code, message, response.status, result?.error?.verification,fieldErrors);
     }
+    reportApiSuccess(method,endpoint,response.status);
     return result.data as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;

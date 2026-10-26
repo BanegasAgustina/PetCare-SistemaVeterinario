@@ -6,6 +6,18 @@ test('development uses the API service on Expo host rather than the production A
   assert.equal(developmentApiUrl(PRODUCTION_API_URL,'192.168.100.17:8081',undefined,true),'http://192.168.100.17:3000/api');
 });
 
+test('explicit HTTPS development API takes priority over local and Metro fallback settings', () => {
+  const remote='https://pet-care-sistema-veterinario.vercel.app/api';
+  const selected=developmentApiUrl(PRODUCTION_API_URL,'192.168.100.17:8081',undefined,true,remote);
+  assert.equal(selected,remote);
+  assert.equal(resolveApiUrl(selected,'development',true,true),remote);
+});
+
+test('explicit development API URL must use HTTPS and cannot affect release builds', () => {
+  assert.throws(()=>resolveApiUrl('http://api.example.test/api','development',true,true));
+  assert.throws(()=>resolveApiUrl('https://api.example.test/api','production',false,true));
+});
+
 test('development keeps an explicitly configured non-production API URL', () => {
   assert.equal(developmentApiUrl('http://10.0.2.2:3000/api','192.168.100.17:8081',undefined,true),'http://10.0.2.2:3000/api');
 });
