@@ -27,6 +27,7 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'patient-deactivate':return clinic.deactivatePatient(actor,v.id(id));
  case 'patients':return clinic.patients(actor,v.text(query.search,100,true)??'',v.text(query.sort,20,true)??'recent',v.text(query.speciesId,20,true)??undefined);
  case 'clinical':return clinic.clinical(actor,v.id(id),kind!);
+ case 'clinical-page':return clinic.clinical(actor,v.id(id),kind!,v.queryPage(query));
  case 'clinical-create':return clinic.saveClinical(actor,v.id(id),kind!,value);
  case 'clients':return clinic.clients(actor,v.text(query.search,100,true)??'');
  case 'client':return clinic.clientDetails(actor,v.id(id));

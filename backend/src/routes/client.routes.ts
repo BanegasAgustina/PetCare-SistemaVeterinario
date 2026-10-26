@@ -21,6 +21,7 @@ clientRouter.post('/appointments/catalog',handle('appointment-catalog'));
 clientRouter.post('/appointments/slots',handle('slots'));
 clientRouter.post('/appointments/query',handle('appointments'));
 clientRouter.post('/appointments/:id',handle('appointment'));
+clientRouter.patch('/appointments/:id/cancel',handle('cancel-appointment'));
 clientRouter.post('/appointments',handle('create-appointment',201));
 clientRouter.post('/clinical/:kind',handle('clinical'));
 clientRouter.post('/store/categories',handle('categories'));

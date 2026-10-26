@@ -1,6 +1,7 @@
 /** Consulta y gestiona un turno, de acuerdo con los permisos vigentes. */
 import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Pressable } from 'react-native';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
@@ -16,17 +17,24 @@ import { ConfirmModal } from '../ui/ConfirmModal';
 import { FormNotice } from '../ui/FormNotice';
 import { SelectionRow } from '../ui/SelectionRow';
 import { clinicDate,clinicDateTime } from '../../utils/clinic-date';
+import { appointmentDisplayValue,appointmentRouteId } from '../../utils/appointment-display';
 
 export function AppointmentScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id:rawId } = useLocalSearchParams<{ id: string|string[] }>();
+  const id=appointmentRouteId(rawId);
   const api = useClinic();
   const { hasPermission,user } = useAuth();
   const patientScope=hasPermission('pets.view_all')||hasPermission('pets.view_assigned');
-  const query = useClientQuery(useCallback(() => api.appointment(id), [api, id]));
-  const groomingRecord = useClientQuery(useCallback(() => user?.role==='GROOMER'&&query.data&&['IN_PROGRESS','COMPLETED'].includes(String(query.data.status))?api.groomingRecord(id):Promise.resolve(null),[api,id,user?.role,query.data]));
+  const query = useClientQuery(useCallback(() => id?api.appointment(id):Promise.resolve(null), [api, id]));
+  const groomingRecord = useClientQuery(useCallback(() => id&&user?.role==='GROOMER'&&query.data&&['IN_PROGRESS','COMPLETED'].includes(String(query.data.status))?api.groomingRecord(id):Promise.resolve(null),[api,id,user?.role,query.data]));
   const appointmentPetId=query.data?.petId?String(query.data.petId):'';
   const patient=useClientQuery(useCallback(()=>user?.role==='VETERINARIAN'&&hasPermission('pets.view_information')&&appointmentPetId?api.patient(appointmentPetId):Promise.resolve(null),[api,user?.role,appointmentPetId,hasPermission]));
-  const history=useClientQuery(useCallback(()=>user?.role==='VETERINARIAN'&&patientScope&&appointmentPetId&&hasPermission('medical_records.view')?api.records(appointmentPetId,'medical-history'):Promise.resolve(null),[api,user?.role,patientScope,appointmentPetId,hasPermission]));
+  const history=useClientQuery(useCallback(()=>user?.role==='VETERINARIAN'&&patientScope&&appointmentPetId&&hasPermission('medical_records.view')?api.recordsPage(appointmentPetId,'medical-history',1):Promise.resolve(null),[api,user?.role,patientScope,appointmentPetId,hasPermission]));
+  const [extraHistory,setExtraHistory]=useState<{petId:string;items:import('../../types/clinic').ClinicRow[];nextPage:number|null}|null>(null);
+  const [selectedHistoryId,setSelectedHistoryId]=useState('');
+  const historyPageAction=useAsyncAction();
+  const historyItems=[...(history.data?.items??[]),...(extraHistory?.petId===appointmentPetId?extraHistory.items:[])];
+  const historyNextPage=extraHistory?.petId===appointmentPetId?extraHistory.nextPage:history.data?.nextPage??null;
   const [next, setNext] = useState<string | null>(null);
   const [slot, setSlot] = useState('');
   const [professional, setProfessional] = useState('');
@@ -42,13 +50,15 @@ export function AppointmentScreen() {
   const { showToast } = useFeedback();
   const observationValue = observations ?? String(query.data?.observations ?? '');
   const transitions: Record<string, string[]> = { REQUESTED: ['CONFIRMED', 'REJECTED', 'CANCELLED'], CONFIRMED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'] };
-  const hasSavedConsultation=Boolean(history.data?.some(record=>String(record.appointmentId)===id));
+  const hasSavedConsultation=Boolean(id&&historyItems.some(record=>String(record.appointmentId)===id));
 
   async function saveObservations() {
+    if(!id)return;
     const saved = await observationAction.run(() => api.changeAppointment(id, { observations: observationValue }));
     if (saved) { showToast('Observaciones guardadas', 'success'); query.reload(); }
   }
   async function cancelAppointment() {
+    if(!id)return;
     const reason = cancellationReason.trim();
     if (reason.length < 3 || reason.length > 500) { setCancellationError('Ingresá un motivo de entre 3 y 500 caracteres.'); return; }
     setCancellationError(null);
@@ -59,16 +69,17 @@ export function AppointmentScreen() {
   return <PetCareScreen wide>
     <PetCareHeader title="Detalle del turno" back/>
     <QueryState {...query} />
+    {!id&&<FormNotice error message="No se pudo identificar el turno. Volvé a la agenda y abrilo nuevamente."/>}
     {query.data && <>
       <PetCareCard>
         <PetImage uri={typeof query.data.petPhotoUrl === 'string' ? query.data.petPhotoUrl : null} size={104} />
-        <AppText variant="subtitle">{String(query.data.petName)}</AppText>
+        <AppText variant="subtitle">{appointmentDisplayValue(query.data.petName,'Mascota sin nombre')}</AppText>
         <PetCareBadge label={statusLabel(String(query.data.status))}/>
         {hasPermission('users.view_basic') && Boolean(query.data.ownerName) && <AppText>Propietario: {String(query.data.ownerName)}</AppText>}
         {hasPermission('users.view_basic') && Boolean(query.data.ownerPhone) && <AppText>Teléfono: {String(query.data.ownerPhone)}</AppText>}
-        <AppText>Servicio: {String(query.data.service)}</AppText>
-        <AppText>Veterinario: {String(query.data.veterinarian)}</AppText>
-        <AppText>{clinicDateTime(String(query.data.startsAt))}</AppText>
+        <AppText>Servicio: {appointmentDisplayValue(query.data.service,'Servicio no disponible')}</AppText>
+        <AppText>Profesional asignado: {appointmentDisplayValue(query.data.veterinarian,'Profesional no informado')}</AppText>
+        <AppText>{query.data.startsAt?clinicDateTime(String(query.data.startsAt)):'Fecha y horario no disponibles'}</AppText>
         <AppText>Estado: {statusLabel(String(query.data.status))}</AppText>
         {Boolean(query.data.cancellationReason) && <AppText>Motivo de cancelación: {String(query.data.cancellationReason)}</AppText>}
         {user?.role==='VETERINARIAN'&&hasPermission('pets.view_information')&&<AppButton label="Abrir ficha del paciente" variant="secondary" onPress={()=>router.push({pathname:'/vet/patient' as never,params:{id:String(query.data!.petId)}})}/>}
@@ -77,7 +88,7 @@ export function AppointmentScreen() {
       {user?.role==='VETERINARIAN'&&<>
         {hasPermission('pets.view_information')&&<QueryState {...patient}/>}
         {patient.data&&<PetCareCard><AppText variant="subtitle">Ficha del paciente</AppText><AppText>{String(patient.data.species)}{Boolean(patient.data.breed)?` · ${String(patient.data.breed)}`:''}</AppText><AppText>Sexo: {patient.data.sex==='FEMALE'?'Hembra':patient.data.sex==='MALE'?'Macho':'No especificado'}</AppText>{Boolean(patient.data.birthDate)&&<AppText>Fecha de nacimiento: {clinicDate(String(patient.data.birthDate))}</AppText>}{patient.data.weightKg!==null&&patient.data.weightKg!==undefined&&<AppText>Peso registrado: {String(patient.data.weightKg)} kg</AppText>}{Boolean(patient.data.microchipNumber)&&<AppText>Microchip: {String(patient.data.microchipNumber)}</AppText>}</PetCareCard>}
-        {patientScope&&hasPermission('medical_records.view')&&<><AppText variant="subtitle">Antecedentes e historial previo</AppText><QueryState {...history}/>{history.data&&(history.data.length?history.data.slice(0,5).map(record=><PetCareCard key={record.id}><AppText variant="subtitle">{String(record.title)}</AppText><AppText muted>{clinicDateTime(String(record.occurredAt))}</AppText>{Boolean(record.internalNotes)&&<AppText>{String(record.internalNotes)}</AppText>}{Boolean(record.reason)&&<AppText>Motivo: {String(record.reason)}</AppText>}{Boolean(record.diagnosis)&&<AppText>Diagnóstico: {String(record.diagnosis)}</AppText>}{Boolean(record.treatment)&&<AppText>Tratamiento: {String(record.treatment)}</AppText>}{Boolean(record.content)&&<AppText>Indicaciones previas: {String(record.content)}</AppText>}</PetCareCard>):<AppText muted>No hay consultas anteriores registradas.</AppText>)}</>}
+        {patientScope&&hasPermission('medical_records.view')&&<><AppText variant="subtitle">Antecedentes e historial previo</AppText><QueryState {...history}/>{history.data&&(historyItems.length?historyItems.map(record=><Pressable key={record.id} accessibilityRole="button" accessibilityLabel={`Ver consulta ${appointmentDisplayValue(record.title,'Consulta')}, ${record.occurredAt?clinicDateTime(String(record.occurredAt)):'fecha no disponible'}`} onPress={()=>setSelectedHistoryId(String(record.id))}><PetCareCard><AppText variant="subtitle" numberOfLines={1}>{appointmentDisplayValue(record.title,'Consulta sin título')}</AppText><AppText variant="caption" muted>{record.occurredAt?clinicDateTime(String(record.occurredAt)):'Fecha no disponible'}{Boolean(record.veterinarian)?` · ${String(record.veterinarian)}`:''}</AppText>{Boolean(record.content)&&<AppText numberOfLines={2}>{String(record.content)}</AppText>}<AppText variant="caption">Abrir detalle</AppText></PetCareCard></Pressable>):<AppText muted>No hay consultas anteriores registradas.</AppText>)}{!!historyNextPage&&<AppButton variant="secondary" label="Cargar más consultas" loading={historyPageAction.loading} onPress={()=>void historyPageAction.run(async()=>{const page=await api.recordsPage(appointmentPetId,'medical-history',historyNextPage);setExtraHistory(current=>({petId:appointmentPetId,items:[...(current?.petId===appointmentPetId?current.items:[]),...page.items],nextPage:page.nextPage}));})}/>}</>}
       </>}
       {user?.role==='GROOMER'&&['IN_PROGRESS','COMPLETED'].includes(String(query.data.status))&&<PetCareCard>
         <AppText variant="subtitle">Registro de peluquería</AppText>
@@ -87,7 +98,7 @@ export function AppointmentScreen() {
         <AppInput label="Comportamiento durante el servicio" multiline maxLength={5000} value={behaviorNotes??String(groomingRecord.data?.behaviorNotes??'')} onChangeText={setBehaviorNotes}/>
         <AppInput label="Indicaciones de cuidado" multiline maxLength={5000} value={careInstructions??String(groomingRecord.data?.careInstructions??'')} onChangeText={setCareInstructions}/>
         <FormNotice error message={groomingSaveAction.error}/>
-        <AppButton label="Guardar registro del servicio" loading={groomingSaveAction.loading} disabled={!String(coatNotes??groomingRecord.data?.coatNotes??'').trim()&&!String(behaviorNotes??groomingRecord.data?.behaviorNotes??'').trim()&&!String(careInstructions??groomingRecord.data?.careInstructions??'').trim()} onPress={()=>void groomingSaveAction.run(async()=>{await api.saveGroomingRecord(id,{coatNotes,behaviorNotes,careInstructions});setCoatNotes(null);setBehaviorNotes(null);setCareInstructions(null);groomingRecord.reload();showToast('Registro de peluquería guardado','success');})}/>
+        <AppButton label="Guardar registro del servicio" loading={groomingSaveAction.loading} disabled={!id||!String(coatNotes??groomingRecord.data?.coatNotes??'').trim()&&!String(behaviorNotes??groomingRecord.data?.behaviorNotes??'').trim()&&!String(careInstructions??groomingRecord.data?.careInstructions??'').trim()} onPress={()=>void groomingSaveAction.run(async()=>{if(!id)return;await api.saveGroomingRecord(id,{coatNotes,behaviorNotes,careInstructions});setCoatNotes(null);setBehaviorNotes(null);setCareInstructions(null);groomingRecord.reload();showToast('Registro de peluquería guardado','success');})}/>
       </PetCareCard>}
       {user?.role!=='VETERINARIAN'&&user?.role!=='GROOMER'&&(hasPermission('appointments.manage') || hasPermission('appointments.update_own')) && <PetCareCard>
         <AppText variant="subtitle">Observaciones</AppText>
@@ -115,6 +126,7 @@ export function AppointmentScreen() {
       <AppButton label="Confirmar cancelación" destructive loading={cancellationAction.loading} onPress={() => void cancelAppointment()} />
       <AppButton label="Volver" variant="secondary" disabled={cancellationAction.loading} onPress={() => setNext(null)} />
     </AppModal>
-    <ConfirmModal visible={Boolean(next) && next !== 'CANCELLED'} title={user?.role==='VETERINARIAN'&&next==='IN_PROGRESS'?'Iniciar atención':user?.role==='VETERINARIAN'&&next==='COMPLETED'?'Finalizar atención':'Actualizar turno'} message={next === 'reschedule' ? 'Se guardará el nuevo horario y profesional.' : user?.role==='VETERINARIAN'&&next==='COMPLETED'?'La consulta ya está guardada. Se finalizará el turno y quedará registrado en la agenda.':'El nuevo estado se reflejará en la agenda.'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { await api.changeAppointment(id, next === 'reschedule' ? { slotId: slot } : { status: next }); setNext(null); setSlot(''); showToast('Turno actualizado', 'success'); query.reload(); }} />
+    <ConfirmModal visible={Boolean(next&&id) && next !== 'CANCELLED'} title={user?.role==='VETERINARIAN'&&next==='IN_PROGRESS'?'Iniciar atención':user?.role==='VETERINARIAN'&&next==='COMPLETED'?'Finalizar atención':'Actualizar turno'} message={next === 'reschedule' ? 'Se guardará el nuevo horario y profesional.' : user?.role==='VETERINARIAN'&&next==='COMPLETED'?'La consulta ya está guardada. Se finalizará el turno y quedará registrado en la agenda.':'El nuevo estado se reflejará en la agenda.'} confirmLabel="Confirmar" onCancel={() => setNext(null)} onConfirm={async () => { if(!id)return;await api.changeAppointment(id, next === 'reschedule' ? { slotId: slot } : { status: next }); setNext(null); setSlot(''); showToast('Turno actualizado', 'success'); query.reload(); }} />
+    <AppModal visible={Boolean(selectedHistoryId)} dismissible onClose={()=>setSelectedHistoryId('')}><AppText variant="title">Detalle de consulta</AppText>{(()=>{const record=historyItems.find(item=>String(item.id)===selectedHistoryId);if(!record)return null;return <PetCareCard><AppText variant="subtitle">{appointmentDisplayValue(record.title,'Consulta sin título')}</AppText><AppText>Fecha: {record.occurredAt?clinicDateTime(String(record.occurredAt)):'Fecha no disponible'}</AppText>{Boolean(record.veterinarian)&&<AppText>Profesional: {String(record.veterinarian)}</AppText>}{Boolean(record.content)&&<AppText>Indicaciones para el propietario: {String(record.content)}</AppText>}{Boolean(record.reason)&&<AppText>Motivo: {String(record.reason)}</AppText>}{Boolean(record.diagnosis)&&<AppText>Diagnóstico: {String(record.diagnosis)}</AppText>}{Boolean(record.treatment)&&<AppText>Tratamiento: {String(record.treatment)}</AppText>}{Boolean(record.internalNotes)&&<AppText>Observaciones internas: {String(record.internalNotes)}</AppText>}</PetCareCard>;})()}<AppButton label="Cerrar" onPress={()=>setSelectedHistoryId('')}/></AppModal>
   </PetCareScreen>;
 }

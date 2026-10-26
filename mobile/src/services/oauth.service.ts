@@ -52,7 +52,11 @@ export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Pro
     return {redirecting:true};
   }
   oauthDiagnostic('browser_opening',provider);
-  const result=await WebBrowser.openAuthSessionAsync(start.url,destination,{windowName});
+  let timeout:ReturnType<typeof setTimeout>|undefined;
+  const result=await Promise.race([
+    WebBrowser.openAuthSessionAsync(start.url,destination,{windowName}),
+    new Promise<never>((_,reject)=>{timeout=setTimeout(()=>{void WebBrowser.dismissBrowser().catch(()=>undefined);reject(new ApiError('OAUTH_TIMEOUT','La autorización tardó demasiado y no volvió a PetCare. Cerrá el navegador e intentá nuevamente.',408));},120_000);}),
+  ]).finally(()=>{if(timeout)clearTimeout(timeout);});
   oauthDiagnostic('browser_returned',provider,{result:result.type});
   const browserError=oauthBrowserResultError(result.type);
   if(browserError)throw new ApiError(browserError,'La autorización se canceló o no llegó a PetCare. Podés volver a intentarlo.');

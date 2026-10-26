@@ -59,11 +59,16 @@ export async function savePet(owner:string,input:PetInput,id?:string,preservePho
 }
 export async function deactivatePet(owner:string,id:string) {
   await transaction(async c=>{
-    const [rows]=await c.execute<RowDataPacket[]>('SELECT id FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
+    const [rows]=await c.execute<RowDataPacket[]>('SELECT id,name FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
     const [upcoming]=await c.execute<RowDataPacket[]>(`SELECT a.id FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id
       WHERE a.pet_id=? AND a.status IN ('REQUESTED','CONFIRMED') AND s.starts_at>UTC_TIMESTAMP() LIMIT 1`,[id]);
     if(upcoming.length)throw new AppError('PET_HAS_APPOINTMENTS',409,'La mascota tiene turnos pendientes.');
     await c.execute('UPDATE pets SET is_active=0 WHERE id=? AND owner_id=?',[id,owner]);
+    const [linked]=await c.execute<RowDataPacket[]>(`SELECT DISTINCT related.user_id AS userId FROM (
+      SELECT vt.user_id FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=?
+      UNION SELECT slot.professional_user_id AS user_id FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id WHERE a.pet_id=?
+    ) related JOIN users u ON u.id=related.user_id WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL`,[id,id]);
+    for(const professional of linked)await clinic.notify(c,professional.userId,'Mascota desactivada',`${String(rows[0].name)} fue desactivada por su responsable. Sus datos e historial clínico se conservan.`,'PET_DEACTIVATED','pet',id,`pet:${id}:deactivated`);
   });return {deactivated:true};
 }
 export async function reactivatePet(owner:string,id:string) {

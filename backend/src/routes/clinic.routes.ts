@@ -22,6 +22,7 @@ clinicRouter.post('/patients/:id',requireRole('VETERINARIAN','GROOMER','ADMIN','
 clinicRouter.patch('/patients/:id',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-update'));
 clinicRouter.patch('/patients/:id/deactivate',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-deactivate'));
 clinicRouter.post('/patients/:id/records/:kind/query',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),h('clinical'));
+clinicRouter.post('/patients/:id/records/:kind/page',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),h('clinical-page'));
 clinicRouter.post('/patients/:id/records/:kind',requireRole('VETERINARIAN'),createAuthRateLimiter(),h('clinical-create',201));
 clinicRouter.post('/clients/query',requireRole('VETERINARIAN','SECRETARY','ADMIN','SUPER_ADMIN'),h('clients'));
 clinicRouter.post('/clients/:id',requireRole('VETERINARIAN','SECRETARY','ADMIN','SUPER_ADMIN'),h('client'));

@@ -17,6 +17,7 @@ import * as storePayment from '../repositories/store-payment.repository';
 import type { AuthUser } from '../types/auth';
 import { storePaymentProof,removePaymentProof } from './pet-photo.service';
 import { storeCheckoutInput,storeTransferInput } from '../validators/store-checkout.validator';
+import { cancelClientAppointment } from '../repositories/clinic.repository';
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>,actor?:AuthUser) {
   return runDatabaseOperation(async()=>{
@@ -52,6 +53,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'reactivate-pet':clientBody(body,[]);return repository.reactivatePet(owner,clientId(id));
       case 'appointments':return repository.appointments(owner);
       case 'appointment':{const results=await repository.appointments(owner);const appointment=results.find(item=>item.id===clientId(id));if(!appointment)throw new AppError('NOT_FOUND',404,'Turno no encontrado.');return appointment;}
+      case 'cancel-appointment':{const values=clientBody(body,['reason']);return cancelClientAppointment(owner,clientId(id),values.reason);}
       case 'appointment-catalog':return presentServiceImages(await repository.appointmentCatalog());
       case 'slots':return repository.slots(clientId(query.serviceId),query.veterinarianId?clientId(query.veterinarianId):undefined);
       case 'create-appointment': {const values=clientBody(body,['petId','slotId']);return repository.createAppointment(owner,clientId(values.petId),clientId(values.slotId),actor);}

@@ -1,7 +1,7 @@
 /**
  * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos mediante useClient, selecciona foto con ImagePicker y envía cambios al backend; los errores se muestran inline.
  */
-import { useCallback,useRef,useState,type ComponentRef } from 'react';
+import { useCallback,useEffect,useRef,useState,type ComponentRef } from 'react';
 import { Image,Pressable,TextInput,View,StyleSheet,Platform } from 'react-native';
 import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,17 +23,15 @@ import { validPetDate } from '../../utils/pet-date';
 import type { PetValues } from '../../types/client';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { firstInvalidField } from '../../utils/auth-validation';
+import { petPhotoResizePlan,PET_PHOTO_MAX_BASE64_LENGTH } from '../../utils/pet-photo';
 async function compressPetPhoto(uri:string,originalWidth:number,originalHeight:number){
-  for(const [maxDimension,quality] of [[1200,0.82],[900,0.7],[640,0.55]] as const){
-    const scale=Math.min(1,maxDimension/Math.max(originalWidth,originalHeight));
-    const width=Math.max(1,Math.round(originalWidth*scale));
-    const height=Math.max(1,Math.round(originalHeight*scale));
+  for(const {width,height,quality} of petPhotoResizePlan(originalWidth,originalHeight)){
     const context=ImageProcessor.manipulate(uri,{maxWidth:width,maxHeight:height});
     try {
       const image=await context.resize({width,height}).renderAsync();
       try {
         const result=await image.saveAsync({format:SaveFormat.JPEG,compress:quality,base64:true});
-        if(result.base64&&result.base64.length<=6_990_508)return result;
+        if(result.base64&&result.base64.length<=PET_PHOTO_MAX_BASE64_LENGTH)return result;
       } finally {image.release();}
     } finally {context.release();}
   }
@@ -48,6 +46,7 @@ export function PetEditor({id}:{id?:string}) {
   const [photo,setPhoto]=useState<{uri:string;base64:string}|null>(null);
   const [initialValues,setInitialValues]=useState(JSON.stringify(empty));
   const [picking,setPicking]=useState(false);const pickerBusy=useRef(false);
+  const [pendingPetId,setPendingPetId]=useState('');const navigationStarted=useRef(false);
   const load=useCallback(async()=>{
     const catalog=await api.petCatalog();const pet=id?await api.pet(id):null;
     if(pet){const loaded:PetValues={name:pet.name,sex:pet.sex??'',speciesId:pet.speciesId,breedId:pet.breedId??'',breedName:pet.breed??'',birthDate:pet.birthDate??'',microchipNumber:pet.microchipNumber??'',photoUrl:pet.photoUrl??'',weightKg:pet.weightKg??''};setValues(loaded);setInitialValues(JSON.stringify(loaded));}
@@ -68,11 +67,12 @@ export function PetEditor({id}:{id?:string}) {
         const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();
         if(!permission.granted){setErrors(e=>({...e,photoUrl:'Permití el acceso a la galería desde los ajustes del teléfono para elegir una foto.'}));return;}
       }
-      const options={mediaTypes:['images' as const],allowsEditing:true,aspect:[1,1] as [number,number],quality:0.9};
+      // Evita la pantalla nativa de recorte de Android: la app hace el recorte visual al mostrar la foto y prepara el archivo aquí.
+      const options={mediaTypes:['images' as const],allowsEditing:false,quality:1};
       const result=source==='camera'?await ImagePicker.launchCameraAsync(options):await ImagePicker.launchImageLibraryAsync(options);
       if(result.canceled)return;
       const asset=result.assets[0];
-      if(!asset?.uri||!asset.width||!asset.height){setErrors(e=>({...e,photoUrl:'No pudimos leer esta foto. Intentá con otra imagen.'}));return;}
+      if(!asset?.uri||!Number.isFinite(asset.width)||!Number.isFinite(asset.height)||asset.width<=0||asset.height<=0){setErrors(e=>({...e,photoUrl:'No pudimos leer esta foto. Intentá con otra imagen.'}));return;}
       const compressed=await compressPetPhoto(asset.uri,asset.width,asset.height);
       if(!compressed?.base64){setErrors(e=>({...e,photoUrl:'No pudimos preparar esta foto. Intentá elegir otra imagen.'}));return;}
       setPhoto({uri:compressed.uri,base64:compressed.base64});
@@ -81,7 +81,14 @@ export function PetEditor({id}:{id?:string}) {
   }
   const hasUnsavedChanges=JSON.stringify(values)!==initialValues||Boolean(photo);
   const {confirmation:unsavedChangesPrompt,allowNavigation}=useUnsavedChangesGuard(hasUnsavedChanges);
-  function save() {
+  useEffect(()=>{
+    if(!pendingPetId||navigationStarted.current)return;
+    navigationStarted.current=true;
+    showToast(id?'Mascota actualizada':'Mascota agregada','success');
+    allowNavigation();
+    router.replace({pathname:'/client/pets/[id]',params:{id:pendingPetId}});
+  },[allowNavigation,id,pendingPetId,showToast]);
+  async function save() {
     if(disabled)return;const next:typeof errors={};
     if(!values.name.trim()||values.name.trim().length>100)next.name='Ingresá un nombre de hasta 100 caracteres.';
     if(!values.sex)next.sex='Seleccioná el sexo de tu mascota.';
@@ -91,13 +98,15 @@ export function PetEditor({id}:{id?:string}) {
     if(values.weightKg&&(!/^\d+(\.\d{1,2})?$/.test(values.weightKg)||Number(values.weightKg)<=0||Number(values.weightKg)>9999.99))next.weightKg='Ingresá un peso mayor a 0, de hasta 9999,99 kg y dos decimales.';
     if(values.microchipNumber.trim().length>32)next.microchipNumber='El microchip admite hasta 32 caracteres.';
     setErrors(next);if(Object.keys(next).length){const firstInvalid=firstInvalidField(['name','speciesId','sex','breedName','birthDate','weightKg','microchipNumber'] as const,next);if(firstInvalid==='name'||firstInvalid==='breedName'||firstInvalid==='weightKg'||firstInvalid==='microchipNumber')setTimeout(()=>inputRefs.current[firstInvalid]?.focus(),0);return;}
-    void action.run(async()=>{
-      const saved=await api.savePet({...values,name:values.name.trim(),breedName:values.breedName?.trim(),microchipNumber:values.microchipNumber.trim(),...(photo?{photoBase64:photo.base64}:{})},id);
-      setInitialValues(JSON.stringify(values));setPhoto(null);
-      showToast(id?'Mascota actualizada':'Mascota agregada','success');
-      allowNavigation();
-      router.replace({pathname:'/client/pets/[id]',params:{id:saved.id}});
+    let savedPetId='';
+    const saved=await action.run(async()=>{
+      const result=await api.savePet({...values,name:values.name.trim(),breedName:values.breedName?.trim(),microchipNumber:values.microchipNumber.trim(),...(photo?{photoBase64:photo.base64}:{})},id);
+      savedPetId=result.id;
     });
+    if(!saved||!savedPetId)return;
+    // Navegar en el siguiente efecto, tras confirmar el commit que quita el estado loading.
+    // Así no se reubican los hijos del botón mientras react-native-screens anima la salida.
+    setPendingPetId(savedPetId);
   }
   const preview=photo?.uri||values.photoUrl;
   return <PetCareScreen><PetCareHeader title={id?'Editar mascota':'Agregar mascota'} back/><QueryState {...query}/>{query.data&&!query.loading&&!query.error&&<>

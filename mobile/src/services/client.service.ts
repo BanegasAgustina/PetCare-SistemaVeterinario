@@ -16,6 +16,7 @@ export function clientService(request:ClientRequest){
     appointments:()=>query<Appointment[]>('/appointments/query'),appointment:(id:string)=>query<Appointment>(`/appointments/${encodeURIComponent(id)}`),appointmentCatalog:()=>query<AppointmentCatalog>('/appointments/catalog'),
     slots:(serviceId:string,veterinarianId?:string)=>query<Slot[]>('/appointments/slots',{serviceId,...(veterinarianId?{veterinarianId}:{})}),
     requestAppointment:(petId:string,slotId:string)=>send<{id:string;status:'REQUESTED'|'CONFIRMED'}>('/appointments','POST',{petId,slotId}),
+    cancelAppointment:(id:string,reason:string)=>send<{updated:boolean;status:string}>(`/appointments/${encodeURIComponent(id)}/cancel`,'PATCH',{reason}),
     clinical:(kind:ClinicalKind,petId?:string)=>query<ClinicalRecord[]>(`/clinical/${kind}`,petId?{petId}:{}),
     products:(search='',categoryId?:string,productType?:'MEDICINE'|'ACCESSORY')=>query<Product[]>('/store/products',{search,...(categoryId?{categoryId}:{}),...(productType?{productType}:{})}),
     product:(id:string)=>query<Product>(`/store/products/${encodeURIComponent(id)}`),categories:()=>query<CatalogItem[]>('/store/categories'),
