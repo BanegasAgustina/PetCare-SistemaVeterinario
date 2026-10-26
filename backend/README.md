@@ -20,11 +20,11 @@ La API local usa `http://localhost:3000/api`. `GET /api/health` verifica proceso
 
 Use `.env.example` como lista actual de nombres, sin copiar secretos al frontend. Las variables principales son `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`, `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CORS_ALLOWED_ORIGINS`, `SMTP_*`, `EMAIL_CODE_SECRET`, `BACKEND_URL`, `OAUTH_RETURN_URLS`, credenciales Google/Facebook/X, `CRON_SECRET` y configuración Cloudinary/S3. Producción requiere base remota, TLS y secreto JWT aleatorio de al menos 32 bytes. Las variables optativas solo se necesitan para su función.
 
-Consulte [guía completa de instalación](../docs/GUIA_INSTALACION_CONFIGURACION.md), [API](../docs/DOCUMENTACION_API.md) y [errores](../docs/ERRORES_Y_SOLUCIONES.md).
+Consulte el [README principal](../README.md), el [inventario de API](../docs/DOCUMENTACION_API.md) y la [auditoría general](../docs/auditoria/AUDITORIA_GENERAL.md).
 
 ## Layerbase/MariaDB y migraciones
 
-La conexión requiere host/puerto/base/usuario/clave del proveedor y TLS en producción. `npm run db:check` y `npm run db:audit:readonly` son verificaciones de lectura. **En este checkout faltan `backend/bootstrap/` y `backend/migrations/`, que los runners `db:bootstrap` y `db:migrate` resuelven como origen de SQL; por eso no son una ruta funcional de instalación limpia hasta restaurar los archivos canónicos.** Scripts `db:migrate*`, `db:bootstrap`, `db:seed`, `create:super-admin` y `admin:promote` pueden escribir. Revise historial, SQL, respaldo y conexión al entorno correcto antes de usarlos. No considere `schema-audit.json` ni informes antiguos prueba del esquema remoto actual.
+La conexión requiere host/puerto/base/usuario/clave del proveedor y TLS en producción. `npm run db:check` y `npm run db:audit:readonly` son verificaciones de lectura. Por decisión del responsable, la gestión de migraciones vive fuera de este repositorio y fue verificada externamente; no recupere ni cree archivos SQL locales. Algunos runners todavía resuelven `backend/bootstrap/` o `backend/migrations/`, así que no los invoque desde este checkout como ruta de instalación/migración. Scripts `db:migrate*`, `db:bootstrap`, `db:seed`, `create:super-admin` y `admin:promote` pueden escribir y quedan bajo el procedimiento externo autorizado. No considere `schema-audit.json` ni informes antiguos prueba del esquema remoto actual.
 
 ## Autenticación, roles y errores
 
@@ -46,7 +46,8 @@ SMTP requiere `SMTP_*`, `MAIL_FROM` y secretos de códigos; el cron requiere `CR
 |---|---|
 | `npm run dev` | Desarrollo con recarga. |
 | `npm run build` / `npm start` | Compilar y servir `dist/server.js`. |
-| `npm run typecheck`, `npm run lint`, `npm test` | Tipos, ESLint y pruebas. |
+| `npm run typecheck`, `npm run lint`, `npm test` | Tipos, ESLint y 21 pruebas unitarias/servicios sin DB. |
+| `npm run test:http` | 4 pruebas de Express por loopback; requiere permiso de loopback en sandboxes restrictivos. La prueba fija DB a `127.0.0.1:1` y no usa Layerbase. |
 | `npm run oauth:callbacks` | Imprime callbacks configurados. |
 | `npm run db:check`, `npm run db:audit:readonly` | Verificaciones no mutantes. |
 | `npm run db:migrate`, `npm run db:bootstrap`, `npm run db:seed` | Operaciones potencialmente mutantes; revisar antes de usar. |
@@ -67,4 +68,4 @@ Para desplegar la API configure el proyecto con Root Directory `backend`, variab
 - **OAuth/email:** comprobar callback exacto, allowlist, SMTP y estado de proveedor en sus consolas.
 - **SQL/schema:** consultar logs sanitizados y comparar esquema; aplicar una migración solo tras revisión y aprobación del operador.
 
-Scripts adicionales y estado histórico se conservan en documentación histórica. Para instrucciones actuales vea `../docs/GUIA_INSTALACION_CONFIGURACION.md`.
+Para revisar el estado de Layerbase, la evidencia y las limitaciones, consulte [AUDITORIA_LAYERBASE.md](../docs/auditoria/AUDITORIA_LAYERBASE.md) y [RESULTADOS_PRUEBAS.md](../docs/auditoria/RESULTADOS_PRUEBAS.md).

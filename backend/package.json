@@ -38,7 +38,8 @@
     "db:migrate:clinic-schema": "tsx src/database/clinic-schema-migrate.ts",
     "db:migrate:reservations": "tsx src/database/product-origin-migrate.ts",
     "db:reconcile:clinic": "tsx src/database/clinic-reconcile.ts",
-    "test:clinic:db": "tsx --test tests/integration/clinic.test.ts"
+    "test:clinic:db": "tsx --test tests/integration/clinic.test.ts",
+    "test:http": "tsx --test tests/http/*.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
