@@ -4,7 +4,6 @@ import { AppState, Platform } from 'react-native';
 import * as authApi from '../services/auth.service';
 import { ApiError, friendlyError, apiRequest } from '../services/api';
 import { clearSession, readSession, saveSession } from '../services/session-store';
-import { dismissDeviceNotifications, storedPushToken } from '../services/push-notifications';
 import type { AuthUser, LoginValues, RegisterValues, StoredSession, VerificationChallenge,AccessSession } from '../types/auth';
 import { readVerification } from '../services/verification.service';
 import { hasRole,hasPermission } from '../utils/authorization';
@@ -183,22 +182,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     renewing.current=null;
     generation.current += 1;
     const refreshToken=session.current?.refreshToken;
-    const accessToken=session.current?.accessToken;
-    let pushRevocationFailed=false;
-    if(Platform.OS!=='web'&&user?.role==='CLIENT'&&accessToken){
-      let token:string|null=null;
-      try{token=await storedPushToken();}catch{pushRevocationFailed=true;}
-      if(token)try{await authApi.revokePushToken(accessToken,token);}catch{pushRevocationFailed=true;}
-      try{await dismissDeviceNotifications();}catch{pushRevocationFailed=true;}
-    }
     await clearSession();
     session.current = null; setUser(null); setExpiresAt(null); setRestoreError(null); setRestoring(false); setNotice(null);setOAuthPending(null);
     let sessionRevocationFailed=false;
     if(refreshToken)try{await authApi.logout(refreshToken);}catch{sessionRevocationFailed=true;}
-    if(pushRevocationFailed||sessionRevocationFailed)setNotice(pushRevocationFailed
-      ?'Se cerró la sesión en este dispositivo, pero no pudimos desactivar las notificaciones privadas. Conectate e iniciá sesión de nuevo para actualizar el registro.'
-      :'Se cerró la sesión en este dispositivo, pero no pudimos completar el cierre en tus otros dispositivos. Conectate e intentá nuevamente.');
-  }, [user?.role]);
+    if(sessionRevocationFailed)setNotice('Se cerró la sesión en este dispositivo, pero no pudimos completar el cierre en tus otros dispositivos. Conectate e intentá nuevamente.');
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     let stored = session.current;

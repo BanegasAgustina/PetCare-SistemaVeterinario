@@ -81,13 +81,9 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
         catch(error){await stored.remove().catch(()=>undefined);throw error;}
       }
       case 'notifications':return repository.notifications(owner,query);
-      case 'notification-preferences':clientBody(body,[]);return repository.notificationPreferences(owner);
-      case 'notification-preferences-update':return repository.updateNotificationPreferences(owner,body);
       case 'notification-hide':clientBody(body,[]);return repository.hideNotification(owner,clientId(id));
       case 'notification-read':clientBody(body,[]);return repository.readNotification(owner,clientId(id));
       case 'notification-read-all':clientBody(body,[]);return repository.readAllNotifications(owner);
-      case 'push-token-register':return repository.registerPushToken(owner,body);
-      case 'push-token-revoke':return repository.revokePushToken(owner,body);
       case 'profile-update':{const values=clientBody(body,['firstName','lastName','phone']);return repository.updateProfile(owner,readName(values.firstName,'El nombre'),readName(values.lastName,'El apellido'),readPhone(values.phone));}
       case 'password-update':{const values=clientBody(body,['currentPassword','password']);const current=readPassword(values.currentPassword,false);const password=readPassword(values.password,true);
         const user=await findUserById(owner);if(!user||!await bcrypt.compare(current,user.passwordHash))throw new AppError('CURRENT_PASSWORD_INVALID',400,'La contraseña actual no es correcta.');

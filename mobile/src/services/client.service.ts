@@ -1,5 +1,5 @@
 /** Services Cliente usan el request autenticado existente; nunca reciben ownerId. */
-import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,NotificationPage,NotificationPreferences,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress,StoreBanner } from '../types/client';
+import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,NotificationPage,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress,StoreBanner } from '../types/client';
 import type { GeneralInformation } from '../types/admin';
 export type ClientRequest=<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown;contentType?:string;headers?:Record<string,string>})=>Promise<T>;
 export function clientService(request:ClientRequest){
@@ -25,7 +25,7 @@ export function clientService(request:ClientRequest){
     bankTransferCheckout:(input:{requestKey:string;fulfillmentMethod:'PICKUP'|'DELIVERY';buyerName:string;buyerEmail:string;buyerDni:string;address?:{recipientName:string;phone:string;street:string;streetNumber:string;unit:string;city:string;province:string;postalCode:string;reference:string}})=>send<OrderDetail>('/orders/bank-transfer','POST',input),
     renewTransferIntent:(orderId:string)=>send<OrderDetail>(`/orders/${encodeURIComponent(orderId)}/payment-intents`,'POST',{}),
     uploadPaymentProof:(intentId:string,body:Blob,contentType:string,reference='')=>request<{submitted:boolean}>(`/client/payment-intents/${encodeURIComponent(intentId)}/proof`,{method:'POST',body,contentType,...(reference?{headers:{'X-Payment-Reference':reference}}:{})}),orders:()=>query<Order[]>('/orders/query'),order:(id:string)=>query<OrderDetail>(`/orders/${encodeURIComponent(id)}`),
-    notifications:(cursor?:string|null)=>query<NotificationPage>('/notifications',cursor?{cursor}:{}),notificationPreferences:()=>query<NotificationPreferences>('/notifications/preferences/query'),updateNotificationPreferences:(values:Partial<NotificationPreferences>)=>send<NotificationPreferences>('/notifications/preferences','PATCH',values),hideNotification:(id:string)=>request(`/client/notifications/${encodeURIComponent(id)}`,{method:'DELETE',body:{}}),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),readAllNotifications:()=>send('/notifications/read-all','PATCH',{}),
+    notifications:(cursor?:string|null)=>query<NotificationPage>('/notifications',cursor?{cursor}:{}),hideNotification:(id:string)=>request(`/client/notifications/${encodeURIComponent(id)}`,{method:'DELETE',body:{}}),readNotification:(id:string)=>send(`/notifications/${encodeURIComponent(id)}/read`,'PATCH',{}),readAllNotifications:()=>send('/notifications/read-all','PATCH',{}),
     updateProfile:(values:{firstName:string;lastName:string;phone:string})=>send('/profile','PATCH',values),
     changePassword:(currentPassword:string,password:string)=>send('/profile/password','PUT',{currentPassword,password}),
   };

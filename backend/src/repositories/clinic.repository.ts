@@ -13,7 +13,7 @@ import * as v from '../validators/clinic.validator';
 import { catalogName } from '../utils/catalog-presentation';
 import { clientClinicalRecord } from '../utils/clinical-presentation';
 import { formatNotificationDateTime } from '../utils/notification-date';
-import { cancelPendingAppointmentReminders, createClientNotification } from './notification.repository';
+import { createClientNotification } from './notification.repository';
 export type Connection=Pick<PoolConnection,'execute'>;
 export type SqlValue=string|number|boolean|null;
 export type Data=Record<string,SqlValue>;
@@ -131,7 +131,6 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
   const slotChanged=slotId!==String(a.slotId);
   const statusChanged=status!==String(a.status);
   if(slotChanged||statusChanged){
-   if(slotChanged||status==='CANCELLED')await cancelPendingAppointmentReminders(c,id);
    const current=slotChanged?await one(`${appointmentSelect} WHERE a.id=?`,[id],c):a;
    const target=status==='CANCELLED'?a:current;
    const {date,time}=formatNotificationDateTime(target.startsAt);

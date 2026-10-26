@@ -42,12 +42,8 @@ clientRouter.post('/orders/:id/payment-intents',createAuthRateLimiter(8),handle(
 clientRouter.post('/payment-intents/:id/proof',createAuthRateLimiter(8),handle('payment-proof',201));
 clientRouter.post('/orders/:id',handle('order'));
 clientRouter.post('/notifications',handle('notifications'));
-clientRouter.post('/notifications/preferences/query',handle('notification-preferences'));
-clientRouter.patch('/notifications/preferences',handle('notification-preferences-update'));
 clientRouter.patch('/notifications/read-all',handle('notification-read-all'));
 clientRouter.patch('/notifications/:id/read',handle('notification-read'));
 clientRouter.delete('/notifications/:id',handle('notification-hide'));
-clientRouter.post('/notifications/push-token',createAuthRateLimiter(10),handle('push-token-register'));
-clientRouter.post('/notifications/push-token/revoke',createAuthRateLimiter(10),handle('push-token-revoke'));
 clientRouter.patch('/profile',handle('profile-update'));
 clientRouter.put('/profile/password',createAuthRateLimiter(),handle('password-update'));

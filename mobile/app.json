@@ -19,19 +19,11 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.petcare",
-      "versionCode": 2,
-      "googleServicesFile": "./google-services.json"
+      "versionCode": 2
     },
     "icon": "./src/assets/petcare-icon.png",
     "plugins": [
       "expo-router",
-      [
-        "expo-notifications",
-        {
-          "defaultChannel": "petcare-notifications",
-          "color": "#def1ea"
-        }
-      ],
       "expo-secure-store",
       "@react-native-community/datetimepicker",
       [

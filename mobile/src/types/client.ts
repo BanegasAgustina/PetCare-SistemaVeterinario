@@ -25,5 +25,4 @@ export type Order={id:string;status:string;orderType:'RESERVATION'|'DEMO_PURCHAS
 export type OrderDetail=Order&{recipientPhone:string|null;deliveryReference:string|null;paymentReference:string|null;paymentIntentId:string|null;paymentExpiresAt:string|null;paymentIntentStatus:'ACTIVE'|'EXPIRED'|null;paymentProofLate:boolean;paymentReviewStatus:string|null;proofSubmittedAt:string|null;items:{productId:string;name:string;quantity:number;priceCents:number;subtotalCents:number}[]};
 export type Notification={id:string;title:string;body:string;eventType:string;referenceType:string|null;referenceId:string|null;readAt:string|null;createdAt:string};
 export type NotificationPage={items:Notification[];nextCursor:string|null;unreadCount:number};
-export type NotificationPreferences={pushEnabled:boolean;appointmentRemindersEnabled:boolean;orderUpdatesEnabled:boolean};
 export type Home={pets:Pet[];nextAppointment:Appointment|null;nextAppointments?:Appointment[];featuredProducts:Product[];unreadNotifications:number};

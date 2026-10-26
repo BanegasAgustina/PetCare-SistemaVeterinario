@@ -6,7 +6,6 @@ import { AppError } from '../utils/app-error';
 import * as clinic from './clinic.repository';
 import type { AuthUser } from '../types/auth';
 import { invalid, type petInput } from '../validators/client.validator';
-import { isValidExpoPushToken } from '../utils/expo-push-token';
 type PetInput=ReturnType<typeof petInput>;
 function normalizePetSex(value:unknown):'FEMALE'|'MALE'|'UNKNOWN'|null {
   if(value===null||value===undefined||value==='')return null;
@@ -136,41 +135,5 @@ export async function unreadNotificationCount(owner:string){const [rows]=await d
 export async function readNotification(owner:string,id:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id FROM client_notifications WHERE id=? AND owner_id=? AND hidden_at IS NULL',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);return {read:true};}
 export async function readAllNotifications(owner:string){await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE owner_id=? AND hidden_at IS NULL AND read_at IS NULL',[owner]);return {read:true};}
 export async function hideNotification(owner:string,id:string){const [result]=await databasePool.execute<ResultSetHeader>('UPDATE client_notifications SET hidden_at=COALESCE(hidden_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);if(!result.affectedRows)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');return {hidden:true};}
-export async function notificationPreferences(owner:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT push_enabled AS pushEnabled,appointment_reminders_enabled AS appointmentRemindersEnabled,order_updates_enabled AS orderUpdatesEnabled FROM client_notification_preferences WHERE user_id=?',[owner]);const p=rows[0];return {pushEnabled:p?Boolean(p.pushEnabled):true,appointmentRemindersEnabled:p?Boolean(p.appointmentRemindersEnabled):true,orderUpdatesEnabled:p?Boolean(p.orderUpdatesEnabled):true};}
-export async function updateNotificationPreferences(owner:string,value:unknown){
- if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Las preferencias no son válidas.');
- const body=value as Record<string,unknown>;const keys=['pushEnabled','appointmentRemindersEnabled','orderUpdatesEnabled'];
- if(!Object.keys(body).length||Object.keys(body).some(key=>!keys.includes(key))||Object.values(body).some(v=>typeof v!=='boolean'))throw new AppError('VALIDATION_ERROR',400,'Las preferencias no son válidas.');
- const current=await notificationPreferences(owner);const next={...current,...body} as typeof current;
- await databasePool.execute(`INSERT INTO client_notification_preferences(user_id,push_enabled,appointment_reminders_enabled,order_updates_enabled) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE push_enabled=VALUES(push_enabled),appointment_reminders_enabled=VALUES(appointment_reminders_enabled),order_updates_enabled=VALUES(order_updates_enabled)`,[owner,next.pushEnabled,next.appointmentRemindersEnabled,next.orderUpdatesEnabled]);
- await databasePool.execute(`UPDATE client_notification_push_deliveries d
-   JOIN client_notifications n ON n.id=d.notification_id
-   JOIN client_notification_preferences p ON p.user_id=n.owner_id
-   SET d.status='FAILED',d.last_error_code='PREFERENCE_DISABLED',d.lease_expires_at=NULL
-   WHERE n.owner_id=? AND d.status='PENDING'
-     AND (p.push_enabled=0
-       OR (n.event_type LIKE 'APPOINTMENT_REMINDER_%' AND p.appointment_reminders_enabled=0)
-       OR ((n.event_type LIKE 'ORDER_%' OR n.event_type LIKE 'RESERVATION_%') AND p.order_updates_enabled=0))`,[owner]);
- return next;
-}
-export async function registerPushToken(owner:string,value:unknown){
- if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['token','platform'].includes(key)))throw new AppError('VALIDATION_ERROR',400,'El dispositivo no es válido.');
- const body=value as {token?:unknown;platform?:unknown};
- const platform=body.platform==='android'||body.platform==='ios'?body.platform:null;
- if(!isValidExpoPushToken(body.token)||!platform)throw new AppError('VALIDATION_ERROR',400,'El token de notificaciones no es válido.');
- await databasePool.execute(
-  `INSERT INTO client_push_tokens(user_id,expo_push_token,platform,revoked_at) VALUES (?,?,?,NULL)
-   ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),platform=VALUES(platform),revoked_at=NULL,updated_at=UTC_TIMESTAMP(3)`,
-  [owner,body.token,platform],
- );
- return {registered:true};
-}
-export async function revokePushToken(owner:string,value:unknown){
- if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>key!=='token'))throw new AppError('VALIDATION_ERROR',400,'El dispositivo no es válido.');
- const token=(value as {token?:unknown}).token;
- if(!isValidExpoPushToken(token))throw new AppError('VALIDATION_ERROR',400,'El token de notificaciones no es válido.');
- await databasePool.execute('UPDATE client_push_tokens SET revoked_at=UTC_TIMESTAMP(3),updated_at=UTC_TIMESTAMP(3) WHERE user_id=? AND expo_push_token=? AND revoked_at IS NULL',[owner,token]);
- return {revoked:true};
-}
 export async function updateProfile(owner:string,firstName:string,lastName:string,phone:string|null){await databasePool.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=?',[firstName,lastName,phone,owner]);return {updated:true};}
 export async function changePassword(owner:string,expectedHash:string,newHash:string){return transaction(async c=>{const [rows]=await c.execute<RowDataPacket[]>('SELECT password_hash FROM users WHERE id=? FOR UPDATE',[owner]);if(rows[0]?.password_hash!==expectedHash)throw new AppError('INVALID_CREDENTIALS',401,'Tu contraseña cambió. Iniciá sesión nuevamente.');await c.execute('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=?',[newHash,owner]);return {updated:true};});}

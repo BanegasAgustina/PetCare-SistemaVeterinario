@@ -12,7 +12,7 @@ export type ClientNotificationInput = {
   referenceId?: string | null;
 };
 
-/** Persist the in-app notice and queue one push attempt per currently registered device. */
+/** Persist an in-app notice as the source of truth and queue configured email delivery. */
 export async function createClientNotification(connection: PoolConnection, notification: ClientNotificationInput): Promise<boolean> {
   let inserted: ResultSetHeader;
   try {
@@ -34,17 +34,6 @@ export async function createClientNotification(connection: PoolConnection, notif
   );
   const notificationId = idRows[0]?.id;
   if (!notificationId) throw new Error('No se pudo recuperar la notificación recién creada.');
-
-  await connection.execute(
-    `INSERT INTO client_notification_push_deliveries(notification_id,push_token_id)
-     SELECT ?,t.id FROM client_push_tokens t
-     LEFT JOIN client_notification_preferences p ON p.user_id=t.user_id
-     WHERE t.user_id=? AND t.revoked_at IS NULL AND COALESCE(p.push_enabled,1)=1
-       AND (CASE WHEN ? LIKE 'APPOINTMENT_REMINDER_%' THEN COALESCE(p.appointment_reminders_enabled,1)
-                 WHEN ? LIKE 'ORDER_%' OR ? LIKE 'RESERVATION_%'
-                 THEN COALESCE(p.order_updates_enabled,1) ELSE 1 END)=1`,
-    [notificationId, notification.ownerId, notification.eventType, notification.eventType, notification.eventType],
-  );
   if (['APPOINTMENT_CONFIRMED', 'APPOINTMENT_RESCHEDULED', 'APPOINTMENT_CANCELLED',
     'CLINICAL_UPDATE', 'RESERVATION_APPROVED', 'RESERVATION_REJECTED'].includes(notification.eventType)) {
     try {
@@ -60,16 +49,4 @@ export async function createClientNotification(connection: PoolConnection, notif
     }
   }
   return true;
-}
-
-export async function cancelPendingAppointmentReminders(connection: PoolConnection, appointmentId: string): Promise<void> {
-  await connection.execute(
-    `UPDATE client_notification_push_deliveries d
-     JOIN client_notifications n ON n.id=d.notification_id
-     SET d.status='FAILED',d.last_error_code='REMINDER_INVALIDATED',d.lease_expires_at=NULL
-     WHERE n.reference_type='appointment' AND n.reference_id=?
-       AND n.event_type IN ('APPOINTMENT_REMINDER_24H','APPOINTMENT_REMINDER_4H')
-       AND d.status IN ('PENDING','SENDING')`,
-    [appointmentId],
-  );
 }

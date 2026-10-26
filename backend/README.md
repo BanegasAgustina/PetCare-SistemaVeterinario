@@ -38,7 +38,7 @@ Prefijo global `/api`; módulos en `src/routes/`. Las lecturas internas usan POS
 
 ## Correo, notificaciones, imágenes y tienda
 
-SMTP requiere `SMTP_*`, `MAIL_FROM` y secretos de códigos; el cron requiere `CRON_SECRET` y Vercel Cron. Push Android requiere Expo/FCM, credenciales EAS y consentimiento/token por dispositivo. Imágenes usan configuración privada Cloudinary o S3 compatible. `STORE_DEMO_MODE` está desactivado por defecto y habilita únicamente checkout de demostración no cobrable. Transferencias y revisión de comprobantes son flujos separados sujetos a configuración, esquema y decisión administrativa; no afirme que una captura de comprobante constituye pago.
+SMTP requiere `SMTP_*`, `MAIL_FROM` y secretos de códigos; el cron requiere `CRON_SECRET` y Vercel Cron. Las notificaciones internas y los recordatorios de turnos se guardan en el centro de notificaciones; el cron procesa recordatorios y correos. Imágenes usan configuración privada Cloudinary o S3 compatible. `STORE_DEMO_MODE` está desactivado por defecto y habilita únicamente checkout de demostración no cobrable. Transferencias y revisión de comprobantes son flujos separados sujetos a configuración, esquema y decisión administrativa; no afirme que una captura de comprobante constituye pago.
 
 ## Comandos disponibles
 
@@ -56,7 +56,7 @@ El resto de comandos está listado en `package.json`. `test:db` y `test:clinic:d
 
 ## Vercel
 
-Para desplegar la API configure el proyecto con Root Directory `backend`, variables privadas en el entorno correcto y URL pública HTTPS en `BACKEND_URL`. `backend/vercel.json` programa cron diario a las 03:00 UTC en `/api/cron/notifications`. El endpoint cron puede enviar avisos reales y requiere un Bearer de `CRON_SECRET`. No use pruebas manuales en producción sin coordinarlo.
+Para desplegar la API configure el proyecto con Root Directory `backend`, variables privadas en el entorno correcto y URL pública HTTPS en `BACKEND_URL`. El cron de `/api/cron/notifications` crea recordatorios internos de 24/4 h y procesa la cola de correo. `backend/vercel.json` lo programa cada cinco minutos (UTC), lo que requiere un plan Vercel Pro o Enterprise; Hobby solo permite cron diario y no sirve para ventanas de recordatorios de 15 minutos. El endpoint cron requiere un Bearer de `CRON_SECRET`. Las notificaciones push externas a dispositivos no están habilitadas; el centro interno lee su historial y estados desde `client_notifications`.
 
 ## Resolución de problemas
 

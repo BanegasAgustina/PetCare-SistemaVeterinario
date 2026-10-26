@@ -37,13 +37,13 @@ El token de acceso se guarda en SecureStore en nativo y `sessionStorage` en web.
 
 ## Web, Android, Expo Go y Development Build
 
-Expo Go es útil para pantallas y login tradicional cuando la versión del cliente es compatible con el SDK del proyecto. No incorpora configuración nativa específica para retorno OAuth PetCare y no admite push remoto en Android. Para OAuth con esquema propio, notificaciones push, SecureStore/módulos nativos según el flujo y pruebas cercanas a producción, use Development Build o APK EAS.
+Expo Go es útil para pantallas y login tradicional cuando la versión del cliente es compatible con el SDK del proyecto. No incorpora configuración nativa específica para retorno OAuth PetCare. Para OAuth con esquema propio, SecureStore/módulos nativos según el flujo y pruebas cercanas a producción, use Development Build o APK EAS.
 
 Los tres flujos sociales (Google, Facebook y X) usan el navegador del sistema para autorizarse en el backend, que vuelve a la app con un ticket de un solo uso en `petcare://oauth`; la app lo intercambia por su sesión API. Por eso requieren una development build instalada con el scheme `petcare`: en Expo Go los botones sociales se deshabilitan y se explica el requisito, en vez de abrir un navegador que no puede devolver el callback. Después de crear o cambiar el scheme, reconstruya e instale el development client y arranque Metro con `npx expo start --dev-client`. La allowlist del backend debe incluir exactamente `petcare://oauth` en `OAUTH_RETURN_URLS`, además de los retornos web que ya use el sitio. No cambie los secretos del proveedor ni la configuración de producción para habilitar el callback local.
 
 El flujo Google existente es OAuth de servidor con code + PKCE, no el SDK nativo de Google Sign-In: Google Cloud debe tener un cliente de tipo Web con el URI de callback HTTPS del backend (`BACKEND_URL` + `/api/auth/oauth/google/callback`) autorizado. Facebook y X también registran el callback HTTPS del backend en la configuración de su proveedor. Este cliente móvil no usa un Android OAuth client ID ni package/SHA-1 para el intercambio; no agregue valores inventados al bundle. Compruebe los Client IDs, secretos, callback autorizados y `OAUTH_RETURN_URLS` en las consolas/configuración del backend existente. Los valores reales de esas cuentas no están disponibles en este repositorio.
 
-El esquema `petcare`, plugins nativos, paquete Android y Project ID EAS están configurados en `app.json`. Cambiar módulos/configuración nativa requiere reconstruir la app. Web usa rutas y navegación web de Expo Router; las notificaciones web consultan el centro API pero no implementan browser push.
+El esquema `petcare`, plugins nativos, paquete Android y Project ID EAS están configurados en `app.json`. Cambiar módulos/configuración nativa requiere reconstruir la app. Las notificaciones son internas: el centro muestra el historial del backend, mantiene leídas/no leídas y el badge, y en móvil sincroniza mientras la app está activa. No se solicitan permisos del sistema ni se registran tokens para push. Web usa rutas y navegación web de Expo Router y consulta el mismo centro API.
 
 ## APK con EAS
 
@@ -56,7 +56,7 @@ npx eas-cli@latest build --platform android --profile preview
 npx eas-cli@latest build --platform android --profile production-apk
 ```
 
-Development Build se conecta a `npx expo start --dev-client`; preview/production APK pueden instalarse independientemente. Confirme `EXPO_PUBLIC_API_URL` y credenciales Expo/FCM para el perfil/entorno seleccionado. Un build correcto no verifica que OAuth, DB, SMTP o push estén operativos.
+Development Build se conecta a `npx expo start --dev-client`; preview/production APK pueden instalarse independientemente. Confirme `EXPO_PUBLIC_API_URL` para el perfil/entorno seleccionado. Un build correcto no verifica que OAuth, DB o SMTP estén operativos.
 
 ## Problemas frecuentes
 
@@ -64,7 +64,6 @@ Development Build se conecta a `npx expo start --dev-client`; preview/production
 - **CORS en navegador:** permita el origen web exacto en `CORS_ALLOWED_ORIGINS` del backend.
 - **Lectura devuelve 404:** use POST con body JSON para lecturas internas actuales.
 - **OAuth no vuelve en Expo Go:** use build con scheme `petcare`.
-- **Push no aparece:** use APK/development build y configure FCM/EAS, token y permiso del dispositivo.
 - **APK apunta a API anterior:** actualice `EXPO_PUBLIC_API_URL` del entorno EAS y genere build nuevo.
 - **Validación falla:** lea error por campo; confirme enums/IDs actuales y conexión API.
 

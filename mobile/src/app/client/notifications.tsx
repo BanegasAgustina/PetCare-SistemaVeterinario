@@ -9,10 +9,8 @@ import { AppText } from '../../components/ui/AppText';
 import { AppButton } from '../../components/ui/AppButton';
 import { FormNotice } from '../../components/ui/FormNotice';
 import { useEffect, useState } from 'react';
-import { AppState,Linking, Platform,StyleSheet,View,useWindowDimensions } from 'react-native';
+import { Platform,StyleSheet,View,useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '../../hooks/useAuth';
-import { requestPushPermissionAndToken, storedPushToken, clearStoredPushToken, hasRegisteredPushPermission } from '../../services/push-notifications';
 import { notificationPath } from '../../services/notification-path';
 import { publishNotificationChange, subscribeToNotificationChanges } from '../../services/notification-events';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
@@ -21,10 +19,8 @@ export default function NotificationsScreen(){
   const api=useClient();
   const query=useClientQuery(api.notifications);
   const action=useAsyncAction();
-  const {request}=useAuth();
   const {width}=useWindowDimensions();
   const desktopWeb=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
-  const [pushEnabled,setPushEnabled]=useState(false);
   const [extraPages,setExtraPages]=useState<{baseId:string;items:import('../../types/client').Notification[];cursor:string|null}|null>(null);
   const firstId=query.data?.items[0]?.id??'';
   const extraItems=extraPages?.baseId===firstId?extraPages.items:[];
@@ -33,27 +29,9 @@ export default function NotificationsScreen(){
   const unreadItems=items.filter(item=>!item.readAt);
   const readItems=items.filter(item=>Boolean(item.readAt));
   useEffect(()=>{
-    let active=true;
-    if(Platform.OS!=='web')void hasRegisteredPushPermission()
-      .then(enabled=>{if(active)setPushEnabled(enabled);})
-      .catch(()=>console.error('No se pudo consultar el registro de notificaciones del dispositivo.'));
     const unsubscribe=subscribeToNotificationChanges(query.reload);
-    const appState=AppState.addEventListener('change',state=>{if(state==='active'&&Platform.OS!=='web')void hasRegisteredPushPermission().then(enabled=>{if(active)setPushEnabled(enabled);}).catch(()=>console.error('No se pudo actualizar el permiso de notificaciones del dispositivo.'));});
-    return ()=>{active=false;unsubscribe();appState.remove();};
+    return unsubscribe;
   },[query.reload]);
-  const enablePush=()=>void action.run(async()=>{
-    const token=await requestPushPermissionAndToken();
-    await request('/client/notifications/push-token',{method:'POST',body:{token,platform:Platform.OS}});
-    await api.updateNotificationPreferences({pushEnabled:true});
-    setPushEnabled(true);
-  });
-  const disablePush=()=>void action.run(async()=>{
-    await api.updateNotificationPreferences({pushEnabled:false});
-    const token=await storedPushToken();
-    if(token)await request('/client/notifications/push-token/revoke',{method:'POST',body:{token}});
-    await clearStoredPushToken();
-    setPushEnabled(false);
-  });
   const readAll=()=>void action.run(async()=>{
     await api.readAllNotifications();
     publishNotificationChange();
@@ -65,13 +43,7 @@ export default function NotificationsScreen(){
   });
   return <PetCareScreen>
     <PetCareHeader title="Notificaciones" back/>
-    {Platform.OS!=='web'&&<>
-      <AppText variant="caption" muted>Activá las notificaciones para recibir novedades de turnos y pedidos. El permiso se verifica de nuevo al regresar desde Ajustes.</AppText>
-      <AppText muted>Estado registrado en este dispositivo: {pushEnabled?'activadas':'desactivadas'}</AppText>
-      <AppButton label={pushEnabled?'Desactivar notificaciones en este dispositivo':'Activar notificaciones en este dispositivo'} variant="secondary" loading={action.loading} onPress={pushEnabled?disablePush:enablePush}/>
-      {action.error?.includes('ajustes')&&<AppButton label="Abrir ajustes del dispositivo" variant="secondary" onPress={()=>void Linking.openSettings()}/>}
-    </>}
-    {Platform.OS==='web'&&<PetCareCard><AppText variant="subtitle">Notificaciones del navegador</AppText><AppText muted>Las notificaciones push no están disponibles en la web. En Android requieren una Development Build o un APK propio; no funcionan en Expo Go.</AppText></PetCareCard>}
+    <AppText variant="caption" muted>Las novedades de PetCare se guardan en este centro y se sincronizan con el backend mientras usás la aplicación.</AppText>
     {!!query.data?.unreadCount&&<PetCareBadge label={`${query.data.unreadCount} sin leer`}/>}
     {!!query.data?.unreadCount&&<AppButton label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/>}
     <QueryState {...query}/>
