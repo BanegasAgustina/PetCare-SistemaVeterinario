@@ -55,6 +55,9 @@ const messages: Record<string, string> = {
   TOO_MANY_ATTEMPTS: 'Demasiados intentos. Esperá unos minutos y volvé a intentar.',
   AUTH_UNAVAILABLE: 'El inicio de sesión no está disponible. Intentá más tarde.',
   DB_UNAVAILABLE: 'PetCare no está disponible en este momento. Intentá más tarde.',
+  SERVER_ERROR: 'Ocurrió un error interno. Intentá nuevamente más tarde.',
+  SERVICE_UNAVAILABLE: 'El servicio está temporalmente no disponible. Intentá más tarde.',
+  REQUEST_TIMEOUT: 'El servidor tardó demasiado en responder. Intentá nuevamente.',
   EMAIL_NOT_VERIFIED: 'Tu correo todavía no está verificado.',
   EMAIL_UNAVAILABLE: 'El envío de correo no está disponible. Intentá más tarde.',
   PASSWORD_RESET_UNAVAILABLE: 'No se puede recuperar la contraseña en este momento. Intentá nuevamente más tarde.',
@@ -83,8 +86,23 @@ function safeEndpoint(path: string): string {
   return pathname.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140) || '/';
 }
 
-function reportApiFailure(code: string, status: number, method: string, endpoint: string): void {
-  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status }));
+function reportApiFailure(code: string, status: number, method: string, endpoint: string, cause?: string): void {
+  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status, ...(cause?{cause:cause.slice(0,180)}:{}) }));
+}
+
+/** En desarrollo, deriva el host del teléfono/emulador desde el host LAN que Expo usa para Metro. */
+export function developmentApiUrl(configuredValue: string | undefined, hostUri: string | undefined, portValue: string | undefined, isDev: boolean): string | undefined {
+  const configured = configuredValue?.trim();
+  if (!isDev) return configured || undefined;
+  if (configured && !configured.startsWith(PRODUCTION_API_URL)) return configured;
+  if (!hostUri) return configured || undefined;
+  try {
+    const host = new URL(`http://${hostUri}`).hostname;
+    if (!host || ['localhost','127.0.0.1','0.0.0.0'].includes(host)) return configured || undefined;
+    const port = portValue?.trim() || '3000';
+    if (!/^\d{1,5}$/.test(port) || Number(port)<1 || Number(port)>65535) return configured || undefined;
+    return `http://${host}:${port}/api`;
+  } catch { return configured || undefined; }
 }
 
 export function resolveApiUrl(configuredValue: string | undefined, appEnvironment: string | undefined, isDev: boolean): string {
@@ -120,8 +138,13 @@ export function resolveApiUrl(configuredValue: string | undefined, appEnvironmen
 
 export function getApiUrl(): string {
   try {
-    return resolveApiUrl(process.env.EXPO_PUBLIC_API_URL, process.env.EXPO_PUBLIC_APP_ENV, __DEV__);
+    // Solo se consulta al ejecutar la app: evita cargar React Native al importar utilidades puras en pruebas Node.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const expoHostUri=(()=>{try{return require('expo-constants').default?.expoConfig?.hostUri as string|undefined;}catch{return undefined;}})();
+    const configuredValue=developmentApiUrl(process.env.EXPO_PUBLIC_API_URL,expoHostUri,process.env.EXPO_PUBLIC_API_PORT,__DEV__);
+    return resolveApiUrl(configuredValue, process.env.EXPO_PUBLIC_APP_ENV, __DEV__);
   } catch {
+    if(__DEV__)reportApiFailure('API_NOT_CONFIGURED',0,'CONFIG','/api','Development API URL rejected or Expo hostUri unavailable');
     throw new ApiError('API_NOT_CONFIGURED', 'PetCare no está disponible en este momento. Intentá más tarde.');
   }
 }
@@ -139,33 +162,40 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
   const cleanPath = normalizeApiPath(path);
   const url = `${getApiUrl()}${cleanPath}`;
+  const method=options.method??'GET';
+  const endpoint=`${new URL(url).origin}${safeEndpoint(cleanPath)}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
     let response: Response;const rawBody=options.body instanceof Blob||options.body instanceof ArrayBuffer||ArrayBuffer.isView(options.body);
     try {
       response = await fetch(url, {
-        method: options.method ?? 'GET', signal: controller.signal,
+        method, signal: controller.signal,
         headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': options.contentType??(rawBody?'application/octet-stream':'application/json') }), ...(options.headers??{}), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
         body: options.body === undefined ? undefined : rawBody?options.body as BodyInit:JSON.stringify(options.body),
       });
-    } catch {
-      reportApiFailure('NETWORK_ERROR', 0, options.method ?? 'GET', path);
-      throw new ApiError('NETWORK_ERROR', 'No pudimos conectar con PetCare. Revisá tu conexión e intentá nuevamente.');
+    } catch (error) {
+      const timedOut=controller.signal.aborted;
+      const cause=error instanceof Error?`${error.name}: ${error.message}`:String(error);
+      reportApiFailure(timedOut?'REQUEST_TIMEOUT':'NETWORK_ERROR', 0, method, endpoint, cause);
+      throw new ApiError(timedOut?'REQUEST_TIMEOUT':'NETWORK_ERROR', timedOut?messages.REQUEST_TIMEOUT:'No se pudo conectar con el servidor. Revisá la red y la configuración de la API e intentá nuevamente.');
     }
     let result: any;
     try { result = await response.json(); }
     catch {
       const code = response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR';
-      reportApiFailure(code, response.status, options.method ?? 'GET', path);
-      throw new ApiError(code, 'No pudimos completar la operación. Intentá nuevamente.', response.status);
+      reportApiFailure(code, response.status, method, endpoint,'Response body was not valid JSON');
+      throw new ApiError(code, response.status>=500?messages.SERVICE_UNAVAILABLE:'No se pudo interpretar la respuesta del servidor. Intentá nuevamente.', response.status);
     }
     if (!response.ok || result?.success !== true) {
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
-      reportApiFailure(code, response.status, options.method ?? 'GET', path);
+      reportApiFailure(code, response.status, method, endpoint);
       const isStoreConfigurationRead = (options.method ?? 'GET') === 'POST' && /^\/client\/(?:cart|store\/(?:categories|fulfillment|promotions|banners|delivery-quote|addresses\/query|products(?:\/.*)?))$/.test(cleanPath.split('?')[0]);
       const serverMessage=typeof result?.error?.message==='string'?publicMessage(result.error.message):null;
-      const message = code === 'NOT_FOUND' && isStoreConfigurationRead
+      const message = response.status===503||response.status===502||response.status===504
+        ? messages.SERVICE_UNAVAILABLE
+        : response.status>=500 ? messages.SERVER_ERROR
+        : code === 'NOT_FOUND' && isStoreConfigurationRead
         ? messages.ROUTE_NOT_FOUND
         : code==='VALIDATION_ERROR'&&serverMessage?serverMessage:(messages[code] ?? serverMessage) || 'No pudimos completar la operación. Intentá nuevamente.';
       const fieldErrors:ApiFieldError[]=Array.isArray(result?.error?.errors)?result.error.errors.flatMap((item:unknown)=>{
@@ -178,7 +208,7 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
     return result.data as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    reportApiFailure('CLIENT_ERROR', 0, options.method ?? 'GET', path);
+    reportApiFailure('CLIENT_ERROR', 0, method, endpoint,error instanceof Error?`${error.name}: ${error.message}`:String(error));
     throw new ApiError('CLIENT_ERROR', 'No pudimos completar la operación. Intentá nuevamente.');
   } finally { clearTimeout(timeout); }
 }

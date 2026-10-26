@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildApiEndpoint, PRODUCTION_API_URL, resolveApiUrl } from '../src/services/api';
+import { buildApiEndpoint, developmentApiUrl, PRODUCTION_API_URL, resolveApiUrl } from '../src/services/api';
+
+test('development uses the API service on Expo host rather than the production API URL', () => {
+  assert.equal(developmentApiUrl(PRODUCTION_API_URL,'192.168.100.17:8081',undefined,true),'http://192.168.100.17:3000/api');
+});
+
+test('development keeps an explicitly configured non-production API URL', () => {
+  assert.equal(developmentApiUrl('http://10.0.2.2:3000/api','192.168.100.17:8081',undefined,true),'http://10.0.2.2:3000/api');
+});
+
+test('release API selection never derives an address from the Metro host', () => {
+  assert.equal(developmentApiUrl(undefined,'192.168.100.17:8081',undefined,false),undefined);
+});
+
+test('development API port can be configured without hardcoding an address', () => {
+  assert.equal(developmentApiUrl(undefined,'192.168.100.17:8081','3001',true),'http://192.168.100.17:3001/api');
+});
 
 test('preview APK requires an explicit API URL', () => {
   assert.throws(() => resolveApiUrl(undefined, 'preview', false));
