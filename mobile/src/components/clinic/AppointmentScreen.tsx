@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
-import { PetCareScreen, PetCareCard, PetImage, QueryState, statusLabel } from '../client/PetCareUI';
+import { PetCareScreen, PetCareHeader, PetCareCard, PetImage, PetCareBadge, QueryState, statusLabel } from '../client/PetCareUI';
 import { SlotSelectionCard } from '../client/SlotSelectionCard';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
@@ -14,7 +14,6 @@ import { AppInput } from '../forms/AppInput';
 import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { FormNotice } from '../ui/FormNotice';
-import { AdminPageHeading } from '../admin/AdminPageHeading';
 import { SelectionRow } from '../ui/SelectionRow';
 import { clinicDate,clinicDateTime } from '../../utils/clinic-date';
 
@@ -58,13 +57,13 @@ export function AppointmentScreen() {
   }
 
   return <PetCareScreen wide>
-    <AppModal size="wide" visible dismissible onClose={() => router.back()}>
-    <AdminPageHeading title="Detalle del turno"/>
+    <PetCareHeader title="Detalle del turno" back/>
     <QueryState {...query} />
     {query.data && <>
       <PetCareCard>
         <PetImage uri={typeof query.data.petPhotoUrl === 'string' ? query.data.petPhotoUrl : null} size={104} />
         <AppText variant="subtitle">{String(query.data.petName)}</AppText>
+        <PetCareBadge label={statusLabel(String(query.data.status))}/>
         {hasPermission('users.view_basic') && Boolean(query.data.ownerName) && <AppText>Propietario: {String(query.data.ownerName)}</AppText>}
         {hasPermission('users.view_basic') && Boolean(query.data.ownerPhone) && <AppText>Teléfono: {String(query.data.ownerPhone)}</AppText>}
         <AppText>Servicio: {String(query.data.service)}</AppText>
@@ -108,8 +107,6 @@ export function AppointmentScreen() {
         <AppButton label="Confirmar nuevo horario" disabled={!slot} onPress={() => setNext('reschedule')} />
       </>}
     </>}
-    <AppButton label="Cerrar" variant="secondary" onPress={() => router.back()} />
-    </AppModal>
     <AppModal visible={next === 'CANCELLED'} dismissible onClose={() => setNext(null)}>
       <AppText variant="title">Cancelar consulta</AppText>
       <AppText muted>El motivo quedará asociado al turno y se enviará al propietario.</AppText>

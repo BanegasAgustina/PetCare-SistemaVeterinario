@@ -19,7 +19,8 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.petcare",
-"googleServicesFile": "./google-services.json"
+      "versionCode": 2,
+      "googleServicesFile": "./google-services.json"
     },
     "icon": "./src/assets/petcare-icon.png",
     "plugins": [

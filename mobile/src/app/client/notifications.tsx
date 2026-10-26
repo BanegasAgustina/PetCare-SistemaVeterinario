@@ -29,6 +29,9 @@ export default function NotificationsScreen(){
   const firstId=query.data?.items[0]?.id??'';
   const extraItems=extraPages?.baseId===firstId?extraPages.items:[];
   const pageCursor=extraPages?.baseId===firstId?extraPages.cursor:query.data?.nextCursor??null;
+  const items=[...new Map([...query.data?.items??[],...extraItems].map(item=>[item.id,item])).values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id));
+  const unreadItems=items.filter(item=>!item.readAt);
+  const readItems=items.filter(item=>Boolean(item.readAt));
   useEffect(()=>{
     let active=true;
     if(Platform.OS!=='web')void hasRegisteredPushPermission()
@@ -73,7 +76,9 @@ export default function NotificationsScreen(){
     {!!query.data?.unreadCount&&<AppButton label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/>}
     <QueryState {...query}/>
     <FormNotice error message={action.error}/>
-    {query.data&&(query.data.items.length||extraItems.length?<ResponsiveGrid minItemWidth={320} maxColumns={3}>{[...query.data.items,...extraItems].map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
+    {query.data&&<>
+      <AppText variant="subtitle">No leídas{query.data.unreadCount?` · ${query.data.unreadCount}`:''}</AppText>
+      {unreadItems.length?<ResponsiveGrid minItemWidth={320} maxColumns={3}>{unreadItems.map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
       <PetCareBadge label={n.readAt?'Leída':'Nueva'}/>
       <AppText variant="subtitle">{n.title}</AppText>
       <AppText style={desktopWeb?styles.desktopBody:undefined}>{n.body}</AppText>
@@ -85,7 +90,13 @@ export default function NotificationsScreen(){
       })}/>
       {!n.readAt&&<AppButton compact={desktopWeb} label="Marcar como leída" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.readNotification(n.id);publishNotificationChange();})}/>}
       <AppButton compact={desktopWeb} label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);publishNotificationChange();})}/></View>
-    </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title="Estás al día" message="No tenés notificaciones nuevas." icon="notifications-outline"/>)}
+    </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title="Estás al día" message="No tenés notificaciones nuevas." icon="notifications-outline"/>}
+      <AppText variant="subtitle">Leídas</AppText>
+      {readItems.length?<ResponsiveGrid minItemWidth={320} maxColumns={3}>{readItems.map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
+        <PetCareBadge label="Leída"/><AppText variant="subtitle">{n.title}</AppText><AppText style={desktopWeb?styles.desktopBody:undefined}>{n.body}</AppText><AppText variant="caption" muted>{dateTime(n.createdAt)}</AppText>
+        <View style={[styles.actions,desktopWeb&&styles.desktopActions]}><AppButton compact={desktopWeb} label="Ver detalle" variant="secondary" loading={action.loading} onPress={()=>router.push(notificationPath(n.referenceType,n.referenceId))}/><AppButton compact={desktopWeb} label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);publishNotificationChange();})}/></View>
+      </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title="Todavía no hay notificaciones leídas" message="Las notificaciones que abras o marques como leídas aparecerán acá." icon="mail-open-outline"/>}
+    </>}
     {!!pageCursor&&<AppButton label="Cargar más notificaciones" variant="secondary" loading={action.loading} onPress={loadMore}/>}
   </PetCareScreen>;
 }

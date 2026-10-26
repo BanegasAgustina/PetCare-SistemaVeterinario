@@ -87,32 +87,57 @@ function reportApiFailure(code: string, status: number, method: string, endpoint
   if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status }));
 }
 
-export function getApiUrl(): string {
-  const configuredValue = process.env.EXPO_PUBLIC_API_URL?.trim();
-  // En builds de producción / release (APK compilado o web pública), si no se inyectó la variable,
-  // se utiliza la URL oficial HTTPS de producción para garantizar funcionamiento autónomo.
-  // En desarrollo (__DEV__), si no se define, se exige configuración explícita.
-  const value = configuredValue || (!__DEV__ ? PRODUCTION_API_URL : '');
+export function resolveApiUrl(configuredValue: string | undefined, appEnvironment: string | undefined, isDev: boolean): string {
   try {
+    // Un build release sin API explícita debe fallar cerrado; nunca asumir producción.
+    const value = configuredValue?.trim() ?? '';
     if (!value) throw new Error();
     const url = new URL(value);
     const isLocalHost = ['localhost', '127.0.0.1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
-    // En producción/release se rechaza terminantemente HTTP, localhost e IPs privadas locales.
-    if (!__DEV__ && (url.protocol !== 'https:' || isLocalHost)) {
-      throw new Error();
-    }
-    if (url.protocol !== 'https:' && !__DEV__) throw new Error();
-    if (url.username || url.password) throw new Error();
     const path = url.pathname.replace(/\/+$/, '');
     if (!/\/api$/i.test(path)) url.pathname = `${path}/api`;
+    const expectedProductionUrl = new URL(PRODUCTION_API_URL);
+    const effectivePath = url.pathname.replace(/\/+$/, '');
+    const expectedProductionPath = expectedProductionUrl.pathname.replace(/\/+$/, '');
+    const isProductionEnvironment = appEnvironment?.trim().toLowerCase() === 'production';
+    // Ningún entorno no productivo puede apuntar al origen de producción.
+    if (!isProductionEnvironment && url.origin === expectedProductionUrl.origin) {
+      throw new Error();
+    }
+    // En producción solo se acepta la URL configurada para el backend publicado.
+    // Si una variable EAS la reemplaza, el cliente falla cerrado.
+    if (isProductionEnvironment && (url.origin !== expectedProductionUrl.origin || effectivePath !== expectedProductionPath)) {
+      throw new Error();
+    }
+    // En producción/release se rechaza terminantemente HTTP, localhost e IPs privadas locales.
+    if (!isDev && (url.protocol !== 'https:' || isLocalHost)) {
+      throw new Error();
+    }
+    if (url.username || url.password) throw new Error();
     return url.toString().replace(/\/+$/, '');
-  } catch { throw new ApiError('API_NOT_CONFIGURED', 'PetCare no está disponible en este momento. Intentá más tarde.'); }
+  } catch { throw new Error('Invalid or unsafe API configuration.'); }
+}
+
+export function getApiUrl(): string {
+  try {
+    return resolveApiUrl(process.env.EXPO_PUBLIC_API_URL, process.env.EXPO_PUBLIC_APP_ENV, __DEV__);
+  } catch {
+    throw new ApiError('API_NOT_CONFIGURED', 'PetCare no está disponible en este momento. Intentá más tarde.');
+  }
+}
+
+function normalizeApiPath(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return normalizedPath.replace(/^\/api(?=\/|$)/i, '');
+}
+
+export function buildApiEndpoint(apiBaseUrl: string, path: string): string {
+  return `${apiBaseUrl}${normalizeApiPath(path)}`;
 }
 
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; contentType?: string; headers?:Record<string,string>;accessToken?: string } = {}): Promise<T> {
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const cleanPath = normalizedPath.replace(/^\/api(?=\/|$)/i, '');
+  const cleanPath = normalizeApiPath(path);
   const url = `${getApiUrl()}${cleanPath}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
