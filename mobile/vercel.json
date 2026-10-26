@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "build": {
+    "env": {
+      "EXPO_PUBLIC_APP_ENV": "production",
+      "EXPO_PUBLIC_API_URL": "https://pet-care-sistema-veterinario.vercel.app/api"
+    }
+  },
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
   "cleanUrls": true,
