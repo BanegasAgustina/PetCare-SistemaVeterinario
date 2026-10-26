@@ -19,15 +19,16 @@ type AuthFormProps<T extends Record<string, string>> = {
   centerSubmitButton?: boolean;
   /** Solo Login de poca altura; Registro mantiene sus medidas predeterminadas. */
   dense?: boolean;
+  disabled?: boolean;
 };
 
-export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false }: AuthFormProps<T>) {
+export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false, disabled = false }: AuthFormProps<T>) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
   const inputs = useRef<Partial<Record<keyof T, ComponentRef<typeof TextInput> | null>>>({});
   const action = useAsyncAction();
   const submit = async () => {
-    if (action.loading) return;
+    if (action.loading||disabled) return;
     const nextErrors = validate(values);
     setErrors(nextErrors);
     const firstInvalid = firstInvalidField(fields.map(field => field.key), nextErrors);
@@ -45,14 +46,14 @@ export function AuthForm<T extends Record<string, string>>({ fields, initialValu
   return <View style={[styles.form, compact && styles.compact, dense && { gap: 4 }]}>
     {fields.map((field, index) => <AppInput key={String(field.key)} {...field.inputProps}
       ref={(input) => { inputs.current[field.key] = input; }} label={field.label} hint={field.hint} password={field.password} icon={field.icon} compact={dense}
-      value={values[field.key]} error={errors[field.key]} editable={!action.loading}
+      value={values[field.key]} error={errors[field.key]} editable={!action.loading&&!disabled}
       returnKeyType={index === fields.length - 1 ? 'done' : 'next'}
       onSubmitEditing={() => index === fields.length - 1 ? void submit() : inputs.current[fields[index + 1].key]?.focus()}
       onChangeText={(value) => { setValues((previous) => ({ ...previous, [field.key]: value })); setErrors((previous) => ({ ...previous, [field.key]: undefined })); action.clearError(); }} />)}
     {/* El Login puede insertar recuperación; validación, foco y envío siguen compartidos. */}
-    {secondaryAction?.(action.loading)}
+    {secondaryAction?.(action.loading||disabled)}
     <FormNotice message={action.error} error />
-    <AppButton compact={dense} centered={centerSubmitButton} label={action.loading ? loadingLabel : submitLabel} loading={action.loading} onPress={() => void submit()} />
+    <AppButton compact={dense} centered={centerSubmitButton} label={action.loading ? loadingLabel : submitLabel} loading={action.loading} disabled={disabled} onPress={() => void submit()} />
   </View>;
 }
 const styles = StyleSheet.create({ form: { width: '100%', gap: 18 }, compact: { gap: 12 } });

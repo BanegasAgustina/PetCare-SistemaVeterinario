@@ -8,7 +8,7 @@ import { dismissDeviceNotifications, storedPushToken } from '../services/push-no
 import type { AuthUser, LoginValues, RegisterValues, StoredSession, VerificationChallenge,AccessSession } from '../types/auth';
 import { readVerification } from '../services/verification.service';
 import { hasRole,hasPermission } from '../utils/authorization';
-import { beginOAuth,completeOAuth,exchangeWebOAuthReturn,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
+import { beginOAuth,completeOAuth,exchangeWebOAuthReturn,oauthDiagnostic,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
 
 type AuthContextValue = {
   socialSignIn: (provider:OAuthProvider)=>Promise<void>;
@@ -142,9 +142,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const socialSignIn=useCallback(async(provider:OAuthProvider)=>{
     renewing.current=null;
     const attempt=++generation.current;
-    try{const result=await beginOAuth(provider);if(attempt!==generation.current)return;
+    try{const result=await beginOAuth(provider);if(attempt!==generation.current){oauthDiagnostic('stale_attempt_discarded',provider);return;}
       if('redirecting' in result)return;
-      if(result.session)await acceptSession(result.session,attempt);else if(result.pending)setOAuthPending(result.pending);
+      if(result.session){const currentUser=await acceptSession(result.session,attempt);if(attempt===generation.current&&currentUser){oauthDiagnostic('session_persisted',provider);oauthDiagnostic('navigation_target_ready',provider,{role:currentUser.role});}}
+      else if(result.pending)setOAuthPending(result.pending);
     }catch(error){if(attempt===generation.current&&error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED'&&error.verification){setPendingVerification(readVerification(error.verification));setVerificationFromLogin(true);setVerificationOpen(true);}throw error;}
   },[acceptSession]);
   const completeWebOAuthReturn=useCallback(async(ticket:string)=>{

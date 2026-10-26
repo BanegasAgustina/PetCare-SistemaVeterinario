@@ -1,16 +1,21 @@
 /** Inicia OAuth: web redirige la pestaña y Android usa el navegador seguro; tickets se canjean por POST. */
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 import { apiRequest,ApiError } from './api';
 import { readAccessSession } from './auth.service';
 import type { AccessSession,RegisterValues,VerificationChallenge } from '../types/auth';
 import { clearWebOAuthProof,readWebOAuthProof,saveWebOAuthProof } from './web-session-store';
+import { nativeOAuthSupported,oauthBrowserResultError,parseOAuthCallback } from './oauth-flow';
 export type OAuthProvider = 'google'|'facebook'|'x';
 export type OAuthPending = {ticket:string;proof:string;email:string|null};
 type Exchange = {session?:AccessSession;linked?:boolean;registrationRequired?:boolean;email?:string|null};
 type OAuthStart = {configured?:boolean;reason?:string;url?:string};
 type OAuthResult = {session?:AccessSession;linked?:boolean;pending?:OAuthPending};
+export function oauthDiagnostic(event:string,provider:OAuthProvider|'web',details:Record<string,string|boolean>={}):void {
+  if(__DEV__)console.info('[PetCare OAuth]',JSON.stringify({event,provider,...details}));
+}
 function returnUrl():string {
   if(Platform.OS!=='web')return 'petcare://oauth';
   // WebBrowser cierra la ventana emergente solo desde el mismo origen HTTPS.
@@ -19,6 +24,11 @@ function returnUrl():string {
 function base64Url(value:string):string {return value.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 /** Genera prueba criptográfica y valida el destino del retorno; un proveedor no puede elegir el panel. */
 export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Promise<OAuthResult|{redirecting:true}> {
+  if(!nativeOAuthSupported(Platform.OS,isRunningInExpoGo())){
+    oauthDiagnostic('development_build_required',provider);
+    throw new ApiError('OAUTH_REQUIRES_DEVELOPMENT_BUILD','El inicio con Google, Facebook y X requiere la versión de desarrollo de PetCare. Instalá la development build y volvé a intentar.');
+  }
+  oauthDiagnostic('started',provider,{linking:Boolean(accessToken)});
   // Reservar la ventana dentro del click conserva el gesto del usuario mientras se prepara PKCE/red.
   const windowName='petcare-oauth';
   const usePopup=Platform.OS==='web'&&Boolean(accessToken);
@@ -30,27 +40,35 @@ export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Pro
   const proof=Array.from(random,b=>b.toString(16).padStart(2,'0')).join('');
   const challenge=base64Url(await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,proof,{encoding:Crypto.CryptoEncoding.BASE64}));
   const destination=returnUrl();
+  oauthDiagnostic('backend_start_requested',provider);
   const start=await apiRequest<OAuthStart>(`/auth/oauth/${provider}/${accessToken?'link':'start'}`,{method:'POST',accessToken,body:{challenge,returnUrl:destination}});
-  if(start.configured===false){const issue=start.reason==='CREDENTIALS_MISSING'?'El inicio de sesión con X no está disponible en este momento. Elegí otra opción o intentá más tarde.':start.reason==='RETURN_URL_NOT_ALLOWED'||start.reason==='BACKEND_URL_INVALID'?'No pudimos iniciar sesión con este proveedor. Intentá nuevamente más tarde.':'El inicio de sesión con este proveedor no está disponible en este momento.';throw new ApiError('OAUTH_UNAVAILABLE',issue);}
+  oauthDiagnostic('backend_start_responded',provider,{configured:start.configured!==false});
+  if(start.configured===false){const issue=start.reason==='CREDENTIALS_MISSING'?'Este proveedor no está configurado en este momento. Elegí otra opción o intentá más tarde.':start.reason==='RETURN_URL_NOT_ALLOWED'||start.reason==='BACKEND_URL_INVALID'?'No pudimos iniciar sesión con este proveedor. Intentá nuevamente más tarde.':'El inicio de sesión con este proveedor no está disponible en este momento.';throw new ApiError('OAUTH_UNAVAILABLE',issue);}
   if(typeof start.url!=='string')throw new ApiError('INVALID_RESPONSE','No pudimos iniciar el acceso. Volvé a intentarlo.');
   if(Platform.OS==='web'&&!accessToken){
     saveWebOAuthProof(proof);
+    oauthDiagnostic('web_redirecting',provider);
     globalThis.location.assign(start.url);
     return {redirecting:true};
   }
+  oauthDiagnostic('browser_opening',provider);
   const result=await WebBrowser.openAuthSessionAsync(start.url,destination,{windowName});
-  if(result.type!=='success')throw new ApiError('OAUTH_CANCELLED','La autorización no se completó.');
-  const callback=new URL(result.url);
-  const callbackError=callback.searchParams.get('error');
-  if(callbackError)throw new ApiError(callbackError,callbackError==='OAUTH_PROVIDER_DENIED'?'X rechazó o canceló la autorización. Revisá los permisos de tu cuenta e intentá nuevamente.':callbackError==='OAUTH_PROVIDER_ERROR'?'X autorizó el acceso, pero no pudimos completar el inicio de sesión. Intentá nuevamente más tarde.':'No pudimos completar el inicio de sesión. Intentá nuevamente.');
-  if(`${callback.protocol}//${callback.host}${callback.pathname}`!==destination||callback.searchParams.has('error'))throw new ApiError('OAUTH_FAILED','El proveedor no completó el acceso. Volvé a intentar.');
-  const ticket=callback.searchParams.get('ticket');
-  if(!ticket||!/^[a-f0-9]{64}$/.test(ticket))throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
-  return exchangeOAuthTicket(ticket,proof);
+  oauthDiagnostic('browser_returned',provider,{result:result.type});
+  const browserError=oauthBrowserResultError(result.type);
+  if(browserError)throw new ApiError(browserError,'La autorización se canceló o no llegó a PetCare. Podés volver a intentarlo.');
+  if(result.type!=='success')throw new ApiError('OAUTH_CANCELLED','La autorización se canceló o no llegó a PetCare. Podés volver a intentarlo.');
+  let callbackResult;
+  try{callbackResult=parseOAuthCallback(result.url,destination);}catch(error){const code=error instanceof Error?error.message:'OAUTH_FAILED';oauthDiagnostic('callback_invalid',provider,{code});throw new ApiError(code,code==='OAUTH_FAILED'?'El retorno no llegó al vínculo seguro de PetCare. Volvé a intentarlo desde una development build.':'La respuesta OAuth no es válida. Volvé a intentar.');}
+  oauthDiagnostic('callback_received',provider,{hasTicket:'ticket' in callbackResult,hasProviderError:'error' in callbackResult});
+  if('error' in callbackResult){const label=provider==='x'?'X':provider==='google'?'Google':'Facebook';const callbackError=callbackResult.error;throw new ApiError(callbackError,callbackError==='OAUTH_PROVIDER_DENIED'?`${label} rechazó o canceló la autorización. Revisá los permisos e intentá nuevamente.`:callbackError==='OAUTH_PROVIDER_ERROR'?`${label} no pudo completar la autorización. Intentá nuevamente más tarde.`:'No pudimos completar el inicio de sesión. Intentá nuevamente.');}
+  return exchangeOAuthTicket(callbackResult.ticket,proof,provider);
+  }catch(error){oauthDiagnostic('failed',provider,{code:error instanceof ApiError?error.code:'UNEXPECTED_ERROR'});throw error;
   } finally {popup?.close();}
 }
-async function exchangeOAuthTicket(ticket:string,proof:string):Promise<OAuthResult> {
+async function exchangeOAuthTicket(ticket:string,proof:string,provider:OAuthProvider|'web'='web'):Promise<OAuthResult> {
+  oauthDiagnostic('backend_exchange_started',provider);
   const exchange=await apiRequest<Exchange>('/auth/oauth/exchange',{method:'POST',body:{ticket,proof}});
+  oauthDiagnostic('backend_exchange_responded',provider,{session:Boolean(exchange.session),linked:exchange.linked===true,registrationRequired:exchange.registrationRequired===true});
   if(exchange.session)return {session:readAccessSession(exchange.session)};
   if(exchange.linked===true)return {linked:true};
   if(exchange.registrationRequired===true)return {pending:{ticket,proof,email:typeof exchange.email==='string'?exchange.email:null}};
