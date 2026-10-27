@@ -28,7 +28,6 @@ const moduleNames: Record<string, string> = {
 
 const roleNames: Record<string, string> = {
   GROOMER: 'Peluquería',
-  SECRETARY: 'Secretaría',
 };
 
 // Correcciones exactas para filas dañadas ya persistidas; no se recodifica texto arbitrario.

@@ -35,7 +35,6 @@ function ThemedNavigation() {
     <Stack.Protected guard={canEnterClientRoot(auth.user)}><Stack.Screen name="client" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='VETERINARIAN'}><Stack.Screen name="vet" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='GROOMER'}><Stack.Screen name="professional" /></Stack.Protected>
-    <Stack.Protected guard={auth.user?.role==='SECRETARY'}><Stack.Screen name="secretary" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN' || hasCapabilityModule(auth.user?.permissions)}><Stack.Screen name="admin" /></Stack.Protected>
     <Stack.Protected guard={canEnterWorkspace(auth.user)}><Stack.Screen name="workspace" /></Stack.Protected>
   </Stack>;

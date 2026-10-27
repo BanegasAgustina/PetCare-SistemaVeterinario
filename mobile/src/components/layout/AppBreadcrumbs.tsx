@@ -13,7 +13,7 @@ const catalogLabels: Record<string, string> = {
 };
 const knownLabels: Record<string, string> = {
   '/admin': 'Inicio', '/admin/clinic': 'Clínica', '/admin/store': 'Tienda', '/admin/administration': 'Administración',
-  '/admin/agenda': 'Turnos', '/admin/patients': 'Pacientes', '/admin/professionals': 'Profesionales', '/admin/veterinarians': 'Veterinarios',
+  '/admin/agenda': 'Turnos', '/admin/patients': 'Pacientes', '/admin/clients': 'Clientes', '/admin/professionals': 'Profesionales', '/admin/veterinarians': 'Veterinarios',
   '/admin/availability': 'Horarios', '/admin/products': 'Inventario y stock', '/admin/store-orders': 'Pedidos',
   '/admin/store-banners': 'Banners', '/admin/store-settings': 'Envíos y entregas', '/admin/roles': 'Roles', '/admin/permissions': 'Permisos',
   '/admin/users': 'Usuarios', '/admin/general-information': 'Información general', '/client': 'Inicio', '/client/pets': 'Mis mascotas',
@@ -21,7 +21,6 @@ const knownLabels: Record<string, string> = {
   '/client/medical-history': 'Historial médico', '/client/vaccines': 'Vacunas', '/client/prescriptions': 'Recetas', '/client/recommendations': 'Recomendaciones',
   '/client/notifications': 'Notificaciones', '/vet': 'Inicio', '/vet/agenda': 'Agenda', '/vet/patients': 'Pacientes', '/vet/clients': 'Mis clientes',
   '/vet/products': 'Productos', '/professional': 'Inicio', '/professional/agenda': 'Mi agenda', '/professional/patients': 'Pacientes', '/professional/services': 'Servicios',
-  '/secretary': 'Inicio', '/secretary/agenda': 'Agenda', '/secretary/patients': 'Pacientes', '/secretary/products': 'Productos', '/secretary/clients': 'Clientes',
   '/workspace': 'Inicio', '/account': 'Mi cuenta',
 };
 
@@ -36,13 +35,14 @@ function adminRoute(path: string): { group?: string; parent?: string; label: str
   }
   if (path === '/admin/appointment') return { group: '/admin/clinic', parent: '/admin/agenda', label: 'Detalle del turno' };
   if (path === '/admin/patient') return { group: '/admin/clinic', parent: '/admin/patients', label: 'Ficha del paciente' };
+  if (path === '/admin/client') return { group: '/admin/clinic', parent: '/admin/clients', label: 'Ficha del cliente' };
   const user = /^\/admin\/users\/([^/]+)$/.exec(path);
   if (user) return { group: '/admin/administration', parent: '/admin/users', label: user[1] === 'new' ? 'Crear usuario' : 'Editar usuario' };
   const veterinarian = /^\/admin\/veterinarians\/([^/]+)$/.exec(path);
   if (veterinarian) return { group: '/admin/clinic', parent: '/admin/veterinarians', label: veterinarian[1] === 'new' ? 'Crear veterinario' : 'Editar veterinario' };
   if (path === '/admin/veterinarians/specialties') return { group: '/admin/clinic', parent: '/admin/veterinarians', label: 'Especialidades' };
   const direct: Record<string, { group: string; label: string }> = {
-    '/admin/agenda': { group: '/admin/clinic', label: 'Turnos' }, '/admin/patients': { group: '/admin/clinic', label: 'Pacientes' },
+    '/admin/agenda': { group: '/admin/clinic', label: 'Turnos' }, '/admin/patients': { group: '/admin/clinic', label: 'Pacientes' }, '/admin/clients': { group: '/admin/clinic', label: 'Clientes' },
     '/admin/professionals': { group: '/admin/clinic', label: 'Profesionales' }, '/admin/veterinarians': { group: '/admin/clinic', label: 'Veterinarios' },
     '/admin/availability': { group: '/admin/clinic', label: 'Horarios' }, '/admin/products': { group: '/admin/store', label: 'Inventario y stock' },
     '/admin/store-orders': { group: '/admin/store', label: 'Pedidos' },
@@ -58,7 +58,7 @@ function resolveCrumbs(path: string, role: string, destinations: Destination[]):
   const allowed = new Set(destinations.map(item => item.path));
   const root = role === 'ADMIN' || role === 'SUPER_ADMIN' ? '/admin'
     : role === 'CLIENT' ? '/client' : role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional'
-      : role === 'SECRETARY' ? '/secretary' : '/workspace';
+      : '/workspace';
   if (path === root) return [{ label: knownLabels[root] ?? 'Inicio' }];
 
   if (path.startsWith('/admin/')) {
@@ -93,12 +93,10 @@ function resolveRoleRoute(path: string, role: string): { parent?: string; label:
     [/^\/client\/profile\/edit$/, () => ({ parent: '/client/profile', label: 'Editar perfil' })],
     [/^\/client\/profile\/(appearance|security)$/, match => ({ parent: '/client/profile', label: match[1] === 'appearance' ? 'Apariencia' : 'Seguridad' })],
     [/^\/client\/payment-intents\/[^/]+$/, () => ({ parent: '/client/orders', label: 'Transferencia bancaria' })],
-    [/^\/(vet|professional|secretary)\/appointment$/, match => ({ parent: `/${match[1]}/${match[1] === 'professional' ? 'agenda' : 'agenda'}`, label: 'Detalle del turno' })],
-    [/^\/(vet|professional|secretary)\/patient$/, match => ({ parent: `/${match[1]}/patients`, label: 'Ficha de paciente' })],
+    [/^\/(vet|professional)\/appointment$/, match => ({ parent: `/${match[1]}/${match[1] === 'professional' ? 'agenda' : 'agenda'}`, label: 'Detalle del turno' })],
+    [/^\/(vet|professional)\/patient$/, match => ({ parent: `/${match[1]}/patients`, label: 'Ficha de paciente' })],
     [/^\/vet\/record$/, () => ({ parent: '/vet/patients', label: 'Registro clínico' })],
     [/^\/vet\/client$/, () => ({ parent: '/vet/clients', label: 'Ficha del cliente' })],
-    [/^\/secretary\/client$/, () => ({ parent: '/secretary/clients', label: 'Ficha del cliente' })],
-    [/^\/secretary\/products$/, () => ({ parent: '/secretary', label: 'Productos' })],
     [/^\/account$/, () => ({ label: 'Mi cuenta' })],
   ];
   for (const [pattern, resolve] of patterns) { const match = pattern.exec(path); if (match) return resolve(match); }
@@ -108,7 +106,7 @@ function resolveRoleRoute(path: string, role: string): { parent?: string; label:
 }
 
 function rootForPath(path: string, role: string): string | undefined {
-  const roleRoot = role === 'CLIENT' ? '/client' : role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional' : role === 'SECRETARY' ? '/secretary' : '/workspace';
+  const roleRoot = role === 'CLIENT' ? '/client' : role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional' : '/workspace';
   return path === roleRoot ? undefined : roleRoot;
 }
 

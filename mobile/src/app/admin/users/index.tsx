@@ -44,7 +44,7 @@ export default function UsersScreen() {
   const load=useCallback(()=>api.users(filter,page,status),[api,filter,page,status]);const query=useClientQuery(load);
   const [selectedUserId,setSelectedUserId]=useState<string|null>(null);const [selectedUser,setSelectedUser]=useState<AdminUserDetail|null>(null);const [detailLoading,setDetailLoading]=useState(false);const [detailError,setDetailError]=useState<string|null>(null);const [statusTarget,setStatusTarget]=useState<boolean|null>(null);const [statusUser,setStatusUser]=useState<{id:string;firstName:string;lastName:string;phone:string|null;isActive:boolean}|null>(null);
   useEffect(()=>{if(!selectedUserId)return;let current=true;void api.user(selectedUserId).then(user=>{if(current)setSelectedUser(user);}).catch(error=>{if(current)setDetailError(friendlyError(error));}).finally(()=>{if(current)setDetailLoading(false);});return()=>{current=false;};},[api,selectedUserId]);
-  const catalog=useClientQuery(api.catalog);const selectedRole=catalog.data?.roles.find(role=>role.id===createValues.roleId);const photoRole=['VETERINARIAN','GROOMER','SECRETARY'].includes(selectedRole?.code??'');const canCreate=auth.hasPermission('roles.manage');
+  const catalog=useClientQuery(api.catalog);const selectedRole=catalog.data?.roles.find(role=>role.id===createValues.roleId);const photoRole=['VETERINARIAN','GROOMER'].includes(selectedRole?.code??'');const canCreate=auth.hasPermission('roles.manage');
   function openVeterinarianCreation(){router.setParams({create:undefined});setCreateOpen(false);router.push({pathname:'/admin/veterinarians',params:{create:'1'}});}
   function changeCreate<K extends keyof typeof empty>(key:K,value:(typeof empty)[K]){setCreateValues(current=>({...current,[key]:value}));setCreateErrors(current=>({...current,[key]:undefined}));}
   function openUserDetails(id:string){setSelectedUserId(id);setSelectedUser(null);setDetailError(null);setDetailLoading(true);}
@@ -72,7 +72,7 @@ export default function UsersScreen() {
       </AdminFormSection>
       <AdminFormSection title="Acceso y perfil" description="El rol define los permisos iniciales de la cuenta.">
         <FormNotice error message={createErrors.roleId??null}/>
-        {catalog.data?.roles.filter(role=>role.canAssign).map(role=><SelectionRow radio key={role.id} label={roleLabel(role.code,role.name)} checked={createValues.roleId===role.id} onPress={()=>{changeCreate('roleId',role.id);if(!['VETERINARIAN','GROOMER','SECRETARY'].includes(role.code))setCreatePhoto(null);}}/>)}
+        {catalog.data?.roles.filter(role=>role.canAssign).map(role=><SelectionRow radio key={role.id} label={roleLabel(role.code,role.name)} checked={createValues.roleId===role.id} onPress={()=>{changeCreate('roleId',role.id);if(!['VETERINARIAN','GROOMER'].includes(role.code))setCreatePhoto(null);}}/>)}
         {auth.hasPermission('veterinarians.manage')&&<SelectionRow radio checked={false} label="Veterinario o cirujano" hint="Completá la matrícula y la especialidad en su ficha profesional." onPress={openVeterinarianCreation}/>}
         {photoRole&&<ProfilePhotoInput currentUri={null} photo={createPhoto} disabled={action.loading} onSelect={setCreatePhoto} onRemove={()=>setCreatePhoto(null)}/>}
       </AdminFormSection>

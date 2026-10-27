@@ -5,7 +5,7 @@ PetCare es una aplicación web y móvil para coordinar atención veterinaria, pe
 ## Funcionalidades
 
 - Cuentas verificadas por correo, autenticación JWT, recuperación de contraseña y flujos OAuth configurables.
-- Roles `CLIENT`, `VETERINARIAN`, `GROOMER`, `SECRETARY`, `ADMIN` y `SUPER_ADMIN`, con permisos efectivos validados por el backend.
+- Roles `CLIENT`, `VETERINARIAN`, `ADMIN` y `SUPER_ADMIN`, con permisos efectivos validados por el backend.
 - Mascotas, turnos, disponibilidad, fichas clínicas, tienda, carrito, pedidos y comprobantes de transferencia.
 - Centro de notificaciones internas con estados persistidos en la API; no se envían push al sistema operativo.
 - Aplicación Expo Router para web y Android. El checkout de demostración no procesa dinero.

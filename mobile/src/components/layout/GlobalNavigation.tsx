@@ -33,13 +33,13 @@ export function useAdminModulesLoading() { return useContext(AdminModulesLoading
 const adminGroups = ['Inicio', 'Clínica', 'Tienda', 'Administración'] as const;
 function adminGroup(path: string): typeof adminGroups[number] {
   if (path === '/admin') return 'Inicio';
-  if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
+  if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/clients','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
   if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners'].includes(path)) return 'Tienda';
   return 'Administración';
 }
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
-    '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
+    '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/clients':'Clientes','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
     '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/products':'Inventario y stock',
     '/admin/catalog/products':'Productos','/admin/catalog/categories':'Categorías','/admin/catalog/promotions':'Promociones y descuentos','/admin/store-banners':'Banners y slider','/admin/store-settings':'Envíos y entregas','/admin/store-orders':'Pedidos','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
   };
@@ -60,7 +60,6 @@ const clientItems: MenuItem[] = [
 const staffItems: MenuItem[] = [
   { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
   { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
-  // Permite a secretaría consultar el catálogo cuando MySQL le concede products.view.
   { label: 'Productos', path: 'products', icon: 'pricetags-outline', permission: 'products.view', group: 'Tienda' },
   { label: 'Clientes', path: 'clients', icon: 'people-outline', permission: 'users.view_basic' },
 ];
@@ -109,7 +108,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const { shouldShowBack } = useBackNavigation();
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'].includes(user.role));
+  const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(user.role));
   const isClient = user?.role === 'CLIENT';
   const isVeterinarian = user?.role === 'VETERINARIAN';
   const [adminModulesResult, setAdminModulesResult] = useState<{ userId: string | null; modules: AdminModule[] }>({ userId: null, modules: [] });
@@ -118,7 +117,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const visibleAdminModules = useMemo(() => isAdmin && hasPermission('schedule.manage') && !adminModules.some(module => module.path === scheduleAdminModule.path) ? [...adminModules, scheduleAdminModule] : adminModules, [adminModules, hasPermission, isAdmin]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const desktop = isWebAtLeast(Platform.OS, Math.min(width, containerWidth), responsiveLayout.breakpoints.desktop);
-  const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/secretary';
+  const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/admin';
   useEffect(() => {
     let active = true;
     if (!isAdmin || !user?.id) return () => { active = false; };
@@ -140,6 +139,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     if (isAdmin) return [
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
       ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
+      ...(hasPermission('users.view_basic')?[{label:'Clientes',path:'/admin/clients',icon:'people-outline' as const,group:'Clínica'}]:[]),
       ...personalItems,
     ];
     if (isCustomRole) return [

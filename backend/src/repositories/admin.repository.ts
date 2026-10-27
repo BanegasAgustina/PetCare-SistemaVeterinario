@@ -81,8 +81,9 @@ export async function adminCatalog(actor:AuthUser) {
   const [roles]=await databasePool.execute<RowDataPacket[]>('SELECT r.id,r.code,r.name,(SELECT COUNT(*) FROM users u WHERE u.role_id=r.id) AS assignedUsers FROM roles r ORDER BY r.name');
   const [permissions]=await databasePool.execute<RowDataPacket[]>('SELECT p.id,p.code,p.name,p.description,p.module_code AS module,m.name AS moduleName,p.is_critical AS critical FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
   const [grants]=await databasePool.execute<RowDataPacket[]>('SELECT rp.role_id AS roleId,p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id');
-  return {roles:roles.map(r=>{const permissions=grants.filter(g=>String(g.roleId)===String(r.id)).map(g=>g.code as string);return {id:String(r.id),code:r.code,name:roleName(r.code,r.name),permissions,assignedUsers:Number(r.assignedUsers??0),
-      canAssign:!['VETERINARIAN','SECRETARY'].includes(String(r.code))&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&permissions.every(code=>actor.permissions?.includes(code))};}),
+  // Hide the retired database row from role management until the manual migration removes it.
+  return {roles:roles.filter(r=>r.code!=='SECRETARY').map(r=>{const permissions=grants.filter(g=>String(g.roleId)===String(r.id)).map(g=>g.code as string);return {id:String(r.id),code:r.code,name:roleName(r.code,r.name),permissions,assignedUsers:Number(r.assignedUsers??0),
+      canAssign:r.code!=='VETERINARIAN'&&r.code!=='SECRETARY'&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&permissions.every(code=>actor.permissions?.includes(code))};}),
     permissions:permissions.map(p=>({...p,id:String(p.id),name:permissionName(p.code,p.name),description:permissionDescription(p.code,p.description),moduleName:permissionModuleName(p.module,p.moduleName),critical:Boolean(p.critical),canDelegate:actor.permissions?.includes(p.code)??false}))};
 }
 export async function adminUsers(query:Record<string,unknown>) {
@@ -111,7 +112,7 @@ export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:strin
     const [rows]=await c.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS profilePhotoUrl,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE",[id]);
     if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
     assertTarget(actor,{id,role:rows[0].role});
-    if(!['VETERINARIAN','GROOMER','SECRETARY'].includes(String(rows[0].role)))throw new AppError('VALIDATION_ERROR',400,'La foto de perfil solo está habilitada para el personal de la clínica.');
+    if(!['VETERINARIAN','GROOMER'].includes(String(rows[0].role)))throw new AppError('VALIDATION_ERROR',400,'La foto de perfil solo está habilitada para el personal de la clínica.');
     previous=rows[0].profilePhotoUrl;
     if(key!==null&&!isProfilePhotoKey(key))throw new AppError('VALIDATION_ERROR',400,'La referencia de la foto no es válida.');
     await c.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,id]);
@@ -183,7 +184,6 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
   const codes=body.permissionCodes as string[];
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');const role=await roleGrants(c,id);
-    if(role.role==='SECRETARY')throw new AppError('ROLE_RETIRED',400,'El rol Secretaría está retirado; conservá su configuración hasta revisar y migrar sus cuentas.');
     assertTarget(actor,{id,role:role.role});const changed=[...new Set([...role.permissions,...codes])].filter(code=>role.permissions.includes(code)!==codes.includes(code));assertDelegation(actor,changed);
     const [catalog]=await c.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
     for(const code of codes){const p=catalog.find(p=>p.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');if(p.is_critical&&!['ADMIN','SUPER_ADMIN'].includes(role.role))forbidden('Este rol no admite permisos administrativos.');}
@@ -210,7 +210,8 @@ export async function createRole(identity:AuthUser,value:unknown) {
   const name=textField(body.name,'El nombre del rol',60);
   if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>100||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
   const codes=body.permissionCodes as string[];const code=roleCodeFromName(name);
-  if(!/^[A-Z][A-Z0-9_]{0,31}$/.test(code)||['CLIENT','VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'].includes(code))throw new AppError('VALIDATION_ERROR',400,'El nombre debe producir un código de rol nuevo y válido.');
+  // Keep the retired code reserved so it cannot be recreated as a custom role.
+  if(!/^[A-Z][A-Z0-9_]{0,31}$/.test(code)||['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN','SECRETARY'].includes(code))throw new AppError('VALIDATION_ERROR',400,'El nombre debe producir un código de rol nuevo y válido.');
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');
     if(actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede crear roles personalizados.');

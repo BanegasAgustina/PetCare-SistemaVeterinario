@@ -7,7 +7,7 @@ import { readVerification } from './verification.service';
 function readUser(value: unknown): AuthUser {
   if (typeof value !== 'object' || !value) throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la respuesta de PetCare.');
   const user = value as AuthUser;
-  if (typeof user.id !== 'string' || !/^[1-9]\d*$/.test(user.id) || typeof user.firstName !== 'string' || typeof user.lastName !== 'string' || typeof user.email !== 'string' || (user.phone !== null && typeof user.phone !== 'string') || !['CLIENT', 'VETERINARIAN', 'GROOMER', 'SECRETARY', 'ADMIN', 'SUPER_ADMIN'].includes(user.role) || (user.permissions !== undefined && (!Array.isArray(user.permissions) || user.permissions.some(code=>typeof code!=='string')))) {
+  if (typeof user.id !== 'string' || !/^[1-9]\d*$/.test(user.id) || typeof user.firstName !== 'string' || typeof user.lastName !== 'string' || typeof user.email !== 'string' || (user.phone !== null && typeof user.phone !== 'string') || !['CLIENT', 'VETERINARIAN', 'GROOMER', 'ADMIN', 'SUPER_ADMIN'].includes(user.role) || (user.permissions !== undefined && (!Array.isArray(user.permissions) || user.permissions.some(code=>typeof code!=='string')))) {
     throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la respuesta de PetCare.');
   }
   if (user.veterinarian!==undefined && user.veterinarian!==null) {

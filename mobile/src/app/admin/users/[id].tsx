@@ -37,7 +37,7 @@ export default function UserEditor() {
   const user=query.data?.user;const self=user?.id===auth.user?.id;const canChangeStatus=auth.hasRole('SUPER_ADMIN');
   const blocked=Boolean(user?.role==='SUPER_ADMIN'&&!auth.hasRole('SUPER_ADMIN'));
   const canPermissions=auth.hasPermission('permissions.manage')&&!self&&!blocked;
-  const selectedRole=query.data?.catalog.roles.find(role=>role.id===values.roleId);const photoRole=['VETERINARIAN','GROOMER','SECRETARY'].includes(user?.role??selectedRole?.code??'');
+  const selectedRole=query.data?.catalog.roles.find(role=>role.id===values.roleId);const photoRole=['VETERINARIAN','GROOMER'].includes(user?.role??selectedRole?.code??'');
   function change<K extends keyof typeof empty>(key:K,value:(typeof empty)[K]){setValues(v=>({...v,[key]:value}));setErrors(e=>({...e,[key]:undefined}));}
   function prepare(){const validation=validateIdentityForm(values);const next={...validation,...(!values.roleId?{roleId:'Seleccioná un rol.'}:{})};setErrors(next);if(!Object.values(next).some(Boolean))setConfirm('identity');}
   async function save(){
@@ -56,7 +56,7 @@ export default function UserEditor() {
       </PetCareCard>
       <PetCareCard><AppText variant="subtitle">Rol</AppText><FormNotice error message={errors.roleId??null}/>
         {!creating&&Boolean(user?.profilePhotoUrl)&&<PetImage uri={user!.profilePhotoUrl!} size={64}/>}
-        {query.data.catalog.roles.map(role=><SelectionRow radio key={role.id} label={roleLabel(role.code,role.name)} hint={role.code==='VETERINARIAN'?'Los perfiles profesionales se gestionan desde Veterinarios':!role.canAssign?'Asignación no disponible con tus permisos':undefined} checked={values.roleId===role.id} disabled={blocked||self||user?.role==='VETERINARIAN'||!role.canAssign||action.loading} onPress={()=>{if(!['VETERINARIAN','GROOMER','SECRETARY'].includes(role.code)){setPhoto(null);setRemovePhoto(false);}change('roleId',role.id);}}/>)}
+        {query.data.catalog.roles.map(role=><SelectionRow radio key={role.id} label={roleLabel(role.code,role.name)} hint={role.code==='VETERINARIAN'?'Los perfiles profesionales se gestionan desde Veterinarios':!role.canAssign?'Asignación no disponible con tus permisos':undefined} checked={values.roleId===role.id} disabled={blocked||self||user?.role==='VETERINARIAN'||!role.canAssign||action.loading} onPress={()=>{if(!['VETERINARIAN','GROOMER'].includes(role.code)){setPhoto(null);setRemovePhoto(false);}change('roleId',role.id);}}/>)}
         {photoRole&&<ProfilePhotoInput currentUri={removePhoto?null:user?.profilePhotoUrl??null} photo={photo} disabled={blocked||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);}}/>}
         {user?.role==='VETERINARIAN'&&<AppButton variant="secondary" label="Ir a Veterinarios" onPress={()=>router.push('/admin/veterinarians')}/>}
         {!creating&&<><View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><AppText>Cuenta activa</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={blocked||self||action.loading||!canChangeStatus||!user?.emailVerified&&!values.isActive} onValueChange={v=>change('isActive',v)}/></View>{!user?.emailVerified&&!values.isActive&&<AppText variant="caption" muted>La cuenta se activa cuando la persona verifica su correo desde la invitación.</AppText>}</>}

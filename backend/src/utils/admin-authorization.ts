@@ -17,8 +17,8 @@ export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
 }
 export function assertRoleAssignment(actor:AuthUser,role:string,permissions:string[]) {
   assertAdminPermission(actor,'roles.manage');
+  if(role==='SECRETARY')throw new AppError('ROLE_RETIRED',409,'El rol de Secretaría fue retirado; las cuentas existentes deben migrarse a ADMIN.');
   if(role==='SUPER_ADMIN'&&actor.role!=='SUPER_ADMIN')forbidden('Un ADMIN no puede asignar el rol SUPER_ADMIN.');
-  if(role==='SECRETARY')throw new AppError('ROLE_RETIRED',400,'El rol Secretaría está retirado para nuevas asignaciones. Revisá el reemplazo de los usuarios existentes.');
   if(role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'Creá o editá veterinarios desde el módulo profesional para conservar matrícula y especialidades.');
   assertDelegation(actor,permissions);
 }

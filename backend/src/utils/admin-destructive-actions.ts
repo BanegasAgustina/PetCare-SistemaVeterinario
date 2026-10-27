@@ -1,6 +1,7 @@
 import { AppError } from './app-error';
 
-export const protectedSystemRoleCodes = new Set(['CLIENT','VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN']);
+// SECRETARY is legacy data until migration 002 is applied; keep it undeletable in-app meanwhile.
+export const protectedSystemRoleCodes = new Set(['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN','SECRETARY']);
 
 export function assertCustomRoleDeletable(roleCode:string, assignedUsers:number):void {
   if(protectedSystemRoleCodes.has(roleCode))throw new AppError('PROTECTED_ROLE',409,'Los roles del sistema no se pueden eliminar.');

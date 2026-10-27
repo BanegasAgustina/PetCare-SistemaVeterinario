@@ -6,6 +6,6 @@ export function agendaScreenConfig(role: string, hasPermission: AgendaPermission
     personalAgenda: hasPermission('appointments.view_own') && !hasPermission('appointments.view_all'),
     canSearchOwner: hasPermission('users.view_basic'),
     title: role === 'GROOMER' ? 'Mi agenda' : 'Agenda y turnos',
-    basePath: role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional' : role === 'SECRETARY' ? '/secretary' : '/admin',
+    basePath: role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional' : '/admin',
   };
 }

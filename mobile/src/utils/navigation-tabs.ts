@@ -6,11 +6,9 @@ const primaryPathsByRole:Record<string,string[]>={
   SUPER_ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
   VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/products'],
   GROOMER:['/professional','/professional/agenda','/professional/patients','/professional/services'],
-  SECRETARY:['/secretary','/secretary/agenda','/secretary/products','/secretary/clients','/account'],
 };
 const profileShortcutPathsByRole:Record<string,string[]>={
   VETERINARIAN:['/account','/client/profile'],
-  SECRETARY:['/account'],
   ADMIN:['/account'],
   SUPER_ADMIN:['/account'],
 };
@@ -36,7 +34,7 @@ export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:str
 
 /** Resolves detail and secondary screens to the closest permitted primary destination. */
 export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:string,pathname:string,items:T[]):string|null{
-  const homePath:Record<string,string>={CLIENT:'/client',ADMIN:'/admin',SUPER_ADMIN:'/admin',VETERINARIAN:'/vet',GROOMER:'/professional',SECRETARY:'/secretary'};
+  const homePath:Record<string,string>={CLIENT:'/client',ADMIN:'/admin',SUPER_ADMIN:'/admin',VETERINARIAN:'/vet',GROOMER:'/professional'};
   const match=items
     .filter(item=>pathname===item.path||(item.path!==homePath[role]&&pathname.startsWith(`${item.path}/`)))
     .sort((a,b)=>b.path.length-a.path.length)[0];
@@ -51,7 +49,6 @@ export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:s
     },
     VETERINARIAN:{'/vet/appointment':'/vet/agenda','/vet/patient':'/vet/patients','/vet/client':'/vet/clients','/vet/record':'/vet/patients'},
     GROOMER:{'/professional/appointment':'/professional/agenda','/professional/patient':'/professional/patients'},
-    SECRETARY:{'/secretary/appointment':'/secretary/agenda','/secretary/client':'/secretary/clients','/account':'/account'},
   };
   let destination=Object.entries(aliases[role]??{})
     .filter(([prefix])=>pathname===prefix||pathname.startsWith(`${prefix}/`))

@@ -81,10 +81,10 @@ export async function migrateProductOrigins(): Promise<void> { // La función no
           const permissions=[['products.create','Crear productos','Agregar productos al inventario propio']] as const;
           for(const [code,name,description] of permissions) await connection.execute('INSERT IGNORE INTO permissions(code,name,description,module_code,is_critical,opens_module) SELECT ?,?,?,module_code,0,0 FROM permissions WHERE code=\'products.update\' LIMIT 1',[code,name,description]);
           const [permissionRows]=await connection.execute<(RowDataPacket & {id:number;code:string})[]>('SELECT id,code FROM permissions WHERE code=?',['products.create']);
-          const [roleRows]=await connection.execute<(RowDataPacket & {id:number;code:string})[]>('SELECT id,code FROM roles WHERE code IN (\'ADMIN\',\'SUPER_ADMIN\',\'SECRETARY\')');
+          const [roleRows]=await connection.execute<(RowDataPacket & {id:number;code:string})[]>('SELECT id,code FROM roles WHERE code IN (\'ADMIN\',\'SUPER_ADMIN\')');
           if(permissionRows.length!==1) throw new Error('No se pudo registrar el permiso de creación de productos: verificá que exista products.update y el esquema RBAC esté aplicado.');
-          if(!['ADMIN','SUPER_ADMIN','SECRETARY'].every(code=>roleRows.some(role=>role.code===code))) throw new Error('Aplicá primero la migración de roles de clínica: se requieren ADMIN, SUPER_ADMIN y SECRETARY.');
-          for(const role of roleRows){for(const permission of permissionRows){if(permission.code==='products.create'&&role.code==='SECRETARY')continue;await connection.execute('INSERT IGNORE INTO role_permissions(role_id,permission_id) VALUES (?,?)',[role.id,permission.id]);}}
+          if(!['ADMIN','SUPER_ADMIN'].every(code=>roleRows.some(role=>role.code===code))) throw new Error('Aplicá primero la migración de roles de clínica: se requieren ADMIN y SUPER_ADMIN.');
+          for(const role of roleRows){for(const permission of permissionRows)await connection.execute('INSERT IGNORE INTO role_permissions(role_id,permission_id) VALUES (?,?)',[role.id,permission.id]);}
           console.info(appliedSteps === 0 ? 'El esquema de productos y su auditoría ya está aplicado.' : `Migración local finalizada: ${appliedSteps} sentencias DDL verificadas.`);
           if ((backfill as { affectedRows?: number }).affectedRows) console.info(`Se asignó vencimiento a ${(backfill as { affectedRows: number }).affectedRows} reservas activas previas.`);
           console.info(`Se verificaron permisos de tienda para ${roleRows.map(role=>role.code).join(', ')||'ningún rol administrativo detectado'}.`);

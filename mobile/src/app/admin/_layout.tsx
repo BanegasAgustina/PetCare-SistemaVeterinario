@@ -16,6 +16,7 @@ export default function AdminLayout() {
 <Stack.Protected guard={hasPermission('store.banners.manage')}><Stack.Screen name="store-banners"/></Stack.Protected>
     <Stack.Protected guard={hasPermission('veterinarians.manage')}><Stack.Screen name="veterinarians" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('users.manage')}><Stack.Screen name="users" /></Stack.Protected>
+    <Stack.Protected guard={hasPermission('users.view_basic')}><Stack.Screen name="clients"/><Stack.Screen name="client"/></Stack.Protected>
     <Stack.Protected guard={hasPermission('roles.manage')}><Stack.Screen name="roles" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('permissions.manage')}><Stack.Screen name="permissions" /></Stack.Protected>
     <Stack.Protected guard={hasPermission('specialties.manage')||hasPermission('professional_types.manage')}><Stack.Screen name="specialties" /></Stack.Protected>
