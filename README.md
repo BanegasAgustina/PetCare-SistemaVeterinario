@@ -17,7 +17,6 @@ PetCare es una aplicación web y móvil para coordinar atención veterinaria, pe
 ```text
 backend/src/{routes,controllers,middlewares,services,repositories,validators,config,database}
 mobile/src/{app,components,contexts,hooks,services,utils,types}
-docs/{auditoria,DOCUMENTACION_API.md}
 ```
 
 ## Requisitos e instalación
