@@ -55,11 +55,3 @@ En `mobile/`: `npm run typecheck`, `npm run lint`, `npm test`, `npm run web`. Pa
 
 La API local predeterminada es `http://localhost:3000/api`. Las lecturas privadas migradas utilizan POST con filtros JSON. El build móvil de producción usa `https://pet-care-sistema-veterinario.vercel.app/api`; configura variables privadas de backend en el proyecto Vercel correcto. El cron interno procesa recordatorios y correos, y no envía push Android.
 
-- [Inventario y contratos de la API](docs/DOCUMENTACION_API.md)
-- [Auditoría general](docs/auditoria/AUDITORIA_GENERAL.md)
-- [Matriz académica](docs/auditoria/MATRIZ_REQUISITOS.md)
-- [Matriz de endpoints por rol](docs/auditoria/MATRIZ_ENDPOINTS_ROLES.md)
-- [Retiro del antiguo flujo de reservas comerciales](docs/RETIRO_RESERVAS_PRODUCTOS.md)
-- [Auditoría Layerbase](docs/auditoria/AUDITORIA_LAYERBASE.md)
-- [Backend](backend/README.md)
-- [Móvil y web](mobile/README.md)
