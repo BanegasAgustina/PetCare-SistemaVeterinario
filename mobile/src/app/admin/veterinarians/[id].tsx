@@ -12,6 +12,7 @@ import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
+import { AdminFormActions, AdminFormField, AdminFormSection } from '../../../components/admin/AdminFormLayout';
 import { softSurfaceShadow } from '../../../constants/surface';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import { useFeedback } from '../../../contexts/FeedbackContext';
@@ -66,35 +67,39 @@ export default function VeterinarianEditor() {
     {Boolean(loadError) && <AppButton label="Reintentar" onPress={()=>setRetry(retry+1)} />}
     {!catalog && !loadError && <AppText muted>Cargando catálogos…</AppText>}
     {catalog && (!creating || canEdit) && <>
-      <AppText variant="subtitle">1. Datos personales</AppText>
-      <ProfilePhotoInput currentUri={removePhoto?null:detail?.profilePhotoUrl??null} photo={photo} disabled={!canEdit||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);setReview(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);setReview(false);}}/>
-      <AppInput label="Nombre" value={values.firstName} error={errors.firstName} editable={canEdit&&!action.loading} onChangeText={v=>change('firstName',v)} />
-      <AppInput label="Apellido" value={values.lastName} error={errors.lastName} editable={canEdit&&!action.loading} onChangeText={v=>change('lastName',v)} />
-      <AppInput label="Correo electrónico" value={values.email} error={errors.email} keyboardType="email-address" editable={canEdit&&!action.loading} onChangeText={v=>change('email',v)} />
-      {!creating && <AppText variant="caption" muted>Cambiar el correo revoca la sesión y exige verificar el nuevo correo al iniciar sesión.</AppText>}
-      <AppInput label="Teléfono" value={values.phone} error={errors.phone} keyboardType="phone-pad" editable={canEdit&&!action.loading} onChangeText={v=>change('phone',v)} />
-      <AppText variant="subtitle">2. Datos profesionales</AppText>
-      <AppInput label="Matrícula profesional" value={values.licenseNumber} error={errors.licenseNumber} editable={canEdit&&!action.loading} onChangeText={v=>change('licenseNumber',v)} />
-      <AppText variant="subtitle">3. Especialidades</AppText>
+      <AdminFormSection title="1. Datos personales" description="Información de contacto y perfil profesional." columns={2}>
+        <AdminFormField fullWidth><ProfilePhotoInput currentUri={removePhoto?null:detail?.profilePhotoUrl??null} photo={photo} disabled={!canEdit||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);setReview(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);setReview(false);}}/></AdminFormField>
+        <AdminFormField><AppInput label="Nombre" value={values.firstName} error={errors.firstName} editable={canEdit&&!action.loading} onChangeText={v=>change('firstName',v)} /></AdminFormField>
+        <AdminFormField><AppInput label="Apellido" value={values.lastName} error={errors.lastName} editable={canEdit&&!action.loading} onChangeText={v=>change('lastName',v)} /></AdminFormField>
+        <AdminFormField><AppInput label="Correo electrónico" value={values.email} error={errors.email} keyboardType="email-address" editable={canEdit&&!action.loading} onChangeText={v=>change('email',v)} /></AdminFormField>
+        <AdminFormField><AppInput label="Teléfono" value={values.phone} error={errors.phone} keyboardType="phone-pad" editable={canEdit&&!action.loading} onChangeText={v=>change('phone',v)} /></AdminFormField>
+        {!creating && <AdminFormField fullWidth><AppText variant="caption" muted>Cambiar el correo revoca la sesión y exige verificar el nuevo correo al iniciar sesión.</AppText></AdminFormField>}
+      </AdminFormSection>
+      <AdminFormSection title="2. Datos profesionales" description="La matrícula identifica al profesional en la clínica.">
+        <AppInput label="Matrícula profesional" value={values.licenseNumber} error={errors.licenseNumber} editable={canEdit&&!action.loading} onChangeText={v=>change('licenseNumber',v)} />
+      </AdminFormSection>
+      <AdminFormSection title="3. Especialidades" description="Las especialidades habilitan servicios clínicos compatibles.">
       <FormNotice error message={errors.specialtyIds??null} />
       {!catalog.specialties.length && <View style={styles.section}><AppText muted>No hay especialidades activas. Se necesita al menos una para completar el perfil veterinario y validar los servicios clínicos que puede brindar.</AppText>{auth.hasPermission('specialties.manage')&&<AppButton compact variant="secondary" label="Administrar especialidades" onPress={()=>router.push('/admin/veterinarians/specialties')}/>}</View>}
       {catalog.specialties.map(s=><SelectionRow key={s.id} label={s.name} checked={values.specialtyIds.includes(s.id)} disabled={!canEdit||action.loading}
         onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
-      <AppText variant="subtitle">Cuenta</AppText>
+      </AdminFormSection>
+      <AdminFormSection title="Cuenta" description="El rol se asigna automáticamente como Veterinario.">
       <AppText muted>Rol Veterinario · asignado automáticamente</AppText>
       {!creating&&<View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit||!canChangeStatus||!detail?.emailVerified&&!values.isActive}
         onValueChange={value=>{if (!value&&detail?.isActive)setDeactivate(true);else change('isActive',value);}} trackColor={{true:colors.primary}} /></View>}
       {!creating&&detail&&!detail.emailVerified&&!detail.isActive&&<AppText variant="caption" muted>La cuenta se activa cuando el veterinario verifica su correo desde la invitación.</AppText>}
       {creating&&<AppText muted>La cuenta quedará pendiente hasta que el veterinario active la invitación recibida por correo.</AppText>}
       {detail && <AppText muted>Correo: {detail.emailVerified?'Verificado':'Sin verificar'}</AppText>}
+      </AdminFormSection>
       <FormNotice error message={action.error} />
-      {canEdit && <AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} />}
+        {canEdit && <AdminFormActions><AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} /></AdminFormActions>}
       {review && <View style={[styles.review,softSurfaceShadow(colors.primary),{backgroundColor:colors.surface,borderColor:colors.border}]}>
         <AppText variant="subtitle">Revisar y {creating?'crear':'guardar'}</AppText>
         <AppText>{values.firstName} {values.lastName} · {values.email}</AppText><AppText>Matrícula {values.licenseNumber} · Cuenta {creating?'pendiente de activación':values.isActive?'activa':'inactiva'}</AppText>
         <AppText muted>{catalog.specialties.filter(s=>values.specialtyIds.includes(s.id)).map(s=>s.name).join(' · ')}</AppText>
         <AppText muted>{creating?'Se enviará una invitación de un solo uso, válida durante 24 horas. El veterinario configurará su contraseña para verificar el correo.':'Los cambios de cuenta se aplican al guardar.'}</AppText>
-        <AppButton label={creating?'Crear veterinario':'Guardar datos'} loading={action.loading} onPress={()=>void action.run(save)} />
+        <AdminFormActions><AppButton label={creating?'Crear veterinario':'Guardar datos'} loading={action.loading} onPress={()=>void action.run(save)} /></AdminFormActions>
       </View>}
     </>}
     <ConfirmModal visible={deactivate} title="Desactivar veterinario" confirmLabel="Desactivar" destructive

@@ -5,7 +5,7 @@
  */
 import { useCallback,useEffect,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../../components/layout/ScreenContainer';
 import { AppText } from '../../../components/ui/AppText';
@@ -17,10 +17,10 @@ import { useAdmin } from '../../../hooks/useAdmin';
 import { useAuth } from '../../../hooks/useAuth';
 import { useClientQuery } from '../../../hooks/useClientQuery';
 import { roleLabel } from '../../../utils/role-label';
-import { FilterDisclosure } from '../../../components/ui/FilterDisclosure';
 import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { CompactPagination } from '../../../components/ui/CompactPagination';
-import { SearchFilterBar } from '../../../components/ui/SearchFilterBar';
+import { AdminListToolbar } from '../../../components/admin/AdminListToolbar';
+import { AdminDataTable } from '../../../components/admin/AdminDataTable';
 import { AppModal } from '../../../components/ui/AppModal';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { FormNotice } from '../../../components/ui/FormNotice';
@@ -35,8 +35,10 @@ import { AdminPageHeading } from '../../../components/admin/AdminPageHeading';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 const empty={firstName:'',lastName:'',email:'',phone:'',roleId:'',isActive:true};
 export default function UsersScreen() {
+  const {width}=useWindowDimensions();
+  const desktopTable=Platform.OS==='web'&&width>=1024;
   const {create}=useLocalSearchParams<{create?:string}>();
-  const api=useAdmin();const auth=useAuth();const action=useAsyncAction();const {showToast}=useFeedback();const [search,setSearch]=useState('');const [status,setStatus]=useState('all');const [page,setPage]=useState(1);const filter=useDebouncedValue(search.trim());
+  const api=useAdmin();const auth=useAuth();const action=useAsyncAction();const {showToast}=useFeedback();const [search,setSearch]=useState('');const [status,setStatus]=useState('all');const [draftStatus,setDraftStatus]=useState('all');const [page,setPage]=useState(1);const filter=useDebouncedValue(search.trim());
   const [createOpen,setCreateOpen]=useState(false);const [createValues,setCreateValues]=useState(empty);const [createErrors,setCreateErrors]=useState<Partial<Record<keyof typeof empty,string>>>({});const [createPhoto,setCreatePhoto]=useState<PickedProfilePhoto|null>(null);
   const load=useCallback(()=>api.users(filter,page,status),[api,filter,page,status]);const query=useClientQuery(load);
   const [selectedUserId,setSelectedUserId]=useState<string|null>(null);const [selectedUser,setSelectedUser]=useState<AdminUserDetail|null>(null);const [detailLoading,setDetailLoading]=useState(false);const [detailError,setDetailError]=useState<string|null>(null);const [statusTarget,setStatusTarget]=useState<boolean|null>(null);
@@ -48,11 +50,15 @@ export default function UsersScreen() {
   async function saveUserStatus(){if(!selectedUser||statusTarget===null)return;const updated=await api.updateUser(selectedUser.id,{firstName:selectedUser.firstName,lastName:selectedUser.lastName,phone:selectedUser.phone,isActive:statusTarget});setSelectedUser(updated);setStatusTarget(null);query.reload();showToast(statusTarget?'Usuario activado':'Usuario desactivado','success');}
   function createUser(){const identity=validateIdentityForm(createValues);const errors={...identity,...(!createValues.roleId?{roleId:'Seleccioná un rol.'}:{})};setCreateErrors(errors);if(Object.values(errors).some(Boolean))return;void action.run(async()=>{const result=await api.createUser({firstName:createValues.firstName,lastName:createValues.lastName,email:createValues.email,phone:createValues.phone||null,roleId:createValues.roleId});let photoFailed=false;if(createPhoto&&photoRole){try{await api.updateUserPhoto(result.user.id,{photoBase64:createPhoto.base64});}catch{photoFailed=true;}}setCreateOpen(false);query.reload();const delivery=result.invitationDelivery==='sent'?'Invitación enviada por correo.': 'La cuenta quedó creada, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';showToast(photoFailed?`${delivery} No se pudo guardar la foto.`:delivery,photoFailed?'info':result.invitationDelivery==='sent'?'success':'info');router.replace({pathname:'/admin/users/[id]',params:{id:result.user.id}});});}
   return <ScreenContainer wide><AdminPageHeading title="Usuarios"/>
-    <SearchFilterBar><AppInput icon="search-outline" label="Buscar usuarios" placeholder="Nombre o correo electrónico" value={search} onChangeText={value=>{setSearch(value);setPage(1);}} returnKeyType="search" onSubmitEditing={()=>setPage(1)}/><FilterDisclosure fullWidth activeCount={status==='all'?0:1} onApply={()=>setPage(1)} onClear={()=>{setStatus('all');setPage(1);}}><AppText variant="subtitle">Estado</AppText><SelectionRow radio label="Todos" checked={status==='all'} onPress={()=>setStatus('all')}/><SelectionRow radio label="Activos" checked={status==='active'} onPress={()=>setStatus('active')}/><SelectionRow radio label="Inactivos" checked={status==='inactive'} onPress={()=>setStatus('inactive')}/></FilterDisclosure></SearchFilterBar>
-    {canCreate&&<AppButton label="Crear usuario" onPress={()=>{setCreateValues(empty);setCreateErrors({});setCreatePhoto(null);setCreateOpen(true);}}/>}
+    <AdminListToolbar search={<AppInput icon="search-outline" label="Buscar usuarios" placeholder="Nombre o correo electrónico" value={search} onChangeText={value=>{setSearch(value);setPage(1);}} returnKeyType="search" onSubmitEditing={()=>setPage(1)}/>} filters={<><AppText variant="subtitle">Estado</AppText>{[['all','Todos'],['active','Activos'],['inactive','Inactivos']].map(([value,label])=><SelectionRow radio key={value} label={label} checked={draftStatus===value} onPress={()=>setDraftStatus(value)}/>)}</>} filterCount={status==='all'?0:1} onFilterOpen={()=>setDraftStatus(status)} onFilterCancel={()=>setDraftStatus(status)} onApply={()=>{setStatus(draftStatus);setPage(1);}} onClear={()=>{setStatus('all');setDraftStatus('all');setPage(1);}} actions={canCreate?<AppButton compact label="Crear usuario" onPress={()=>{setCreateValues(empty);setCreateErrors({});setCreatePhoto(null);setCreateOpen(true);}}/>:undefined}/>
     <QueryState {...query}/>{query.data&&<><AppText muted>{query.data.total} usuarios</AppText>
       {!query.data.items.length&&<AppText muted>No hay usuarios para esta consulta.</AppText>}
-      <View style={{gap:10}}><ResponsiveGrid>{query.data.items.map(user=><AdminPersonRow key={user.id} imageUri={user.profilePhotoUrl} name={`${user.firstName} ${user.lastName}`} role={roleLabel(user.role,user.roleName)} status={user.isActive?'Activo':'Inactivo'} onView={()=>openUserDetails(user.id)}/>)}</ResponsiveGrid></View>
+      {desktopTable?<AdminDataTable rows={query.data.items} rowKey={user=>user.id} columns={[
+        {key:'user',label:'Usuario',flex:1.2,minWidth:210,render:user=><View style={{flexDirection:'row',alignItems:'center',gap:10}}><PetImage uri={user.profilePhotoUrl} size={38}/><View style={{minWidth:0,flex:1}}><AppText numberOfLines={1} style={{fontWeight:'700'}}>{user.firstName} {user.lastName}</AppText><AppText variant="caption" muted numberOfLines={1}>{user.email}</AppText></View></View>},
+        {key:'role',label:'Rol',flex:.8,minWidth:130,render:user=><AppText>{roleLabel(user.role,user.roleName)}</AppText>},
+        {key:'status',label:'Estado',flex:.6,minWidth:90,render:user=><AppText variant="caption" muted>{user.isActive?'Activo':'Inactivo'}</AppText>},
+        {key:'actions',label:'Acciones',flex:.55,minWidth:100,align:'right',render:user=><AppButton compact variant="secondary" label="Ver ficha" onPress={()=>openUserDetails(user.id)}/>},
+      ]}/>:<View style={{gap:10}}><ResponsiveGrid>{query.data.items.map(user=><AdminPersonRow key={user.id} imageUri={user.profilePhotoUrl} name={`${user.firstName} ${user.lastName}`} role={roleLabel(user.role,user.roleName)} status={user.isActive?'Activo':'Inactivo'} onView={()=>openUserDetails(user.id)}/>)}</ResponsiveGrid></View>}
       <CompactPagination page={page} canPrevious={page>1&&!query.loading} canNext={query.data.hasMore&&!query.loading} onPrevious={()=>setPage(p=>p-1)} onNext={()=>setPage(p=>p+1)} summary={`${query.data.total} usuarios`}/>
     </>}
     <AppModal size="wide" visible={createOpen||create==='1'&&canCreate} dismissible onClose={()=>{if(!action.loading){setCreateOpen(false);router.setParams({create:undefined});}}}>

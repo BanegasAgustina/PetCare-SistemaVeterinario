@@ -16,7 +16,7 @@ export default function ClientOrderDetail() {
     <QueryState {...query} />
     {query.data && <PetCareCard>
       <AppText variant="subtitle">Pedido #{query.data.id}</AppText>
-      <AppText>Operación: {query.data.isStoreOrder ? 'Pedido de tienda' : query.data.orderType === 'DEMO_PURCHASE' ? 'Pedido de demostración' : 'Reserva de retiro'}</AppText>
+      <AppText>Operación: {query.data.isStoreOrder ? 'Pedido de tienda' : query.data.orderType === 'DEMO_PURCHASE' ? 'Pedido de demostración' : 'Registro histórico'}</AppText>
       <AppText>Fecha: {new Date(query.data.createdAt).toLocaleString('es-AR')}</AppText>
       <AppText>Estado real: {query.data.isStoreOrder ? query.data.storeOrderStatus : query.data.status}</AppText>
       {query.data.isStoreOrder&&<><AppText>Pago: {query.data.storePaymentStatus} · Entrega: {query.data.deliveryStatus}</AppText><AppText>Método de entrega: {query.data.fulfillmentMethod==='PICKUP'?'Retiro en el local':'Envío a domicilio'}</AppText>{query.data.fulfillmentMethod==='DELIVERY'&&<AppText>Dirección: {query.data.deliveryStreet} {query.data.deliveryNumber}{query.data.deliveryUnit?`, ${query.data.deliveryUnit}`:''}, {query.data.deliveryCity}, {query.data.deliveryProvince} · CP {query.data.deliveryPostalCode}</AppText>}</>}
@@ -24,7 +24,8 @@ export default function ClientOrderDetail() {
       {query.data.orderType==='STORE_PURCHASE'&&<><AppText>Pago: {query.data.storePaymentStatus==='PENDING'?'Pendiente de verificación':query.data.storePaymentStatus}</AppText>{query.data.proofSubmittedAt&&<AppText>Comprobante enviado: {new Date(query.data.proofSubmittedAt).toLocaleString('es-AR')}</AppText>}{query.data.paymentIntentId&&query.data.storePaymentStatus==='PENDING'&&<AppButton label="Ver transferencia y plazo" onPress={()=>router.push({pathname:'/client/payment-intents/[id]',params:{id:query.data!.id}})}/>}</>}
       {query.data.items.map(item => <AppText key={item.productId}>{item.name} · {item.quantity} × {money(item.priceCents)} = {money(item.subtotalCents)}</AppText>)}
       <AppText variant="subtitle">Total: {money(query.data.totalCents)}</AppText>
-      {!query.data.isStoreOrder&&<AppText muted>Comprobante informativo de PetCare. No representa una aprobación bancaria. El stock no se reservó ni se descontó.</AppText>}
+      {query.data.orderType==='RESERVATION'&&<AppText muted>Operación del sistema anterior. Se conserva como historial y ya no se gestiona desde PetCare.</AppText>}
+      {query.data.orderType==='DEMO_PURCHASE'&&<AppText muted>Comprobante informativo de PetCare. No representa una aprobación bancaria. El stock no se reservó ni se descontó.</AppText>}
     </PetCareCard>}
   </PetCareScreen>;
 }

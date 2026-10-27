@@ -1,4 +1,4 @@
-/** Ejecuta de forma reanudable la ampliación aditiva de metadatos de productos y reservas. */
+/** Ejecuta de forma reanudable la ampliación aditiva de metadatos de productos y su auditoría. */
 import type { RowDataPacket } from 'mysql2/promise'; // El tipo modela filas devueltas por las consultas de metadatos.
 import { databasePool } from '../config/database'; // El pool conserva la conexión MySQL ya configurada por PetCare.
 import { withDatabaseLock } from './lock'; // El lock evita que dos migradores trabajen simultáneamente.
@@ -78,18 +78,14 @@ export async function migrateProductOrigins(): Promise<void> { // La función no
           // Las reservas activas anteriores reciben su vencimiento según created_at y sin alterar fechas ya fijadas.
           const [backfill] = await connection.execute('UPDATE client_orders SET expires_at=TIMESTAMPADD(HOUR,24,created_at) WHERE expires_at IS NULL AND status IN (\'PLACED\',\'CONFIRMED\',\'PROCESSING\',\'READY\')');
           // Los permisos nuevos reutilizan el módulo actual de productos y se insertan sin duplicar ni borrar grants.
-          const permissions=[
-            ['products.create','Crear productos','Agregar productos al inventario propio.'],
-            ['reservations.view_all','Ver reservas','Consultar reservas de clientes para retiro.'],
-            ['reservations.manage','Gestionar reservas','Preparar, retirar o cancelar reservas vigentes.'],
-          ] as const;
-          for(const [code,name,description] of permissions) await connection.execute('INSERT IGNORE INTO permissions(code,name,description,module_code,is_critical,opens_module) SELECT ?,?,?,module_code,0,? FROM permissions WHERE code=\'products.update\' LIMIT 1',[code,name,description,code==='reservations.view_all'?1:0]);
-          const [permissionRows]=await connection.execute<(RowDataPacket & {id:number;code:string})[]>('SELECT id,code FROM permissions WHERE code IN (?,?,?)',['products.create','reservations.view_all','reservations.manage']);
+          const permissions=[['products.create','Crear productos','Agregar productos al inventario propio']] as const;
+          for(const [code,name,description] of permissions) await connection.execute('INSERT IGNORE INTO permissions(code,name,description,module_code,is_critical,opens_module) SELECT ?,?,?,module_code,0,0 FROM permissions WHERE code=\'products.update\' LIMIT 1',[code,name,description]);
+          const [permissionRows]=await connection.execute<(RowDataPacket & {id:number;code:string})[]>('SELECT id,code FROM permissions WHERE code=?',['products.create']);
           const [roleRows]=await connection.execute<(RowDataPacket & {id:number;code:string})[]>('SELECT id,code FROM roles WHERE code IN (\'ADMIN\',\'SUPER_ADMIN\',\'SECRETARY\')');
-          if(permissionRows.length!==3) throw new Error('No se pudieron registrar permisos: verificá que exista products.update y el esquema RBAC esté aplicado.');
+          if(permissionRows.length!==1) throw new Error('No se pudo registrar el permiso de creación de productos: verificá que exista products.update y el esquema RBAC esté aplicado.');
           if(!['ADMIN','SUPER_ADMIN','SECRETARY'].every(code=>roleRows.some(role=>role.code===code))) throw new Error('Aplicá primero la migración de roles de clínica: se requieren ADMIN, SUPER_ADMIN y SECRETARY.');
           for(const role of roleRows){for(const permission of permissionRows){if(permission.code==='products.create'&&role.code==='SECRETARY')continue;await connection.execute('INSERT IGNORE INTO role_permissions(role_id,permission_id) VALUES (?,?)',[role.id,permission.id]);}}
-          console.info(appliedSteps === 0 ? 'El esquema de productos y reservas ya está aplicado.' : `Migración local finalizada: ${appliedSteps} sentencias DDL verificadas.`);
+          console.info(appliedSteps === 0 ? 'El esquema de productos y su auditoría ya está aplicado.' : `Migración local finalizada: ${appliedSteps} sentencias DDL verificadas.`);
           if ((backfill as { affectedRows?: number }).affectedRows) console.info(`Se asignó vencimiento a ${(backfill as { affectedRows: number }).affectedRows} reservas activas previas.`);
           console.info(`Se verificaron permisos de tienda para ${roleRows.map(role=>role.code).join(', ')||'ningún rol administrativo detectado'}.`);
           return;

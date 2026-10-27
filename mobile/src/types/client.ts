@@ -3,7 +3,8 @@
  */
 export type CatalogItem={id:string;name:string};
 export type PetSex='MALE'|'FEMALE'|'UNKNOWN';
-export type Pet={id:string;name:string;sex:PetSex|null;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null;isActive?:boolean};
+export type PetLifecycleEvent={id:string;previousIsActive:boolean;isActive:boolean;reason:string;createdAt:string;actorRole?:string;actorName?:string};
+export type Pet={id:string;name:string;sex:PetSex|null;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null;isActive?:boolean|number|string|null;deactivationReason?:string|null;deactivatedAt?:string|null;lifecycleHistory?:PetLifecycleEvent[]};
 export type PetValues={name:string;sex:PetSex|'';speciesId:string;breedId:string;breedName?:string;birthDate:string;microchipNumber:string;photoUrl:string;weightKg:string;photoBase64?:string};
 export type PetCatalog={species:CatalogItem[];breeds:(CatalogItem&{speciesId:string})[]};
 export type Appointment={id:string;status:string;isUpcoming:boolean;petId:string;petName:string;petPhotoUrl?:string|null;startsAt:string;endsAt:string;service:string;veterinarian:string;ownerName?:string;observations?:string|null;cancellationReason?:string|null};

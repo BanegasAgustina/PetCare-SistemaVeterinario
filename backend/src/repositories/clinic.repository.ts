@@ -1,4 +1,4 @@
-/** Una sola fuente de turnos, clínica, catálogo y reservas para todos los roles. */
+/** Una sola fuente de turnos, clínica y catálogo para todos los roles. */
 import type { PoolConnection,RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import type { AuthUser } from '../types/auth';
@@ -15,6 +15,7 @@ import { clientClinicalRecord } from '../utils/clinical-presentation';
 import { formatNotificationDateTime } from '../utils/notification-date';
 import { createClientNotification } from './notification.repository';
 import { requiredCancellationReason } from '../utils/appointment-cancellation';
+import { assertCanManagePetLifecycle, assertNoFuturePatientAppointments, assertPetLifecycleTransition, petDeactivationNotification, petReactivationNotification, requirePetActiveFlag, requiredPetDeactivationReason } from '../utils/pet-lifecycle';
 export type Connection=Pick<PoolConnection,'execute'>;
 export type SqlValue=string|number|boolean|null;
 export type Data=Record<string,SqlValue>;
@@ -45,6 +46,27 @@ export async function notify(
     ownerId: String(owner), title, body: content, eventType, referenceType, referenceId, eventKey,
   });
 }
+
+export async function appendPetLifecycleHistory(
+ c:PoolConnection,petId:string,previousIsActive:boolean,newIsActive:boolean,actorId:string,actorRole:string,reason:string,
+) {
+ await c.execute('INSERT INTO pet_lifecycle_history(pet_id,previous_is_active,new_is_active,actor_user_id,actor_role,reason) VALUES (?,?,?,?,?,?)',
+  [petId,previousIsActive?1:0,newIsActive?1:0,actorId,actorRole,reason]);
+ const [events]=await c.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,created_at AS createdAt FROM pet_lifecycle_history WHERE id=LAST_INSERT_ID()');
+ if(!events[0])throw new Error('No se pudo recuperar el evento de estado de la mascota.');
+ return {id:String(events[0].id),createdAt:utc(events[0].createdAt)};
+}
+
+async function petLifecycleHistory(petId:string,c:Connection=databasePool) {
+ const history=await rows(`SELECT CAST(h.id AS CHAR) AS id,h.previous_is_active AS previousIsActive,h.new_is_active AS newIsActive,
+  h.actor_role AS actorRole,h.reason,h.created_at AS createdAt,CONCAT(u.first_name,' ',u.last_name) AS actorName
+  FROM pet_lifecycle_history h JOIN users u ON u.id=h.actor_user_id WHERE h.pet_id=? ORDER BY h.id DESC`,[petId],c);
+ return history.map(event=>({...event,previousIsActive:requirePetActiveFlag(event.previousIsActive),isActive:requirePetActiveFlag(event.newIsActive)}));
+}
+
+const patientLifecycleFields=`p.is_active AS isActive,
+ (SELECT h.reason FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivationReason,
+ (SELECT h.created_at FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivatedAt`;
 export async function professionals(activeOnly=false) {const result=await rows(`SELECT u.id,CONCAT(u.first_name,' ',u.last_name) AS name,u.profile_photo_url AS profilePhotoUrl,u.created_at AS createdAt,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified,pt.id AS typeId,pt.name AS typeName,pt.is_clinical AS isClinical,v.id AS veterinarianId,(SELECT GROUP_CONCAT(sp.name ORDER BY sp.name SEPARATOR ' · ') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialties,(SELECT GROUP_CONCAT(vs.specialty_id ORDER BY vs.specialty_id SEPARATOR ',') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialtyIds FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians v ON v.user_id=u.id ${activeOnly?'WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL':''} ORDER BY u.created_at DESC,u.last_name,u.first_name`);return Promise.all(result.map(async person=>({...person,profilePhotoUrl:await profilePhotoUrl(person.profilePhotoUrl)})));}
 export async function catalog(actor?:AuthUser) {
  const admin=actor&&['ADMIN','SUPER_ADMIN'].includes(actor.role);
@@ -69,7 +91,7 @@ export async function requestAppointment(actor:AuthUser,petId:string,slotId:stri
  return transaction(actor,async(c,fresh)=>{if(fresh.role!=='CLIENT')permit(fresh,'personal.appointments.create');
   await one('SELECT id FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[petId,fresh.id],c);
   const slot=await one('SELECT professional_user_id AS professionalId,service_id AS serviceId FROM client_appointment_slots WHERE id=?',[slotId],c);
-  // Bloquear al profesional serializa reservas y cambios de disponibilidad de sus slots.
+  // Bloquear al profesional serializa la creación de turnos y los cambios de disponibilidad.
   await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[slot.professionalId]);
   const available=await slots(String(slot.serviceId),String(slot.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
   await c.execute("INSERT INTO client_appointments(owner_id,pet_id,slot_id,status) VALUES (?,?,?,'REQUESTED')",[fresh.id,petId,slotId]);
@@ -114,7 +136,7 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
    await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[next.professionalId]);const available=await slots(String(next.serviceId),String(next.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
    await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[a.petId,next.professionalId]);
   }}
-  if(body.status!==undefined){status=v.text(body.status,20)!;if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status))forbidden();assertTransition(String(a.status),status,'appointment');}
+  if(body.status!==undefined){status=v.text(body.status,20)!;if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status))forbidden();assertTransition(String(a.status),status);}
    if(fresh.role==='VETERINARIAN'&&status==='COMPLETED'){
     permit(fresh,'medical_records.create','medical_records.view');
     const consultation=await rows("SELECT id FROM client_clinical_records WHERE appointment_id=? AND pet_id=? AND veterinarian_id=(SELECT id FROM veterinarians WHERE user_id=?) AND kind='medical-history' LIMIT 1",[id,a.petId,fresh.id],c);
@@ -188,25 +210,27 @@ async function groomerPatientScope(actor:AuthUser,petId:string,c:Connection=data
 }
 export const patientListOrdering:Record<string,string>={recent:'p.created_at DESC',oldest:'p.created_at ASC',az:'p.name ASC',za:'p.name DESC',weight_high:'d.weight_kg DESC,p.name ASC',weight_low:'d.weight_kg ASC,p.name ASC',birth_recent:'p.birth_date DESC,p.name ASC',birth_oldest:'p.birth_date ASC,p.name ASC'};
 export const patientNextAppointmentExpression="(SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt";
-export async function patients(actor:AuthUser,search='',sort='recent',speciesId?:string) {
+export async function patients(actor:AuthUser,search='',sort='recent',speciesId?:string,status='active') {
+ if(!['active','inactive','all'].includes(status))v.invalid('El estado de los pacientes no es válido.');
+ const activeFilter=status==='all'?'':status==='inactive'?'p.is_active=0 AND ':'p.is_active=1 AND ';
  if(actor.role==='GROOMER'){
   permit(actor,'appointments.view_own');
   const result=await rows(`SELECT p.id,p.owner_id AS ownerId,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed,
    (SELECT MAX(hist.ends_at) FROM client_appointments done JOIN client_appointment_slots hist ON hist.id=done.slot_id JOIN professional_types hpt ON hpt.id=hist.professional_type_id JOIN roles hr ON hr.id=hpt.role_id WHERE done.pet_id=p.id AND hist.professional_user_id=? AND hr.code='GROOMER' AND done.status='COMPLETED') AS lastServiceAt,
    (SELECT MIN(future.starts_at) FROM client_appointments next JOIN client_appointment_slots future ON future.id=next.slot_id JOIN professional_types npt ON npt.id=future.professional_type_id JOIN roles nr ON nr.id=npt.role_id WHERE next.pet_id=p.id AND future.professional_user_id=? AND nr.code='GROOMER' AND next.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND future.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt
-   FROM pets p JOIN species sp ON sp.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id
-   WHERE p.is_active=1 AND p.name LIKE ? AND EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id JOIN professional_types pt ON pt.id=slot.professional_type_id JOIN roles r ON r.id=pt.role_id WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER')
+   ,${patientLifecycleFields} FROM pets p JOIN species sp ON sp.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id
+   WHERE ${activeFilter}p.name LIKE ? AND EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id JOIN professional_types pt ON pt.id=slot.professional_type_id JOIN roles r ON r.id=pt.role_id WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER')
    ORDER BY COALESCE(lastServiceAt,'1000-01-01') DESC,p.name LIMIT 200`,[actor.id,actor.id,`%${search}%`,actor.id]);
-  return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
+  return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,isActive:requirePetActiveFlag(pet.isActive),photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
  }
  permit(actor,'pets.view_information');const all=actor.permissions?.includes('pets.view_all');if(!all)permit(actor,'pets.view_assigned');if(actor.role!=='VETERINARIAN'&&!['ADMIN','SUPER_ADMIN'].includes(actor.role))forbidden();
  if(!['recent','oldest','az','za','weight_high','weight_low','birth_recent','birth_oldest'].includes(sort))v.invalid('Criterio de orden no válido.');
  const owner=actor.permissions?.includes('users.view_basic');const params:unknown[]=[`%${search}%`];if(owner)params.push(`%${search}%`);if(speciesId)params.push(v.id(speciesId));if(!all)params.push(actor.id);
  const ordering=patientListOrdering;
- const result=await rows(`SELECT p.id,p.owner_id AS ownerId,p.photo_url AS photoUrl,p.name,p.sex,p.created_at AS createdAt,p.birth_date AS birthDate,p.species_id AS speciesId,p.breed_id AS breedId,COALESCE(d.breed_name,b.name) AS breed,s.name AS species,d.weight_kg AS weightKg,
+ const result=await rows(`SELECT p.id,p.owner_id AS ownerId,p.photo_url AS photoUrl,p.name,p.sex,p.created_at AS createdAt,p.birth_date AS birthDate,p.species_id AS speciesId,p.breed_id AS breedId,COALESCE(d.breed_name,b.name) AS breed,s.name AS species,d.weight_kg AS weightKg,${patientLifecycleFields},
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
- ${patientNextAppointmentExpression} ${owner?",CONCAT(u.first_name,' ',u.last_name) AS ownerName":''} FROM pets p JOIN users u ON u.id=p.owner_id JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.is_active=1 AND (p.name LIKE ? ${owner?"OR CONCAT(u.first_name,' ',u.last_name) LIKE ?":''}) ${speciesId?'AND p.species_id=?':''} ${all?'':'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)'} ORDER BY ${ordering[sort]},p.id LIMIT 200`,params);
- return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
+ ${patientNextAppointmentExpression} ${owner?",CONCAT(u.first_name,' ',u.last_name) AS ownerName":''} FROM pets p JOIN users u ON u.id=p.owner_id JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE ${activeFilter}(p.name LIKE ? ${owner?"OR CONCAT(u.first_name,' ',u.last_name) LIKE ?":''}) ${speciesId?'AND p.species_id=?':''} ${all?'':'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)'} ORDER BY ${ordering[sort]},p.id LIMIT 200`,params);
+ return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,isActive:requirePetActiveFlag(pet.isActive),photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
 }
 export async function clinical(actor:AuthUser,petId:string,kind:string,page?:number) {
  const permissions:Record<string,string>={'medical-history':'medical_records.view',vaccines:'vaccines.view',prescriptions:'prescriptions.view',recommendations:'medical_records.view'};
@@ -260,14 +284,14 @@ export async function clients(actor:AuthUser,search='') {
  return rows(`SELECT DISTINCT u.id,u.first_name AS firstName,u.last_name AS lastName${contact?',u.phone,u.email':''} FROM users u JOIN roles r ON r.id=u.role_id JOIN pets p ON p.owner_id=u.id AND p.is_active=1 ${vet?"LEFT JOIN veterinarian_patients vp ON vp.pet_id=p.id LEFT JOIN veterinarians vt ON vt.id=vp.veterinarian_id":""} WHERE r.code='CLIENT' AND (u.first_name LIKE ? OR u.last_name LIKE ?${contact?' OR u.email LIKE ?':''}) ${vet&& !actor.permissions?.includes('pets.view_all')?'AND vt.user_id=?':''} ORDER BY u.last_name,u.first_name LIMIT 100`,contact?[`%${search}%`,`%${search}%`,`%${search}%`,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]:[`%${search}%`,`%${search}%`,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]);
 }
 export async function clientDetails(actor:AuthUser,id:string) {
- const vet=actor.role==='VETERINARIAN';if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else{permit(actor,'users.view_basic');permit(actor,'appointments.view_all');permit(actor,'reservations.view_all');}
+ const vet=actor.role==='VETERINARIAN';if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else{permit(actor,'users.view_basic');permit(actor,'appointments.view_all');}
  const contact=!vet||actor.permissions?.includes('users.view_basic');
  const client=await one(`SELECT u.id,u.first_name AS firstName,u.last_name AS lastName${contact?',u.phone,u.email':''} FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND r.code='CLIENT'`,[id]);
  const petRows=await rows(`SELECT p.id,p.name,p.photo_url AS photoUrl,p.owner_id AS ownerId FROM pets p WHERE p.owner_id=? AND p.is_active=1 ${vet&& !actor.permissions?.includes('pets.view_all')?'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)':''}`,[id,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]);
  if(vet&&!petRows.length)forbidden();
  const pets=await Promise.all(petRows.map(async pet=>({...pet,id:String(pet.id),photoUrl:await petPhotoUrl(id,pet.photoUrl)})));
  const appointmentRows=vet&&petRows.length?await rows(`${appointmentSelect} WHERE a.owner_id=? AND a.pet_id IN (${petRows.map(()=>'?').join(',')}) ORDER BY s.starts_at DESC LIMIT 100`,[id,...petRows.map(p=>p.id)]):vet?[]:await rows(`${appointmentSelect} WHERE a.owner_id=? ORDER BY s.starts_at DESC LIMIT 100`,[id]);
- return {client,pets,appointments:!contact&&vet?appointmentRows.map(item=>{const visible={...item};delete visible.ownerName;delete visible.ownerPhone;return visible;}):appointmentRows,reservations:vet?[]:await rows('SELECT id,status,created_at AS createdAt FROM client_orders WHERE owner_id=? ORDER BY id DESC LIMIT 100',[id])};
+ return {client,pets,appointments:!contact&&vet?appointmentRows.map(item=>{const visible={...item};delete visible.ownerName;delete visible.ownerPhone;return visible;}):appointmentRows};
 }
 export async function home(actor:AuthUser) {
  const all=actor.role!=='GROOMER'&&actor.permissions?.includes('appointments.view_all'),own=actor.permissions?.includes('appointments.view_own');
@@ -286,24 +310,25 @@ export async function home(actor:AuthUser) {
  const clinicToday=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(part=>[part.type,part.value]));
  const todayAppointments=['VETERINARIAN','GROOMER'].includes(actor.role)&&(all||own)?await appointments(actor,{date:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
  const upcomingAppointments=actor.role==='VETERINARIAN'&&(all||own)?await appointments(actor,{upcomingOnly:'true'}):actor.role==='GROOMER'&&own?await appointments(actor,{fromDate:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
- return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,attentionCount:stats?Number(stats.attentionCount??0):null,confirmedTodayCount:stats?Number(stats.confirmedTodayCount??0):null,cancelledTodayCount:stats?Number(stats.cancelledTodayCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,pendingReservations:actor.permissions?.includes('reservations.view_all')?Number((await one("SELECT COUNT(*) AS total FROM client_orders WHERE status='PLACED'",[])).total):null,...(todayAppointments?{todayAppointments}: {}),...(actor.role==='VETERINARIAN'&&upcomingAppointments?{upcomingAppointments:upcomingAppointments.filter(item=>['REQUESTED','CONFIRMED','IN_PROGRESS'].includes(String(item.status))).slice(0,5)}:upcoming?{upcomingAppointments:upcoming}:{})};
+ return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,attentionCount:stats?Number(stats.attentionCount??0):null,confirmedTodayCount:stats?Number(stats.confirmedTodayCount??0):null,cancelledTodayCount:stats?Number(stats.cancelledTodayCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,...(todayAppointments?{todayAppointments}: {}),...(actor.role==='VETERINARIAN'&&upcomingAppointments?{upcomingAppointments:upcomingAppointments.filter(item=>['REQUESTED','CONFIRMED','IN_PROGRESS'].includes(String(item.status))).slice(0,5)}:upcoming?{upcomingAppointments:upcoming}:{})};
 }
 
 export async function patient(actor:AuthUser,id:string) {if(actor.role==='GROOMER')return groomerPatient(actor,id);permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
- const owner=actor.permissions?.includes('users.view_basic');const result=await one(`SELECT p.id,p.name,p.sex,p.species_id AS speciesId,p.breed_id AS breedId,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg,
+ const owner=actor.permissions?.includes('users.view_basic');const result=await one(`SELECT p.id,p.name,p.sex,p.species_id AS speciesId,p.breed_id AS breedId,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg,${patientLifecycleFields},
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
  (SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt ${owner?",u.id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS ownerName,u.email AS ownerEmail,u.phone AS ownerPhone":''} FROM pets p JOIN species s ON s.id=p.species_id JOIN users u ON u.id=p.owner_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);
- result.photoUrl=await petPhotoUrl(String(scope.ownerId),result.photoUrl);return result;
+ result.isActive=requirePetActiveFlag(result.isActive);result.deactivatedAt=utc(result.deactivatedAt);const lifecycleHistory=await petLifecycleHistory(id);const photoUrl=await petPhotoUrl(String(scope.ownerId),result.photoUrl);return {...result,lifecycleHistory,photoUrl};
 }
 export async function groomerPatient(actor:AuthUser,id:string) {
  const scope=await groomerPatientScope(actor,id);
- const result=await one(`SELECT p.id,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed
+ const result=await one(`SELECT p.id,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed,${patientLifecycleFields}
   FROM pets p JOIN species sp ON sp.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);
  result.photoUrl=await petPhotoUrl(String(scope.ownerId),result.photoUrl);
  const history=await rows(`SELECT gr.id,gr.appointment_id AS appointmentId,gr.coat_notes AS coatNotes,gr.behavior_notes AS behaviorNotes,gr.care_instructions AS careInstructions,gr.created_at AS createdAt,gr.updated_at AS updatedAt,a.status,sv.name AS service,slot.starts_at AS startsAt,slot.ends_at AS endsAt
   FROM client_grooming_records gr JOIN client_appointments a ON a.id=gr.appointment_id JOIN client_appointment_slots slot ON slot.id=a.slot_id JOIN client_services sv ON sv.id=slot.service_id
   WHERE gr.pet_id=? AND gr.professional_user_id=? ORDER BY gr.created_at DESC,gr.id DESC`,[id,actor.id]);
- return {...result,groomingHistory:history};
+ result.isActive=requirePetActiveFlag(result.isActive);result.deactivatedAt=utc(result.deactivatedAt);
+ return {...result,lifecycleHistory:await petLifecycleHistory(id),groomingHistory:history};
 }
 async function groomerAppointment(actor:AuthUser,appointmentId:string,c:Connection=databasePool,lock=false) {
  if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
@@ -347,15 +372,31 @@ export async function updatePatient(actor:AuthUser,id:string,value:unknown) {
   return {updated:true};
  });
 }
-/** La desactivación conserva historias y relaciones; solo retira al paciente de los listados activos. */
-export async function deactivatePatient(actor:AuthUser,id:string) {
+/** La transición y su auditoría/notificación se guardan en una única transacción. */
+async function changePatientActive(actor:AuthUser,id:string,nextIsActive:boolean,reason:string) {
  return transaction(actor,async(c,fresh)=>{
-  permit(fresh,'pets.update');const scope=await patientScope(fresh,id,c);
-  const [pet]=await c.execute<RowDataPacket[]>('SELECT id FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,scope.ownerId]);
-  if(!pet.length)throw new AppError('NOT_FOUND',404,'Paciente no encontrado.');
-  const [upcoming]=await c.execute<RowDataPacket[]>("SELECT a.id FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE a.pet_id=? AND a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP() LIMIT 1",[id]);
-  if(upcoming.length)throw new AppError('PET_HAS_APPOINTMENTS',409,'La mascota tiene turnos pendientes.');
-  await c.execute('UPDATE pets SET is_active=0 WHERE id=? AND owner_id=? AND is_active=1',[id,scope.ownerId]);
-  return {deactivated:true};
+  assertCanManagePetLifecycle(fresh);
+  const scope=fresh.role==='GROOMER'?await groomerPatientScope(fresh,id,c):await patientScope(fresh,id,c);
+  const [pets]=await c.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM pets WHERE id=? AND owner_id=? FOR UPDATE',[id,scope.ownerId]);
+  if(!pets[0])throw new AppError('NOT_FOUND',404,'Paciente no encontrado.');
+  const currentIsActive=requirePetActiveFlag(pets[0].isActive);assertPetLifecycleTransition(currentIsActive,nextIsActive);
+  if(!nextIsActive){
+   const [upcoming]=await c.execute<RowDataPacket[]>("SELECT a.status FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE a.pet_id=? AND a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP() LIMIT 1",[id]);
+   assertNoFuturePatientAppointments(upcoming.map(appointment=>appointment.status));
+  }
+  await c.execute('UPDATE pets SET is_active=? WHERE id=? AND owner_id=? AND is_active=?',[nextIsActive?1:0,id,scope.ownerId,currentIsActive?1:0]);
+  const event=await appendPetLifecycleHistory(c,id,currentIsActive,nextIsActive,fresh.id,fresh.role,reason);
+  const dateTime=formatNotificationDateTime(event.createdAt);
+  const content=nextIsActive?petReactivationNotification(String(pets[0].name),dateTime.date,dateTime.time):petDeactivationNotification(String(pets[0].name),reason,dateTime.date,dateTime.time);
+  await notify(c,scope.ownerId,nextIsActive?'Mascota reactivada':'Tu mascota fue desactivada',content,nextIsActive?'PET_REACTIVATED':'PET_DEACTIVATED','pet',id,`pet:${id}:lifecycle:${event.id}`);
+  return {isActive:nextIsActive,event};
  });
+}
+
+export async function deactivatePatient(actor:AuthUser,id:string,value:unknown) {
+ return changePatientActive(actor,id,false,requiredPetDeactivationReason(value));
+}
+
+export async function reactivatePatient(actor:AuthUser,id:string) {
+ return changePatientActive(actor,id,true,'Reactivación autorizada por el equipo de PetCare.');
 }

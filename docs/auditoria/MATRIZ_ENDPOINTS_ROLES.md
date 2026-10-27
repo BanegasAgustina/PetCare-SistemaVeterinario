@@ -23,8 +23,6 @@ Derivada de los routers activos en `backend/src/routes/` y sus guardas declarada
 | `POST /api/clinic/patients/:id/records/:kind/query` | — | ✓ | — | — | ✓ | ✓ | Solo lectura de registros clínicos para estos roles; el servicio controla alcance. |
 | `POST /api/clinic/patients/:id/records/:kind` | — | ✓ | — | — | — | — | Creación solo VETERINARIAN; valida tipo/relación en handler/repositorio. |
 | `POST /api/clinic/clients/**` | — | ✓ | — | ✓ | ✓ | ✓ | Rol; el handler valida grants/alcance. |
-| `POST /api/clinic/reservations/query`, `.../:id` | ✓ | — | — | ✓ | ✓ | ✓ | Lectura limitada por servicio y ownership. |
-| `PATCH /api/clinic/reservations/:id` | — | — | — | `reservations.manage` | `reservations.manage` | `reservations.manage` | Modificación con permiso efectivo. |
 | `POST /api/clinic/professionals`, `PUT /professionals/:id/{type,services}` | — | — | — | — | `professionals.manage` | `professionals.manage` | Administración explícita. |
 | `POST/PATCH/DELETE /api/clinic/availability/**` | — | — | — | — | `schedule.manage` | `schedule.manage` | Administración explícita y método por operación. |
 | `POST/PUT/PATCH/DELETE /api/clinic/store-*` (fulfillment, banners, pedidos) | — | — | — | — | permiso | permiso | Grants separados de configuración, banners, pedidos y pago; endpoints de revisión financiera son SUPER_ADMIN. |

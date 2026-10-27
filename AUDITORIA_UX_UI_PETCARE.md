@@ -27,13 +27,13 @@ Roles declarados por backend: `CLIENT`, `VETERINARIAN`, `GROOMER`, `SECRETARY`, 
 
 ### Cliente — 27 pantallas
 
-`/client` (`client/(tabs)/index.tsx`), `/client/appointments`, `/client/pets`, `/client/profile`, `/client/store`, `/client/store/:id`, `/client/store/delivery`, `/client/store/checkout`, `/client/store/cart`, `/client/pets/new`, `/client/pets/:id`, `/client/pets/:id/edit`, `/client/appointments/request`, `/client/appointments/:id`, `/client/reservation`, `/client/medical-history`, `/client/vaccines`, `/client/prescriptions`, `/client/recommendations`, `/client/notifications`, `/client/profile/edit`, `/client/profile/security`, `/client/profile/appearance`, `/client/profile/notifications`, `/client/orders`, `/client/orders/:id`, `/client/payment-intents/:id`.
+`/client` (`client/(tabs)/index.tsx`), `/client/appointments`, `/client/pets`, `/client/profile`, `/client/store`, `/client/store/:id`, `/client/store/delivery`, `/client/store/checkout`, `/client/store/cart`, `/client/pets/new`, `/client/pets/:id`, `/client/pets/:id/edit`, `/client/appointments/request`, `/client/appointments/:id`, `/client/medical-history`, `/client/vaccines`, `/client/prescriptions`, `/client/recommendations`, `/client/notifications`, `/client/profile/edit`, `/client/profile/security`, `/client/profile/appearance`, `/client/profile/notifications`, `/client/orders`, `/client/orders/:id`, `/client/payment-intents/:id`.
 
 Fuentes: `mobile/src/app/client/` y `mobile/src/app/client/(tabs)/`.
 
 ### Administración — 26 pantallas
 
-`/admin`, `/admin/administration`, `/admin/agenda`, `/admin/appointment`, `/admin/availability`, `/admin/catalog/:kind`, `/admin/clinic`, `/admin/general-information`, `/admin/patient`, `/admin/patients`, `/admin/permissions`, `/admin/products`, `/admin/professionals`, `/admin/reservation`, `/admin/reservations`, `/admin/roles`, `/admin/specialties`, `/admin/store`, `/admin/store-banners`, `/admin/store-orders`, `/admin/store-settings`, `/admin/users`, `/admin/users/:id`, `/admin/veterinarians`, `/admin/veterinarians/:id`, `/admin/veterinarians/specialties`.
+`/admin`, `/admin/administration`, `/admin/agenda`, `/admin/appointment`, `/admin/availability`, `/admin/catalog/:kind`, `/admin/clinic`, `/admin/general-information`, `/admin/patient`, `/admin/patients`, `/admin/permissions`, `/admin/products`, `/admin/professionals`, `/admin/roles`, `/admin/specialties`, `/admin/store`, `/admin/store-banners`, `/admin/store-orders`, `/admin/store-settings`, `/admin/users`, `/admin/users/:id`, `/admin/veterinarians`, `/admin/veterinarians/:id`, `/admin/veterinarians/specialties`.
 
 Fuentes: `mobile/src/app/admin/` y sus subdirectorios `users/`, `veterinarians/` y `catalog/`.
 
@@ -47,7 +47,7 @@ Fuentes: `mobile/src/app/admin/` y sus subdirectorios `users/`, `veterinarians/`
 
 ### Secretaría — 9 pantallas
 
-`/secretary`, `/secretary/reservations`, `/secretary/reservation`, `/secretary/patients`, `/secretary/patient`, `/secretary/clients`, `/secretary/client`, `/secretary/appointment`, `/secretary/agenda` (`mobile/src/app/secretary/`).
+`/secretary`, `/secretary/patients`, `/secretary/patient`, `/secretary/clients`, `/secretary/client`, `/secretary/appointment`, `/secretary/agenda` (`mobile/src/app/secretary/`).
 
 ### Layouts de navegación — 10
 

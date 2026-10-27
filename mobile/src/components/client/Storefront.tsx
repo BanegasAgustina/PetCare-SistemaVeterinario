@@ -11,15 +11,17 @@ import { AppInput } from '../forms/AppInput';
 import { FormNotice } from '../ui/FormNotice';
 import { useTheme } from '../../hooks/useTheme';
 import { softSurfaceShadow } from '../../constants/surface';
-import { responsiveLayout } from '../../constants/responsive';
+import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 type StoreProductCardProps = { product: Product; adding: boolean; cartReady: boolean; onOpen: () => void; onAdd: () => void };
 
 export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: StoreProductCardProps) {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const desktop = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.desktop);
   const kind = product.category || productTypeLabel(product.productType);
   return <View style={[styles.productCard, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>
-    <View style={[styles.productImageFrame, { backgroundColor: colors.accent }]}>
+    <View style={[styles.productImageFrame, desktop && { maxHeight: responsiveLayout.store.productImageMaxHeight }, { backgroundColor: colors.accent }]}>
       {product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" accessibilityLabel={`Imagen de ${product.name}`} /> : <Ionicons name="paw-outline" size={34} color={colors.muted} accessible={false} />}
     </View>
     <AppText numberOfLines={2} variant="subtitle" style={styles.productName}>{product.name}</AppText>
@@ -44,7 +46,8 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
-  const width = measuredWidth || Math.max(1, Math.min(windowWidth - 40, 560));
+  const promotionMaxWidth = windowWidth >= responsiveLayout.breakpoints.desktop ? responsiveLayout.store.promotionMaxWidth : 560;
+  const width = Math.max(1, Math.min(measuredWidth || windowWidth - 40, promotionMaxWidth));
   const imageWidth = Math.max(88, Math.round(width * 0.38));
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [active, setActive] = useState(0);
@@ -61,7 +64,7 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
   }, [active, interacting, products.length, width]);
 
   if (!products.length) return null;
-  return <View onLayout={event => { const nextWidth = event.nativeEvent.layout.width; setMeasuredWidth(current => Math.abs(current - nextWidth) < 1 ? current : nextWidth); }} style={styles.promotionSection}>
+  return <View onLayout={event => { const nextWidth = event.nativeEvent.layout.width; setMeasuredWidth(current => Math.abs(current - nextWidth) < 1 ? current : nextWidth); }} style={[styles.promotionSection,windowWidth>=responsiveLayout.breakpoints.desktop&&{maxWidth:promotionMaxWidth,alignSelf:'center'}]}>
     <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-store-hero':undefined} ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onScrollBeginDrag={() => setInteracting(true)} onScrollEndDrag={() => setInteracting(false)} onMomentumScrollEnd={event => { setActive(Math.round(event.nativeEvent.contentOffset.x / width)); setInteracting(false); }} scrollEventThrottle={16}>
       {products.map(product => <View key={product.id} style={[styles.promotionCard, { width, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.promotionCopy}>
@@ -84,7 +87,7 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
 
 export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOpen:(banner:StoreBanner)=>void}) {
   const {colors}=useTheme();const {width:windowWidth}=useWindowDimensions();const [measuredWidth,setMeasuredWidth]=useState(0);const [active,setActive]=useState(0);const [imageFailed,setImageFailed]=useState(false);const scrollRef=useRef<ComponentRef<typeof ScrollView>>(null);
-  const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=responsiveLayout.breakpoints.tablet?260:198;const banner=banners[active];
+  const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=responsiveLayout.breakpoints.desktop?responsiveLayout.store.desktopBannerHeight:windowWidth>=responsiveLayout.breakpoints.tablet?responsiveLayout.store.tabletBannerHeight:responsiveLayout.store.mobileBannerHeight;const banner=banners[active];
   if(!banner)return null;
   const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
   return <View onLayout={event=>{const next=event.nativeEvent.layout.width;setMeasuredWidth(current=>Math.abs(current-next)<1?current:next);}} style={styles.storeBannerSection}>

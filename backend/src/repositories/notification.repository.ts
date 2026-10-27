@@ -35,7 +35,7 @@ export async function createClientNotification(connection: PoolConnection, notif
   const notificationId = idRows[0]?.id;
   if (!notificationId) throw new Error('No se pudo recuperar la notificación recién creada.');
   if (['APPOINTMENT_CONFIRMED', 'APPOINTMENT_RESCHEDULED', 'APPOINTMENT_CANCELLED',
-    'CLINICAL_UPDATE', 'RESERVATION_APPROVED', 'RESERVATION_REJECTED'].includes(notification.eventType)) {
+    'CLINICAL_UPDATE'].includes(notification.eventType)) {
     try {
       getMailConfiguration();
       await connection.execute(

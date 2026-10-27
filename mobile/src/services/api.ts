@@ -18,7 +18,6 @@ const messages: Record<string, string> = {
   STORE_ADDRESSES_SCHEMA_REQUIRED: 'No pudimos cargar tus direcciones guardadas. Podés ingresarla manualmente para continuar.',
   ROUTE_NOT_FOUND: 'Esta función no está disponible en este momento. Intentá nuevamente más tarde.',
   INVALID_TRANSITION: 'El estado cambió y ya no se puede realizar esa acción. Actualizá la información e intentá nuevamente.',
-  RESERVATION_EXPIRED: 'La reserva venció y las unidades volvieron al stock.',
   PRESCRIPTION_REQUIRED: 'Seleccioná una receta vigente para este producto y mascota.',
   STOCK_CONFLICT: 'No pudimos reservar esas unidades. Actualizá el carrito e intentá nuevamente.',
   PAYMENT_NOT_INTEGRATED: 'Los pagos con tarjeta no están disponibles todavía. No se realizó ningún cobro.',

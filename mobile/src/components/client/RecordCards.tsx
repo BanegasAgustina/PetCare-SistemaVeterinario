@@ -11,6 +11,7 @@ import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { useTheme } from '../../hooks/useTheme';
 import { clinicDate } from '../../utils/clinic-date';
+import { normalizePetActiveFlag } from '../../utils/pet-status';
 import type { Pet,Appointment,ClinicalRecord,Product,Order } from '../../types/client';
 export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=false,compact=false,footer}:{pet:Pet;portraitSize?:number;showViewButton?:boolean;showMicrochip?:boolean;compact?:boolean;footer?:ReactNode}){
   const {colors}=useTheme();
@@ -18,6 +19,7 @@ export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=fals
   const photoSize=portraitSize??(compact?76:Math.min(190,Math.max(124,Math.round(Math.min(width,600)*0.36))));
   const openPet=()=>router.push({pathname:'/client/pets/[id]',params:{id:pet.id}});
   const editPet=()=>router.push({pathname:'/client/pets/[id]/edit',params:{id:pet.id}});
+  const petIsActive=normalizePetActiveFlag(pet.isActive);
   return <PetCareCard style={styles.petCard}><PetCarePetCardDecoration species={pet.species}/>
     <View style={[styles.petHeader,compact&&{alignItems:'center'}]}>
       <View style={[styles.petPhotoFrame,{width:photoSize+6,height:photoSize+6,borderColor:colors.border}]}>
@@ -27,10 +29,11 @@ export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=fals
       <View style={[styles.petInfo,compact&&{gap:6}]}>
         <View style={styles.petTitleRow}>
           <AppText numberOfLines={2} variant="subtitle" style={[styles.petName,compact&&{fontSize:20,lineHeight:24}]}>{pet.name}</AppText>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${pet.name}`} onPress={editPet} style={[styles.editButton,{backgroundColor:colors.accent}]}><Ionicons name="pencil" size={22} color={colors.text}/></Pressable>
+          {petIsActive===true&&<Pressable accessibilityRole="button" accessibilityLabel={`Editar ${pet.name}`} onPress={editPet} style={[styles.editButton,{backgroundColor:colors.accent}]}><Ionicons name="pencil" size={22} color={colors.text}/></Pressable>}
         </View>
         <View style={styles.speciesRow}><PetCarePetIllustration species={pet.species} size={compact?20:24} color={colors.primary}/><AppText style={styles.speciesText}>{pet.species}{pet.breed?`  ·  ${pet.breed}`:''}</AppText></View>
-        {pet.isActive===false&&<PetCareBadge label="Inactiva"/>}
+        <PetCareBadge label={petIsActive===true?'Activa':petIsActive===false?'Inactiva':'Estado no disponible'}/>
+        {petIsActive===false&&<>{Boolean(pet.deactivationReason)?<AppText variant="caption" muted numberOfLines={3}>Motivo: {pet.deactivationReason}</AppText>:<AppText variant="caption" muted>Motivo no registrado en desactivaciones anteriores.</AppText>}</>}
         {!compact&&<View style={[styles.infoDivider,{backgroundColor:colors.border}]}/>}
         {!compact&&pet.birthDate!==null&&pet.birthDate!==''&&<View style={styles.detailRow}><Ionicons name="calendar-outline" size={21} color={colors.primary}/><AppText style={styles.detailText}>Nació el {clinicDate(pet.birthDate)}</AppText></View>}
         {pet.weightKg != null&&<View style={styles.detailRow}><Ionicons name="barbell-outline" size={21} color={colors.primary}/><AppText style={styles.detailText}>{pet.weightKg} kg</AppText></View>}

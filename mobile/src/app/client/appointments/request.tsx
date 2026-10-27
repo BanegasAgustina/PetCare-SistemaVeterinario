@@ -15,6 +15,7 @@ import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { SlotSelectionCard } from '../../../components/client/SlotSelectionCard';
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard';
 import { clinicDate, clinicDateFilterToApi, clinicDateTime } from '../../../utils/clinic-date';
+import { normalizePetActiveFlag } from '../../../utils/pet-status';
 import type { AppointmentCatalog, Pet, Slot } from '../../../types/client';
 
 const stepTitles = ['Mascota', 'Servicio', 'Profesional', 'Fecha y horario', 'Confirmación'];
@@ -41,6 +42,7 @@ export default function RequestAppointment() {
     [api, step, serviceId, vetId],
   ));
   const data = query.data;
+  const activePets = (data?.pets ?? []).filter(pet => normalizePetActiveFlag(pet.isActive) === true);
   const types = data?.catalog.types ?? [];
   const services = data?.catalog.services ?? [];
   const availableTypes = types.filter(type => services.some(service => service.typeId === type.id));
@@ -49,7 +51,7 @@ export default function RequestAppointment() {
   const specialties = (data?.catalog.specialties ?? []).filter(specialty => typeServices.some(service => service.specialtyId === specialty.id));
   const filteredServices = typeServices.filter(service => !specialtyId || service.specialtyId === specialtyId);
   const selectedService = services.find(service => service.id === serviceId);
-  const selectedPet = data?.pets.find(pet => pet.id === petId);
+  const selectedPet = activePets.find(pet => pet.id === petId);
   const availableSlots = slots.data ?? [];
   const selectedSlot = availableSlots.find(slot => slot.id === slotId);
   const dates = [...new Set(availableSlots.map(slot => clinicDateFilterToApi(clinicDate(slot.startsAt))))].sort();
@@ -103,7 +105,7 @@ export default function RequestAppointment() {
 
   function continueStep() {
     setFormError(null);
-    if (step === 1 && !data?.pets.some(pet => pet.id === petId)) {
+    if (step === 1 && !activePets.some(pet => pet.id === petId)) {
       setFormError('Elegí la mascota que necesita atención.');
       return;
     }
@@ -123,9 +125,9 @@ export default function RequestAppointment() {
   }
 
   async function submitRequest() {
-    if (!petId || !selectedSlot || !serviceId) {
+    if (!selectedPet || !selectedSlot || !serviceId) {
       setFormError('Revisá la mascota, el servicio y el horario antes de enviar.');
-      setStep(!petId ? 1 : !serviceId ? 2 : 4);
+      setStep(!selectedPet ? 1 : !serviceId ? 2 : 4);
       return;
     }
     setFormError(null);
@@ -160,13 +162,13 @@ export default function RequestAppointment() {
     <QueryState {...query} />
     {data && step === 1 && <>
       <AppText>¿A qué mascota vamos a atender?</AppText>
-      {!data.pets.length ? <PetCareEmptyState
+      {!activePets.length ? <PetCareEmptyState
         title="Todavía no tenés mascotas registradas."
-        message="Agregá una mascota para poder solicitar su turno."
-        action={() => router.push('/client/pets/new')}
-        label="Agregar mascota"
-      /> : data.pets.map(pet => <PetChoice key={pet.id} pet={pet} selected={petId === pet.id} onPress={() => { setPetId(pet.id); setFormError(null); }} />)}
-      {Boolean(data.pets.length) && <AppText muted>Una solicitud corresponde a una mascota. Si necesitás turnos para varias, enviá una solicitud por cada una.</AppText>}
+        message={data.pets.length ? 'No hay mascotas activas disponibles. Reactivá una mascota desde Mis mascotas o agregá otra para solicitar un turno.' : 'Agregá una mascota para poder solicitar su turno.'}
+        action={data.pets.length ? () => router.push('/client/pets') : () => router.push('/client/pets/new')}
+        label={data.pets.length ? 'Ver mis mascotas' : 'Agregar mascota'}
+      /> : activePets.map(pet => <PetChoice key={pet.id} pet={pet} selected={petId === pet.id} onPress={() => { setPetId(pet.id); setFormError(null); }} />)}
+      {Boolean(activePets.length) && <AppText muted>Una solicitud corresponde a una mascota. Si necesitás turnos para varias, enviá una solicitud por cada una.</AppText>}
       <StepHelp text={petId ? null : 'Elegí una mascota para continuar.'} />
     </>}
 
@@ -250,7 +252,7 @@ export default function RequestAppointment() {
     <FormNotice error message={formError ?? action.error} />
     <View style={styles.actions}>
       {step > 1 && <AppButton label="Volver" variant="secondary" disabled={action.loading} onPress={() => { setFormError(null); action.clearError(); setStep(current => Math.max(1, current - 1)); }} />}
-      {step < 5 ? <AppButton label="Continuar" disabled={action.loading || !canContinue(step, petId, data?.pets ?? [], serviceId, filteredServices, slotId, selectedSlot)} onPress={continueStep} /> : <AppButton label="Confirmar solicitud" loading={action.loading} onPress={() => void submitRequest()} />}
+      {step < 5 ? <AppButton label="Continuar" disabled={action.loading || !canContinue(step, petId, activePets, serviceId, filteredServices, slotId, selectedSlot)} onPress={continueStep} /> : <AppButton label="Confirmar solicitud" loading={action.loading} onPress={() => void submitRequest()} />}
     </View>
     {unsavedChangesPrompt}
   </PetCareScreen>;

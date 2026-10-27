@@ -6,7 +6,7 @@ PetCare es una aplicación web y móvil para coordinar atención veterinaria, pe
 
 - Cuentas verificadas por correo, autenticación JWT, recuperación de contraseña y flujos OAuth configurables.
 - Roles `CLIENT`, `VETERINARIAN`, `GROOMER`, `SECRETARY`, `ADMIN` y `SUPER_ADMIN`, con permisos efectivos validados por el backend.
-- Mascotas, turnos, disponibilidad, fichas clínicas, reservas, tienda, carrito, pedidos y comprobantes de transferencia.
+- Mascotas, turnos, disponibilidad, fichas clínicas, tienda, carrito, pedidos y comprobantes de transferencia.
 - Centro de notificaciones internas con estados persistidos en la API; no se envían push al sistema operativo.
 - Aplicación Expo Router para web y Android. El checkout de demostración no procesa dinero.
 
@@ -59,6 +59,7 @@ La API local predeterminada es `http://localhost:3000/api`. Las lecturas privada
 - [Auditoría general](docs/auditoria/AUDITORIA_GENERAL.md)
 - [Matriz académica](docs/auditoria/MATRIZ_REQUISITOS.md)
 - [Matriz de endpoints por rol](docs/auditoria/MATRIZ_ENDPOINTS_ROLES.md)
+- [Retiro del antiguo flujo de reservas comerciales](docs/RETIRO_RESERVAS_PRODUCTOS.md)
 - [Auditoría Layerbase](docs/auditoria/AUDITORIA_LAYERBASE.md)
 - [Backend](backend/README.md)
 - [Móvil y web](mobile/README.md)

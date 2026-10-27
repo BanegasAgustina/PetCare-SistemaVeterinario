@@ -7,13 +7,14 @@ import { ScreenContainer } from '../../components/layout/ScreenContainer';
 import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
 import { AppText } from '../../components/ui/AppText';
 import { AppInput } from '../../components/forms/AppInput';
+import { AppSelectField } from '../../components/forms/AppSelectField';
 import { AppButton } from '../../components/ui/AppButton';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { AppModal } from '../../components/ui/AppModal';
 import { FormNotice } from '../../components/ui/FormNotice';
-import { FilterDisclosure } from '../../components/ui/FilterDisclosure';
 import { CompactPagination } from '../../components/ui/CompactPagination';
-import { SearchFilterBar } from '../../components/ui/SearchFilterBar';
+import { AdminListToolbar } from '../../components/admin/AdminListToolbar';
+import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { PetCareCard, PetCareEmptyState, PetImage, QueryState, money, ResponsiveGrid } from '../../components/client/PetCareUI';
 import { SelectionRow } from '../../components/ui/SelectionRow';
 import { useAuth } from '../../hooks/useAuth';
@@ -49,6 +50,7 @@ export default function AdminProducts() {
   const [photo,setPhoto]=useState<{uri:string;base64:string}|null>(null);
   const [photoError,setPhotoError]=useState<string|null>(null);
   const {width}=useWindowDimensions();
+  const desktopTable=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const desktopGrid=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);
   const load = useCallback(() => request<Page>('/admin/products/query',{method:'POST',body:{ search: submittedSearch, ...filters, page: String(page) }}), [request, submittedSearch, filters, page]);
   const query = useClientQuery(load);
@@ -94,7 +96,7 @@ export default function AdminProducts() {
   }
   async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setPhotoError('Permití el acceso a la galería para elegir una imagen.');return;}}const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});if(result.canceled)return;const asset=result.assets[0];if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setPhotoError('Elegí una imagen de hasta 5 MB y 25 megapíxeles.');return;}setPhoto({uri:asset.uri,base64:asset.base64});setValues(current=>({...current,imageUrl:editing?.imageUrl??''}));}catch{setPhotoError('No pudimos abrir la imagen. Intentá elegir otra.');}}
 
-  const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.sort !== 'name' ? 1 : 0) + (filters.categoryId ? 1 : 0);
+  const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.categoryId ? 1 : 0);
   const hasRestrictiveFilters = Boolean(submittedSearch) || filters.status !== 'all' || filters.stock !== 'all' || Boolean(filters.categoryId);
   return <ScreenContainer wide>
     <AdminPageHeading title="Productos y stock"/>
@@ -102,22 +104,27 @@ export default function AdminProducts() {
       {auth.hasPermission('products.update') && auth.hasPermission('products.create') && auth.hasPermission('products.update_price') && auth.hasPermission('products.update_stock') && <AppButton compact label="Crear producto" onPress={() => router.push('/admin/catalog/products')}/>}
       {auth.hasPermission('categories.manage') && <AppButton compact variant="secondary" label="Gestionar categorías" onPress={() => router.push('/admin/catalog/categories')}/>}
     </View>
-    <SearchFilterBar><AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>
-      <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}>
+    <AdminListToolbar search={<AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>}
+      sort={<AppSelectField label="Ordenar productos" value={filters.sort} options={[{id:'name',name:'Nombre A–Z'},{id:'price_low',name:'Precio: menor primero'},{id:'price_high',name:'Precio: mayor primero'},{id:'stock_low',name:'Stock: menor primero'},{id:'stock_high',name:'Stock: mayor primero'}]} onChange={value=>updateFilter('sort',value)}/>}
+      filters={<>
         <AppText variant="subtitle">Inventario</AppText>
         {[['all', 'Cualquier stock'], ['available', 'Disponible'], ['low','Stock bajo'], ['out', 'Sin stock']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.stock === value} onPress={() => updateFilter('stock', value)}/>)}
         <AppText variant="subtitle">Estado</AppText>
         {[['all', 'Todos'], ['active', 'Activos'], ['inactive', 'Inactivos']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.status === value} onPress={() => updateFilter('status', value)}/>)}
-        <AppText variant="subtitle">Ordenar por</AppText>
-        {[['name', 'Nombre A-Z'], ['price_low', 'Precio: menor primero'], ['price_high', 'Precio: mayor primero'], ['stock_low', 'Stock: menor primero'], ['stock_high', 'Stock: mayor primero']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.sort === value} onPress={() => updateFilter('sort', value)}/>)}
         <AppText variant="subtitle">Categoría</AppText><SelectionRow label="Todas" checked={!filters.categoryId} onPress={() => updateFilter('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} checked={filters.categoryId === category.id} onPress={() => updateFilter('categoryId', category.id)}/>)}
-      </FilterDisclosure>
-    </SearchFilterBar>
+      </>}
+      filterCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}/>
     <QueryState {...catalog}/><QueryState {...query}/>
     {query.data && <>
       <AppText muted>{query.data.total} productos</AppText>
       {!query.data.items.length && <PetCareEmptyState title={hasRestrictiveFilters ? 'No hay productos para estos filtros' : 'Todavía no hay productos'} message={hasRestrictiveFilters ? 'Probá con otro nombre o limpiá los filtros para revisar el inventario.' : 'Los productos que cargues aparecerán en este inventario.'} action={hasRestrictiveFilters ? () => { setSearch(''); setSubmittedSearch(''); setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); } : undefined} label={hasRestrictiveFilters ? 'Limpiar búsqueda y filtros' : undefined} />}
-      {desktopGrid?<ResponsiveGrid>{query.data.items.map(product => <PetCareCard key={product.id}>
+      {desktopTable?<AdminDataTable rows={query.data.items} rowKey={product=>product.id} columns={[
+        {key:'product',label:'Producto',flex:1.5,minWidth:150,render:product=><View style={{flexDirection:'row',alignItems:'center',gap:8}}><PetImage uri={product.imageUrl} size={34}/><View style={{flex:1,minWidth:0}}><AppText numberOfLines={2} style={{fontWeight:'700'}}>{product.name}</AppText><AppText variant="caption" muted numberOfLines={1}>{product.category??'Sin categoría'}</AppText></View></View>},
+        {key:'price',label:'Precio',flex:.7,minWidth:85,render:product=><AppText numberOfLines={1}>{money(product.priceCents)}</AppText>},
+        {key:'stock',label:'Stock disponible',flex:.8,minWidth:85,render:product=><AppText numberOfLines={1}>{product.stock>0?String(product.stock):'Sin stock'}</AppText>},
+        {key:'status',label:'Estado',flex:.65,minWidth:70,render:product=><AppText variant="caption" muted>{product.isActive?'Activo':'Inactivo'}</AppText>},
+        {key:'actions',label:'Acciones',flex:1,minWidth:145,align:'right',render:product=><View style={{flexDirection:'row',justifyContent:'flex-end',gap:6,flexWrap:'wrap'}}><AppButton compact variant="secondary" label="Detalle" onPress={()=>setDetail(product)}/><AppButton compact label="Editar" onPress={()=>openEditor(product)}/></View>},
+      ]}/> : desktopGrid?<ResponsiveGrid>{query.data.items.map(product => <PetCareCard key={product.id}>
         <View style={styles.productRow}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${product.name}`} onPress={() => setDetail(product)} style={styles.productInfo}>
             <PetImage uri={product.imageUrl}/><View style={styles.productText}><AppText variant="subtitle" numberOfLines={2}>{product.name}</AppText><AppText muted>{product.category ?? 'Sin categoría'}</AppText><AppText>{money(product.priceCents)}</AppText><AppText variant="caption" muted>{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</AppText></View>

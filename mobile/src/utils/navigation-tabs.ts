@@ -6,7 +6,7 @@ const primaryPathsByRole:Record<string,string[]>={
   SUPER_ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
   VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/products'],
   GROOMER:['/professional','/professional/agenda','/professional/patients','/professional/services'],
-  SECRETARY:['/secretary','/secretary/agenda','/secretary/patients','/secretary/reservations','/account'],
+  SECRETARY:['/secretary','/secretary/agenda','/secretary/products','/secretary/clients','/account'],
 };
 const profileShortcutPathsByRole:Record<string,string[]>={
   VETERINARIAN:['/account','/client/profile'],
@@ -47,11 +47,11 @@ export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:s
       '/client/orders':'/client/profile','/client/notifications':'/client/profile',
       '/client/medical-history':'/client/pets','/client/vaccines':'/client/pets',
       '/client/prescriptions':'/client/pets','/client/recommendations':'/client/pets',
-      '/client/reservation':'/client/appointments','/client/payment-intents':'/client/store',
+      '/client/payment-intents':'/client/store',
     },
     VETERINARIAN:{'/vet/appointment':'/vet/agenda','/vet/patient':'/vet/patients','/vet/client':'/vet/clients','/vet/record':'/vet/patients'},
     GROOMER:{'/professional/appointment':'/professional/agenda','/professional/patient':'/professional/patients'},
-    SECRETARY:{'/secretary/appointment':'/secretary/agenda','/secretary/patient':'/secretary/patients','/secretary/client':'/secretary/clients','/secretary/reservation':'/secretary/reservations','/account':'/account'},
+    SECRETARY:{'/secretary/appointment':'/secretary/agenda','/secretary/client':'/secretary/clients','/account':'/account'},
   };
   let destination=Object.entries(aliases[role]??{})
     .filter(([prefix])=>pathname===prefix||pathname.startsWith(`${prefix}/`))
@@ -59,7 +59,7 @@ export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:s
   if(!destination&&['ADMIN','SUPER_ADMIN'].includes(role)){
     const clinicRoute=/^\/admin\/(?:clinic|patient|patients|appointment|agenda|availability|professionals|veterinarians|specialties)(?:\/|$)/.test(pathname)
       ||pathname==='/admin/catalog/services';
-    const storeRoute=/^\/admin\/(?:store|products|reservations|reservation|store-orders|store-banners)(?:\/|$)/.test(pathname)
+    const storeRoute=/^\/admin\/(?:store|products|store-orders|store-banners)(?:\/|$)/.test(pathname)
       ||/^\/admin\/catalog\/(?:products|categories|promotions)(?:\/|$)/.test(pathname);
     destination=clinicRoute?'/admin/clinic':storeRoute?'/admin/store':'/admin/administration';
   }

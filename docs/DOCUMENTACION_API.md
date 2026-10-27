@@ -10,6 +10,7 @@ Inventario generado desde las rutas registradas en `backend/src/routes/` y las r
 - Éxito: `{ "success": true, "data": ... }`. Error: `{ "success": false, "error": { "code": ..., "message": ... } }`. Algunos errores de validación incluyen `errors`; la verificación de correo puede devolver `verification`.
 - Estados habituales: 200 éxito, 201 creación, 400 validación, 401 sesión/token, 403 rol/permiso/ownership, 404 recurso/ruta, 409 conflicto, 413 cuerpo excedido, 429 rate limit, 500 error interno, 503 dependencia/configuración. El estado concreto depende de la ruta y de sus reglas.
 - Cuerpos grandes de foto y comprobantes se procesan con límites nativos específicos (8 MB para imágenes, 5 MB para comprobantes) y middleware de autenticación/permiso antes del parser.
+- La gestión de compras comerciales usa Tienda, `/api/clinic/store-orders` y `/api/client/orders`. El antiguo módulo `/api/clinic/reservations/**` fue retirado; las operaciones históricas permanecen como registros y no se convierten en compras.
 
 ## Ejemplos verificados contra los validadores
 
@@ -160,6 +161,7 @@ La protección común se aplica en los routers: `/client` autentica y limita acc
 | PATCH | `/api/clinic/patients/:id` | `backend/src/routes/clinic.routes.ts` |
 | POST | `/api/clinic/patients/:id` | `backend/src/routes/clinic.routes.ts` |
 | PATCH | `/api/clinic/patients/:id/deactivate` | `backend/src/routes/clinic.routes.ts` |
+| PATCH | `/api/clinic/patients/:id/reactivate` | `backend/src/routes/clinic.routes.ts` |
 | POST | `/api/clinic/patients/:id/records/:kind` | `backend/src/routes/clinic.routes.ts` |
 | POST | `/api/clinic/patients/:id/records/:kind/query` | `backend/src/routes/clinic.routes.ts` |
 | POST | `/api/clinic/patients/query` | `backend/src/routes/clinic.routes.ts` |
@@ -167,9 +169,6 @@ La protección común se aplica en los routers: `/client` autentica y limita acc
 | POST | `/api/clinic/professionals` | `backend/src/routes/clinic.routes.ts` |
 | PUT | `/api/clinic/professionals/:id/services` | `backend/src/routes/clinic.routes.ts` |
 | PUT | `/api/clinic/professionals/:id/type` | `backend/src/routes/clinic.routes.ts` |
-| PATCH | `/api/clinic/reservations/:id` | `backend/src/routes/clinic.routes.ts` |
-| POST | `/api/clinic/reservations/:id` | `backend/src/routes/clinic.routes.ts` |
-| POST | `/api/clinic/reservations/query` | `backend/src/routes/clinic.routes.ts` |
 | POST | `/api/clinic/slots` | `backend/src/routes/clinic.routes.ts` |
 | POST | `/api/clinic/store-banners` | `backend/src/routes/clinic.routes.ts` |
 | DELETE | `/api/clinic/store-banners/:id` | `backend/src/routes/clinic.routes.ts` |

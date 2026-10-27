@@ -27,7 +27,7 @@ Comandos: `npm start`, `npm run web`, `npm run android`, `npm run typecheck`, `n
 - `src/components/`: componentes UI, perfil y notificaciones.
 - `src/utils/`: autorización de navegación, pestañas y validaciones.
 
-Cliente: Inicio, Mascotas, Turnos, Tienda y Perfil en barra inferior. Veterinario: Inicio, Agenda, Pacientes, Productos y Perfil sujeto a permisos. Peluquero: Inicio, Agenda, Pacientes, Servicios y Cuenta. Secretaría: Inicio, Agenda, Pacientes, Reservas y Cuenta. Administradores ven Inicio, Clínica, Tienda y Administración; destinos adicionales aparecen según permisos. Consulte la [matriz de requisitos](../docs/auditoria/MATRIZ_REQUISITOS.md).
+Cliente: Inicio, Mascotas, Turnos, Tienda y Perfil en barra inferior. Veterinario: Inicio, Agenda, Pacientes, Productos y Perfil sujeto a permisos. Peluquero: Inicio, Agenda, Pacientes, Servicios y Cuenta. Secretaría: Inicio, Agenda, Productos, Clientes y Cuenta según permisos. Administradores ven Inicio, Clínica, Tienda y Administración; destinos adicionales aparecen según permisos. Las compras se realizan desde Tienda y el seguimiento se consulta en Pedidos. Consulte la [matriz de requisitos](../docs/auditoria/MATRIZ_REQUISITOS.md).
 
 `Mi Perfil`/Cuenta comparte capacidades de edición de datos, apariencia o seguridad según rol y rutas habilitadas. Formularios validan localmente para mejorar experiencia, pero el backend vuelve a validar. Registro no envía `role` y la confirmación de contraseña no se transmite.
 

@@ -6,6 +6,7 @@ import { AppError } from '../utils/app-error';
 import * as clinic from './clinic.repository';
 import type { AuthUser } from '../types/auth';
 import { invalid, type petInput } from '../validators/client.validator';
+import { assertNoFuturePatientAppointments, requirePetActiveFlag } from '../utils/pet-lifecycle';
 type PetInput=ReturnType<typeof petInput>;
 function normalizePetSex(value:unknown):'FEMALE'|'MALE'|'UNKNOWN'|null {
   if(value===null||value===undefined||value==='')return null;
@@ -18,13 +19,28 @@ function normalizePetSex(value:unknown):'FEMALE'|'MALE'|'UNKNOWN'|null {
 const petColumns=`p.id,p.name,p.sex,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,p.species_id AS speciesId,
  p.breed_id AS breedId,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg`;
 const petJoins='FROM pets p JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id';
-const mapPet=(p:RowDataPacket)=>({...p,id:String(p.id),sex:normalizePetSex(p.sex),photoUrl:p.photoUrl as string|null,speciesId:String(p.speciesId),breedId:p.breedId===null?null:String(p.breedId)});
+const mapPet=(p:RowDataPacket)=>({...p,id:String(p.id),sex:normalizePetSex(p.sex),photoUrl:p.photoUrl as string|null,speciesId:String(p.speciesId),breedId:p.breedId===null?null:String(p.breedId),...(p.isActive===undefined?{}:{isActive:requirePetActiveFlag(p.isActive)}),deactivatedAt:p.deactivatedAt?utcDate(p.deactivatedAt):null});
 export async function pets(owner:string,includeInactive=false) {
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns},p.is_active AS isActive ${petJoins} WHERE p.owner_id=? ${includeInactive?'':'AND p.is_active=1'} ORDER BY p.is_active DESC,p.name,p.id`,[owner]);return rows.map(row=>({...mapPet(row),isActive:Boolean(row.isActive)}));
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns},p.is_active AS isActive,
+    (SELECT h.reason FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivationReason,
+    (SELECT h.created_at FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivatedAt
+    ${petJoins} WHERE p.owner_id=? ${includeInactive?'':'AND p.is_active=1'} ORDER BY p.is_active DESC,p.name,p.id`,[owner]);
+  return rows.map(mapPet);
 }
 export async function pet(owner:string,id:string) {
-  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns} ${petJoins} WHERE p.owner_id=? AND p.id=? AND p.is_active=1`,[owner,id]);
-  if(!rows[0])throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');return mapPet(rows[0]);
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns},p.is_active AS isActive,
+    (SELECT h.reason FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivationReason,
+    (SELECT h.created_at FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivatedAt
+    ${petJoins} WHERE p.owner_id=? AND p.id=?`,[owner,id]);
+  if(!rows[0])throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
+  const pet=mapPet(rows[0]);
+  return {...pet,lifecycleHistory:await petLifecycleHistoryForOwner(owner,id)};
+}
+export async function petLifecycleHistoryForOwner(owner:string,id:string) {
+ const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT CAST(h.id AS CHAR) AS id,h.previous_is_active AS previousIsActive,
+  h.new_is_active AS isActive,h.reason,h.created_at AS createdAt FROM pet_lifecycle_history h JOIN pets p ON p.id=h.pet_id
+  WHERE h.pet_id=? AND p.owner_id=? ORDER BY h.id DESC`,[id,owner]);
+ return rows.map(row=>({...row,id:String(row.id),previousIsActive:requirePetActiveFlag(row.previousIsActive),isActive:requirePetActiveFlag(row.isActive),createdAt:utcDate(row.createdAt)}));
 }
 export async function petCatalog() {
   const [species]=await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM species ORDER BY name');
@@ -60,22 +76,26 @@ export async function savePet(owner:string,input:PetInput,id?:string,preservePho
 export async function deactivatePet(owner:string,id:string) {
   await transaction(async c=>{
     const [rows]=await c.execute<RowDataPacket[]>('SELECT id,name FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
-    const [upcoming]=await c.execute<RowDataPacket[]>(`SELECT a.id FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id
-      WHERE a.pet_id=? AND a.status IN ('REQUESTED','CONFIRMED') AND s.starts_at>UTC_TIMESTAMP() LIMIT 1`,[id]);
-    if(upcoming.length)throw new AppError('PET_HAS_APPOINTMENTS',409,'La mascota tiene turnos pendientes.');
-    await c.execute('UPDATE pets SET is_active=0 WHERE id=? AND owner_id=?',[id,owner]);
+    const [upcoming]=await c.execute<RowDataPacket[]>(`SELECT a.status FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id
+      WHERE a.pet_id=? AND a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP() LIMIT 1`,[id]);
+    assertNoFuturePatientAppointments(upcoming.map(appointment=>appointment.status));
+    await c.execute('UPDATE pets SET is_active=0 WHERE id=? AND owner_id=? AND is_active=1',[id,owner]);
+    const event=await clinic.appendPetLifecycleHistory(c,id,true,false,owner,'CLIENT','Desactivada a solicitud de su propietario.');
     const [linked]=await c.execute<RowDataPacket[]>(`SELECT DISTINCT related.user_id AS userId FROM (
       SELECT vt.user_id FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=?
       UNION SELECT slot.professional_user_id AS user_id FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id WHERE a.pet_id=?
     ) related JOIN users u ON u.id=related.user_id WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL`,[id,id]);
-    for(const professional of linked)await clinic.notify(c,professional.userId,'Mascota desactivada',`${String(rows[0].name)} fue desactivada por su responsable. Sus datos e historial clínico se conservan.`,'PET_DEACTIVATED','pet',id,`pet:${id}:deactivated`);
+    for(const professional of linked)await clinic.notify(c,professional.userId,'Mascota desactivada',`${String(rows[0].name)} fue desactivada por su responsable. Sus datos e historial clínico se conservan.`,'PET_DEACTIVATED','pet',id,`pet:${id}:lifecycle:${event.id}`);
   });return {deactivated:true};
 }
 export async function reactivatePet(owner:string,id:string) {
   await transaction(async c=>{
     const [rows]=await c.execute<RowDataPacket[]>('SELECT id,is_active AS isActive FROM pets WHERE id=? AND owner_id=? FOR UPDATE',[id,owner]);
     if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
-    if(!Boolean(rows[0].isActive))await c.execute('UPDATE pets SET is_active=1 WHERE id=? AND owner_id=?',[id,owner]);
+    if(!requirePetActiveFlag(rows[0].isActive)){
+      await c.execute('UPDATE pets SET is_active=1 WHERE id=? AND owner_id=? AND is_active=0',[id,owner]);
+      await clinic.appendPetLifecycleHistory(c,id,false,true,owner,'CLIENT','Reactivada a solicitud de su propietario.');
+    }
   });
   return {reactivated:true};
 }

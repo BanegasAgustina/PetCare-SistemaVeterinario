@@ -22,6 +22,7 @@ import { ProfilePhotoInput, type PickedProfilePhoto } from '../forms/ProfilePhot
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { responsiveLayout } from '../../constants/responsive';
+import { AdminFormActions,AdminFormField,AdminFormGrid,AdminFormSection } from '../admin/AdminFormLayout';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 type ProfileSection = 'all' | 'personal' | 'security' | 'theme';
@@ -190,14 +191,16 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     {showPersonal && <PetCareSection title="Datos personales">
       {isVet && <VetPhotoCard user={user} photo={photo} removePhoto={removePhoto} action={photoAction} onSelect={value => { setPhoto(value); setRemovePhoto(false); }} onRemove={() => { setPhoto(null); setRemovePhoto(true); }} onSave={() => void savePhoto()}/>}
       <PetCareCard>
-        <AppInput ref={input => { profileInputs.current.firstName = input; }} label="Nombre" required value={values.firstName} error={errors.firstName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={firstName => { setValues(current => ({ ...current, firstName })); setErrors(current => ({ ...current, firstName: undefined })); }}/>
-        <AppInput ref={input => { profileInputs.current.lastName = input; }} label="Apellido" required value={values.lastName} error={errors.lastName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={lastName => { setValues(current => ({ ...current, lastName })); setErrors(current => ({ ...current, lastName: undefined })); }}/>
-        <AppInput ref={input => { profileInputs.current.phone = input; }} label="Teléfono" value={values.phone} error={errors.phone} editable={canEditProfile && !profileAction.loading} keyboardType="phone-pad" maxLength={40} onChangeText={phone => { setValues(current => ({ ...current, phone })); setErrors(current => ({ ...current, phone: undefined })); }}/>
-        <AppInput label="Correo electrónico" value={user.email} editable={false} autoCapitalize="none" keyboardType="email-address"/>
-        <AppText variant="caption" muted>El correo electrónico identifica tu cuenta y no puede modificarse desde el perfil.</AppText>
-        {!canEditProfile && <AppText muted>No tenés permiso para editar los datos de tu perfil.</AppText>}
-        <FormNotice error message={profileAction.error}/>
-        {canEditProfile && <AppButton label="Guardar datos" loading={profileAction.loading} disabled={profileAction.loading} onPress={() => void saveProfile()}/>}
+        <AdminFormGrid columns={2}>
+          <AdminFormField><AppInput ref={input => { profileInputs.current.firstName = input; }} label="Nombre" required value={values.firstName} error={errors.firstName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={firstName => { setValues(current => ({ ...current, firstName })); setErrors(current => ({ ...current, firstName: undefined })); }}/></AdminFormField>
+          <AdminFormField><AppInput ref={input => { profileInputs.current.lastName = input; }} label="Apellido" required value={values.lastName} error={errors.lastName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={lastName => { setValues(current => ({ ...current, lastName })); setErrors(current => ({ ...current, lastName: undefined })); }}/></AdminFormField>
+          <AdminFormField><AppInput ref={input => { profileInputs.current.phone = input; }} label="Teléfono" value={values.phone} error={errors.phone} editable={canEditProfile && !profileAction.loading} keyboardType="phone-pad" maxLength={40} onChangeText={phone => { setValues(current => ({ ...current, phone })); setErrors(current => ({ ...current, phone: undefined })); }}/></AdminFormField>
+          <AdminFormField><AppInput label="Correo electrónico" value={user.email} editable={false} autoCapitalize="none" keyboardType="email-address"/></AdminFormField>
+          <AdminFormField fullWidth><AppText variant="caption" muted>El correo electrónico identifica tu cuenta y no puede modificarse desde el perfil.</AppText></AdminFormField>
+          {!canEditProfile && <AdminFormField fullWidth><AppText muted>No tenés permiso para editar los datos de tu perfil.</AppText></AdminFormField>}
+          <AdminFormField fullWidth><FormNotice error message={profileAction.error}/></AdminFormField>
+        </AdminFormGrid>
+        {canEditProfile && <AdminFormActions><AppButton label="Guardar datos" loading={profileAction.loading} disabled={profileAction.loading} onPress={() => void saveProfile()}/></AdminFormActions>}
       </PetCareCard>
     </PetCareSection>}
 
@@ -205,14 +208,15 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
 
     {showSecurity && <PetCareSection title="Seguridad">
       <PetCareCard>
-        <AppText muted>Al cambiar la contraseña se cerrarán tus sesiones activas.</AppText>
-        <AppInput ref={input => { passwordInputs.current.currentPassword = input; }} label="Contraseña actual" required password autoComplete="current-password" value={password.currentPassword} error={passwordErrors.currentPassword} editable={canEditPassword && !passwordAction.loading} onChangeText={currentPassword => { setPassword(current => ({ ...current, currentPassword })); setPasswordErrors(current => ({ ...current, currentPassword: undefined })); }}/>
-        <AppInput ref={input => { passwordInputs.current.password = input; }} label="Nueva contraseña" required password autoComplete="new-password" value={password.password} error={passwordErrors.password} editable={canEditPassword && !passwordAction.loading} onChangeText={next => { setPassword(current => ({ ...current, password: next })); setPasswordErrors(current => ({ ...current, password: undefined })); }}/>
-        <AppText variant="caption" muted>Al menos 8 caracteres, mayúscula, minúscula, número y símbolo.</AppText>
-        <AppInput ref={input => { passwordInputs.current.confirmPassword = input; }} label="Repetir nueva contraseña" required password autoComplete="new-password" value={password.confirmPassword} error={passwordErrors.confirmPassword} editable={canEditPassword && !passwordAction.loading} onChangeText={confirmPassword => { setPassword(current => ({ ...current, confirmPassword })); setPasswordErrors(current => ({ ...current, confirmPassword: undefined })); }}/>
-        {!canEditPassword && <AppText muted>No tenés permiso para cambiar la contraseña desde el perfil.</AppText>}
-        <FormNotice error message={passwordAction.error}/>
-        {canEditPassword && <AppButton label="Cambiar contraseña" loading={passwordAction.loading} disabled={passwordAction.loading} onPress={() => void changePassword()}/>}
+        <AdminFormSection title="Actualizar contraseña" columns={2}>
+          <AdminFormField><AppInput ref={input => { passwordInputs.current.currentPassword = input; }} label="Contraseña actual" required password autoComplete="current-password" value={password.currentPassword} error={passwordErrors.currentPassword} editable={canEditPassword && !passwordAction.loading} onChangeText={currentPassword => { setPassword(current => ({ ...current, currentPassword })); setPasswordErrors(current => ({ ...current, currentPassword: undefined })); }}/></AdminFormField>
+          <AdminFormField><AppInput ref={input => { passwordInputs.current.password = input; }} label="Nueva contraseña" required password autoComplete="new-password" value={password.password} error={passwordErrors.password} editable={canEditPassword && !passwordAction.loading} onChangeText={next => { setPassword(current => ({ ...current, password: next })); setPasswordErrors(current => ({ ...current, password: undefined })); }}/></AdminFormField>
+          <AdminFormField fullWidth><AppText variant="caption" muted>Al menos 8 caracteres, mayúscula, minúscula, número y símbolo. Al cambiarla se cerrarán tus sesiones activas.</AppText></AdminFormField>
+          <AdminFormField><AppInput ref={input => { passwordInputs.current.confirmPassword = input; }} label="Repetir nueva contraseña" required password autoComplete="new-password" value={password.confirmPassword} error={passwordErrors.confirmPassword} editable={canEditPassword && !passwordAction.loading} onChangeText={confirmPassword => { setPassword(current => ({ ...current, confirmPassword })); setPasswordErrors(current => ({ ...current, confirmPassword: undefined })); }}/></AdminFormField>
+          {!canEditPassword && <AdminFormField fullWidth><AppText muted>No tenés permiso para cambiar la contraseña desde el perfil.</AppText></AdminFormField>}
+          <AdminFormField fullWidth><FormNotice error message={passwordAction.error}/></AdminFormField>
+        </AdminFormSection>
+        {canEditPassword && <AdminFormActions><AppButton label="Cambiar contraseña" loading={passwordAction.loading} disabled={passwordAction.loading} onPress={() => void changePassword()}/></AdminFormActions>}
       </PetCareCard>
     </PetCareSection>}
 

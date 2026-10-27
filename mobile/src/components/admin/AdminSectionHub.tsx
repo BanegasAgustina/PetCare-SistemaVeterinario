@@ -35,7 +35,6 @@ const sections: Record<AdminSection, { title: string; subtitle: string; cards: C
     { title: 'Promociones', description: 'Descuentos, vigencia y productos alcanzados.', path: '/admin/catalog/promotions', icon: 'pricetag-outline', permissions: ['promotions.manage'] },
     { title: 'Envíos y entregas', description: 'Modalidades de retiro y envío configuradas para el checkout.', path: '/admin/store-settings', icon: 'bicycle-outline', permissions: ['store.settings.view', 'store.settings.manage'] },
     { title: 'Pedidos', description: 'Pagos, comprobantes, preparación, retiro y entrega.', path: '/admin/store-orders', icon: 'receipt-outline', permissions: ['orders.view_all'] },
-    { title: 'Reservas', description: 'Consultá las reservas de productos habilitadas para tu rol.', path: '/admin/reservations', icon: 'bag-handle-outline', permissions: ['reservations.view_all'] },
     { title: 'Banners y slider', description: 'Imágenes, vigencia, orden y vista previa de la tienda.', path: '/admin/store-banners', icon: 'images-outline', permissions: ['store.banners.manage'] },
   ] },
   administration: { title: 'Administración', subtitle: 'Personas, perfiles de acceso y permisos', cards: [
@@ -87,4 +86,4 @@ export function AdminSectionHub({ section }: { section: AdminSection }) {
   </PetCareScreen>;
 }
 
-const styles = StyleSheet.create({ activity: { gap: 12 }, indicatorGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, indicator: { flexGrow: 1, flexBasis: 180, minWidth: 0, minHeight: 128, padding: 16, borderWidth: 1, borderRadius: 18, gap: 5 }, value: { fontSize: 25, lineHeight: 30 }, grid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, card: { flexGrow: 1, flexBasis: 280, minHeight: 122, padding: 16, borderWidth: 1, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 13 }, icon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, copy: { flex: 1, minWidth: 0, gap: 5 } });
+const styles = StyleSheet.create({ activity: { gap: 12 }, indicatorGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, indicator: { flexGrow: 1, flexBasis: 180, maxWidth: 400, minWidth: 0, minHeight: 128, padding: 16, borderWidth: 1, borderRadius: 18, gap: 5 }, value: { fontSize: 25, lineHeight: 30 }, grid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, card: { flexGrow: 1, flexBasis: 280, maxWidth: 480, minHeight: 122, padding: 16, borderWidth: 1, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 13 }, icon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, copy: { flex: 1, minWidth: 0, gap: 5 } });

@@ -7,7 +7,7 @@ const primaryRoutesByRole: Record<string, Set<string>> = {
   CLIENT: new Set(['/client', '/client/pets', '/client/appointments', '/client/store', '/client/profile']),
   VETERINARIAN: new Set(['/vet', '/vet/agenda', '/vet/patients', '/vet/clients', '/vet/products']),
   GROOMER: new Set(['/professional', '/professional/agenda', '/professional/patients', '/professional/services']),
-  SECRETARY: new Set(['/secretary', '/secretary/agenda', '/secretary/patients', '/secretary/reservations', '/secretary/products', '/secretary/clients', '/account']),
+  SECRETARY: new Set(['/secretary', '/secretary/agenda', '/secretary/patients', '/secretary/products', '/secretary/clients', '/account']),
   ADMIN: new Set(['/admin', '/admin/clinic', '/admin/store', '/admin/administration']),
   SUPER_ADMIN: new Set(['/admin', '/admin/clinic', '/admin/store', '/admin/administration']),
 };

@@ -5,6 +5,7 @@ export const responsiveLayout = {
     tablet: 768,
     authDesktop: 1024,
     desktop: 1024,
+    desktopTable: 1200,
     largeDesktop: 1440,
   },
   sidebar: {
@@ -26,6 +27,20 @@ export const responsiveLayout = {
     maxColumns: 4,
     gap: 16,
   },
+  table: {
+    compactBefore: 1440,
+    comfortableCellPadding: 12,
+    compactCellPadding: 8,
+  },
+  store: {
+    productMinItemWidth: 220,
+    productMaxColumns: 5,
+    productImageMaxHeight: 190,
+    promotionMaxWidth: 760,
+    mobileBannerHeight: 168,
+    tabletBannerHeight: 206,
+    desktopBannerHeight: 244,
+  },
   form: {
     minFieldWidth: 280,
     gap: 12,
@@ -34,6 +49,13 @@ export const responsiveLayout = {
 
 export function isWebAtLeast(platform: string, width: number, breakpoint: number) {
   return platform === 'web' && width >= breakpoint;
+}
+
+export function patientDetailPresentation(platform: string, width: number) {
+  return {
+    twoColumns: isWebAtLeast(platform, width, responsiveLayout.breakpoints.desktop),
+    clinicalTables: isWebAtLeast(platform, width, responsiveLayout.breakpoints.desktopTable),
+  };
 }
 
 export function desktopSidebarWidth(viewportWidth: number) {

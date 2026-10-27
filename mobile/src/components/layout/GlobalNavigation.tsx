@@ -17,6 +17,7 @@ import { RoleBottomNavigation } from './RoleBottomNavigation';
 import { BackButton } from './BackButton';
 import { useBackNavigation } from '../../hooks/useBackNavigation';
 import { RoleQuickAccessProvider } from './RoleNavigationContext';
+import { AppBreadcrumbs } from './AppBreadcrumbs';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { activePrimaryNavigationPath, selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
@@ -33,13 +34,13 @@ const adminGroups = ['Inicio', 'Clínica', 'Tienda', 'Administración'] as const
 function adminGroup(path: string): typeof adminGroups[number] {
   if (path === '/admin') return 'Inicio';
   if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
-  if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners','/admin/reservations'].includes(path)) return 'Tienda';
+  if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners'].includes(path)) return 'Tienda';
   return 'Administración';
 }
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
     '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
-    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/products':'Inventario y stock','/admin/reservations':'Reservas',
+    '/admin/catalog/services':'Servicios','/admin/availability':'Horarios','/admin/products':'Inventario y stock',
     '/admin/catalog/products':'Productos','/admin/catalog/categories':'Categorías','/admin/catalog/promotions':'Promociones y descuentos','/admin/store-banners':'Banners y slider','/admin/store-settings':'Envíos y entregas','/admin/store-orders':'Pedidos','/admin/specialties':'Tipos y especialidades','/admin/users':'Usuarios','/admin/roles':'Roles','/admin/permissions':'Permisos',
   };
   return labels[module.path] ?? module.name;
@@ -59,8 +60,6 @@ const clientItems: MenuItem[] = [
 const staffItems: MenuItem[] = [
   { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
   { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
-  { label: 'Pacientes', path: 'patients', icon: 'paw-outline', permission: 'pets.view_information' },
-  { label: 'Reservas', path: 'reservations', icon: 'bag-handle-outline', permission: 'reservations.view_all', group: 'Tienda' },
   // Permite a secretaría consultar el catálogo cuando MySQL le concede products.view.
   { label: 'Productos', path: 'products', icon: 'pricetags-outline', permission: 'products.view', group: 'Tienda' },
   { label: 'Clientes', path: 'clients', icon: 'people-outline', permission: 'users.view_basic' },
@@ -85,7 +84,7 @@ const groomerItems: MenuItem[] = [
 function iconFor(code: string): IconName {
   if (code.includes('pet')) return 'paw-outline';
   if (code.includes('appointment') || code.includes('schedule')) return 'calendar-outline';
-  if (code.includes('reservation') || code.includes('store') || code.includes('order')) return 'bag-handle-outline';
+  if (code.includes('store') || code.includes('order')) return 'bag-handle-outline';
   if (code.includes('profile')) return 'person-outline';
   if (code.includes('professional') || code.includes('veterinarian')) return 'medkit-outline';
   if (code.includes('user')) return 'people-outline';
@@ -107,7 +106,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const { width } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(width);
   const pathname = usePathname();
-  const { goBack, shouldShowBack } = useBackNavigation();
+  const { shouldShowBack } = useBackNavigation();
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','SECRETARY','ADMIN','SUPER_ADMIN'].includes(user.role));
@@ -177,10 +176,9 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const navigate = (path: string) => router.navigate(path as never);
 
   if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View style={[styles.root, { backgroundColor: colors.background }]}>
-    {shouldShowBack&&<AdminPageBar colors={colors} title={desktopSelected?.label??(pathname==="/account"?"Mi cuenta":"Administración")} onBack={goBack}/>}
     <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
       <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-      <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+      <RoleQuickAccessProvider items={quickAccessItems}><DesktopPageContent role={user.role} destinations={[...desktopItems,...primaryItems]}>{children}</DesktopPageContent></RoleQuickAccessProvider>
     </View>
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
@@ -189,7 +187,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
     </SafeAreaView>}
-    {!desktop&&shouldShowBack&&<View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
+    {!desktop&&shouldShowBack&&!['/admin/agenda','/admin/appointment'].includes(pathname)&&<View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
       <BackButton/>
       <View style={styles.adminPageHeading}>
         <AppText numberOfLines={1} style={styles.adminPageTitle}>{selected?.label??'Administración'}</AppText>
@@ -203,7 +201,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   if (isVeterinarian && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
     <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
       <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-      <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+      <RoleQuickAccessProvider items={quickAccessItems}><DesktopPageContent role={user.role} destinations={[...desktopItems,...primaryItems]}>{children}</DesktopPageContent></RoleQuickAccessProvider>
     </View>
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
@@ -229,7 +227,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
     </SafeAreaView>}
     {desktop ? <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot,{backgroundColor:colors.background}]}>
       <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-      <View style={styles.desktopPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
+       <RoleQuickAccessProvider items={quickAccessItems}><DesktopPageContent role={user?.role??''} destinations={[...desktopItems,...primaryItems]}>{children}</DesktopPageContent></RoleQuickAccessProvider>
     </View> : <View style={styles.body}>
       <View style={styles.page}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
     </View>}
@@ -237,8 +235,11 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 
-function AdminPageBar({colors,title,onBack}:{colors:ReturnType<typeof useTheme>["colors"];title:string;onBack:()=>void}) {
-  return <View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}><BackButton onPress={onBack}/><View style={styles.adminPageHeading}><AppText numberOfLines={1} style={styles.adminPageTitle}>{title}</AppText><AppText numberOfLines={1} variant="caption" muted>PetCare · Gestión de la clínica</AppText></View></View>;
+function DesktopPageContent({children,role,destinations}:PropsWithChildren<{role:string;destinations:MenuItem[]}>) {
+  return <View style={styles.desktopPage}>
+    <AppBreadcrumbs role={role} destinations={destinations}/>
+    <View style={styles.desktopContent}>{children}</View>
+  </View>;
 }
 
 function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePath:string|null;onNavigate:(path:string)=>void}) {
@@ -270,7 +271,7 @@ function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePa
 }
 
 const styles = StyleSheet.create({
-  desktopRoot:{flex:1,minHeight:0,flexDirection:'row'},desktopPage:{flex:1,minWidth:0,minHeight:0},desktopSidebar:{flexShrink:0,minHeight:0,paddingHorizontal:16,paddingVertical:18,borderRightWidth:1},desktopBrand:{minHeight:54,justifyContent:'center',paddingHorizontal:2},desktopLogo:{width:132,height:36,alignSelf:'flex-start'},desktopMenu:{flex:1,minHeight:0},desktopMenuContent:{flexGrow:1,gap:5,paddingBottom:12},desktopNavItem:{minHeight:46,paddingHorizontal:11,borderRadius:13,borderLeftWidth:3,flexDirection:'row',alignItems:'center',gap:11},desktopAccount:{gap:9,paddingTop:14,marginTop:'auto',borderTopWidth:1},desktopIdentity:{minHeight:42,flexDirection:'row',alignItems:'center',gap:10},desktopAvatar:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},desktopUserCopy:{flex:1,minWidth:0,gap:2},desktopUserName:{fontWeight:'700'},desktopAction:{minHeight:38,paddingHorizontal:4,flexDirection:'row',alignItems:'center',gap:10},
+  desktopRoot:{flex:1,minHeight:0,flexDirection:'row'},desktopPage:{flex:1,minWidth:0,minHeight:0},desktopContent:{flex:1,minWidth:0,minHeight:0},desktopSidebar:{flexShrink:0,minHeight:0,paddingHorizontal:16,paddingVertical:18,borderRightWidth:1},desktopBrand:{minHeight:54,justifyContent:'center',paddingHorizontal:2},desktopLogo:{width:132,height:36,alignSelf:'flex-start'},desktopMenu:{flex:1,minHeight:0},desktopMenuContent:{flexGrow:1,gap:5,paddingBottom:12},desktopNavItem:{minHeight:46,paddingHorizontal:11,borderRadius:13,borderLeftWidth:3,flexDirection:'row',alignItems:'center',gap:11},desktopAccount:{gap:9,paddingTop:14,marginTop:'auto',borderTopWidth:1},desktopIdentity:{minHeight:42,flexDirection:'row',alignItems:'center',gap:10},desktopAvatar:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},desktopUserCopy:{flex:1,minWidth:0,gap:2},desktopUserName:{fontWeight:'700'},desktopAction:{minHeight:38,paddingHorizontal:4,flexDirection:'row',alignItems:'center',gap:10},
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   veterinarianTopBar:{minHeight:64,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'},veterinarianTopLogo:{position:'absolute',left:'50%',marginLeft:-58,width:116,height:34},
   adminTopBar:{minHeight:60,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},adminTopLogo:{width:116,height:34},adminPage:{flex:1,minHeight:0},

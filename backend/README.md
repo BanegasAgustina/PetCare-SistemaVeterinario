@@ -40,18 +40,22 @@ Prefijo global `/api`; módulos en `src/routes/`. Las lecturas internas usan POS
 
 SMTP requiere `SMTP_*`, `MAIL_FROM` y secretos de códigos; el cron requiere `CRON_SECRET` y Vercel Cron. Las notificaciones internas y los recordatorios de turnos se guardan en el centro de notificaciones; el cron procesa recordatorios y correos. Imágenes usan configuración privada Cloudinary o S3 compatible. `STORE_DEMO_MODE` está desactivado por defecto y habilita únicamente checkout de demostración no cobrable. Transferencias y revisión de comprobantes son flujos separados sujetos a configuración, esquema y decisión administrativa; no afirme que una captura de comprobante constituye pago.
 
+La gestión comercial usa Tienda, `/api/client/orders` y `/api/clinic/store-orders`. Las rutas comerciales antiguas de Reservas ya no se montan. `client_orders` e historiales son compartidos con datos históricos: no borrar filas ni ejecutar limpieza de stock sin auditar el entorno. Véase [plan de retiro y preflight](../docs/RETIRO_RESERVAS_PRODUCTOS.md). Los turnos veterinarios y de peluquería siguen en `/api/client/appointments` y `/api/clinic/appointments`.
+
 ## Comandos disponibles
 
 | Comando | Función |
 |---|---|
 | `npm run dev` | Desarrollo con recarga. |
 | `npm run build` / `npm start` | Compilar y servir `dist/server.js`. |
-| `npm run typecheck`, `npm run lint`, `npm test` | Tipos, ESLint y 21 pruebas unitarias/servicios sin DB. |
+| `npm run typecheck`, `npm run lint`, `npm test` | Tipos, ESLint y 35 pruebas unitarias/servicios sin DB. |
 | `npm run test:http` | 4 pruebas de Express por loopback; requiere permiso de loopback en sandboxes restrictivos. La prueba fija DB a `127.0.0.1:1` y no usa Layerbase. |
 | `npm run oauth:callbacks` | Imprime callbacks configurados. |
 | `npm run db:check`, `npm run db:audit:readonly` | Verificaciones no mutantes. |
 | `npm run db:migrate`, `npm run db:bootstrap`, `npm run db:seed` | Operaciones potencialmente mutantes; revisar antes de usar. |
 | `npm run db:migrate:availability-archive` | Agrega el indicador para ocultar horarios desactivados conservando sus filas. |
+| `npm run db:migrate:product-origin` | Revisa metadatos de productos; ya no crea permisos del módulo comercial retirado. |
+| `npm run db:migrate:order-history-reason` | Ajuste aditivo del historial compartido de pedidos/pagos; no borra datos. |
 
 El resto de comandos está listado en `package.json`. `test:db` y `test:clinic:db` requieren entorno DB preparado.
 

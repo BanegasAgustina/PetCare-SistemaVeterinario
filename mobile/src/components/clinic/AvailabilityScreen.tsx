@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { View } from 'react-native';
+import { Platform, View, useWindowDimensions } from 'react-native';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
@@ -10,9 +10,13 @@ import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
 import { SearchFilterBar } from '../ui/SearchFilterBar';
 import { ServiceScheduleModal } from './CatalogScreen';
+import { AdminDataTable } from '../admin/AdminDataTable';
+import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 /** Punto único para publicar y revisar horarios de todos los servicios activos. */
 export function AvailabilityScreen() {
+  const {width}=useWindowDimensions();
+  const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const { professionalId } = useLocalSearchParams<{ professionalId?: string }>();
   const api = useClinic();
   const { hasPermission } = useAuth();
@@ -26,13 +30,20 @@ export function AvailabilityScreen() {
   return <PetCareScreen wide>
     <PetCareHeader title="Horarios de servicios" subtitle="Publicá los turnos disponibles de cada servicio" back hideForAdmin />
     <AppText muted>Elegí un servicio para indicar quién lo brinda, los días de atención y el período en que ofrecerá turnos.</AppText>
-    <PetCareCard>
+    {!desktop&&<PetCareCard>
       <AppText variant="subtitle">Para comprobar los turnos publicados</AppText>
       <AppText muted>Abrí el servicio, elegí al profesional y consultá el calendario de días con turnos. Al tocar una fecha, podés revisar sus horarios y desactivar uno o todos los turnos de ese día. Los horarios libres se ofrecen a clientes en “Solicitar turno”; en Agenda aparecen cuando ya tienen una reserva.</AppText>
-    </PetCareCard>
+    </PetCareCard>}
     <SearchFilterBar><AppInput icon="search-outline" label="Buscar servicio" placeholder="Nombre del servicio" value={search} onChangeText={setSearch} /></SearchFilterBar>
     <QueryState {...catalog} />
-    {catalog.data && services.length > 0 && <View style={{ gap: 10 }}>
+    {catalog.data && desktop && services.length > 0 && <AdminDataTable rows={services} rowKey={service=>service.id} columns={[
+      {key:'service',label:'Servicio',flex:1.6,minWidth:150,render:service=><AppText variant="subtitle" numberOfLines={1}>{String(service.name)}</AppText>},
+      {key:'type',label:'Tipo',flex:.9,minWidth:85,render:service=><AppText muted numberOfLines={1}>{String(catalog.data?.types.find(item=>item.id===service.typeId)?.name??'Servicio')}</AppText>},
+      {key:'duration',label:'Duración',flex:.7,minWidth:72,render:service=><AppText numberOfLines={1}>{String(service.durationMinutes)} min</AppText>},
+      {key:'assigned',label:'Profesionales',flex:.75,minWidth:90,render:service=><AppText>{String(catalog.data?.assignments.filter(link=>link.serviceId===service.id&&catalog.data?.professionals.some(person=>person.id===link.professionalId&&Boolean(person.isActive))).length??0)}</AppText>},
+      {key:'action',label:'Acción',flex:1,minWidth:150,align:'right',render:service=><AppButton compact label="Publicar horarios" onPress={()=>setSelected({id:service.id,name:String(service.name),duration:Number(service.durationMinutes)||0})}/>},
+    ]}/>}
+    {catalog.data && !desktop && services.length > 0 && <View style={{ gap: 10 }}>
       {services.map(service => {
         const type = catalog.data?.types.find(item => item.id === service.typeId)?.name;
         const assignments = catalog.data?.assignments.filter(link => link.serviceId === service.id) ?? [];

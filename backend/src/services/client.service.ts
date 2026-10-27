@@ -35,7 +35,7 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'create-pet':
       case 'update-pet': {
         const petId=operation==='update-pet'?clientId(id):undefined;
-        if(petId)await repository.pet(owner,petId);
+        if(petId){const current=await repository.pet(owner,petId);if(current.isActive===false)throw new AppError('INVALID_TRANSITION',409,'Reactivá la mascota antes de editar sus datos.');}
         const input=petInput(body);
         const values=body as Record<string,unknown>;
         const photo=values.photoBase64===undefined?undefined:await storePetPhoto(owner,values.photoBase64);

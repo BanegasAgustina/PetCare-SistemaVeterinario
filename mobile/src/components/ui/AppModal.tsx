@@ -17,7 +17,7 @@ export function AppModal({ visible, dismissible = false, onClose, size = 'defaul
       <Pressable style={StyleSheet.absoluteFill} onPress={close} disabled={!dismissible} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <View role="dialog" accessibilityViewIsModal style={[styles.card, size === 'wide' && styles.wideCard, desktop && styles.desktopCard, desktop && size === 'wide' && styles.desktopWideCard, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-modal':undefined} style={footer ? styles.scrollContent : undefined} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-modal':undefined} style={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
             {children}
           </ScrollView>
           {footer && <View style={[styles.footer, { borderTopColor: colors.border }]}>{footer}</View>}
@@ -28,10 +28,10 @@ export function AppModal({ visible, dismissible = false, onClose, size = 'defaul
 }
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }, keyboard: { pointerEvents: 'box-none', flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { width: '92%', maxWidth: 440, maxHeight: '88%', borderRadius: 24, borderWidth: 1, elevation: 4 },
+  card: { width: '92%', maxWidth: 440, maxHeight: '90%', minHeight: 0, borderRadius: 20, borderWidth: 1, elevation: 4, overflow: 'hidden' },
   wideCard: { maxWidth: 760 },
   desktopCard: { maxWidth: 600 },
   desktopWideCard: { maxWidth: 1000 },
-  content: { padding: 20, gap: 14 }, scrollContent: { flexShrink: 1 },
+  content: { padding: 20, gap: 14 }, scrollContent: { flexShrink: 1, minHeight: 0 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, padding: 14, gap: 9 },
 });

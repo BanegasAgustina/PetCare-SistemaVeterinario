@@ -13,8 +13,7 @@ import { ProductDetailModal, PromotionCarousel, StoreBannerCarousel, StoreProduc
 import { AppInput } from '../../../../components/forms/AppInput';
 import { AppText } from '../../../../components/ui/AppText';
 import { SelectionRow } from '../../../../components/ui/SelectionRow';
-import { FilterDisclosure } from '../../../../components/ui/FilterDisclosure';
-import { SearchFilterBar } from '../../../../components/ui/SearchFilterBar';
+import { AdminListToolbar } from '../../../../components/admin/AdminListToolbar';
 import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../../../constants/responsive';
@@ -179,15 +178,12 @@ export default function StoreScreen() {
     {!!promotions.data?.length && <PromotionCarousel products={promotions.data} onOpen={openProduct} />}
 
     <View style={styles.storeControls}>
-      <SearchFilterBar>
-        <View style={styles.searchRow}>
+      <AdminListToolbar
+        search={<View style={styles.searchRow}>
           <View style={styles.searchField}><AppInput icon="search-outline" label="Buscar productos" placeholder="Buscar productos..." value={search} maxLength={200} returnKeyType="search" onChangeText={setSearch} /></View>
           {Boolean(search) && <Pressable accessibilityRole="button" accessibilityLabel="Limpiar búsqueda" onPress={() => setSearch('')} style={[styles.clearSearch, { backgroundColor: colors.accent }]}><Ionicons name="close" size={20} color={colors.text} /></Pressable>}
-        </View>
-      </SearchFilterBar>
-
-      <SearchFilterBar>
-        <FilterDisclosure fullWidth activeCount={activeFilterCount} onApply={applyFilters} onClear={clearFilters}>
+        </View>}
+        filters={<>
           <AppText variant="subtitle">Categoría</AppText>
           <SelectionRow radio label="Todas las categorías" checked={!draftCategory} onPress={() => setDraftCategory('')} />
           {categoryChips.map(item => <SelectionRow radio key={item.id} label={item.name} checked={draftCategory === item.id} onPress={() => setDraftCategory(item.id)} />)}
@@ -206,8 +202,13 @@ export default function StoreScreen() {
           </View>
           <SelectionRow checked={draftAvailableOnly} label="Solo productos disponibles" onPress={() => setDraftAvailableOnly(value => !value)} />
           <SelectionRow checked={draftPromotionOnly} label="Solo productos en promoción" onPress={() => setDraftPromotionOnly(value => !value)} />
-        </FilterDisclosure>
-      </SearchFilterBar>
+        </>}
+        filterCount={activeFilterCount}
+        onFilterOpen={() => { setDraftCategory(category); setDraftType(productType); setDraftSort(sort); setDraftMinPrice(minPrice); setDraftMaxPrice(maxPrice); setDraftAvailableOnly(availableOnly); setDraftPromotionOnly(promotionOnly); }}
+        onFilterCancel={() => { setDraftCategory(category); setDraftType(productType); setDraftSort(sort); setDraftMinPrice(minPrice); setDraftMaxPrice(maxPrice); setDraftAvailableOnly(availableOnly); setDraftPromotionOnly(promotionOnly); }}
+        onApply={() => { applyFilters(); }}
+        onClear={clearFilters}
+      />
       <FormNotice error message={filterError} />
 
       {catalog.data && <View style={styles.categorySection}>
@@ -224,7 +225,7 @@ export default function StoreScreen() {
     <QueryState {...cart} />
     <QueryState {...query} />
     {query.data && <AppText variant="subtitle">Productos disponibles</AppText>}
-    {query.data && (products.length ? adaptiveGrid ? <ResponsiveGrid>{products.map(product=><StoreProductCard key={product.id} product={product} adding={savingProduct===product.id} cartReady={Boolean(currentCart)&&!savingProduct} onOpen={()=>openProduct(product)} onAdd={()=>void addToCart(product,1)}/>)}</ResponsiveGrid> : <View style={styles.productGrid}>
+    {query.data && (products.length ? adaptiveGrid ? <ResponsiveGrid minItemWidth={responsiveLayout.store.productMinItemWidth} maxColumns={responsiveLayout.store.productMaxColumns}>{products.map(product=><StoreProductCard key={product.id} product={product} adding={savingProduct===product.id} cartReady={Boolean(currentCart)&&!savingProduct} onOpen={()=>openProduct(product)} onAdd={()=>void addToCart(product,1)}/>)}</ResponsiveGrid> : <View style={styles.productGrid}>
       {productRows.map((row, index) => <View key={`product-row-${index}`} style={styles.productRow}>
         {row.map(product => <View key={product.id} style={styles.productCell}><StoreProductCard product={product} adding={savingProduct === product.id} cartReady={Boolean(currentCart)&&!savingProduct} onOpen={() => openProduct(product)} onAdd={() => void addToCart(product, 1)} /></View>)}
         {row.length < columns && <View style={styles.productCell} />}

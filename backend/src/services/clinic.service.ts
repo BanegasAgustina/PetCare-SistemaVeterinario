@@ -2,7 +2,6 @@
 import type { AuthUser } from '../types/auth';
 import * as client from '../repositories/client.repository';
 import * as clinic from '../repositories/clinic.repository';
-import * as reservations from '../repositories/reservation.repository';
 import * as admin from '../repositories/clinic-admin.repository';
 import * as storefront from '../repositories/storefront.repository';
 import * as storeOrders from '../repositories/store-orders.repository';
@@ -24,17 +23,14 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'grooming-record-save':return clinic.saveGroomingRecord(actor,v.id(id),value);
  case 'patient':return clinic.patient(actor,v.id(id));
  case 'patient-update':return clinic.updatePatient(actor,v.id(id),value);
- case 'patient-deactivate':return clinic.deactivatePatient(actor,v.id(id));
- case 'patients':return clinic.patients(actor,v.text(query.search,100,true)??'',v.text(query.sort,20,true)??'recent',v.text(query.speciesId,20,true)??undefined);
+ case 'patient-deactivate':{const values=v.body(value,['reason']);return clinic.deactivatePatient(actor,v.id(id),values.reason);}
+ case 'patient-reactivate':v.body(value,[]);return clinic.reactivatePatient(actor,v.id(id));
+ case 'patients':return clinic.patients(actor,v.text(query.search,100,true)??'',v.text(query.sort,20,true)??'recent',v.text(query.speciesId,20,true)??undefined,v.text(query.status,20,true)??'active');
  case 'clinical':return clinic.clinical(actor,v.id(id),kind!);
  case 'clinical-page':return clinic.clinical(actor,v.id(id),kind!,v.queryPage(query));
  case 'clinical-create':return clinic.saveClinical(actor,v.id(id),kind!,value);
  case 'clients':return clinic.clients(actor,v.text(query.search,100,true)??'');
  case 'client':return clinic.clientDetails(actor,v.id(id));
- case 'reservations':return reservations.list(actor,query);
- case 'reservation':return reservations.detail(actor,v.id(id));
- case 'reservation-create':return reservations.create(actor,value);
- case 'reservation-update':return reservations.change(actor,v.id(id),value);
  case 'professionals':admin.administrative(actor);clinic.permit(actor,'professionals.manage');return clinic.professionals();
  case 'professional-type':return admin.assignType(actor,v.id(id),value);
  case 'professional-services':return admin.assignServices(actor,v.id(id),value);

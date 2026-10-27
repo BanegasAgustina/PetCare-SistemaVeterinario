@@ -46,11 +46,11 @@ export default function NotificationsScreen(){
     const page=await api.notifications(pageCursor);
     setExtraPages(current=>({baseId:firstId,items:[...(current?.baseId===firstId?current.items:[]),...page.items],cursor:page.nextCursor}));
   });
-  return <PetCareScreen>
+  return <PetCareScreen wide>
     <PetCareHeader title="Notificaciones" back/>
     <AppText variant="caption" muted>Las novedades de PetCare se guardan en este centro y se sincronizan con el backend mientras usás la aplicación.</AppText>
     {!!query.data?.unreadCount&&<PetCareBadge label={`${query.data.unreadCount} sin leer`}/>}
-    <View accessibilityRole="radiogroup" accessibilityLabel="Filtrar notificaciones" style={[styles.filterGroup,{backgroundColor:colors.background,borderColor:colors.border}]}>
+    <View accessibilityRole="radiogroup" accessibilityLabel="Filtrar notificaciones" style={[styles.filterGroup,desktopWeb&&styles.desktopFilterGroup,{backgroundColor:colors.background,borderColor:colors.border}]}>
       {[{read:false,label:'No leídas'},{read:true,label:'Leídas'}].map(option=>{
         const selected=showRead===option.read;
         return <Pressable key={option.label} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityState={{checked:selected}} onPress={()=>setShowRead(option.read)} style={[styles.filterOption,{backgroundColor:selected?colors.primary:colors.surface,borderColor:selected?colors.primary:colors.border}]}>
@@ -59,15 +59,15 @@ export default function NotificationsScreen(){
         </Pressable>;
       })}
     </View>
-    {!!query.data?.unreadCount&&<AppButton label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/>}
+    {!!query.data?.unreadCount&&<View style={desktopWeb?styles.desktopBulkAction:undefined}><AppButton compact={desktopWeb} label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/></View>}
     <QueryState {...query}/>
     <FormNotice error message={action.error}/>
     {query.data&&<>
       <AppText variant="subtitle">{showRead?'Notificaciones leídas':'Notificaciones no leídas'}{!showRead&&query.data.unreadCount?` · ${query.data.unreadCount}`:''}</AppText>
-      {visibleItems.length?<ResponsiveGrid minItemWidth={320} maxColumns={3}>{visibleItems.map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
+      {visibleItems.length?<ResponsiveGrid minItemWidth={280} maxColumns={4}>{visibleItems.map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
       <PetCareBadge label={n.readAt?'Leída':'Nueva'}/>
       <AppText variant="subtitle">{n.title}</AppText>
-      <AppText style={desktopWeb?styles.desktopBody:undefined}>{n.body}</AppText>
+      <AppText numberOfLines={desktopWeb?4:undefined} style={desktopWeb?styles.desktopBody:undefined}>{n.body}</AppText>
       <AppText variant="caption" muted>{dateTime(n.createdAt)}</AppText>
       <View style={[styles.actions,desktopWeb&&styles.desktopActions]}><AppButton compact={desktopWeb} label="Ver detalle" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{
         if(!n.readAt)await api.readNotification(n.id);
@@ -82,4 +82,4 @@ export default function NotificationsScreen(){
   </PetCareScreen>;
 }
 
-const styles=StyleSheet.create({filterGroup:{flexDirection:'row',gap:8},filterOption:{minHeight:46,flex:1,paddingHorizontal:14,borderRadius:14,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},desktopCard:{flex:1,minWidth:0},desktopBody:{flexGrow:1},actions:{gap:16},desktopActions:{gap:8,marginTop:'auto',paddingTop:8,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});
+const styles=StyleSheet.create({filterGroup:{flexDirection:'row',gap:8},desktopFilterGroup:{alignSelf:'flex-start',width:380,maxWidth:'100%'},filterOption:{minHeight:46,flex:1,paddingHorizontal:14,borderRadius:14,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},desktopBulkAction:{alignSelf:'flex-start'},desktopCard:{flex:1,minWidth:0},desktopBody:{flexGrow:1},actions:{gap:16},desktopActions:{gap:8,marginTop:'auto',paddingTop:8,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});

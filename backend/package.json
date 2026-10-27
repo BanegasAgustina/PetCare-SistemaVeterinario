@@ -34,9 +34,9 @@
     "db:migrate:availability-archive": "tsx src/database/availability-archive-migrate.ts",
     "db:migrate:appointment-details": "tsx src/database/appointment-details-migrate.ts",
     "db:migrate:veterinarian-clinical": "tsx src/database/veterinarian-clinical-migrate.ts",
-    "db:migrate:reservation-reason": "tsx src/database/reservation-reason-migrate.ts",
+    "db:migrate:order-history-reason": "tsx src/database/reservation-reason-migrate.ts",
     "db:migrate:clinic-schema": "tsx src/database/clinic-schema-migrate.ts",
-    "db:migrate:reservations": "tsx src/database/product-origin-migrate.ts",
+    "db:migrate:product-origin": "tsx src/database/product-origin-migrate.ts",
     "db:reconcile:clinic": "tsx src/database/clinic-reconcile.ts",
     "test:clinic:db": "tsx --test tests/integration/clinic.test.ts",
     "test:http": "tsx --test tests/http/*.test.ts"

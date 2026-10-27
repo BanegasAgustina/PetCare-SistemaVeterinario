@@ -1,19 +1,20 @@
 /** Listado paginado: búsqueda/filtros consultan MySQL mediante la API. */
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { router,useFocusEffect,useLocalSearchParams } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../../components/layout/ScreenContainer';
 import { AppInput } from '../../../components/forms/AppInput';
+import { AppSelectField } from '../../../components/forms/AppSelectField';
 import { AppText } from '../../../components/ui/AppText';
 import { AppButton } from '../../../components/ui/AppButton';
 import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { useAuth } from '../../../hooks/useAuth';
 import type { VetCatalog,VetDetail,VetPage,VetValues } from '../../../types/veterinarian';
 import { friendlyError } from '../../../services/api';
-import { FilterDisclosure } from '../../../components/ui/FilterDisclosure';
 import { CompactPagination } from '../../../components/ui/CompactPagination';
-import { SearchFilterBar } from '../../../components/ui/SearchFilterBar';
+import { AdminListToolbar } from '../../../components/admin/AdminListToolbar';
+import { AdminDataTable } from '../../../components/admin/AdminDataTable';
 import { PetImage,ResponsiveGrid } from '../../../components/client/PetCareUI';
 import { AdminPersonRow } from '../../../components/admin/AdminPersonRow';
 import { AppModal } from '../../../components/ui/AppModal';
@@ -23,12 +24,13 @@ import { ProfilePhotoInput,type PickedProfilePhoto } from '../../../components/f
 import { validateIdentityForm } from '../../../utils/auth-validation';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import { useFeedback } from '../../../contexts/FeedbackContext';
-import { AdminFormActions, AdminFormSection } from '../../../components/admin/AdminFormLayout';
+import { AdminFormActions, AdminFormField, AdminFormSection } from '../../../components/admin/AdminFormLayout';
 import { AdminPageHeading } from '../../../components/admin/AdminPageHeading';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { invitationLabel } from '../../../utils/invitation-label';
 const emptyVet:VetValues={firstName:'',lastName:'',email:'',phone:'',licenseNumber:'',isActive:true,specialtyIds:[]};
 export default function VeterinariansScreen() {
+  const {width}=useWindowDimensions();
   const {create}=useLocalSearchParams<{create?:string}>();
   const auth=useAuth();const {request}=auth;const action=useAsyncAction();const {showToast}=useFeedback();
   const [search,setSearch]=useState('');const [status,setStatus]=useState('all');const [sort,setSort]=useState('recent');
@@ -54,28 +56,34 @@ export default function VeterinariansScreen() {
   useFocusEffect(useCallback(()=>{const timer=setTimeout(load,300);return ()=>{clearTimeout(timer);sequence.current++;};},[load]));
   return <ScreenContainer wide>
     <AdminPageHeading title="Veterinarios"/>
-    <SearchFilterBar><AppInput icon="search-outline" label="Buscar veterinario" placeholder="Nombre, apellido, matrícula o email" returnKeyType="search" value={search} onChangeText={value=>{setSearch(value);setPage(1);}} onSubmitEditing={()=>{setPage(1);}}/><FilterDisclosure fullWidth activeCount={(status!=='all'?1:0)+(sort!=='recent'?1:0)+(specialty?1:0)} onApply={()=>{setPage(1);}} onClear={()=>{setStatus('all');setSort('recent');setSpecialty('');setPage(1);}}>
-      <AppText variant="subtitle">Estado</AppText>{[{code:'all',name:'Todos'},{code:'active',name:'Activos'},{code:'inactive',name:'Inactivos'}].map(item=><SelectionRow key={item.code} label={item.name} checked={status===item.code} onPress={()=>{setStatus(item.code);setPage(1);}}/>)}
-      <AppText variant="subtitle">Ordenar por</AppText>{[{code:'recent',name:'Más recientes'},{code:'oldest',name:'Más antiguos'},{code:'az',name:'Nombre A-Z'},{code:'za',name:'Nombre Z-A'}].map(item=><SelectionRow radio key={item.code} label={item.name} checked={sort===item.code} onPress={()=>{setSort(item.code);setPage(1);}}/>)}
-      <AppText variant="subtitle">Especialidad</AppText><SelectionRow label="Todas" checked={!specialty} onPress={()=>{setSpecialty('');setPage(1);}}/>{catalog?.specialties.map(item=><SelectionRow key={item.id} label={item.name} checked={specialty===item.id} onPress={()=>{setSpecialty(item.id);setPage(1);}}/>)}
-    </FilterDisclosure></SearchFilterBar>
+    <AdminListToolbar search={<AppInput icon="search-outline" label="Buscar veterinario" placeholder="Nombre, apellido, matrícula o email" returnKeyType="search" value={search} onChangeText={value=>{setSearch(value);setPage(1);}} onSubmitEditing={()=>{setPage(1);}}/>}
+      sort={<AppSelectField label="Ordenar veterinarios" value={sort} options={[{id:'recent',name:'Más recientes'},{id:'oldest',name:'Más antiguos'},{id:'az',name:'Nombre A–Z'},{id:'za',name:'Nombre Z–A'}]} onChange={value=>{setSort(value);setPage(1);}}/>}
+      filters={<><AppText variant="subtitle">Estado</AppText>{[{code:'all',name:'Todos'},{code:'active',name:'Activos'},{code:'inactive',name:'Inactivos'}].map(item=><SelectionRow key={item.code} label={item.name} checked={status===item.code} onPress={()=>{setStatus(item.code);setPage(1);}}/>)}
+      <AppText variant="subtitle">Especialidad</AppText><SelectionRow label="Todas" checked={!specialty} onPress={()=>{setSpecialty('');setPage(1);}}/>{catalog?.specialties.map(item=><SelectionRow key={item.id} label={item.name} checked={specialty===item.id} onPress={()=>{setSpecialty(item.id);setPage(1);}}/> )}</>}
+      filterCount={(status!=='all'?1:0)+(specialty?1:0)} onApply={()=>setPage(1)} onClear={()=>{setStatus('all');setSort('recent');setSpecialty('');setPage(1);}}/>
     {auth.hasPermission('veterinarians.manage') && <AppButton label="+ Crear veterinario" onPress={()=>{setCreateValues(emptyVet);setCreateErrors({});setCreatePhoto(null);setCreateOpen(true);}} />}
     <FormNotice error message={error} />
     {Boolean(error) && <AppButton label="Reintentar" onPress={load} />}
     {loading && <AppText muted>Consultando veterinarios…</AppText>}
     {result && <AppText muted>{result.total} profesionales</AppText>}
-    {result?.items.length?<ResponsiveGrid>{result.items.map(vet=><AdminPersonRow key={vet.id} imageUri={vet.profilePhotoUrl} name={`${vet.firstName} ${vet.lastName}`} role="Veterinario" status={vet.isActive?'Activo':'Inactivo'} onEdit={undefined} onView={()=>openVetDetails(vet.id)}/>)}</ResponsiveGrid>:null}
+    {result?.items.length?(Platform.OS==='web'&&width>=1024?<AdminDataTable rows={result.items} rowKey={vet=>vet.id} columns={[
+      {key:'veterinarian',label:'Veterinario',flex:1.2,minWidth:210,render:vet=><View style={{flexDirection:'row',alignItems:'center',gap:10}}><PetImage uri={vet.profilePhotoUrl} size={40}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{vet.firstName} {vet.lastName}</AppText><AppText variant="caption" muted numberOfLines={1}>{vet.email}</AppText></View></View>},
+      {key:'license',label:'Matrícula',flex:.8,minWidth:130,render:vet=><AppText>{vet.licenseNumber||'—'}</AppText>},
+      {key:'specialties',label:'Especialidades',flex:1.2,minWidth:210,render:vet=><AppText muted numberOfLines={2}>{vet.specialties.map(item=>item.name).join(' · ')||'Sin especialidades'}</AppText>},
+      {key:'status',label:'Estado',flex:.6,minWidth:90,render:vet=><AppText variant="caption" muted>{vet.isActive?'Activo':'Inactivo'}</AppText>},
+      {key:'actions',label:'Acciones',flex:.6,minWidth:100,align:'right',render:vet=><AppButton compact variant="secondary" label="Ver ficha" onPress={()=>openVetDetails(vet.id)}/>},
+    ]}/>:<ResponsiveGrid>{result.items.map(vet=><AdminPersonRow key={vet.id} imageUri={vet.profilePhotoUrl} name={`${vet.firstName} ${vet.lastName}`} role="Veterinario" status={vet.isActive?'Activo':'Inactivo'} onEdit={undefined} onView={()=>openVetDetails(vet.id)}/>)}</ResponsiveGrid>):null}
     {result && !result.items.length && <AppText muted>No hay veterinarios para estos filtros.</AppText>}
     <CompactPagination page={page} canPrevious={!loading&&page>1} canNext={!loading&&Boolean(result?.hasMore)} onPrevious={()=>setPage(value=>value-1)} onNext={()=>setPage(value=>value+1)} summary={result?`${result.total} veterinarios`:undefined}/>
     <AppModal size="wide" visible={createOpen||create==='1'} dismissible onClose={()=>{if(!action.loading){setCreateOpen(false);router.setParams({create:undefined});}}}>
       <AppText variant="title">Crear veterinario</AppText><AppText muted>Enviaremos una invitación al correo indicado. El veterinario configurará su contraseña desde un enlace de un solo uso válido durante 24 horas.</AppText>
-      <AdminFormSection title="Datos de la persona" description="La cuenta profesional debe tener datos de contacto y matrícula vigentes.">
-        <ProfilePhotoInput currentUri={null} photo={createPhoto} disabled={action.loading} onSelect={setCreatePhoto} onRemove={()=>setCreatePhoto(null)}/>
-        <AppInput label="Nombre" required value={createValues.firstName} error={createErrors.firstName} onChangeText={value=>changeCreate('firstName',value)}/>
-        <AppInput label="Apellido" required value={createValues.lastName} error={createErrors.lastName} onChangeText={value=>changeCreate('lastName',value)}/>
-        <AppInput label="Correo electrónico" required value={createValues.email} error={createErrors.email} keyboardType="email-address" autoCapitalize="none" onChangeText={value=>changeCreate('email',value)}/>
-        <AppInput label="Teléfono" value={createValues.phone} error={createErrors.phone} keyboardType="phone-pad" onChangeText={value=>changeCreate('phone',value)}/>
-        <AppInput label="Matrícula profesional" required value={createValues.licenseNumber} error={createErrors.licenseNumber} maxLength={80} onChangeText={value=>changeCreate('licenseNumber',value)}/>
+      <AdminFormSection title="Datos de la persona" description="La cuenta profesional debe tener datos de contacto y matrícula vigentes." columns={2}>
+        <AdminFormField fullWidth><ProfilePhotoInput currentUri={null} photo={createPhoto} disabled={action.loading} onSelect={setCreatePhoto} onRemove={()=>setCreatePhoto(null)}/></AdminFormField>
+        <AdminFormField><AppInput label="Nombre" required value={createValues.firstName} error={createErrors.firstName} onChangeText={value=>changeCreate('firstName',value)}/></AdminFormField>
+        <AdminFormField><AppInput label="Apellido" required value={createValues.lastName} error={createErrors.lastName} onChangeText={value=>changeCreate('lastName',value)}/></AdminFormField>
+        <AdminFormField><AppInput label="Correo electrónico" required value={createValues.email} error={createErrors.email} keyboardType="email-address" autoCapitalize="none" onChangeText={value=>changeCreate('email',value)}/></AdminFormField>
+        <AdminFormField><AppInput label="Teléfono" value={createValues.phone} error={createErrors.phone} keyboardType="phone-pad" onChangeText={value=>changeCreate('phone',value)}/></AdminFormField>
+        <AdminFormField><AppInput label="Matrícula profesional" required value={createValues.licenseNumber} error={createErrors.licenseNumber} maxLength={80} onChangeText={value=>changeCreate('licenseNumber',value)}/></AdminFormField>
       </AdminFormSection>
       <AdminFormSection title="Especialidades" description="Seleccioná las áreas de atención del veterinario.">
         <FormNotice error message={createErrors.specialtyIds??null}/>

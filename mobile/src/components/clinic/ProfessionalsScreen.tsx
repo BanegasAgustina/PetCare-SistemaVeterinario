@@ -12,14 +12,15 @@ import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, PetImage,
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
+import { AppSelectField } from '../forms/AppSelectField';
 import { SelectionRow } from '../ui/SelectionRow';
-import { FilterDisclosure } from '../ui/FilterDisclosure';
-import { SearchFilterBar } from '../ui/SearchFilterBar';
+import { AdminListToolbar } from '../admin/AdminListToolbar';
+import { AdminDataTable } from '../admin/AdminDataTable';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { CompactPagination } from '../ui/CompactPagination';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { AppModal } from '../ui/AppModal';
-import { AdminFormActions, AdminFormSection } from '../admin/AdminFormLayout';
+import { AdminFormActions, AdminFormField, AdminFormGrid, AdminFormSection } from '../admin/AdminFormLayout';
 import { FormNotice } from '../ui/FormNotice';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 
@@ -48,7 +49,7 @@ export function ProfessionalsScreen() {
   const professionals = useMemo(() => [...(query.data ?? [])]
     .filter(person => String(person.name).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) && (!type || person.typeId === type) && (active === '' || Boolean(person.isActive) === (active === '1')))
     .sort((a, b) => sort === 'az' ? String(a.name).localeCompare(String(b.name), 'es') : sort === 'za' ? String(b.name).localeCompare(String(a.name), 'es') : sort === 'oldest' ? String(a.createdAt).localeCompare(String(b.createdAt)) : String(b.createdAt).localeCompare(String(a.createdAt))), [query.data, search, type, active, sort]);
-  const activeCount = (type ? 1 : 0) + (active ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
+  const activeCount = (type ? 1 : 0) + (active ? 1 : 0);
   const pageSize = 20;
   const visibleProfessionals = professionals.slice((page - 1) * pageSize, page * pageSize);
   const selectedProfessional = query.data?.find(person => person.id === selected);
@@ -76,19 +77,24 @@ export function ProfessionalsScreen() {
 
   return <PetCareScreen wide><PetCareHeader title="Profesionales" back hideForAdmin/>
     {(hasPermission('users.manage')||hasPermission('veterinarians.manage'))&&<View style={[styles.actions,desktopWeb&&styles.desktopActions]}>
-      {hasPermission('users.manage') && <AppButton compact={desktopWeb} label="Crear profesional / secretario" onPress={() => router.push({pathname:'/admin/users',params:{create:'1'}})}/>}
+      {hasPermission('users.manage') && <AppButton compact={desktopWeb} label="Crear usuario de clínica" onPress={() => router.push({pathname:'/admin/users',params:{create:'1'}})}/>}
       {hasPermission('veterinarians.manage') && <AppButton compact={desktopWeb} label="Veterinarios" variant="secondary" onPress={() => router.push('/admin/veterinarians')}/>}
     </View>}
-    <SearchFilterBar>
-      <AppInput icon="search-outline" label="Buscar profesionales" placeholder="Nombre" value={search} onChangeText={value => { setSearch(value); setPage(1); }}/>
-      <FilterDisclosure fullWidth activeCount={activeCount} onApply={() => { setPage(1); void query.reload(); }} onClear={() => { setType(''); setActive(''); setSort('recent'); setPage(1); }}>
+    <AdminListToolbar search={<AppInput icon="search-outline" label="Buscar profesionales" placeholder="Nombre" value={search} onChangeText={value => { setSearch(value); setPage(1); }}/>}
+      sort={<AppSelectField label="Ordenar profesionales" value={sort} options={[{id:'recent',name:'Más recientes'},{id:'oldest',name:'Más antiguos'},{id:'az',name:'Nombre A–Z'},{id:'za',name:'Nombre Z–A'}]} onChange={value=>{setSort(value);setPage(1);}}/>}
+      filters={<>
         <AppText variant="subtitle">Tipo</AppText><SelectionRow label="Todos los tipos" checked={!type} onPress={() => setType('')}/>{catalog.data?.types.map(item => <SelectionRow key={item.id} label={String(item.name)} checked={type === item.id} onPress={() => setType(item.id)}/>)}
         <AppText variant="subtitle">Estado</AppText>{[['', 'Todos los estados'], ['1', 'Activos'], ['0', 'Inactivos']].map(([value, label]) => <SelectionRow key={value || 'all'} label={label} checked={active === value} onPress={() => setActive(value)}/>)}
-        <AppText variant="subtitle">Ordenar por</AppText>{[['recent', 'Más recientes'], ['oldest', 'Más antiguos'], ['az', 'Nombre A-Z'], ['za', 'Nombre Z-A']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={sort === value} onPress={() => setSort(value)}/>)}
-      </FilterDisclosure>
-    </SearchFilterBar>
+      </>}
+      filterCount={activeCount} onApply={() => { setPage(1); void query.reload(); }} onClear={() => { setType(''); setActive(''); setSort('recent'); setPage(1); }}/>
     <QueryState {...catalog}/><QueryState {...query}/>
-    {query.data && (professionals.length ? <ResponsiveGrid minItemWidth={desktopWeb?320:responsiveLayout.grid.minItemWidth} maxColumns={3}>{visibleProfessionals.map(person => {
+    {query.data && (professionals.length ? desktopWeb ? <AdminDataTable rows={visibleProfessionals} rowKey={person=>person.id} columns={[
+      {key:'professional',label:'Profesional',flex:1.2,minWidth:160,render:person=><View style={{flexDirection:'row',alignItems:'center',gap:8}}><PetImage uri={typeof person.profilePhotoUrl==='string'?person.profilePhotoUrl:null} size={36}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={2}>{String(person.name)}</AppText><AppText variant="caption" muted numberOfLines={1}>{String(person.typeName)}</AppText></View></View>},
+      {key:'specialty',label:'Especialidad',flex:1,minWidth:120,render:person=><AppText muted numberOfLines={2}>{String(person.specialties||'—')}</AppText>},
+      {key:'services',label:'Servicios asignados',flex:1.2,minWidth:150,render:person=>{const names=(catalog.data?.assignments??[]).filter(item=>item.professionalId===person.id).map(link=>catalog.data?.services.find(service=>service.id===link.serviceId)).filter((service):service is NonNullable<typeof service>=>Boolean(service)).map(service=>String(service.name));return <AppText variant="caption" muted numberOfLines={2}>{names.length?names.join(' · '):'Sin servicios asignados'}</AppText>; }},
+      {key:'status',label:'Estado',flex:.65,minWidth:72,render:person=><AppText variant="caption" muted>{person.isActive?'Activo':'Inactivo'}</AppText>},
+      {key:'actions',label:'Acciones',flex:.55,minWidth:88,align:'right',render:person=><AppButton compact variant="secondary" label="Ver ficha" onPress={()=>load(person.id)}/>},
+    ]}/> : <ResponsiveGrid minItemWidth={responsiveLayout.grid.minItemWidth} maxColumns={3}>{visibleProfessionals.map(person => {
       const assigned = (catalog.data?.assignments ?? []).filter(item => item.professionalId === person.id)
         .map(link => catalog.data?.services.find(service => service.id === link.serviceId))
         .filter((service): service is NonNullable<typeof service> => Boolean(service));
@@ -114,15 +120,17 @@ export function ProfessionalsScreen() {
         </AdminFormSection>}
         {!selectedIsVeterinarian && hasPermission('users.manage') && hasRole('SUPER_ADMIN') && <AppButton label={selectedProfessional.isActive ? 'Desactivar profesional' : 'Reactivar profesional'} destructive={Boolean(selectedProfessional.isActive)} variant={selectedProfessional.isActive ? 'secondary' : 'primary'} onPress={() => setStatusConfirm(true)} />}
         <FormNotice error message={statusAction.error} />
-        <AdminFormSection title="Tipo profesional" description="Cambiarlo puede quitar servicios incompatibles. Primero reprogramá los turnos vigentes.">
+        <AdminFormGrid columns={2}>
+        <AdminFormField><AdminFormSection title="Tipo profesional" description="Cambiarlo puede quitar servicios incompatibles. Primero reprogramá los turnos vigentes.">
           {catalog.data.types.filter(item => Boolean(item.isClinical) === Boolean(query.data?.find(person => person.id === selected)?.isClinical)).map(item => <SelectionRow key={item.id} radio label={String(item.name)} checked={newType === item.id} onPress={() => setNewType(item.id)}/>)}
           <AdminFormActions><AppButton label="Revisar cambio de tipo" variant="secondary" disabled={!newType} onPress={() => setTypeConfirm(true)}/></AdminFormActions>
-        </AdminFormSection>
-        <AdminFormSection title="Servicios asignados" description="Seleccioná qué servicios puede atender este profesional.">
+        </AdminFormSection></AdminFormField>
+        <AdminFormField><AdminFormSection title="Servicios asignados" description="Seleccioná qué servicios puede atender este profesional.">
           {catalog.data.services.filter(service => service.typeId === selectedProfessional.typeId && (Boolean(service.isActive) || services.includes(service.id))).map(service => <SelectionRow key={service.id} label={`${String(service.name)} · ${service.isActive ? 'Activo' : 'Inactivo, sin nuevos horarios'}`} checked={services.includes(service.id)} onPress={() => setServices(current => current.includes(service.id) ? current.filter(id => id !== service.id) : service.isActive ? [...current, service.id] : current)}/>)}
           {catalog.data.services.filter(service => service.typeId === selectedProfessional.typeId && Boolean(service.isActive)).length === 0 && <AppText muted>No hay servicios activos compatibles con este tipo profesional. Podés revisar el catálogo de servicios si tenés ese permiso.</AppText>}
           <AdminFormActions><AppButton label="Revisar asignación" onPress={() => setConfirm(true)}/><AppButton label="Cerrar" variant="secondary" onPress={() => setSelected('')}/></AdminFormActions>
-        </AdminFormSection>
+        </AdminFormSection></AdminFormField>
+        </AdminFormGrid>
       </>}
     </AppModal>
     <ConfirmModal visible={confirm} title="Asignar servicios" message="Se verificará que los servicios sean compatibles con el tipo profesional y sus especialidades." confirmLabel="Guardar" onCancel={() => setConfirm(false)} onConfirm={async () => { await api.assignServices(selected, services); setConfirm(false); setSelected(''); showToast('Servicios asignados', 'success'); catalog.reload(); }}/>
