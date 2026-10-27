@@ -5,6 +5,7 @@ import { verifyAccessToken, accessTokenSessionVersion,accessTokenFamily } from '
 import { activeFamily } from '../repositories/session.repository';
 import { authorizationData } from '../repositories/authorization.repository';
 import { AppError } from '../utils/app-error';
+import { isAccessSessionCurrent } from '../utils/account-session-guards';
 
 export const authenticate: RequestHandler = async (request, response, next) => {
   try {
@@ -13,7 +14,7 @@ export const authenticate: RequestHandler = async (request, response, next) => {
     const match = /^Bearer ([^\s]+)$/i.exec(header);
     if (!match || match[1].length > 4096) throw new AppError('INVALID_TOKEN', 401, 'La sesión no es válida. Iniciá sesión nuevamente.');
     const user = await findUserById(verifyAccessToken(match[1]));
-    if (!user || !user.isActive || user.sessionVersion !== accessTokenSessionVersion(match[1])) throw new AppError('INVALID_TOKEN', 401, 'La sesión no es válida. Iniciá sesión nuevamente.');
+    if (!user || !isAccessSessionCurrent({isActive:user.isActive,userSessionVersion:user.sessionVersion,tokenSessionVersion:accessTokenSessionVersion(match[1])})) throw new AppError('INVALID_TOKEN', 401, 'La sesión no es válida. Iniciá sesión nuevamente.');
     const family=accessTokenFamily(match[1]);
     if(family&&!await activeFamily(family,user.id))throw new AppError('INVALID_TOKEN',401,'La sesión fue revocada.');
     response.locals.authenticatedFamily=family;

@@ -16,6 +16,7 @@ import { permissionDescription, permissionModuleName, permissionName, roleName }
 import { roleCodeFromName } from '../utils/role-code';
 import { deliverInvitation,renewUserInvitation,saveInvitation } from '../services/invitation.service';
 import { hashPassword } from '../services/password.service';
+import { assertAccountDeactivationAllowed,assertCustomRoleDeletable } from '../utils/admin-destructive-actions';
 
 export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
   const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
@@ -151,15 +152,15 @@ export async function updateAdminUser(identity:AuthUser,id:string,value:unknown)
   const requestedRole=body.roleId===undefined?undefined:identifier(body.roleId);
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');
-    const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,u.role_id AS roleId,u.is_active,u.email_verified_at,u.must_change_password,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[id]);
+    const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,u.role_id AS roleId,u.is_active,u.email_verified_at,u.must_change_password,u.first_name AS firstName,u.last_name AS lastName,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[id]);
     if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');const target=rows[0];assertTarget(actor,{id,role:target.role});
     const roleChanged=requestedRole!==undefined&&requestedRole!==String(target.roleId);const statusChanged=Boolean(target.is_active)!==body.isActive;
     if(statusChanged&&body.isActive&&Number(target.must_change_password)===1&&!target.email_verified_at)throw new AppError('INVITATION_REQUIRED',409,'La cuenta debe activarse desde el enlace de invitación enviado al correo.');
-    if(statusChanged&&actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede activar o desactivar usuarios.');
     if(id===actor.id&&(roleChanged||statusChanged))forbidden('No podés cambiar tu propio rol ni desactivar tu propia cuenta.');
     if(roleChanged){if(target.role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'No se cambia el rol de un usuario con perfil veterinario.');const role=await roleGrants(c,requestedRole!);assertRoleAssignment(actor,role.role,role.permissions);}
-    if(target.role==='SUPER_ADMIN'&&statusChanged&&!body.isActive){const [others]=await c.execute<RowDataPacket[]>("SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='SUPER_ADMIN' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND u.id<>? LIMIT 1",[id]);if(!others.length)forbidden('No se puede desactivar al último SUPER_ADMIN activo y verificado.');}
+    if(statusChanged&&!body.isActive){const [others]=await c.execute<RowDataPacket[]>("SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='SUPER_ADMIN' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND u.id<>?",[id]);assertAccountDeactivationAllowed({actorId:actor.id,targetId:id,targetRole:String(target.role),activeVerifiedSuperAdmins:Number(others[0]?.total??0)+1});}
     await c.execute('UPDATE users SET first_name=?,last_name=?,phone=?,is_active=?,role_id=?,session_version=session_version+? WHERE id=?',[firstName,lastName,phone,body.isActive,requestedRole??target.roleId,roleChanged||statusChanged?1:0,id]);
+    if(statusChanged)await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',[actor.id,body.isActive?'USER_ACTIVATED':'USER_DEACTIVATED','USER',id,`${target.firstName} ${target.lastName}`.trim(),'SUCCESS']);
     if(roleChanged)await c.execute('DELETE FROM user_permissions WHERE user_id=?',[id]);
     if(roleChanged||!body.isActive){await c.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[id]);await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);}
   });return adminUser(id);
@@ -190,6 +191,19 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
     for(const code of codes)await c.execute('INSERT INTO role_permissions (role_id,permission_id) VALUES (?,?)',[id,catalog.find(p=>p.code===code)!.id]);
     const remaining=await readPermissions(actor.id,c);if(!remaining.some(p=>p.code==='roles.manage'&&p.effective)||!remaining.some(p=>p.code==='permissions.manage'&&p.effective))forbidden('El cambio quitaría tu acceso a la gestión de roles o permisos.');
   });return adminCatalog(identity);
+}
+export async function deleteCustomRole(identity:AuthUser,id:string) {
+  await transaction(async c=>{
+    const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');
+    const [rows]=await c.execute<RowDataPacket[]>('SELECT id,code,name FROM roles WHERE id=? FOR UPDATE',[id]);
+    if(!rows[0])throw new AppError('NOT_FOUND',404,'Rol no encontrado.');
+    const [assigned]=await c.execute<RowDataPacket[]>('SELECT COUNT(*) AS total FROM users WHERE role_id=?',[id]);
+    assertCustomRoleDeletable(String(rows[0].code),Number(assigned[0]?.total??0));
+    await c.execute('DELETE FROM role_permissions WHERE role_id=?',[id]);
+    await c.execute('DELETE FROM roles WHERE id=?',[id]);
+    await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',[actor.id,'ROLE_DELETED','ROLE',id,String(rows[0].name),'SUCCESS']);
+  });
+  return {deleted:true};
 }
 export async function createRole(identity:AuthUser,value:unknown) {
   const body=objectBody(value,['name','permissionCodes']);

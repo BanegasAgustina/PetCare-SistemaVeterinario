@@ -66,6 +66,7 @@ La protección común se aplica en los routers: `/client` autentica y limita acc
 | POST | `/api/admin/products/catalog` | `backend/src/routes/admin.routes.ts` |
 | POST | `/api/admin/products/query` | `backend/src/routes/admin.routes.ts` |
 | POST | `/api/admin/roles` | `backend/src/routes/admin.routes.ts` |
+| DELETE | `/api/admin/roles/:id` | `backend/src/routes/admin.routes.ts` |
 | PUT | `/api/admin/roles/:id` | `backend/src/routes/admin.routes.ts` |
 | POST | `/api/admin/roles/query` | `backend/src/routes/admin.routes.ts` |
 | POST | `/api/admin/specialties` | `backend/src/routes/veterinarian.routes.ts` |
@@ -79,6 +80,12 @@ La protección común se aplica en los routers: `/client` autentica y limita acc
 | PUT | `/api/admin/users/:id/permissions` | `backend/src/routes/admin.routes.ts` |
 | PUT | `/api/admin/users/:id/photo` | `backend/src/routes/admin.routes.ts` |
 | POST | `/api/admin/users/query` | `backend/src/routes/admin.routes.ts` |
+
+### Bajas de usuarios y roles
+
+`PUT /api/admin/users/:id` permite cambiar `isActive` solo con `users.manage` efectivo y rol administrativo permitido por el router. Desactivar no borra al usuario: incrementa `session_version`, conserva sus datos asociados e inserta un evento de auditoría. Login, access tokens y refresh tokens previos se rechazan al detectar la cuenta inactiva o la versión anterior. La operación no permite desactivar la propia cuenta ni al último SUPER_ADMIN activo/verificado.
+
+`DELETE /api/admin/roles/:id` requiere `roles.manage` y `permissions.manage` efectivos. Solo elimina roles personalizados sin usuarios asignados; los roles `CLIENT`, `VETERINARIAN`, `GROOMER`, `SECRETARY`, `ADMIN` y `SUPER_ADMIN` están protegidos. El borrado del rol, la limpieza de sus grants y el evento `ROLE_DELETED` se confirman en una transacción. Ambos flujos necesitan la tabla `admin_sensitive_action_audit`, cuya migración fue reportada como aplicada manualmente y no debe repetirse.
 | POST | `/api/admin/veterinarians` | `backend/src/routes/veterinarian.routes.ts` |
 | POST | `/api/admin/veterinarians/:id` | `backend/src/routes/veterinarian.routes.ts` |
 | PUT | `/api/admin/veterinarians/:id` | `backend/src/routes/veterinarian.routes.ts` |

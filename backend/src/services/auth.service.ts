@@ -12,6 +12,7 @@ import { createVerificationProof, hashVerificationToken, resendVerification } fr
 import type { VerificationChallenge } from '../types/verification';
 import { registerStage } from '../utils/register-diagnostics';
 import { hashPassword } from './password.service';
+import { isLoginAllowed } from '../utils/account-session-guards';
 
 let dummyHash: Promise<string> | undefined;
 function getDummyHash(): Promise<string> {
@@ -47,7 +48,7 @@ export async function loginUser(body: unknown): Promise<AccessSession> {
   const fallbackHash = await getDummyHash();
   const user = await findUserByEmail(input.email);
   const passwordMatches = await bcrypt.compare(input.password, user?.passwordHash ?? fallbackHash);
-  if (!user || !user.isActive || !passwordMatches) throw new AppError('INVALID_CREDENTIALS', 401, 'Correo electrónico o contraseña incorrectos.');
+  if(!user||!isLoginAllowed({userExists:true,isActive:user.isActive,passwordMatches}))throw new AppError('INVALID_CREDENTIALS',401,'Correo electrónico o contraseña incorrectos.');
   if (!user.emailVerifiedAt) throw new AppError('EMAIL_NOT_VERIFIED', 403, 'Tu correo todavía no está verificado.', await createVerificationProof(user.id));
   if (user.mustChangePassword) throw new AppError('PASSWORD_CHANGE_REQUIRED',403,'Tenés que cambiar la contraseña inicial para continuar.');
   return sessionForUser(user);

@@ -49,6 +49,7 @@ adminRouter.put('/users/:id/permissions',requireRole('ADMIN','SUPER_ADMIN'),requ
 adminRouter.post('/roles/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('roles.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 adminRouter.post('/roles',requireRole('SUPER_ADMIN'),requirePermission('roles.manage','permissions.manage'),createAuthRateLimiter(),handle(async(req,res)=>repository.createRole(actor(res),req.body),201));
 adminRouter.put('/roles/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.updateRole(actor(res),identifier(req.params.id),req.body)));
+adminRouter.delete('/roles/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.deleteCustomRole(actor(res),identifier(req.params.id))));
 adminRouter.post('/permissions/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 adminRouter.post('/products/query',requireAnyPermission('products.update','products.update_stock','products.update_price'),handle(async req=>presentProductImages(await repository.adminProducts(req.body))));
 adminRouter.post('/products/catalog',requireAnyPermission('products.update','products.update_stock','products.update_price'),handle(async(_req,res)=>repository.adminProductCategories(actor(res))));
