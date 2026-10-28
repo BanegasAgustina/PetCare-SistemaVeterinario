@@ -84,8 +84,8 @@ const updateFilter = (key: string, value: string) => { setFilters(current => ({ 
         <Pressable accessibilityRole="button" accessibilityLabel="Período siguiente" onPress={()=>{const next=period==='month'?new Date(Date.UTC(focusUtc.getUTCFullYear(),focusUtc.getUTCMonth()+1,1)):new Date(focusUtc);if(period!=='month')next.setUTCDate(next.getUTCDate()+(period==='day'?1:7));setFocusDate(apiDate(next));setPage(1);}} style={[styles.dateArrow,{backgroundColor:colors.surface}]}><Ionicons name="chevron-forward" size={20} color={colors.primary}/></Pressable>
       </View>
       {!desktop&&<Pressable accessibilityRole="button" onPress={()=>{setFocusDate(clinicToday());setPage(1);}} style={[styles.todayButton,{borderColor:colors.primary}]}><Ionicons name="locate-outline" size={17} color={colors.primary}/><AppText style={{color:colors.primary,fontWeight:'600'}}>Ir a hoy</AppText></Pressable>}
-      </View>
       {desktop&&<Pressable accessibilityRole="button" onPress={()=>{setFocusDate(clinicToday());setPage(1);}} style={[styles.todayButton,styles.todayButtonDesktop,{borderColor:colors.primary}]}><Ionicons name="locate-outline" size={16} color={colors.primary}/><AppText style={{color:colors.primary,fontWeight:'600'}}>Hoy</AppText></Pressable>}
+      </View>
       {personalAgenda&&period==='month'&&<View style={[styles.monthCalendar,desktop&&styles.monthCalendarDesktop]}>
         {['L','M','M','J','V','S','D'].map((day,index)=><AppText key={`${day}-${index}`} variant="caption" muted style={[styles.calendarWeekday,desktop&&styles.calendarWeekdayDesktop]}>{day}</AppText>)}
         {monthDays.map((day,index)=>{if(!day)return <View key={`blank-${index}`} style={[styles.calendarDay,desktop&&styles.calendarDayDesktop]}/>;const selected=day===focusDate,today=day===clinicToday(),hasAppointments=(query.data??[]).some(item=>clinicDate(String(item.startsAt))===day);return <Pressable key={day} accessibilityRole="button" accessibilityLabel={`${day}${hasAppointments?', tiene turnos':''}`} accessibilityState={{selected}} onPress={()=>{setFocusDate(day);setPage(1);}} style={[styles.calendarDay,desktop&&styles.calendarDayDesktop,selected&&{backgroundColor:colors.accent,borderColor:colors.primary},today&&!selected&&{borderColor:colors.primary}]}><AppText variant="caption" style={{color:selected?colors.primary:colors.text,fontWeight:selected||today?'700':'500'}}>{String(Number(day.slice(-2)))}</AppText>{hasAppointments&&<View style={[styles.calendarDot,{backgroundColor:selected?colors.primary:colors.highlight}]}/>}</Pressable>;})}
@@ -130,16 +130,16 @@ const updateFilter = (key: string, value: string) => { setFilters(current => ({ 
 
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({
-  agendaIntro:{flexDirection:'row',alignItems:'center',gap:11},calendarCard:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:10,padding:14,borderRadius:18},agendaIntroDesktop:{display:'none'},desktopCalendarControls:{flex:1,minWidth:520,flexDirection:'row',alignItems:'center',gap:10},
+  agendaIntro:{flexDirection:'row',alignItems:'center',gap:11},calendarCard:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:10,padding:14,borderRadius:18},agendaIntroDesktop:{display:'none'},desktopCalendarControls:{flex:1,minWidth:590,flexDirection:'row',alignItems:'center',gap:10},
   agendaIcon:{width:42,height:42,borderRadius:15,alignItems:'center',justifyContent:'center'},
-  periodPicker:{flexDirection:'row',gap:4,padding:5,borderRadius:18,borderWidth:1},periodPickerDesktop:{flex:0,width:254,padding:3,borderRadius:13},
+  periodPicker:{flexDirection:'row',gap:4,padding:5,borderRadius:18,borderWidth:1},periodPickerDesktop:{flexGrow:0,flexShrink:0,width:254,padding:3,borderRadius:13},
   periodOption:{flex:1,minWidth:0,minHeight:44,paddingHorizontal:4,borderRadius:14,borderWidth:1,borderColor:'transparent',flexDirection:'row',alignItems:'center',justifyContent:'center',gap:5},periodOptionDesktop:{minHeight:36,borderRadius:10},
   periodLabel:{fontSize:14,fontWeight:'600',flexShrink:0},
-  dateNavigator:{minHeight:72,padding:10,borderRadius:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:7},dateNavigatorDesktop:{flex:1,minWidth:260,minHeight:42,padding:4,borderRadius:13,gap:2},
+  dateNavigator:{minHeight:72,padding:10,borderRadius:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:7},dateNavigatorDesktop:{flex:1,minWidth:230,minHeight:42,padding:4,borderRadius:13,gap:2},
   dateArrow:{width:40,height:40,borderRadius:14,alignItems:'center',justifyContent:'center'},
   dateText:{flex:1,minWidth:0,alignItems:'center'},
   dateTitle:{fontSize:18,textAlign:'center'},
-  todayButton:{minHeight:46,borderRadius:15,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},todayButtonDesktop:{minHeight:38,paddingHorizontal:12,borderRadius:11},
+  todayButton:{minHeight:46,borderRadius:15,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},todayButtonDesktop:{minHeight:38,paddingHorizontal:12,borderRadius:11,flexShrink:0},
   quickFilters:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:7},statusChip:{minHeight:34,paddingHorizontal:13,borderWidth:1,borderRadius:18,alignItems:'center',justifyContent:'center'},
   tableStack:{flex:1,minWidth:0,gap:3},tablePrimary:{fontWeight:'700'},tableAction:{minWidth:72,height:32,paddingHorizontal:8,borderRadius:10,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:4},
   appointmentCard:{gap:10},mobileCardHeading:{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:10},mobileCardAction:{minHeight:40,paddingHorizontal:4,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'#c6ded4',marginTop:2},
