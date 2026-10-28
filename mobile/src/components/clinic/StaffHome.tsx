@@ -1,101 +1,107 @@
 // Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
 
-/**
- * Inicio compartido del personal autenticado. Consulta /clinic/home para agenda y contadores reales y presenta módulos según permisos de /me; no inventa cifras ante errores.
- */
-import { useCallback,useState } from 'react';
-import { Platform,Pressable,ScrollView,View,useWindowDimensions } from 'react-native';
+/** Inicio profesional compartido. El servidor entrega agenda y métricas dentro del alcance efectivo del usuario. */
+import { useState } from 'react';
+import { Pressable, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { PetCareScreen,PetCareHero,PetCareCard,PetCareEmptyState,PetImage,QueryState,statusLabel,ResponsiveGrid,type IconName } from '../client/PetCareUI';
-import { RoleQuickAccess } from '../layout/RoleQuickAccess';
-import { AppText } from '../ui/AppText';
-import { clinicDateTime } from '../../utils/clinic-date';
-import { AppButton } from '../ui/AppButton';
-import { AppModal } from '../ui/AppModal';
-import { FormNotice } from '../ui/FormNotice';
-import { ProfilePhotoInput,type PickedProfilePhoto } from '../forms/ProfilePhotoInput';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../hooks/useTheme';
-import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
-import { appointmentDisplayValue,appointmentRouteId } from '../../utils/appointment-display';
-// Función SharedStaffHome: concentra la lógica dentro de este módulo.
-function SharedStaffHome(){const {user,request,refreshProfile}=useAuth();const api=useClinic();const query=useClientQuery(api.home);const [photoLoading,setPhotoLoading]=useState(false),[photoError,setPhotoError]=useState<string|null>(null),[photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const {showToast}=useFeedback();
- // Función savePhoto: actualiza o guarda información dentro de este módulo.
-async function savePhoto(){if(!photo)return;setPhotoLoading(true);setPhotoError(null);try{await request('/vet/profile/photo',{method:'PUT',body:{photoBase64:photo.base64}});await refreshProfile();setPhoto(null);showToast('Foto de perfil actualizada','success');}catch(error){setPhotoError(error instanceof Error?error.message:'No pudimos guardar la foto. Intentá nuevamente.');}finally{setPhotoLoading(false);}}
- return <PetCareScreen>
-<PetCareHero eyebrow={user?.roleName??'TU JORNADA'} title={user?.firstName?`Hola, ${user.firstName}`:'Tu jornada'} subtitle={user?.professional?.name??user?.roleName} icon="medical-outline"/>{user?.role==='VETERINARIAN'&&<PetCareCard><View style={{alignItems:'center',gap:12}}><ProfilePhotoInput currentUri={user.profilePhotoUrl??null} photo={photo} onSelect={setPhoto} onRemove={()=>setPhoto(null)} disabled={photoLoading} allowCamera removable={false} size={84}/>{photo&&<AppButton label="Guardar foto" loading={photoLoading} disabled={photoLoading} onPress={()=>void savePhoto()}/>}<FormNotice error message={photoError}/></View></PetCareCard>}
-<QueryState {...query}/>{query.data&&<PetCareCard>{query.data.todayCount!==null&&<AppText variant="subtitle">Turnos de hoy: {query.data.todayCount}</AppText>}{query.data.pendingCount!==null&&<AppText>Solicitudes pendientes: {query.data.pendingCount}</AppText>}</PetCareCard>}{query.data?.nextAppointment&&<PetCareCard><AppText variant="subtitle">Próximo paciente</AppText><AppText>{String(query.data.nextAppointment.petName)} · {String(query.data.nextAppointment.service)}</AppText><AppText>{clinicDateTime(String(query.data.nextAppointment.startsAt))}</AppText></PetCareCard>}
- <RoleQuickAccess/>
- </PetCareScreen>;
-}
-// Función StaffLayoutHome: concentra la lógica dentro de este módulo.
-export function StaffLayoutHome(){return <StaffHome/>;}
-// Función StaffHome: concentra la lógica dentro de este módulo.
-export function StaffHome(){const {user}=useAuth();return user?.role==='VETERINARIAN'?<VeterinarianHome/>:user?.role==='GROOMER'?<GroomerHome/>:<SharedStaffHome/>;}
+import { ProfilePhotoInput, type PickedProfilePhoto } from '../forms/ProfilePhotoInput';
+import { PetCareScreen, PetCareHero, PetCareCard, PetCareEmptyState, PetImage, QueryState, ResponsiveGrid, statusLabel, type IconName } from '../client/PetCareUI';
+import { RoleQuickAccess } from '../layout/RoleQuickAccess';
+import { AppText } from '../ui/AppText';
+import { AppButton } from '../ui/AppButton';
+import { FormNotice } from '../ui/FormNotice';
+import { clinicDateTime } from '../../utils/clinic-date';
+import { appointmentDisplayValue, appointmentRouteId } from '../../utils/appointment-display';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
 
-// Función StaffMetricCards: concentra la lógica dentro de este módulo.
-function StaffMetricCards({items}:{items:{label:string;value:number|null;icon:IconName}[]}){
- const {width}=useWindowDimensions();const {colors}=useTheme();
- return <View style={{flexDirection:'row',gap:10,flexWrap:'wrap'}}>{items.map(item=><View key={item.label} style={{flexGrow:1,flexBasis:width<responsiveLayout.breakpoints.compactCards?'28%':180,minWidth:92,backgroundColor:colors.surface,borderRadius:18,padding:14,borderWidth:1,borderColor:colors.border,gap:9}}>
-  <View style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{width:30,height:30,borderRadius:11,alignItems:'center',justifyContent:'center',backgroundColor:colors.accent}}><Ionicons name={item.icon} size={16} color={colors.primary}/></View><AppText variant="caption" muted numberOfLines={1} style={{flex:1}}>{item.label}</AppText></View>
-  <AppText variant="title">{item.value??'—'}</AppText>
- </View>)}</View>;
+export function StaffHome() {
+  const { user, request, refreshProfile } = useAuth();
+  const clinic = useClinic();
+  const query = useClientQuery(clinic.home);
+  const upcoming = query.data?.upcomingAppointments ?? [];
+  const [photo, setPhoto] = useState<PickedProfilePhoto | null>(null);
+  const photoAction = useAsyncAction();
+  const { showToast } = useFeedback();
+  const isVeterinarian = user?.role === 'VETERINARIAN';
+  const roleBase = isVeterinarian ? '/vet' : '/professional';
+  const professionalName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+  const specialty = user?.veterinarian?.specialties.map(item => item.name).filter(Boolean).join(' · ');
+  const subtitle = specialty || user?.professional?.name || user?.roleName;
+
+  async function savePhoto() {
+    if (!photo) return;
+    await photoAction.run(async () => {
+      await request('/vet/profile/photo', { method: 'PUT', body: { photoBase64: photo.base64 } });
+      await refreshProfile();
+      setPhoto(null);
+      showToast('Foto de perfil actualizada', 'success');
+    });
+  }
+
+  return <PetCareScreen wide>
+    <PetCareHero eyebrow="PETCARE · PANEL PROFESIONAL" title={professionalName ? `Hola, ${user?.firstName}` : 'Tu jornada'} subtitle={subtitle} icon={isVeterinarian ? 'medical-outline' : 'cut-outline'} />
+    {isVeterinarian && <PetCareCard><View style={{ alignItems: 'center', gap: 12 }}>
+      <ProfilePhotoInput currentUri={user?.profilePhotoUrl ?? null} photo={photo} onSelect={setPhoto} onRemove={() => setPhoto(null)} disabled={photoAction.loading} allowCamera removable={false} size={84} />
+      {photo && <AppButton label="Guardar foto" loading={photoAction.loading} disabled={photoAction.loading} onPress={() => void savePhoto()} />}
+      <FormNotice error message={photoAction.error} />
+    </View></PetCareCard>}
+
+    <QueryState {...query} />
+    {query.data && <StaffMetricCards items={[
+      { label: 'Turnos de hoy', value: query.data.todayCount, icon: 'calendar-outline' },
+      { label: 'Pendientes', value: query.data.pendingCount, icon: 'time-outline' },
+      { label: 'En atención', value: query.data.attentionCount, icon: 'medkit-outline' },
+      { label: 'Finalizados hoy', value: query.data.completedTodayCount, icon: 'checkmark-circle-outline' },
+    ]} />}
+
+    <View style={{ gap: 10 }}>
+      <AppText variant="subtitle">Próximo turno</AppText>
+      {upcoming[0] ? <AppointmentCard item={upcoming[0]} roleBase={roleBase} featured /> : query.data && <PetCareEmptyState title="No hay próximos turnos" message="Los próximos turnos asignados aparecerán acá." icon="calendar-outline" />}
+    </View>
+
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <AppText variant="subtitle">Próximos turnos</AppText>
+        {upcoming.length > 0 && <AppText variant="caption" muted>{upcoming.length} en agenda</AppText>}
+      </View>
+      {upcoming.length ? <ResponsiveGrid minItemWidth={280} maxColumns={3}>{upcoming.slice(0, 5).map(item => <AppointmentCard key={String(item.id)} item={item} roleBase={roleBase} />)}</ResponsiveGrid> : query.data && <PetCareEmptyState title="Tu agenda está al día" message="No hay más turnos próximos asignados." icon="calendar-outline" />}
+      {upcoming.length > 0 && <AppButton compact variant="secondary" label="Abrir agenda" onPress={() => router.push(`${roleBase}/agenda` as never)} />}
+    </View>
+    <RoleQuickAccess />
+  </PetCareScreen>;
 }
 
-/** Inicio operativo del peluquero: resumen real de su agenda y enlaces directos a sus turnos. */
-// Función GroomerHome: concentra la lógica dentro de este módulo.
-function GroomerHome(){
- const {user}=useAuth();const api=useClinic();const query=useClientQuery(api.home);const upcoming=query.data?.upcomingAppointments??[];const [selectedId,setSelectedId]=useState('');const appointment=useClientQuery(useCallback(()=>selectedId?api.appointment(selectedId):Promise.resolve(null),[api,selectedId]));
- return <PetCareScreen wide>
-<PetCareHero eyebrow="PELUQUERÍA" title={user?.firstName?`Hola, ${user.firstName}`:'Tu jornada'} subtitle="Tu jornada de peluquería" icon="cut-outline"/>
-<QueryState {...query}/>
-  {query.data&&<>
-   <StaffMetricCards items={[{label:'Turnos de hoy',value:query.data.todayCount,icon:'calendar-outline'}]}/>
-   {query.data.nextAppointment&&(()=>{const next=query.data.nextAppointment;const nextId=appointmentRouteId(next.id);return <Pressable accessibilityRole="button" accessibilityState={{disabled:!nextId}} accessibilityLabel={`Ver próximo turno de ${appointmentDisplayValue(next.petName,'mascota sin nombre')}`} disabled={!nextId} onPress={()=>nextId&&setSelectedId(nextId)}><PetCareCard><View style={{flexDirection:'row',alignItems:'center',gap:14}}><View style={{width:48,height:48,borderRadius:16,alignItems:'center',justifyContent:'center',backgroundColor:'#E8F2ED'}}><Ionicons name="calendar-outline" size={24} color="#28795D"/></View><View style={{flex:1,minWidth:0,gap:4}}><AppText variant="caption" muted>PRÓXIMO TURNO</AppText><AppText variant="subtitle" numberOfLines={1}>{appointmentDisplayValue(next.petName,'Mascota sin nombre')}</AppText><AppText muted numberOfLines={1}>{appointmentDisplayValue(next.service,'Servicio no disponible')}</AppText><AppText style={{fontWeight:'700'}}>{next.startsAt?clinicDateTime(String(next.startsAt)):'Fecha y horario no disponibles'}</AppText><AppText variant="caption" style={{fontWeight:'700'}}>{nextId?'Consultar detalle':'El turno no tiene un identificador válido; actualizá la agenda.'}</AppText></View><View style={{alignItems:'flex-end',gap:8}}><AppText variant="caption">{appointmentDisplayValue(next.status?statusLabel(String(next.status)):null,'Estado no disponible')}</AppText><Ionicons name="chevron-forward" size={20} color="#28795D"/></View></View></PetCareCard></Pressable>;})()}
-   <AppText variant="subtitle">Próximos turnos</AppText>
-   {upcoming.length?<ResponsiveGrid maxColumns={3}>{upcoming.map(item=>{const itemId=appointmentRouteId(item.id);return <Pressable key={item.id} accessibilityRole="button" accessibilityState={{disabled:!itemId}} disabled={!itemId} onPress={()=>itemId&&router.push({pathname:'/professional/appointment' as never,params:{id:itemId}})}><PetCareCard><View style={{flexDirection:'row',alignItems:'center',gap:12}}><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{appointmentDisplayValue(item.petName,'Mascota sin nombre')}</AppText><AppText muted numberOfLines={1}>{item.startsAt?clinicDateTime(String(item.startsAt)):'Fecha no disponible'} · {appointmentDisplayValue(item.service,'Servicio no disponible')}</AppText></View><AppText variant="caption">{appointmentDisplayValue(item.status?statusLabel(String(item.status)):null,'Estado no disponible')}</AppText></View>{!itemId&&<AppText variant="caption" muted>Turno sin identificador válido. Actualizá la agenda.</AppText>}</PetCareCard></Pressable>;})}</ResponsiveGrid>:<PetCareEmptyState title="No hay próximos turnos" message="Los nuevos turnos aparecerán acá cuando se asignen a tu agenda." icon="calendar-outline"/>}
-  </>}
-  <AppModal visible={Boolean(selectedId)} dismissible onClose={()=>setSelectedId('')}><AppText variant="title">Detalle del próximo turno</AppText>
-<QueryState {...appointment}/>{appointment.data&&<PetCareCard><AppText variant="subtitle">{appointmentDisplayValue(appointment.data.petName,'Mascota sin nombre')}</AppText><AppText>Responsable: {appointmentDisplayValue(appointment.data.ownerName,'Responsable no informado')}</AppText><AppText>Servicio: {appointmentDisplayValue(appointment.data.service,'Servicio no disponible')}</AppText><AppText>Profesional asignado: {appointmentDisplayValue(appointment.data.veterinarian,'Profesional no informado')}</AppText><AppText>Fecha y hora: {appointment.data.startsAt?clinicDateTime(String(appointment.data.startsAt)):'Fecha y horario no disponibles'}</AppText><AppText>Estado: {appointmentDisplayValue(appointment.data.status?statusLabel(String(appointment.data.status)):null,'Estado no disponible')}</AppText>{Boolean(appointment.data.observations)&&<AppText>Observaciones: {String(appointment.data.observations)}</AppText>}</PetCareCard>}<FormNotice error message={!appointment.loading&&!appointment.data?'No pudimos cargar este turno. Actualizá la agenda e intentá nuevamente.':null}/><AppButton label="Abrir gestión del turno" variant="secondary" disabled={!appointment.data} onPress={()=>{const id=selectedId;setSelectedId('');router.push({pathname:'/professional/appointment' as never,params:{id}})}}/><AppButton label="Cerrar" onPress={()=>setSelectedId('')}/></AppModal>
-  <RoleQuickAccess/>
- </PetCareScreen>;
+function AppointmentCard({ item, roleBase, featured = false }: { item: Record<string, unknown>; roleBase: string; featured?: boolean }) {
+  const id = appointmentRouteId(item.id);
+  const title = appointmentDisplayValue(item.petName, 'Mascota sin nombre');
+  const status = appointmentDisplayValue(item.status ? statusLabel(String(item.status)) : null, 'Estado no disponible');
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Abrir turno de ${title}`} disabled={!id} onPress={() => id && router.push({ pathname: `${roleBase}/appointment` as never, params: { id } })}>
+    <PetCareCard><View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <PetImage uri={typeof item.petPhotoUrl === 'string' ? item.petPhotoUrl : null} size={featured ? 54 : 44} />
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <AppText variant={featured ? 'subtitle' : 'body'} numberOfLines={1}>{title}</AppText>
+        <AppText variant="caption" muted numberOfLines={2}>{appointmentDisplayValue(item.service, 'Servicio no disponible')} · {item.startsAt ? clinicDateTime(String(item.startsAt)) : 'Fecha no disponible'}</AppText>
+        <AppText variant="caption" style={{ fontWeight: '700' }}>{status}</AppText>
+      </View>
+      <Ionicons name="chevron-forward" size={19} color="#28795D" />
+    </View></PetCareCard>
+  </Pressable>;
 }
 
-/** Inicio exclusivo del veterinario: resumen diario, próximas atenciones y solicitudes pendientes. */
-// Función VeterinarianHome: concentra la lógica dentro de este módulo.
-function VeterinarianHome(){
- const {user,hasPermission}=useAuth();
- const {width}=useWindowDimensions();
- const api=useClinic();
- const query=useClientQuery(api.home);
- const appointments=query.data?.todayAppointments??[];
- const upcoming=query.data?.upcomingAppointments??[];
- // Función renderAppointmentCard: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const renderAppointmentCard=(item:typeof appointments[number],cardWidth:number|'100%')=><Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Abrir turno de ${String(item.petName)}`} onPress={()=>router.push({pathname:'/vet/appointment' as never,params:{id:item.id}})} style={{width:cardWidth}}>
-   <PetCareCard><View style={{flexDirection:'row',alignItems:'center',gap:12}}><PetImage uri={typeof item.petPhotoUrl==='string'?item.petPhotoUrl:null} size={48}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={1}>{String(item.petName)}</AppText><AppText muted numberOfLines={1}>{clinicDateTime(String(item.startsAt))} · {String(item.service)}</AppText>{hasPermission('users.view_basic')&&Boolean(item.ownerName)&&<AppText muted numberOfLines={1}>Propietario: {String(item.ownerName)}</AppText>}<AppText variant="caption" style={{fontWeight:'700'}}>Ver turno</AppText></View><AppText variant="caption">{statusLabel(String(item.status))}</AppText></View>
-  </PetCareCard>
- </Pressable>;
- const appointmentCards=upcoming.map(item=>renderAppointmentCard(item,'100%'));
- return <PetCareScreen wide>
-   
-<PetCareHero eyebrow="ATENCIÓN VETERINARIA" title={user?.firstName?`Hola, ${user.firstName}`:'Tu jornada'} subtitle="Este es el resumen de tu jornada" icon="medkit-outline"/>
-  
-<QueryState {...query}/>
-   {query.data&&<StaffMetricCards items={[{label:'Turnos de hoy',value:query.data.todayCount,icon:'calendar-outline' as const},...(Number(query.data.attentionCount)>0?[{label:'Consultas en atención',value:query.data.attentionCount,icon:'time-outline' as const}]:[]),...(hasPermission('appointments.manage')&&Number(query.data.pendingCount)>0?[{label:'Solicitudes pendientes',value:query.data.pendingCount,icon:'notifications-outline' as const}]:[])]}/>}
-   {Number(query.data?.attentionCount)>0&&<PetCareCard><AppText variant="subtitle">Requiere tu atención</AppText><AppText>{query.data?.attentionCount} {Number(query.data?.attentionCount)===1?'consulta en atención':'consultas en atención'}</AppText><AppButton compact variant="secondary" label="Continuar atenciones" onPress={()=>router.push({pathname:'/vet/agenda' as never,params:{status:'IN_PROGRESS'}})}/></PetCareCard>}
-   {hasPermission('appointments.manage')&&Number(query.data?.pendingCount)>0&&<PetCareCard><AppText variant="subtitle">Solicitudes pendientes</AppText><AppText>{query.data?.pendingCount} {Number(query.data?.pendingCount)===1?'solicitud requiere':'solicitudes requieren'} revisión</AppText><AppButton compact variant="secondary" label="Revisar solicitudes" onPress={()=>router.push({pathname:'/vet/agenda' as never,params:{status:'REQUESTED'}})}/></PetCareCard>}
-   {query.data&&Number(query.data.attentionCount)===0&&(!hasPermission('appointments.manage')||Number(query.data.pendingCount)===0)&&<AppText muted>No hay tareas pendientes para revisar.</AppText>}
-   {query.data&&upcoming.length===0&&<PetCareEmptyState title="No tenés próximos turnos" icon="calendar-outline"/>}
-   {upcoming.length>0&&<AppText variant="subtitle">Próximo paciente</AppText>}
-   {upcoming.length>0&&(isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet)?<ResponsiveGrid>{appointmentCards}</ResponsiveGrid>:<ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-staff-appointments':undefined} horizontal showsHorizontalScrollIndicator contentContainerStyle={{gap:12,paddingBottom:8}}>{upcoming.map(item=>renderAppointmentCard(item,260))}</ScrollView>)}
-   {query.data&&appointments.length===0&&<AppText muted>Hoy no tenés turnos asignados.</AppText>}
-   <RoleQuickAccess/>
- </PetCareScreen>;
+function StaffMetricCards({ items }: { items: { label: string; value: number | null; icon: IconName }[] }) {
+  const { width } = useWindowDimensions();
+  const { colors } = useTheme();
+  const columns = width < 380 ? 2 : width < 720 ? 2 : 4;
+  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+    {items.map(item => <View key={item.label} style={{ flexGrow: 1, flexBasis: columns === 2 ? '40%' : 180, minWidth: 125, backgroundColor: colors.surface, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, gap: 9 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ width: 30, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent }}><Ionicons name={item.icon} size={16} color={colors.primary} /></View><AppText variant="caption" muted numberOfLines={1} style={{ flex: 1 }}>{item.label}</AppText></View>
+      <AppText variant="title">{item.value ?? '—'}</AppText>
+    </View>)}
+  </View>;
 }
-// Los formularios y listas se comparten sin duplicar registros según el rol.
-// Función useSubmittedSearch: concentra la lógica dentro de este módulo.
-export function useSubmittedSearch(){const [search,setSearch]=useState('');const [submitted,setSubmitted]=useState('');return {search,setSearch,submitted,submit:useCallback(()=>setSubmitted(search.trim()),[search])};}

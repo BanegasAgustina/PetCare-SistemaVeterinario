@@ -8,7 +8,7 @@ import { readPermissions } from './authorization.repository';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { forbidden } from '../utils/admin-authorization';
-import { assertTransition } from '../utils/clinic-rules';
+import { assertTransition, professionalUpcomingAppointments } from '../utils/clinic-rules';
 import { petPhotoUrl } from '../services/pet-photo.service';
 import { profilePhotoUrl } from '../services/pet-photo.service';
 import * as v from '../validators/clinic.validator';
@@ -333,19 +333,19 @@ export async function home(actor:AuthUser) {
  let stats:Data|null=null,next:Data|null=null,upcoming:Data[]|null=null;
  if(all||own){const scope=all?'':' AND s.professional_user_id=?';const params=all?[]:[actor.id];
   stats=await one(`SELECT SUM(DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00')) AND a.status<>'CANCELLED') AS todayCount,SUM(a.status='REQUESTED') AS pendingCount,SUM(a.status='IN_PROGRESS') AS attentionCount,SUM(a.status='CONFIRMED' AND DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS confirmedTodayCount,SUM(a.status='CANCELLED' AND DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS cancelledTodayCount,SUM(a.status='COMPLETED' AND DATE(CONVERT_TZ(s.ends_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS completedTodayCount FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE 1=1${scope}`,params);
-  // El resumen no depende de las columnas opcionales que usa el detalle (observations y cancellation_reason).
-  if(actor.role==='GROOMER'){
+  // Los profesionales usan el mismo conjunto de turnos para el indicador de próximo turno y la lista.
+  if(['VETERINARIAN','GROOMER'].includes(actor.role)){
    const assigned=await appointments(actor,{upcomingOnly:'true'});
-   next=assigned.find(item=>['REQUESTED','CONFIRMED','IN_PROGRESS'].includes(String(item.status)))??null;
+   upcoming=professionalUpcomingAppointments(assigned);
+   next=upcoming[0]??null;
   }else{
    const r=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.ends_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 1`,params);next=r[0]??null;
   }
-  if(all)upcoming=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt,a.status FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 5`,params);
+  if(all&&!['VETERINARIAN','GROOMER'].includes(actor.role))upcoming=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt,a.status FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 5`,params);
  }
  const clinicToday=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(part=>[part.type,part.value]));
  const todayAppointments=['VETERINARIAN','GROOMER'].includes(actor.role)&&(all||own)?await appointments(actor,{date:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
- const upcomingAppointments=actor.role==='VETERINARIAN'&&(all||own)?await appointments(actor,{upcomingOnly:'true'}):actor.role==='GROOMER'&&own?await appointments(actor,{fromDate:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
- return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,attentionCount:stats?Number(stats.attentionCount??0):null,confirmedTodayCount:stats?Number(stats.confirmedTodayCount??0):null,cancelledTodayCount:stats?Number(stats.cancelledTodayCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,...(todayAppointments?{todayAppointments}: {}),...(actor.role==='VETERINARIAN'&&upcomingAppointments?{upcomingAppointments:upcomingAppointments.filter(item=>['REQUESTED','CONFIRMED','IN_PROGRESS'].includes(String(item.status))).slice(0,5)}:upcoming?{upcomingAppointments:upcoming}:{})};
+ return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,attentionCount:stats?Number(stats.attentionCount??0):null,confirmedTodayCount:stats?Number(stats.confirmedTodayCount??0):null,cancelledTodayCount:stats?Number(stats.cancelledTodayCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,...(todayAppointments?{todayAppointments}: {}),...(upcoming?{upcomingAppointments:upcoming}:{})};
 }
 
 // Función patient: concentra la lógica dentro de este módulo.
