@@ -2,12 +2,14 @@
 
 /** Registro conserva la ruta de fondo: el AuthContext abre el modal después de crear la cuenta. */
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { AuthForm, type AuthField } from '../components/forms/AuthForm';
 import { LoginBrand } from '../components/layout/LoginBrand';
 
 import { LoginLayout } from '../components/layout/LoginLayout';
 import { AppText } from '../components/ui/AppText';
+import { OAuthSignInOptions } from '../components/ui/OAuthSignInOptions';
 
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
@@ -25,10 +27,12 @@ const fields: AuthField<RegistrationFormValues>[] = [
 // Función RegisterScreen: crea un registro o inicia una operación dentro de este módulo.
 export default function RegisterScreen() {
   const auth = useAuth(); const { colors } = useTheme();
-  return <LoginLayout showDesktopImage petArtwork="register">
+  const [socialLoading, setSocialLoading] = useState(false);
+  return <LoginLayout scrollable showDesktopImage petArtwork="register">
     <LoginBrand title="Creá tu cuenta" subtitle="Cuidamos a quienes más querés" />
-    <AuthForm compact dense centerSubmitButton fields={fields} initialValues={{ fullName: '', email: '', phone: '', password: '', confirmPassword: '' }} validate={validateRegistrationForm}
+    <AuthForm compact dense centerSubmitButton disabled={socialLoading} fields={fields} initialValues={{ fullName: '', email: '', phone: '', password: '', confirmPassword: '' }} validate={validateRegistrationForm}
       onSubmit={async values => { await auth.register(registrationPayload(values)); }} submitLabel="CREAR CUENTA" loadingLabel="Creando tu cuenta…" />
+    <OAuthSignInOptions onLoadingChange={setSocialLoading} />
     <Pressable accessibilityRole="link" onPress={() => router.replace('/login')} style={styles.link}><AppText variant="caption" style={{ color: colors.primary, textAlign: 'center' }}>¿Ya tenés cuenta? Iniciar sesión</AppText></Pressable>
 
   </LoginLayout>;

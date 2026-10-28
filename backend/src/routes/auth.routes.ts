@@ -23,6 +23,7 @@ authRouter.post('/refresh',createAuthRateLimiter(),oauth.refresh);
 authRouter.post('/logout',createAuthRateLimiter(),oauth.logout);
 authRouter.post('/oauth/exchange',createAuthRateLimiter(),oauth.exchange);
 authRouter.post('/oauth/register',createAuthRateLimiter(),oauth.registerOAuth);
+authRouter.get('/oauth/providers',createAuthRateLimiter(30),oauth.providerAvailability);
 authRouter.post('/oauth/:provider/start',createAuthRateLimiter(),oauth.start);
 authRouter.post('/oauth/:provider/link',authenticate,createAuthRateLimiter(),oauth.link);
 authRouter.get('/oauth/:provider/callback',createAuthRateLimiter(),oauth.callback);

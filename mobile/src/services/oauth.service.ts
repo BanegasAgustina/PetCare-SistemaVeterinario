@@ -12,6 +12,7 @@ import { clearWebOAuthProof,readWebOAuthProof,saveWebOAuthProof } from './web-se
 import { nativeOAuthSupported,oauthBrowserResultError,parseOAuthCallback } from './oauth-flow';
 // Tipo OAuthProvider: define la forma o las opciones válidas de los datos usados por este módulo.
 export type OAuthProvider = 'google'|'facebook'|'x';
+export type OAuthProviderAvailability = Record<OAuthProvider,boolean>;
 // Tipo OAuthPending: define la forma o las opciones válidas de los datos usados por este módulo.
 export type OAuthPending = {ticket:string;proof:string;email:string|null};
 // Tipo Exchange: define la forma o las opciones válidas de los datos usados por este módulo.
@@ -29,6 +30,12 @@ function returnUrl():string {
   if(Platform.OS!=='web')return 'petcare://oauth';
   // WebBrowser cierra la ventana emergente solo desde el mismo origen HTTPS.
   return `${globalThis.location.origin}/oauth`;
+}
+/** Consulta solo si el backend tiene este proveedor configurado para el retorno de esta plataforma. */
+export async function getOAuthProviderAvailability():Promise<OAuthProviderAvailability> {
+  const query=new URLSearchParams({returnUrl:returnUrl()});
+  const result=await apiRequest<{providers?:Partial<OAuthProviderAvailability>}>(`/auth/oauth/providers?${query.toString()}`);
+  return {google:result.providers?.google===true,facebook:result.providers?.facebook===true,x:result.providers?.x===true};
 }
 // Función base64Url: concentra la lógica dentro de este módulo.
 function base64Url(value:string):string {return value.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
