@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Aplica migraciones pendientes sin destruir datos ni simular rollback de DDL MySQL. */
 import { databasePool } from '../config/database';
 import { checkDatabaseConnection } from '../services/database.service';
@@ -5,6 +7,7 @@ import { runDatabaseOperation } from '../utils/database-error';
 import { withDatabaseLock } from './lock';
 import { readMigrationFiles, verifyMigrationHistory, type MigrationRecord } from './migration-files';
 
+// Función runMigrations: concentra la lógica dentro de este módulo.
 export async function runMigrations(directory?: string): Promise<number> {
   const files = await readMigrationFiles(directory);
   await checkDatabaseConnection();

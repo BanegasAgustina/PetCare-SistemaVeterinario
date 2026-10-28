@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { AppButton } from '../ui/AppButton';
@@ -5,10 +7,13 @@ import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 import { dateFromApi, dateToApi, displayPetDate } from '../../utils/pet-date';
 
+// Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props = { label: string; value: string; onChange: (value: string) => void; disabled?: boolean; optional?: boolean; minDate?: string; maxDate?: string };
+// Dato monthNames: conserva un valor calculado o de configuración usado por este módulo.
 const monthNames = Array.from({ length: 12 }, (_, month) => new Date(2020, month, 1).toLocaleDateString('es-AR', { month: 'long' }));
 
 /** Calendario web con selección directa de año y mes, sin ingreso manual de fechas. */
+// Función CalendarDateField: concentra la lógica dentro de este módulo.
 export function CalendarDateField({ label, value, onChange, disabled = false, optional = false, minDate, maxDate }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'days' | 'months' | 'years'>('days');
@@ -20,7 +25,8 @@ export function CalendarDateField({ label, value, onChange, disabled = false, op
   const lowerYear = minDate ? dateFromApi(minDate).getFullYear() : 1900;
   const upperYear = maxDate ? dateFromApi(maxDate).getFullYear() : new Date().getFullYear() + 10;
   const years = Array.from({ length: Math.max(0, upperYear - lowerYear + 1) }, (_, index) => upperYear - index);
-  function close() { setOpen(false); setView('days'); }
+  // Función close: concentra la lógica dentro de este módulo.
+function close() { setOpen(false); setView('days'); }
   return <View style={{ gap: 8 }}>
     <AppText>{label}{optional ? ' (opcional)' : ''}</AppText>
     <AppButton variant="secondary" label={`${value ? displayPetDate(value) : 'Elegir fecha'}  📅`} disabled={disabled} onPress={() => { setMonth(value ? dateFromApi(value) : new Date()); setView('days'); setOpen(current => !current); }} />

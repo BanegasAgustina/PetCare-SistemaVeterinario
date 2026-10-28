@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Crea solo la base configurada, sin eliminar ni alterar una base existente. */
 import mysql, { type RowDataPacket } from 'mysql2/promise';
 import { databaseOptions } from '../config/database';
@@ -5,6 +7,7 @@ import { env } from '../config/env';
 import { assertMysql8Version } from '../services/database.service';
 import { runDatabaseOperation } from '../utils/database-error';
 
+// Función createDatabase: crea un registro o inicia una operación dentro de este módulo.
 export async function createDatabase(): Promise<void> {
   await runDatabaseOperation(async () => {
     // La conexión inicial no selecciona una base que quizás todavía no existe.

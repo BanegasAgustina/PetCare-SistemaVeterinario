@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Agrega el indicador para exigir una contraseña propia solo a cuentas de empleado nuevas. */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -6,7 +8,9 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
+// Dato version: conserva un valor calculado o de configuración usado por este módulo.
 const version='001_must_change_password.sql';
+// Función migrateEmployeePassword: concentra la lógica dentro de este módulo.
 export async function migrateEmployeePassword(){
   const sql=await readFile(resolve(__dirname,'../../employee-password-migrations',version),'utf8');
   const checksum=createHash('sha256').update(sql).digest('hex');

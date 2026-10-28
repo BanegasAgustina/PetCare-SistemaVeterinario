@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
+
 /** Confirmación reutilizable; las acciones destructivas deben pasar por este patrón visual. */
 import { AppModal } from './AppModal';
 import { AppText } from './AppText';
@@ -7,7 +9,9 @@ import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
+// Tipo ConfirmModalProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type ConfirmModalProps = { visible: boolean; title: string; message: string; confirmLabel?: string; cancelLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => Promise<void> };
+// Función ConfirmModal: concentra la lógica dentro de este módulo.
 export function ConfirmModal({ visible, title, message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, onCancel, onConfirm }: ConfirmModalProps) {
   const action = useAsyncAction();
   const { width } = useWindowDimensions();
@@ -23,4 +27,5 @@ export function ConfirmModal({ visible, title, message, confirmLabel = 'Confirma
   </AppModal>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({actions:{gap:9},desktopActions:{flexDirection:'row',justifyContent:'flex-end',flexWrap:'wrap',gap:10,paddingTop:4}});

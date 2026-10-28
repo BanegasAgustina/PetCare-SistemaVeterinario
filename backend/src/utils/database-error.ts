@@ -1,5 +1,8 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
+
 /** Convierte errores MySQL en errores públicos seguros; nunca publica sqlMessage/sql. */
 import { AppError } from './app-error';
+// Clase DatabaseError: agrupa estado y operaciones que trabajan como una unidad.
 export class DatabaseError extends Error {
   constructor(public readonly code: string, public readonly status: number, message: string, cause?: unknown) {
     super(message, { cause });
@@ -7,6 +10,7 @@ export class DatabaseError extends Error {
   }
 }
 
+// Dato unavailableCodes: conserva un valor calculado o de configuración usado por este módulo.
 const unavailableCodes = new Set([
   'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EACCES',
   'PROTOCOL_CONNECTION_LOST', 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR', 'PROTOCOL_ENQUEUE_AFTER_QUIT',
@@ -14,6 +18,7 @@ const unavailableCodes = new Set([
   'ER_CON_COUNT_ERROR', 'ER_SERVER_SHUTDOWN', 'ER_SERVER_OFFLINE_MODE', 'POOL_ENQUEUELIMIT',
 ]);
 
+// Función normalizeDatabaseError: transforma o prepara datos dentro de este módulo.
 export function normalizeDatabaseError(error: unknown): DatabaseError {
   if (error instanceof DatabaseError) return error;
   const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
@@ -40,6 +45,7 @@ export function normalizeDatabaseError(error: unknown): DatabaseError {
 }
 
 /** Frontera común que usarán servicios y futuros repositorios para proteger errores SQL. */
+// Función runDatabaseOperation: concentra la lógica dentro de este módulo.
 export async function runDatabaseOperation<T>(operation: () => Promise<T>): Promise<T> {
   try { return await operation(); } catch (error) {
     if (error instanceof AppError) throw error;

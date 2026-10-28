@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
+
 import type { ReactNode } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { FilterDisclosure } from '../ui/FilterDisclosure';
 
+// Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props = {
   search?: ReactNode;
   sort?: ReactNode;
@@ -16,6 +19,7 @@ type Props = {
 };
 
 /** Compact list controls with a single responsive arrangement for search, sorting, filters, and actions. */
+// Función AdminListToolbar: concentra la lógica dentro de este módulo.
 export function AdminListToolbar({ search, sort, filters, filterCount = 0, onApply = () => undefined, onClear = () => undefined, onFilterOpen, onFilterCancel, actions }: Props) {
   const { width } = useWindowDimensions();
   const tablet = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.tablet);
@@ -28,6 +32,7 @@ export function AdminListToolbar({ search, sort, filters, filterCount = 0, onApp
   </View>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   container: { width: '100%', gap: 10, alignItems: 'stretch' },
   tablet: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' },

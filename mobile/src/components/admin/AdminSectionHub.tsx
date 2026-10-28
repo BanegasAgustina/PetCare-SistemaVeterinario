@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
+
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
@@ -9,10 +11,14 @@ import { useClientQuery } from '../../hooks/useClientQuery';
 import { AppText } from '../ui/AppText';
 import { PetCareCard, PetCareHeader, PetCareScreen, QueryState, money, type IconName } from '../client/PetCareUI';
 
+// Tipo AdminSection: define la forma o las opciones válidas de los datos usados por este módulo.
 export type AdminSection = 'clinic' | 'store' | 'administration';
+// Tipo CardSpec: define la forma o las opciones válidas de los datos usados por este módulo.
 type CardSpec = { title: string; description: string; path: string; icon: IconName; permissions: string[] };
+// Tipo StoreIndicatorSpec: define la forma o las opciones válidas de los datos usados por este módulo.
 type StoreIndicatorSpec = { title: string; value: string | number; icon: IconName; path: string; params?: Record<string, string> };
 
+// Función StoreIndicator: concentra la lógica dentro de este módulo.
 function StoreIndicator({ title, value, icon, path, params }: StoreIndicatorSpec) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={`${title}: ${value}`} onPress={() => router.push({ pathname: path as never, params } as never)} style={({ pressed }) => [styles.indicator, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}>
@@ -22,6 +28,7 @@ function StoreIndicator({ title, value, icon, path, params }: StoreIndicatorSpec
   </Pressable>;
 }
 
+// Configuración sections: reúne valores o reglas que consume el resto del módulo.
 const sections: Record<AdminSection, { title: string; subtitle: string; cards: CardSpec[] }> = {
   clinic: { title: 'Clínica', subtitle: 'Servicios, pacientes, turnos y disponibilidad', cards: [
     { title: 'Servicios', description: 'Precios, duración, disponibilidad y profesionales habilitados.', path: '/admin/catalog/services', icon: 'medkit-outline', permissions: ['services.manage'] },
@@ -48,6 +55,7 @@ const sections: Record<AdminSection, { title: string; subtitle: string; cards: C
   ] },
 };
 
+// Función AdminSectionHub: concentra la lógica dentro de este módulo.
 export function AdminSectionHub({ section }: { section: AdminSection }) {
   const auth = useAuth();
   const { colors } = useTheme();
@@ -75,7 +83,8 @@ export function AdminSectionHub({ section }: { section: AdminSection }) {
     <PetCareHeader title={config.title} subtitle={config.subtitle} hideForAdmin/>
     {section === 'store' && canViewOrders && <View style={styles.activity}>
       <AppText variant="subtitle">Actividad de la tienda</AppText>
-      <QueryState {...storeStatsQuery}/>
+      
+<QueryState {...storeStatsQuery}/>
       {!!indicators.length && <View style={styles.indicatorGrid}>{indicators.map(indicator => <StoreIndicator key={indicator.title} {...indicator}/>)}</View>}
     </View>}
     {cards.length ? <View style={styles.grid}>{cards.map(card => <Pressable key={card.path} accessibilityRole="button" accessibilityLabel={`${card.title}. ${card.description}`} onPress={() => router.push(card.path as never)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}>
@@ -86,4 +95,5 @@ export function AdminSectionHub({ section }: { section: AdminSection }) {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ activity: { gap: 12 }, indicatorGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, indicator: { flexGrow: 1, flexBasis: 180, maxWidth: 400, minWidth: 0, minHeight: 128, padding: 16, borderWidth: 1, borderRadius: 18, gap: 5 }, value: { fontSize: 25, lineHeight: 30 }, grid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, card: { flexGrow: 1, flexBasis: 280, maxWidth: 480, minHeight: 122, padding: 16, borderWidth: 1, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 13 }, icon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, copy: { flex: 1, minWidth: 0, gap: 5 } });

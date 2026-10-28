@@ -1,4 +1,7 @@
+// Este archivo se encarga de lo siguiente: Valores de configuración compartidos para mantener criterios consistentes en la app.
+
 /** Breakpoints and layout values shared by the web layouts and adaptive components. */
+// Dato responsiveLayout: conserva un valor calculado o de configuración usado por este módulo.
 export const responsiveLayout = {
   breakpoints: {
     compactCards: 520,
@@ -47,10 +50,12 @@ export const responsiveLayout = {
   },
 } as const;
 
+// Función isWebAtLeast: comprueba una regla o condición dentro de este módulo.
 export function isWebAtLeast(platform: string, width: number, breakpoint: number) {
   return platform === 'web' && width >= breakpoint;
 }
 
+// Función patientDetailPresentation: concentra la lógica dentro de este módulo.
 export function patientDetailPresentation(platform: string, width: number) {
   return {
     twoColumns: isWebAtLeast(platform, width, responsiveLayout.breakpoints.desktop),
@@ -58,6 +63,7 @@ export function patientDetailPresentation(platform: string, width: number) {
   };
 }
 
+// Función desktopSidebarWidth: concentra la lógica dentro de este módulo.
 export function desktopSidebarWidth(viewportWidth: number) {
   return Math.min(
     responsiveLayout.sidebar.maxWidth,

@@ -1,7 +1,10 @@
+// Este archivo se encarga de lo siguiente: Hook reutilizable de React; concentra estado o comportamiento que pueden compartir varias pantallas.
+
 /** Comparte loading y error seguro y evita envíos duplicados o cambios tras desmontar. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { friendlyError } from '../services/api';
 
+// Función useAsyncAction: concentra la lógica dentro de este módulo.
 export function useAsyncAction() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

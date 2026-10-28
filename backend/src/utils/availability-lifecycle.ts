@@ -1,5 +1,9 @@
+// Este archivo se encarga de validar si un horario o bloqueo puede reactivarse sin generar conflictos.
+
+// Tipo AvailabilityKind: define la forma o las opciones válidas de datos usados por este módulo.
 export type AvailabilityKind = 'slot' | 'block';
 
+// Tipo ReactivationChecks: define la forma o las opciones válidas de datos usados por este módulo.
 export type ReactivationChecks = {
   kind: AvailabilityKind;
   startsAt: string;
@@ -11,6 +15,7 @@ export type ReactivationChecks = {
 };
 
 /** Validaciones puras para reactivar disponibilidad sin ofrecer horarios inválidos. */
+// Función availabilityReactivationError: concentra la lógica dentro de este módulo.
 export function availabilityReactivationError(checks: ReactivationChecks, now = new Date()): string | null {
   const startsAt = new Date(`${checks.startsAt.replace(' ', 'T')}Z`);
   if (Number.isNaN(startsAt.getTime()) || startsAt <= now) return 'No se puede reactivar un horario que ya comenzó.';

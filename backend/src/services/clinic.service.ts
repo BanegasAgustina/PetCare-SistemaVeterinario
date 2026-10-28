@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Servicios comparten repositories: cliente, profesional y secretaría leen las mismas filas. */
 import type { AuthUser } from '../types/auth';
 import * as client from '../repositories/client.repository';
@@ -9,6 +11,7 @@ import * as v from '../validators/clinic.validator';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { isBannerPhotoKey,isProductPhotoKey,isServicePhotoKey,presentServiceImages,removeBannerPhoto,removeProductPhoto,removeServicePhoto,storeBannerPhoto,storeProductPhoto,storeServicePhoto } from './pet-photo.service';
+// Función clinicOperation: concentra la lógica dentro de este módulo.
 export async function clinicOperation(actor:AuthUser,operation:string,id:unknown,value:unknown,query:Record<string,unknown>,kind?:string) {
  return runDatabaseOperation(async()=>{switch(operation){
  case 'slots':return clinic.slots(v.id(query.serviceId),query.professionalId?v.id(query.professionalId):undefined);

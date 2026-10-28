@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Configuración SMTP diferida; health y migraciones no requieren un servidor de correo. */
 import isEmail from 'validator/lib/isEmail';
 import { env } from './env';
 import { AppError } from '../utils/app-error';
 
+// Función getMailConfiguration: obtiene o consulta información dentro de este módulo.
 export function getMailConfiguration() {
   const host = process.env.SMTP_HOST?.trim() ?? '';
   const from = process.env.MAIL_FROM?.trim() ?? '';
@@ -20,6 +23,7 @@ export function getMailConfiguration() {
 }
 
 /** HMAC evita que un volcado de DB permita probar offline el millón de códigos posibles. */
+// Función getVerificationSecret: obtiene o consulta información dentro de este módulo.
 export function getVerificationSecret(): string {
   const secret = process.env.EMAIL_CODE_SECRET ?? '';
   if (Buffer.byteLength(secret, 'utf8') < 32 || secret.trim().length < 32) {

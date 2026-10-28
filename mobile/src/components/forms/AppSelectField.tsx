@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,7 +9,9 @@ import { AppText } from '../ui/AppText';
 import { SelectionRow } from '../ui/SelectionRow';
 import { useTheme } from '../../hooks/useTheme';
 
+// Tipo SelectOption: define la forma o las opciones válidas de los datos usados por este módulo.
 export type SelectOption = { id: string; name: string };
+// Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props = {
   label: string;
   value: string;
@@ -23,6 +27,7 @@ type Props = {
 };
 
 /** Compact cross-platform select control with a scrollable, searchable option list. */
+// Función AppSelectField: concentra la lógica dentro de este módulo.
 export function AppSelectField({ label, value, options, onChange, required = false, optional = false, emptyLabel = 'Sin asignar', placeholder = 'Elegir una opción', error, hint, disabled = false }: Props) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
@@ -32,7 +37,8 @@ export function AppSelectField({ label, value, options, onChange, required = fal
     const term = search.trim().toLocaleLowerCase();
     return term ? options.filter(option => option.name.toLocaleLowerCase().includes(term)) : options;
   }, [options, search]);
-  const close = () => { setOpen(false); setSearch(''); };
+  // Función close: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const close = () => { setOpen(false); setSearch(''); };
 
   return <View style={styles.container}>
     <AppText variant="caption">{label}{required ? ' *' : optional ? ' (opcional)' : ''}</AppText>
@@ -54,6 +60,7 @@ export function AppSelectField({ label, value, options, onChange, required = fal
   </View>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   container: { width: '100%', gap: 6 },
   control: { minHeight: 50, width: '100%', paddingHorizontal: 14, borderWidth: 1, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },

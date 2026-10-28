@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 import { ScreenContainer } from '../components/layout/ScreenContainer';
 import { AppText } from '../components/ui/AppText';
 import { PetCareCard,PetCareHeader } from '../components/client/PetCareUI';
@@ -5,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { modulesForCapabilities } from '../utils/capability-modules';
 import { RoleQuickAccess } from '../components/layout/RoleQuickAccess';
 
+// Función WorkspaceHome: concentra la lógica dentro de este módulo.
 export default function WorkspaceHome(){
   const {user}=useAuth();
   const modules=modulesForCapabilities(user?.permissions);

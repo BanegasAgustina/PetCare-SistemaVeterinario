@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
+
 import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +20,14 @@ import { parseArsToCents, validatePostalCodePrefix, validateStoreFulfillment, ty
 import { createSubmissionGate } from '../../utils/submission-gate';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
+// Configuración blank: reúne valores o reglas que consume el resto del módulo.
 const blank: FulfillmentSettings = { demoModeEnabled: false, pickupEnabled: false, pickupAddress: null, pickupHours: null, pickupInstructions: null, deliveryEnabled: false, deliveryBaseFeeCents: 0, freeDeliveryThresholdCents: null, deliveryHours: null, deliveryDays: null, deliveryInformation: null, bankName: null, bankAccountHolder: null, bankCbuCvu: null, bankAlias: null, zones: [] };
+// Función formatCents: concentra una operación reutilizable de este módulo.
 const formatCents = (cents: number | null) => cents === null ? '' : (cents / 100).toFixed(2);
+// Función zoneKey: concentra una operación reutilizable de este módulo.
 const zoneKey = (index: number) => `zone-${index}`;
 
+// Función StoreSettings: concentra la lógica dentro de este módulo.
 export default function StoreSettings() {
   const api = useClinic();
   const auth = useAuth();
@@ -50,12 +56,18 @@ export default function StoreSettings() {
   const inputRefs = useRef<Record<string, ComponentRef<typeof TextInput> | null>>({});
   const canManage = auth.hasPermission('store.settings.manage');
 
-  const updateSettings = (update: (current: FulfillmentSettings) => FulfillmentSettings) => setEdited(current => update(current ?? query.data ?? blank));
-  const clearError = (field: string) => setFieldErrors(current => { if (!current[field]) return current; const next = { ...current }; delete next[field]; return next; });
-  const changeField = (field: string, update: (current: FulfillmentSettings) => FulfillmentSettings) => { updateSettings(update); clearError(field); setError(null); };
-  const updateZone = (index: number, patch: Partial<FulfillmentSettings['zones'][number]>) => updateSettings(current => ({ ...current, zones: current.zones.map((zone, position) => position === index ? { ...zone, ...patch } : zone) }));
-  const feeDraft = (key: string, stored: number | null) => feeDrafts[key] ?? formatCents(stored);
-  const changeFeeDraft = (key: string, field: string, label: string, value: string, optional: boolean, onValid: (cents: number | null) => void) => {
+  // Función updateSettings: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const updateSettings = (update: (current: FulfillmentSettings) => FulfillmentSettings) => setEdited(current => update(current ?? query.data ?? blank));
+  // Función clearError: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const clearError = (field: string) => setFieldErrors(current => { if (!current[field]) return current; const next = { ...current }; delete next[field]; return next; });
+  // Función changeField: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const changeField = (field: string, update: (current: FulfillmentSettings) => FulfillmentSettings) => { updateSettings(update); clearError(field); setError(null); };
+  // Función updateZone: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const updateZone = (index: number, patch: Partial<FulfillmentSettings['zones'][number]>) => updateSettings(current => ({ ...current, zones: current.zones.map((zone, position) => position === index ? { ...zone, ...patch } : zone) }));
+  // Función feeDraft: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const feeDraft = (key: string, stored: number | null) => feeDrafts[key] ?? formatCents(stored);
+  // Función changeFeeDraft: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const changeFeeDraft = (key: string, field: string, label: string, value: string, optional: boolean, onValid: (cents: number | null) => void) => {
     setFeeDrafts(current => ({ ...current, [key]: value })); setError(null);
     const parsed = parseArsToCents(value, label, optional);
     setFieldErrors(current => {
@@ -66,12 +78,14 @@ export default function StoreSettings() {
     });
     if (!parsed.error) onValid(parsed.cents);
   };
-  const firstError = (issues: StoreFulfillmentFieldErrors) => {
+  // Función firstError: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const firstError = (issues: StoreFulfillmentFieldErrors) => {
     const first = Object.keys(issues)[0];
     if (first) inputRefs.current[first]?.focus();
   };
 
-  const addZone = () => {
+  // Función addZone: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const addZone = () => {
     const issues: StoreFulfillmentFieldErrors = {};
     if (!newZone.name.trim()) issues['newZone.name'] = 'Ingresá el nombre de la zona.';
     if (!newZone.province.trim()) issues['newZone.province'] = 'Ingresá la provincia.';
@@ -88,7 +102,8 @@ export default function StoreSettings() {
     setError(null);
   };
 
-  const save = () => saveGate.current.run(async () => {
+  // Función save: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const save = () => saveGate.current.run(async () => {
     setDidSubmit(true);
     const baseFeeText = feeDraft('base', settings.deliveryBaseFeeCents);
     const freeThresholdText = feeDraft('free', settings.freeDeliveryThresholdCents);
@@ -117,7 +132,8 @@ export default function StoreSettings() {
   const freeThresholdText = feeDraft('free', settings.freeDeliveryThresholdCents);
   return <PetCareScreen wide>
     <PetCareHeader title="Retiro y envíos" subtitle="Configuración de la tienda" back hideForAdmin />
-    <QueryState {...query} />
+    
+<QueryState {...query} />
     {query.data && <>
       <PetCareCard>
         <AppText variant="subtitle">Retiro en el local</AppText>
@@ -171,4 +187,5 @@ export default function StoreSettings() {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ heading: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', gap: 10 }, flex: { flex: 1, minWidth: 0 } });

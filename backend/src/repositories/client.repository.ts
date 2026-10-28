@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Todas las consultas personales usan la identidad JWT recibida del controller. */
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
@@ -7,7 +9,9 @@ import * as clinic from './clinic.repository';
 import type { AuthUser } from '../types/auth';
 import { invalid, type petInput } from '../validators/client.validator';
 import { assertNoFuturePatientAppointments, requirePetActiveFlag } from '../utils/pet-lifecycle';
+// Tipo PetInput: define la forma o las opciones válidas de los datos usados por este módulo.
 type PetInput=ReturnType<typeof petInput>;
+// Función normalizePetSex: transforma o prepara datos dentro de este módulo.
 function normalizePetSex(value:unknown):'FEMALE'|'MALE'|'UNKNOWN'|null {
   if(value===null||value===undefined||value==='')return null;
   const sex=String(value).trim().toUpperCase();
@@ -16,10 +20,14 @@ function normalizePetSex(value:unknown):'FEMALE'|'MALE'|'UNKNOWN'|null {
   if(['UNKNOWN','UNSPECIFIED','NO LO SE','NO SÉ','DESCONOCIDO'].includes(sex))return 'UNKNOWN';
   return null;
 }
+// Dato petColumns: conserva un valor calculado o de configuración usado por este módulo.
 const petColumns=`p.id,p.name,p.sex,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,p.species_id AS speciesId,
  p.breed_id AS breedId,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg`;
+// Dato petJoins: conserva un valor calculado o de configuración usado por este módulo.
 const petJoins='FROM pets p JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id';
+// Función mapPet: concentra una operación reutilizable de este módulo.
 const mapPet=(p:RowDataPacket)=>({...p,id:String(p.id),sex:normalizePetSex(p.sex),photoUrl:p.photoUrl as string|null,speciesId:String(p.speciesId),breedId:p.breedId===null?null:String(p.breedId),...(p.isActive===undefined?{}:{isActive:requirePetActiveFlag(p.isActive)}),deactivatedAt:p.deactivatedAt?utcDate(p.deactivatedAt):null});
+// Función pets: concentra la lógica dentro de este módulo.
 export async function pets(owner:string,includeInactive=false) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns},p.is_active AS isActive,
     (SELECT h.reason FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivationReason,
@@ -27,6 +35,7 @@ export async function pets(owner:string,includeInactive=false) {
     ${petJoins} WHERE p.owner_id=? ${includeInactive?'':'AND p.is_active=1'} ORDER BY p.is_active DESC,p.name,p.id`,[owner]);
   return rows.map(mapPet);
 }
+// Función pet: concentra la lógica dentro de este módulo.
 export async function pet(owner:string,id:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${petColumns},p.is_active AS isActive,
     (SELECT h.reason FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivationReason,
@@ -36,21 +45,25 @@ export async function pet(owner:string,id:string) {
   const pet=mapPet(rows[0]);
   return {...pet,lifecycleHistory:await petLifecycleHistoryForOwner(owner,id)};
 }
+// Función petLifecycleHistoryForOwner: concentra la lógica dentro de este módulo.
 export async function petLifecycleHistoryForOwner(owner:string,id:string) {
  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT CAST(h.id AS CHAR) AS id,h.previous_is_active AS previousIsActive,
   h.new_is_active AS isActive,h.reason,h.created_at AS createdAt FROM pet_lifecycle_history h JOIN pets p ON p.id=h.pet_id
   WHERE h.pet_id=? AND p.owner_id=? ORDER BY h.id DESC`,[id,owner]);
  return rows.map(row=>({...row,id:String(row.id),previousIsActive:requirePetActiveFlag(row.previousIsActive),isActive:requirePetActiveFlag(row.isActive),createdAt:utcDate(row.createdAt)}));
 }
+// Función petCatalog: concentra la lógica dentro de este módulo.
 export async function petCatalog() {
   const [species]=await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM species ORDER BY name');
   const [breeds]=await databasePool.execute<RowDataPacket[]>('SELECT id,species_id AS speciesId,name FROM breeds ORDER BY name');
   return {species:species.map(s=>({id:String(s.id),name:s.name})),breeds:breeds.map(b=>({id:String(b.id),speciesId:String(b.speciesId),name:b.name}))};
 }
+// Función transaction: concentra la lógica dentro de este módulo.
 async function transaction<T>(operation:(connection:PoolConnection)=>Promise<T>):Promise<T> {
   return runDatabaseOperation(async()=>{const c=await databasePool.getConnection();try{await c.beginTransaction();const result=await operation(c);await c.commit();return result;}catch(error){await c.rollback();throw error;}finally{c.release();}});
 }
 /** La foto se vincula solo después de bloquear la mascota cuya propietaria coincide con el JWT. */
+// Función updateOwnedPetPhoto: actualiza o guarda información dentro de este módulo.
 export async function updateOwnedPetPhoto(connection:Pick<PoolConnection,'execute'>,owner:string,id:string,nextPhoto:string|null,preservePhoto=false):Promise<string|null> {
   const [rows]=await connection.execute<RowDataPacket[]>('SELECT photo_url FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);
   if(!rows[0])throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
@@ -59,6 +72,7 @@ export async function updateOwnedPetPhoto(connection:Pick<PoolConnection,'execut
   return previous;
 }
 /** Comprueba ownership bajo lock y conserva la URL previa para reemplazarla después del commit. */
+// Función savePet: actualiza o guarda información dentro de este módulo.
 export async function savePet(owner:string,input:PetInput,id?:string,preservePhoto=false) {
   return transaction(async c=>{
     const [species]=await c.execute<RowDataPacket[]>('SELECT id FROM species WHERE id=?',[input.speciesId]);if(!species.length)invalid('La especie no existe.');
@@ -73,6 +87,7 @@ export async function savePet(owner:string,input:PetInput,id?:string,preservePho
     return {pet:mapPet(saved[0]),previousPhoto};
   });
 }
+// Función deactivatePet: concentra la lógica dentro de este módulo.
 export async function deactivatePet(owner:string,id:string) {
   await transaction(async c=>{
     const [rows]=await c.execute<RowDataPacket[]>('SELECT id,name FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Mascota no encontrada.');
@@ -88,6 +103,7 @@ export async function deactivatePet(owner:string,id:string) {
     for(const professional of linked)await clinic.notify(c,professional.userId,'Mascota desactivada',`${String(rows[0].name)} fue desactivada por su responsable. Sus datos e historial clínico se conservan.`,'PET_DEACTIVATED','pet',id,`pet:${id}:lifecycle:${event.id}`);
   });return {deactivated:true};
 }
+// Función reactivatePet: concentra la lógica dentro de este módulo.
 export async function reactivatePet(owner:string,id:string) {
   await transaction(async c=>{
     const [rows]=await c.execute<RowDataPacket[]>('SELECT id,is_active AS isActive FROM pets WHERE id=? AND owner_id=? FOR UPDATE',[id,owner]);
@@ -99,11 +115,17 @@ export async function reactivatePet(owner:string,id:string) {
   });
   return {reactivated:true};
 }
+// Función utcDate: concentra la lógica dentro de este módulo.
 function utcDate(value:unknown):string {return String(value).replace(' ','T')+'Z';}
+// Función appointments: concentra la lógica dentro de este módulo.
 export async function appointments(owner:string) {return clinic.appointments({id:owner,role:'CLIENT'} as AuthUser);}
+// Función appointmentCatalog: concentra la lógica dentro de este módulo.
 export async function appointmentCatalog() {const c=await clinic.catalog();return {...c,veterinarians:c.professionals};}
+// Función slots: concentra la lógica dentro de este módulo.
 export async function slots(service:string,professional?:string) {return clinic.slots(service,professional);}
+// Función createAppointment: crea un registro o inicia una operación dentro de este módulo.
 export async function createAppointment(owner:string,petId:string,slotId:string,actor:AuthUser={id:owner,role:'CLIENT'} as AuthUser) {return clinic.requestAppointment(actor,petId,slotId);}
+// Función clinical: concentra la lógica dentro de este módulo.
 export async function clinical(owner:string,kind:string,petId?:string) {
   if(petId)await pet(owner,petId);
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT r.id,r.pet_id AS petId,p.name AS petName,r.title,r.content,r.product_id AS productId,product.name AS productName,r.valid_until AS validUntil,(r.occurred_at<=UTC_TIMESTAMP() AND r.valid_until>UTC_TIMESTAMP()) AS isValid,r.dose,r.frequency,r.duration,r.weight_kg AS weightKg,r.occurred_at AS occurredAt,r.next_due_at AS nextDueAt,
@@ -112,21 +134,28 @@ export async function clinical(owner:string,kind:string,petId?:string) {
   return rows.map(r=>({...r,id:String(r.id),petId:String(r.petId),isValid:Boolean(r.isValid),productId:r.productId?String(r.productId):null,validUntil:r.validUntil?utcDate(r.validUntil):null,occurredAt:utcDate(r.occurredAt),nextDueAt:r.nextDueAt?utcDate(r.nextDueAt):null}));
 }
 // La tienda consulta exclusivamente el catálogo propio y su disponibilidad reservable.
+// Dato productSelect: conserva un valor calculado o de configuración usado por este módulo.
 const productSelect=`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.requires_prescription AS requiresPrescription,p.species_id AS speciesId,p.product_type AS productType,p.is_active AS isActive,p.price_cents AS regularPriceCents,
  COALESCE((SELECT MIN(pr.price_cents) FROM client_promotions pr WHERE pr.product_id=p.id AND pr.is_active=1 AND pr.starts_at<=UTC_TIMESTAMP() AND pr.ends_at>UTC_TIMESTAMP() AND pr.price_cents<p.price_cents),p.price_cents) AS priceCents
  FROM client_products p LEFT JOIN client_product_categories c ON c.id=p.category_id`;
+// Función mapProduct: concentra una operación reutilizable de este módulo.
 const mapProduct=(r:RowDataPacket)=>({...r,id:String(r.id),isActive:Boolean(r.isActive),requiresPrescription:Boolean(r.requiresPrescription),speciesId:r.speciesId===null?null:String(r.speciesId),stock:Number(r.stock),categoryId:r.categoryId===null?null:String(r.categoryId),priceCents:Number(r.priceCents),regularPriceCents:Number(r.regularPriceCents)});
+// Función products: concentra la lógica dentro de este módulo.
 export async function products(search='',category?:string,featured=false,productType?:string) {
   const args:unknown[]=[`%${search}%`];let typeClause='';if(category){typeClause+=' AND p.category_id=?';args.push(category);}if(productType){typeClause+=' AND p.product_type=?';args.push(productType);}if(featured)typeClause+=' AND p.is_featured=1';
   const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.is_active=1 AND (c.id IS NULL OR c.is_active=1) AND p.name LIKE ?${typeClause} ORDER BY p.name LIMIT 200`,args as (string|number)[]);return rows.map(mapProduct);
 }
+// Función product: concentra la lógica dentro de este módulo.
 export async function product(id:string) {const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect} WHERE p.id=? AND p.is_active=1 AND (c.id IS NULL OR c.is_active=1)`,[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');return mapProduct(rows[0]);}
+// Función categories: concentra la lógica dentro de este módulo.
 export async function categories(){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM client_product_categories WHERE is_active=1 ORDER BY name');return rows.map(r=>({...r,id:String(r.id)}));}
+// Función cart: concentra la lógica dentro de este módulo.
 export async function cart(owner:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`${productSelect.replace('SELECT p.id','SELECT i.quantity,p.id')} JOIN client_cart_items i ON i.product_id=p.id WHERE i.owner_id=? ORDER BY p.id`,[owner]);
   const items=rows.map(r=>({...mapProduct(r),quantity:Number(r.quantity),subtotalCents:Number(r.quantity)*Number(r.priceCents)}));
   return {items,totalCents:items.reduce((sum,r)=>sum+r.subtotalCents,0)};
 }
+// Función updateCart: actualiza o guarda información dentro de este módulo.
 export async function updateCart(owner:string,id:string,quantity:number) {
   await transaction(async c=>{
     // Bloquear usuario serializa carrito y checkout del mismo cliente.
@@ -140,7 +169,9 @@ export async function updateCart(owner:string,id:string,quantity:number) {
     await c.execute('INSERT INTO client_cart_items (owner_id,product_id,quantity) VALUES (?,?,?) ON DUPLICATE KEY UPDATE quantity=?',[owner,id,quantity,quantity]);
   });return cart(owner);
 }
+// Función orders: concentra la lógica dentro de este módulo.
 export async function orders(owner:string) {const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT id,status,total_cents AS totalCents,created_at AS createdAt,order_type AS orderType,payment_status AS paymentStatus,is_store_order AS isStoreOrder,store_order_status AS storeOrderStatus,store_payment_status AS storePaymentStatus,payment_method AS paymentMethod,fulfillment_method AS fulfillmentMethod,delivery_status AS deliveryStatus,subtotal_cents AS subtotalCents,delivery_fee_cents AS deliveryFeeCents,recipient_name AS recipientName,delivery_street AS deliveryStreet,delivery_number AS deliveryNumber,delivery_unit AS deliveryUnit,delivery_city AS deliveryCity,delivery_province AS deliveryProvince,delivery_postal_code AS deliveryPostalCode FROM client_orders WHERE owner_id=? ORDER BY id DESC`,[owner]);return rows.map(r=>({...r,id:String(r.id),isStoreOrder:Boolean(r.isStoreOrder),totalCents:Number(r.totalCents),subtotalCents:r.subtotalCents===null?null:Number(r.subtotalCents),deliveryFeeCents:Number(r.deliveryFeeCents??0),createdAt:utcDate(r.createdAt)}));}
+// Función order: concentra la lógica dentro de este módulo.
 export async function order(owner:string,id:string) {
   await databasePool.execute(`UPDATE client_store_payment_intents SET intent_status='EXPIRED' WHERE order_id=? AND owner_id=? AND expires_at<=UTC_TIMESTAMP(3) AND intent_status='ACTIVE'`,[id,owner]);
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT o.id,o.status,o.total_cents AS totalCents,o.created_at AS createdAt,o.order_type AS orderType,o.payment_status AS paymentStatus,o.is_store_order AS isStoreOrder,o.store_order_status AS storeOrderStatus,o.store_payment_status AS storePaymentStatus,o.payment_method AS paymentMethod,o.fulfillment_method AS fulfillmentMethod,o.delivery_status AS deliveryStatus,o.subtotal_cents AS subtotalCents,o.delivery_fee_cents AS deliveryFeeCents,o.recipient_name AS recipientName,o.recipient_phone AS recipientPhone,o.delivery_street AS deliveryStreet,o.delivery_number AS deliveryNumber,o.delivery_unit AS deliveryUnit,o.delivery_city AS deliveryCity,o.delivery_province AS deliveryProvince,o.delivery_postal_code AS deliveryPostalCode,o.delivery_reference AS deliveryReference,o.payment_reference AS paymentReference,
@@ -149,6 +180,7 @@ export async function order(owner:string,id:string) {
   const [items]=await databasePool.execute<RowDataPacket[]>('SELECT product_id AS productId,product_name AS name,quantity,price_cents AS priceCents,quantity*price_cents AS subtotalCents FROM client_order_items WHERE order_id=?',[id]);
   return {...rows[0],id:String(rows[0].id),paymentIntentId:rows[0].paymentIntentId?String(rows[0].paymentIntentId):null,isStoreOrder:Boolean(rows[0].isStoreOrder),paymentProofLate:Boolean(rows[0].paymentProofLate),totalCents:Number(rows[0].totalCents),subtotalCents:rows[0].subtotalCents===null?null:Number(rows[0].subtotalCents),deliveryFeeCents:Number(rows[0].deliveryFeeCents??0),createdAt:utcDate(rows[0].createdAt),paymentExpiresAt:rows[0].paymentExpiresAt?utcDate(rows[0].paymentExpiresAt):null,proofSubmittedAt:rows[0].proofSubmittedAt?utcDate(rows[0].proofSubmittedAt):null,items:items.map(r=>({...r,productId:String(r.productId),priceCents:Number(r.priceCents),subtotalCents:Number(r.subtotalCents)}))};
 }
+// Función notifications: concentra la lógica dentro de este módulo.
 export async function notifications(owner:string,query:Record<string,unknown>={}){
  const limitValue=Number(query.limit??20);if(!Number.isInteger(limitValue)||limitValue<1||limitValue>50)throw new AppError('VALIDATION_ERROR',400,'El límite de notificaciones no es válido.');
  const cursor=query.cursor===undefined?null:String(query.cursor);if(cursor!==null&&!/^[1-9]\d{0,19}$/.test(cursor))throw new AppError('VALIDATION_ERROR',400,'El cursor de notificaciones no es válido.');
@@ -156,9 +188,15 @@ export async function notifications(owner:string,query:Record<string,unknown>={}
  const hasMore=rows.length>limitValue;const items=rows.slice(0,limitValue).map(r=>({...r,readAt:r.readAt?utcDate(r.readAt):null,createdAt:utcDate(r.createdAt)}));
  return {items,nextCursor:hasMore?String(items[items.length-1]?.id??''):null,unreadCount:await unreadNotificationCount(owner)};
 }
+// Función unreadNotificationCount: concentra la lógica dentro de este módulo.
 export async function unreadNotificationCount(owner:string){const [rows]=await databasePool.execute<Array<RowDataPacket & {count:number}>>('SELECT COUNT(*) AS count FROM client_notifications WHERE owner_id=? AND hidden_at IS NULL AND read_at IS NULL',[owner]);return Number(rows[0]?.count??0);}
+// Función readNotification: obtiene o consulta información dentro de este módulo.
 export async function readNotification(owner:string,id:string){const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id FROM client_notifications WHERE id=? AND owner_id=? AND hidden_at IS NULL',[id,owner]);if(!rows.length)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);return {read:true};}
+// Función readAllNotifications: obtiene o consulta información dentro de este módulo.
 export async function readAllNotifications(owner:string){await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE owner_id=? AND hidden_at IS NULL AND read_at IS NULL',[owner]);return {read:true};}
+// Función hideNotification: concentra la lógica dentro de este módulo.
 export async function hideNotification(owner:string,id:string){const [result]=await databasePool.execute<ResultSetHeader>('UPDATE client_notifications SET hidden_at=COALESCE(hidden_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);if(!result.affectedRows)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');return {hidden:true};}
+// Función updateProfile: actualiza o guarda información dentro de este módulo.
 export async function updateProfile(owner:string,firstName:string,lastName:string,phone:string|null){await databasePool.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=?',[firstName,lastName,phone,owner]);return {updated:true};}
+// Función changePassword: actualiza o guarda información dentro de este módulo.
 export async function changePassword(owner:string,expectedHash:string,newHash:string){return transaction(async c=>{const [rows]=await c.execute<RowDataPacket[]>('SELECT password_hash FROM users WHERE id=? FOR UPDATE',[owner]);if(rows[0]?.password_hash!==expectedHash)throw new AppError('INVALID_CREDENTIALS',401,'Tu contraseña cambió. Iniciá sesión nuevamente.');await c.execute('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=?',[newHash,owner]);return {updated:true};});}

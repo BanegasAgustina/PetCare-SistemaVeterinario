@@ -1,7 +1,11 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Services Cliente usan el request autenticado existente; nunca reciben ownerId. */
 import type { Appointment,AppointmentCatalog,Cart,CatalogItem,ClinicalKind,ClinicalRecord,Home,NotificationPage,Order,OrderDetail,Pet,PetCatalog,PetValues,Product,Slot,FulfillmentSettings,DeliveryQuote,PromotionBanner,DeliveryAddress,StoreBanner } from '../types/client';
 import type { GeneralInformation } from '../types/admin';
+// Tipo ClientRequest: define la forma o las opciones válidas de los datos usados por este módulo.
 export type ClientRequest=<T>(path:string,options?:{method?:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';body?:unknown;contentType?:string;headers?:Record<string,string>})=>Promise<T>;
+// Función clientService: concentra la lógica dentro de este módulo.
 export function clientService(request:ClientRequest){
   const query=<T>(path:string,body:Record<string,unknown>={})=>request<T>(`/client${path}`,{method:'POST',body});
   const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/client${path}`,{method,body});

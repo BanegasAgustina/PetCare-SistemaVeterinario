@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Exporta metadatos del esquema y ledgers de migración sin leer datos de negocio
  * ni ejecutar DDL. Reutiliza la conexión validada por el backend.
@@ -9,19 +11,25 @@ import type { RowDataPacket } from 'mysql2/promise';
 import ts from 'typescript';
 import { databasePool } from '../config/database';
 
+// Tipo MetadataRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type MetadataRow = RowDataPacket & Record<string, unknown>;
+// Tipo AuditError: define la forma o las opciones válidas de los datos usados por este módulo.
 type AuditError = { stage: string; query: string; code: string; message: string; unknownColumn?: string };
 
+// Configuración safeHistoryColumns: reúne valores o reglas que consume el resto del módulo.
 const safeHistoryColumns = [
   'version', 'migration_name', 'name', 'checksum', 'state', 'status',
   'applied_at', 'started_at', 'completed_at', 'batch', 'completed_steps',
 ];
+// Dato ignoredTableWords: conserva un valor calculado o de configuración usado por este módulo.
 const ignoredTableWords = new Set(['if', 'not', 'exists', 'select', 'only', 'lateral']);
 
+// Función quoteIdentifier: concentra la lógica dentro de este módulo.
 function quoteIdentifier(value: string): string {
   return `\`${value.replaceAll('`', '``')}\``;
 }
 
+// Función extractTableReferences: concentra la lógica dentro de este módulo.
 function extractTableReferences(source: string): string[] {
   const refs = new Set<string>();
   // Heuristic inventory only: runtime SQL assembled from variables/fragments can
@@ -34,6 +42,7 @@ function extractTableReferences(source: string): string[] {
   return [...refs].sort((a, b) => a.localeCompare(b));
 }
 
+// Función listTypeScriptFiles: obtiene o consulta información dentro de este módulo.
 async function listTypeScriptFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files: string[] = [];
@@ -46,12 +55,14 @@ async function listTypeScriptFiles(directory: string): Promise<string[]> {
   return files;
 }
 
+// Función extractSqlLikeStrings: concentra la lógica dentro de este módulo.
 function extractSqlLikeStrings(filePath: string): string[] {
   const content = ts.sys.readFile(filePath);
   if (content === undefined) return [];
   const source = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const strings: string[] = [];
-  const visit = (node: ts.Node): void => {
+  // Función visit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const visit = (node: ts.Node): void => {
     if (ts.isStringLiteralLike(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       strings.push(node.text);
     } else if (ts.isTemplateExpression(node)) {
@@ -64,6 +75,7 @@ function extractSqlLikeStrings(filePath: string): string[] {
   return strings;
 }
 
+// Función codeTableInventory: concentra la lógica dentro de este módulo.
 async function codeTableInventory(): Promise<{ filesScanned: number; byFile: Record<string, string[]>; allTables: string[] }> {
   const sourceRoot = path.resolve(__dirname, '..');
   const files = await listTypeScriptFiles(sourceRoot);
@@ -79,6 +91,7 @@ async function codeTableInventory(): Promise<{ filesScanned: number; byFile: Rec
   return { filesScanned: files.length, byFile, allTables: [...all].sort((a, b) => a.localeCompare(b)) };
 }
 
+// Función describeError: concentra la lógica dentro de este módulo.
 function describeError(stage: string, query: string, error: unknown): AuditError {
   const dbError = error as NodeJS.ErrnoException & { sqlMessage?: string };
   const message = dbError.sqlMessage ?? dbError.message ?? String(error);
@@ -92,6 +105,7 @@ function describeError(stage: string, query: string, error: unknown): AuditError
   };
 }
 
+// Función audit: concentra la lógica dentro de este módulo.
 async function audit(): Promise<Record<string, unknown>> {
   const errors: AuditError[] = [];
   const warnings: string[] = [];
@@ -133,7 +147,8 @@ async function audit(): Promise<Record<string, unknown>> {
       return result;
     }
 
-    const runMetadata = async (stage: string, query: string): Promise<MetadataRow[] | undefined> => {
+    // Función runMetadata: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const runMetadata = async (stage: string, query: string): Promise<MetadataRow[] | undefined> => {
       try {
         const [rows] = await connection!.execute<MetadataRow[]>(query, [schemaName]);
         sections[stage] = { status: 'ok', rowCount: rows.length };
@@ -262,6 +277,7 @@ async function audit(): Promise<Record<string, unknown>> {
   return result;
 }
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   const outIndex = process.argv.indexOf('--out');
   const requestedOutput = outIndex >= 0 ? process.argv[outIndex + 1] : undefined;

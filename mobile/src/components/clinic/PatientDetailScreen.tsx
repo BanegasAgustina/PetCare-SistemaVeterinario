@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
+
 import { useCallback, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +23,7 @@ import { FormNotice } from '../ui/FormNotice';
 import { PatientLifecycleControl } from './PatientLifecycleControl';
 import { PetCareCard, PetCareEmptyState, PetCareHeader, PetCareScreen, PetImage, QueryState, statusLabel } from '../client/PetCareUI';
 
+// Configuración clinicalSections: reúne valores o reglas que consume el resto del módulo.
 const clinicalSections = [
   { kind: 'medical-history', label: 'Consultas', view: 'medical_records.view', create: 'medical_records.create' },
   { kind: 'vaccines', label: 'Vacunas', view: 'vaccines.view', create: 'vaccines.create' },
@@ -29,6 +32,7 @@ const clinicalSections = [
 ];
 
 /** Ficha clínica compartida: una fuente de datos y permisos con presentaciones móvil y escritorio. */
+// Función PatientDetailScreen: concentra la lógica dentro de este módulo.
 export function PatientDetailScreen() {
   const { id = '' } = useLocalSearchParams<{ id: string }>();
   const api = useClinic();
@@ -52,7 +56,8 @@ export function PatientDetailScreen() {
   const recordKey = `${id}:${kind}`;
   const recordItems = [...(records.data?.items ?? []), ...(extraRecords?.key === recordKey ? extraRecords.items : [])];
   const nextRecordPage = extraRecords?.key === recordKey ? extraRecords.nextPage : records.data?.nextPage ?? null;
-  const field = (key: string) => details.data?.[key];
+  // Función field: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const field = (key: string) => details.data?.[key];
   const name = String(field('name') ?? 'Paciente');
   const species = String(field('species') ?? 'Sin especie registrada');
   const breed = Boolean(field('breed')) ? String(field('breed')) : 'Sin raza registrada';
@@ -70,7 +75,8 @@ export function PatientDetailScreen() {
 
   return <PetCareScreen wide>
     <PetCareHeader title={isGroomer ? 'Historial de peluquería' : 'Ficha clínica'} subtitle={isGroomer ? 'Servicios realizados en tus turnos' : undefined} back hideForAdmin />
-    <QueryState {...details} />
+    
+<QueryState {...details} />
     {details.data && <>
       <View style={[styles.patientHeader, { backgroundColor: colors.surface, borderColor: colors.border }, desktop && styles.patientHeaderDesktop]}>
         <PetImage uri={typeof field('photoUrl') === 'string' ? String(field('photoUrl')) : null} size={desktop ? 104 : 72} species={species} />
@@ -131,7 +137,8 @@ export function PatientDetailScreen() {
 
         {canViewAppointments && <View style={styles.clinicalSection}>
           <View><AppText variant="subtitle">Turnos del paciente</AppText><AppText variant="caption" muted>Historial y próximas atenciones dentro de tu alcance</AppText></View>
-          <QueryState {...appointments} />
+          
+<QueryState {...appointments} />
           {appointments.data && (appointments.data.length ? desktopTable ? <AdminDataTable rows={appointments.data} rowKey={appointment => String(appointment.id)} columns={[
             { key: 'date', label: 'Fecha y hora', flex: .9, minWidth: 160, render: (appointment: ClinicRow) => <AppText variant="caption">{clinicDateTime(String(appointment.startsAt))}</AppText> },
             { key: 'service', label: 'Servicio', flex: 1.1, minWidth: 180, render: (appointment: ClinicRow) => <AppText style={styles.recordTitle}>{String(appointment.service)}</AppText> },
@@ -146,7 +153,8 @@ export function PatientDetailScreen() {
         {allowedSections.length > 0 && <View style={styles.clinicalSection}>
           <View><AppText variant="subtitle">Historia clínica</AppText><AppText variant="caption" muted>Consulta cronológica de registros autorizados</AppText></View>
           <View accessibilityRole="radiogroup" accessibilityLabel="Sección de historia clínica" style={styles.sectionPicker}>{allowedSections.map(section => <Pressable key={section.kind} accessibilityRole="radio" accessibilityState={{ checked: kind === section.kind }} onPress={() => { setKind(section.kind); setExtraRecords(null); }} style={[styles.sectionChip, { backgroundColor: kind === section.kind ? colors.primary : colors.surface, borderColor: kind === section.kind ? colors.primary : colors.border }]}><AppText variant="caption" style={{ color: kind === section.kind ? colors.onPrimary : colors.text, fontWeight: '700' }}>{section.label}</AppText></Pressable>)}</View>
-          <QueryState {...records} />
+          
+<QueryState {...records} />
           {records.data && (recordItems.length ? desktopTable ? <AdminDataTable rows={recordItems} rowKey={record => String(record.id)} columns={recordColumns} /> : <View style={styles.timeline}>{recordItems.map(record => <Pressable key={record.id} accessibilityRole="button" accessibilityLabel={`Ver ${String(record.title)}, ${clinicDateTime(String(record.occurredAt))}`} onPress={() => setSelectedRecordId(String(record.id))} style={styles.timelineItem}><View style={[styles.timelineMarker, { backgroundColor: colors.primary, borderColor: colors.surface }]} /><PetCareCard><AppText variant="caption" muted>{clinicDateTime(String(record.occurredAt))}{Boolean(record.veterinarian) ? ` · ${String(record.veterinarian)}` : ''}</AppText><AppText variant="subtitle">{String(record.title)}</AppText>{Boolean(record.content) && <AppText>{String(record.content)}</AppText>}<AppText variant="caption" style={{ color: colors.primary, fontWeight: '700' }}>Ver detalle clínico</AppText></PetCareCard></Pressable>)}</View> : <PetCareEmptyState title="No hay registros para esta sección" />)}
           {!!nextRecordPage && <View style={styles.loadMore}><AppButton compact={desktop} variant="secondary" label="Cargar más registros" loading={pagingAction.loading} onPress={() => void pagingAction.run(async () => { const page = await api.recordsPage(id, kind, nextRecordPage); setExtraRecords(current => ({ key: recordKey, items: [...(current?.key === recordKey ? current.items : []), ...page.items], nextPage: page.nextPage })); })} /></View>}
           <FormNotice error message={pagingAction.error} />
@@ -171,10 +179,12 @@ export function PatientDetailScreen() {
   </PetCareScreen>;
 }
 
+// Función PatientInfo: concentra la lógica dentro de este módulo.
 function PatientInfo({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
   return <View style={styles.infoItem}><AppText variant="caption" muted>{label}</AppText><AppText style={emphasis ? styles.infoEmphasis : undefined}>{value}</AppText></View>;
 }
 
+// Función PatientDisclosure: concentra la lógica dentro de este módulo.
 function PatientDisclosure({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { colors } = useTheme();
@@ -184,6 +194,7 @@ function PatientDisclosure({ title, children }: { title: string; children: React
   </View>;
 }
 
+// Función PatientLifecycleHistory: concentra la lógica dentro de este módulo.
 function PatientLifecycleHistory({ events }: { events: unknown }) {
   if (!Array.isArray(events)) return null;
   const history = events as ClinicRow[];
@@ -194,6 +205,7 @@ function PatientLifecycleHistory({ events }: { events: unknown }) {
   </View>)}</View> : <AppText muted>No hay cambios de estado registrados.</AppText>}</PatientDisclosure>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   patientHeader: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderWidth: 1, borderRadius: 18 },
   patientHeaderDesktop: { gap: 20, padding: 22 }, patientHeaderCopy: { flex: 1, minWidth: 0, gap: 4 }, badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },

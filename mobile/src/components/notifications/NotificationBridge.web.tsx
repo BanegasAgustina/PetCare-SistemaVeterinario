@@ -1,7 +1,10 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import { useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { publishNotificationChange } from '../../services/notification-events';
 
+// Función NotificationBridge: concentra la lógica dentro de este módulo.
 export function NotificationBridge() {
   const { user, request } = useAuth();
   useEffect(() => {
@@ -10,7 +13,8 @@ export function NotificationBridge() {
     let interval: ReturnType<typeof setInterval> | undefined;
     let requestInProgress = false;
     let previousSnapshot: string | null = null;
-    const poll = async () => {
+    // Función poll: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const poll = async () => {
       if (!active || document.visibilityState !== 'visible' || requestInProgress) return;
       requestInProgress = true;
       try {
@@ -28,16 +32,19 @@ export function NotificationBridge() {
         requestInProgress = false;
       }
     };
-    const stopPolling = () => {
+    // Función stopPolling: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const stopPolling = () => {
       if (interval) clearInterval(interval);
       interval = undefined;
     };
-    const startPolling = () => {
+    // Función startPolling: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const startPolling = () => {
       stopPolling();
       void poll();
       interval = setInterval(() => void poll(), 30_000);
     };
-    const onVisibilityChange = () => {
+    // Función onVisibilityChange: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') startPolling();
       else stopPolling();
     };

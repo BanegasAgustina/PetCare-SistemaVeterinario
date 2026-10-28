@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Invitación y restablecimiento: 256 bits aleatorios, SHA-256 en MySQL, un uso y 24 h.
  * El token prueba posesión del correo; no es un JWT ni permite usar endpoints de la cuenta.
  * Los locks y la versión de sesión impiden replay y revocan sesiones previas al cambiar contraseña.
@@ -14,6 +16,7 @@ import { runDatabaseOperation } from '../utils/database-error';
 import { validateInvitation } from '../validators/veterinarian.validator';
 import { withDatabaseLock } from '../database/lock';
 
+// Función invitationUrl: concentra la lógica dentro de este módulo.
 export function invitationUrl(kind:'veterinarian'|'account'='veterinarian'): URL {
   getMailConfiguration();
   try {
@@ -24,7 +27,9 @@ export function invitationUrl(kind:'veterinarian'|'account'='veterinarian'): URL
     return url;
   } catch { throw new AppError('INVITATION_UNAVAILABLE',503,'Configurá la URL segura de activación de cuentas.'); }
 }
+// Función tokenHash: concentra la lógica dentro de este módulo.
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex'); }
+// Función saveInvitation: actualiza o guarda información dentro de este módulo.
 export async function saveInvitation(connection: PoolConnection,userId: string): Promise<string> {
   const token = randomBytes(32).toString('hex');
   await connection.execute(`INSERT INTO veterinarian_invitations (user_id,token_hash,expires_at,sent_at)
@@ -32,6 +37,7 @@ export async function saveInvitation(connection: PoolConnection,userId: string):
     ON DUPLICATE KEY UPDATE token_hash=VALUES(token_hash),expires_at=VALUES(expires_at),consumed_at=NULL,sent_at=VALUES(sent_at),delivery='pending'`,[userId,tokenHash(token)]);
   return token;
 }
+// Función deliverInvitation: concentra la lógica dentro de este módulo.
 export async function deliverInvitation(email: string,token: string,kind:'veterinarian'|'account'='veterinarian'): Promise<'sent' | 'failed'> {
   let delivery:'sent'|'failed';
   try {
@@ -45,12 +51,15 @@ export async function deliverInvitation(email: string,token: string,kind:'veteri
   await runDatabaseOperation(async()=>{await databasePool.execute('UPDATE veterinarian_invitations SET delivery=? WHERE token_hash=?',[delivery,tokenHash(token)]);});
   return delivery;
 }
+// Función renewInvitation: concentra la lógica dentro de este módulo.
 export async function renewInvitation(vetId: string): Promise<{ delivery: 'sent' | 'failed' }> {
   return renew(vetId,true);
 }
+// Función renewUserInvitation: concentra la lógica dentro de este módulo.
 export async function renewUserInvitation(userId:string,authorize:(c:PoolConnection,target:{id:string;role:string})=>Promise<void>):Promise<{delivery:'sent'|'failed'}> {
   return renew(userId,false,authorize);
 }
+// Función renew: concentra la lógica dentro de este módulo.
 async function renew(id:string,veterinarian:boolean,authorize?:(c:PoolConnection,target:{id:string;role:string})=>Promise<void>):Promise<{delivery:'sent'|'failed'}> {
   const kind=veterinarian?'veterinarian':'account';invitationUrl(kind);
   const invitation = await runDatabaseOperation(async () => {
@@ -76,6 +85,7 @@ async function renew(id:string,veterinarian:boolean,authorize?:(c:PoolConnection
   });
   return { delivery: await deliverInvitation(invitation.email,invitation.token,kind) };
 }
+// Función acceptInvitation: concentra la lógica dentro de este módulo.
 export async function acceptInvitation(value: unknown): Promise<void> {
   const input = validateInvitation(value);
   const hash = await hashPassword(input.password);
@@ -84,7 +94,8 @@ export async function acceptInvitation(value: unknown): Promise<void> {
     try {
       await connection.beginTransaction();
       const [lookup] = await connection.execute<RowDataPacket[]>('SELECT user_id FROM veterinarian_invitations WHERE token_hash=?',[tokenHash(input.token)]);
-      const invalid = () => new AppError('INVALID_INVITATION',400,'La invitación no es válida o venció.');
+      // Función invalid: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const invalid = () => new AppError('INVALID_INVITATION',400,'La invitación no es válida o venció.');
       if (!lookup[0]) throw invalid();
       // Orden de locks consistente con edición/reenviar: primero users, después invitation.
       const [users] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.is_active,u.must_change_password,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id

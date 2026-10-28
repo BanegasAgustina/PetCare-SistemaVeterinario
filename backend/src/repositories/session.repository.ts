@@ -1,32 +1,41 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Guarda solo hashes de renovación. Los locks serializan rotación, replay y revocación. */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import { runDatabaseOperation } from '../utils/database-error';
+// Función digest: concentra una operación reutilizable de este módulo.
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+// Función opaqueToken: concentra la lógica dentro de este módulo.
 export function opaqueToken(value: unknown): string {
   if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) throw new AppError('INVALID_TOKEN',401,'La sesión no es válida.');
   return value;
 }
+// Función refreshLifetime: concentra la lógica dentro de este módulo.
 export function refreshLifetime(): number {
   const seconds = Number(process.env.JWT_REFRESH_TTL_SECONDS ?? 2592000);
   if (!Number.isInteger(seconds) || seconds < 3600 || seconds > 7776000) throw new AppError('AUTH_UNAVAILABLE',503,'La renovación no está configurada.');
   return seconds;
 }
+// Función issueRefresh: crea un registro o inicia una operación dentro de este módulo.
 export async function issueRefresh(userId: string, version: number): Promise<string> {
   const token = randomBytes(32).toString('hex');
   await runDatabaseOperation(()=>databasePool.execute('INSERT INTO refresh_tokens(token_hash,family_id,user_id,session_version,expires_at) VALUES (?,?,?,?,TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP(3)))',[digest(token),randomUUID(),userId,version,refreshLifetime()]));
   return token;
 }
 /** El JWT referencia la familia, no el secreto. Logout/replay invalidan también sus access tokens. */
+// Función refreshFamily: concentra la lógica dentro de este módulo.
 export async function refreshFamily(token:string):Promise<string>{
   return runDatabaseOperation(async()=>{const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT family_id FROM refresh_tokens WHERE token_hash=?',[digest(token)]);if(!rows[0])throw new AppError('INVALID_TOKEN',401,'La sesión no es válida.');return String(rows[0].family_id);});
 }
+// Función activeFamily: concentra la lógica dentro de este módulo.
 export async function activeFamily(family:string,userId:string):Promise<boolean>{
   return runDatabaseOperation(async()=>{const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT 1 FROM refresh_tokens WHERE family_id=? AND user_id=? AND revoked_at IS NULL AND expires_at>UTC_TIMESTAMP(3) LIMIT 1',[family,userId]);return rows.length>0;});
 }
 /** Un token ya consumido revoca su familia; no se lanza el error hasta confirmar la revocación. */
+// Función rotateRefresh: concentra la lógica dentro de este módulo.
 export async function rotateRefresh(value: unknown): Promise<{ userId: string; version: number; token: string }> {
   const token = opaqueToken(value);
   const result = await runDatabaseOperation(async()=>{
@@ -55,6 +64,7 @@ export async function rotateRefresh(value: unknown): Promise<{ userId: string; v
   return result;
 }
 /** Logout revoca la familia identificada por el secreto, sin aceptar un userId del frontend. */
+// Función revokeRefresh: elimina, revoca o cancela una operación dentro de este módulo.
 export async function revokeRefresh(value: unknown): Promise<void> {
   const token=opaqueToken(value);
   await runDatabaseOperation(async()=>{

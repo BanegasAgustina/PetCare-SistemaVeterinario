@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Bootstrap local de una cuenta real: no existe endpoint público para esta operación. */
 import type { Pool,RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
@@ -6,6 +8,7 @@ import { validateRegister } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
+// Función createFirstSuperAdmin: crea un registro o inicia una operación dentro de este módulo.
 export async function createFirstSuperAdmin(body:unknown,pool:Pick<Pool,'getConnection'>=databasePool) {
   const input=validateRegister(body);const hash=await hashPassword(input.password);
   return runDatabaseOperation(async()=>{

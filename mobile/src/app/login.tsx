@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 /** Pantalla de acceso: validación local y servicio de sesión; el backend verifica credenciales. */
 import { router } from 'expo-router';
 import { AuthForm, type AuthField } from '../components/forms/AuthForm';
@@ -20,10 +22,12 @@ import { useAsyncAction } from '../hooks/useAsyncAction';
 import { ApiError } from '../services/api';
 import type { OAuthProvider } from '../services/oauth.service';
 
+// Configuración fields: reúne valores o reglas que consume el resto del módulo.
 const fields: AuthField<LoginValues>[] = [
   { key: 'email', label: 'Correo electrónico', icon: 'mail-outline', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, placeholder: 'ejemplo@email.com', maxLength: 254 } },
   { key: 'password', label: 'Contraseña', password: true, inputProps: { autoComplete: 'current-password', textContentType: 'password', autoCorrect: false, placeholder: 'Ingresá tu contraseña' } },
 ];
+// Función LoginScreen: concentra la lógica dentro de este módulo.
 export default function LoginScreen() {
   const auth = useAuth();
   const social=useAsyncAction();
@@ -31,8 +35,10 @@ export default function LoginScreen() {
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   const [activeProvider,setActiveProvider]=useState<string|null>(null);
   const oauthNeedsDevelopmentBuild=Platform.OS!=='web'&&isRunningInExpoGo();
-  const startSocial=async(provider:OAuthProvider)=>{setActiveProvider(provider==='x'?'X':provider==='google'?'Google':'Facebook');try{await social.run(()=>auth.socialSignIn(provider));}finally{setActiveProvider(null);}};
-  async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
+  // Función startSocial: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const startSocial=async(provider:OAuthProvider)=>{setActiveProvider(provider==='x'?'X':provider==='google'?'Google':'Facebook');try{await social.run(()=>auth.socialSignIn(provider));}finally{setActiveProvider(null);}};
+  // Función submitLogin: concentra la lógica dentro de este módulo.
+async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
   return <LoginLayout showDesktopImage petArtwork="login">
     <LoginBrand />
     <FormNotice message={auth.restoreError ?? auth.notice} error={Boolean(auth.restoreError)} />
@@ -56,6 +62,7 @@ export default function LoginScreen() {
     <RecoveryNotice visible={recoveryVisible} onClose={() => setRecoveryVisible(false)} />
   </LoginLayout>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   recovery: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -12 },
   socialSection: { gap: 4 }, divider: { flexDirection: 'row', alignItems: 'center', gap: 14 }, line: { flex: 1, height: 1 },

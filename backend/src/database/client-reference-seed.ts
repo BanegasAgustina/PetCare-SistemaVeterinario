@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Carga solo las especies estructurales ya versionadas, necesarias para la FK pets.species_id.
  * No agrega un seed nuevo ni datos de negocio. El runner original requiere SQL ausente del checkout.
  */
@@ -7,6 +9,7 @@ import { readCatalog } from './seed-runner';
 import { databasePool } from '../config/database';
 import { checkDatabaseConnection } from '../services/database.service';
 import { withDatabaseLock } from './lock';
+// Función seed: concentra la lógica dentro de este módulo.
 async function seed(){
   const source:unknown=JSON.parse(await readFile(resolve(__dirname,'../../seeds/001_reference_catalogs.json'),'utf8'));
   if(!source||typeof source!=='object'||!('species' in source))throw new Error('Catálogo estructural ausente.');

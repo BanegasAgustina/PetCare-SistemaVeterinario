@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Read-only preflight for a future cleanup of test appointment/catalog data.
  * Refuses remote, Layerbase, and production environments before opening a DB connection.
@@ -7,7 +9,9 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { env, isVercelRuntime } from '../config/env';
 
+// Tipo TableRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type TableRow = RowDataPacket & { TABLE_NAME: string };
+// Tipo ForeignKeyRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type ForeignKeyRow = RowDataPacket & {
   TABLE_NAME: string;
   COLUMN_NAME: string;
@@ -18,9 +22,12 @@ type ForeignKeyRow = RowDataPacket & {
   UPDATE_RULE: string;
 };
 
+// Dato localHost: conserva un valor calculado o de configuración usado por este módulo.
 const localHost = /^(localhost|127(?:\.\d{1,3}){0,3}|::1|\[::1\])$/i;
+// Dato operationalTable: conserva un valor calculado o de configuración usado por este módulo.
 const operationalTable = /(appointment|slot|reservation|veterinar|professional|service|specialt|block|clinical|consult|prescription|vaccin|patient)/i;
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   // This check must stay before getConnection(): a local NODE_ENV alone does not
   // make a remote database safe, and the current project .env points remotely.

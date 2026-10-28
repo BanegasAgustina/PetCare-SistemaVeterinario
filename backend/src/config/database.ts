@@ -1,9 +1,13 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; 
+// reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Pool MySQL compartido: las futuras consultas usarán execute(sql, parámetros). */
 import mysql, { type ConnectionOptions } from 'mysql2/promise';
 import { env } from './env';
 
 // Crear el pool no abre conexiones: health puede funcionar sin una base instalada.
 /** Opciones compartidas por el pool y la creación inicial de la base. */
+// Configuración databaseOptions: reúne valores o reglas que consume el resto del módulo.
 export const databaseOptions: ConnectionOptions = {
   ...env.database,
   connectTimeout: env.databaseConnectTimeout,
@@ -16,6 +20,7 @@ export const databaseOptions: ConnectionOptions = {
   bigNumberStrings: true,
 };
 
+// Dato databasePool: conserva un valor calculado o de configuración usado por este módulo.
 export const databasePool = mysql.createPool({
   ...databaseOptions,
   waitForConnections: true,

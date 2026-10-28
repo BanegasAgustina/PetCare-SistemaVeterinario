@@ -1,5 +1,12 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
+
+// Tipo RoleNavigationItem: define la forma o las opciones válidas de los datos usados por este módulo.
+// Propósito: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
+
+// Tipo RoleNavigationItem: define la forma o las opciones válidas de datos usados por este módulo.
 export type RoleNavigationItem = { label:string;path:string;icon:string;group?:string };
 
+// Configuración primaryPathsByRole: reúne valores o reglas que consume el resto del módulo.
 const primaryPathsByRole:Record<string,string[]>={
   CLIENT:['/client','/client/pets','/client/appointments','/client/store','/client/profile'],
   ADMIN:['/admin','/admin/clinic','/admin/store','/admin/administration'],
@@ -7,6 +14,7 @@ const primaryPathsByRole:Record<string,string[]>={
   VETERINARIAN:['/vet','/vet/agenda','/vet/patients','/vet/products'],
   GROOMER:['/professional','/professional/agenda','/professional/patients','/professional/services'],
 };
+// Configuración profileShortcutPathsByRole: reúne valores o reglas que consume el resto del módulo.
 const profileShortcutPathsByRole:Record<string,string[]>={
   VETERINARIAN:['/account','/client/profile'],
   ADMIN:['/account'],
@@ -14,6 +22,7 @@ const profileShortcutPathsByRole:Record<string,string[]>={
 };
 
 /** Selects the role's main destinations, keeping every remaining permitted route available for Home. */
+// Función selectPrimaryNavigation: concentra la lógica dentro de este módulo.
 export function selectPrimaryNavigation<T extends RoleNavigationItem>(role:string,items:T[],limit=5):T[]{
   const unique=[...new Map(items.map(item=>[item.path,item])).values()];
   const preferred=primaryPathsByRole[role]??['/workspace'];
@@ -24,6 +33,7 @@ export function selectPrimaryNavigation<T extends RoleNavigationItem>(role:strin
 }
 
 /** Keeps secondary role-enabled destinations for the reusable Home quick-access section. */
+// Función selectSecondaryNavigation: concentra la lógica dentro de este módulo.
 export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:string,items:T[],primaryItems:RoleNavigationItem[]):T[]{
   const primaryPaths=new Set(primaryItems.map(item=>item.path));
   const profileShortcuts=new Set(role==='CLIENT'?[]:role==='VETERINARIAN'?['/account','/client/profile']:['/account']);
@@ -33,6 +43,7 @@ export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:str
 }
 
 /** Resolves detail and secondary screens to the closest permitted primary destination. */
+// Función activePrimaryNavigationPath: concentra la lógica dentro de este módulo.
 export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:string,pathname:string,items:T[]):string|null{
   const homePath:Record<string,string>={CLIENT:'/client',ADMIN:'/admin',SUPER_ADMIN:'/admin',VETERINARIAN:'/vet',GROOMER:'/professional'};
   const match=items

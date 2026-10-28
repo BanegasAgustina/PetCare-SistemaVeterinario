@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Aplica los dos ajustes aditivos que habilitan detalles de turnos e historial de motivos. */
 import { databasePool } from '../config/database';
 import { migrateAppointmentDetails } from './appointment-details-migrate';
 import { migrateReservationReason } from './reservation-reason-migrate';
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   try {
     await migrateAppointmentDetails();

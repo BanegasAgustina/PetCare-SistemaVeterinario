@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import type { PoolConnection,RowDataPacket } from 'mysql2/promise';
 import isEmail from 'validator/lib/isEmail';
 import type { AuthUser } from '../types/auth';
@@ -6,14 +8,23 @@ import * as clinic from './clinic.repository';
 import { AppError } from '../utils/app-error';
 import { DatabaseError,runDatabaseOperation } from '../utils/database-error';
 
+// Tipo Weekday: define la forma o las opciones válidas de los datos usados por este módulo.
 export type Weekday='monday'|'tuesday'|'wednesday'|'thursday'|'friday'|'saturday'|'sunday';
+// Tipo OpeningHours: define la forma o las opciones válidas de los datos usados por este módulo.
 export type OpeningHours=Record<Weekday,{open:boolean;periods:{opensAt:string;closesAt:string}[]}>;
+// Tipo GeneralInformation: define la forma o las opciones válidas de los datos usados por este módulo.
 export type GeneralInformation={clinicName:string;description:string|null;logoUrl:string|null;welcomeMessage:string|null;phone:string|null;whatsapp:string|null;publicEmail:string|null;address:string|null;city:string|null;province:string|null;mapUrl:string|null;openingHours:OpeningHours;instagramUrl:string|null;facebookUrl:string|null;xUrl:string|null;websiteUrl:string|null;updatedAt:string|null};
+// Configuración weekdays: reúne valores o reglas que consume el resto del módulo.
 const weekdays:Weekday[]=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+// Función blankHours: concentra una operación reutilizable de este módulo.
 const blankHours=():OpeningHours=>Object.fromEntries(weekdays.map(day=>[day,{open:false,periods:[]}])) as unknown as OpeningHours;
+// Función defaultGeneralInformation: concentra una operación reutilizable de este módulo.
 export const defaultGeneralInformation=():GeneralInformation=>({clinicName:'PetCare',description:null,logoUrl:null,welcomeMessage:null,phone:null,whatsapp:null,publicEmail:null,address:null,city:null,province:null,mapUrl:null,openingHours:blankHours(),instagramUrl:null,facebookUrl:null,xUrl:null,websiteUrl:null,updatedAt:null});
+// Configuración fields: reúne valores o reglas que consume el resto del módulo.
 const fields:(keyof Omit<GeneralInformation,'openingHours'|'updatedAt'>)[]=['clinicName','description','logoUrl','welcomeMessage','phone','whatsapp','publicEmail','address','city','province','mapUrl','instagramUrl','facebookUrl','xUrl','websiteUrl'];
+// Función fieldError: concentra la lógica dentro de este módulo.
 function fieldError(field:string,message:string):never {throw new AppError('VALIDATION_ERROR',400,message,undefined,[{field,message}]);}
+// Función text: concentra la lógica dentro de este módulo.
 function text(value:unknown,field:string,label:string,max:number,required=false):string|null {
   if(value===null||value===undefined||value===''){if(required)fieldError(field,`Ingresá ${label}.`);return null;}
   if(typeof value!=='string')fieldError(field,`Revisá ${label}.`);
@@ -21,11 +32,13 @@ function text(value:unknown,field:string,label:string,max:number,required=false)
   if(trimmed.length>max)fieldError(field,`${label} admite hasta ${max} caracteres.`);
   return trimmed;
 }
+// Función url: concentra la lógica dentro de este módulo.
 function url(value:unknown,field:string,label:string,max=2048):string|null {
   const valueText=text(value,field,label,max);if(!valueText)return null;
   try{const parsed=new URL(valueText);if(parsed.protocol!=='https:'||parsed.username||parsed.password)throw new Error();return parsed.toString();}
   catch{fieldError(field,`${label} debe ser un enlace HTTPS válido.`);}
 }
+// Función openingHours: concentra la lógica dentro de este módulo.
 function openingHours(value:unknown):OpeningHours {
   if(!value||typeof value!=='object'||Array.isArray(value))fieldError('openingHours','Configurá los horarios de los siete días.');
   const input=value as Record<string,unknown>;const result=blankHours();
@@ -49,6 +62,7 @@ function openingHours(value:unknown):OpeningHours {
   }
   return result;
 }
+// Función validateGeneralInformation: comprueba una regla o condición dentro de este módulo.
 export function validateGeneralInformation(value:unknown):GeneralInformation {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá la información de PetCare.');
   const input=value as Record<string,unknown>;const allowed=[...Object.keys(fields),'openingHours'];
@@ -66,20 +80,26 @@ export function validateGeneralInformation(value:unknown):GeneralInformation {
   if(!input.openingHours)fieldError('openingHours','Configurá los horarios de atención.');
   return {...out,openingHours:openingHours(input.openingHours),updatedAt:null};
 }
+// Función map: transforma o prepara datos dentro de este módulo.
 function map(row:RowDataPacket):GeneralInformation {
   let hours:OpeningHours;try{const raw=row.openingHoursJson;hours=openingHours(typeof raw==='string'?JSON.parse(raw):raw);}catch{hours=blankHours();}
   return {clinicName:String(row.clinicName||'PetCare'),description:row.description as string|null,logoUrl:row.logoUrl as string|null,welcomeMessage:row.welcomeMessage as string|null,phone:row.phone as string|null,whatsapp:row.whatsapp as string|null,publicEmail:row.publicEmail as string|null,address:row.address as string|null,city:row.city as string|null,province:row.province as string|null,mapUrl:row.mapUrl as string|null,openingHours:hours,instagramUrl:row.instagramUrl as string|null,facebookUrl:row.facebookUrl as string|null,xUrl:row.xUrl as string|null,websiteUrl:row.websiteUrl as string|null,updatedAt:row.updatedAt?new Date(row.updatedAt as string|Date).toISOString():null};
 }
+// Dato select: conserva un valor calculado o de configuración usado por este módulo.
 const select=`clinic_name AS clinicName,description,logo_url AS logoUrl,welcome_message AS welcomeMessage,public_phone AS phone,whatsapp,public_email AS publicEmail,street_address AS address,city,province,map_url AS mapUrl,opening_hours_json AS openingHoursJson,instagram_url AS instagramUrl,facebook_url AS facebookUrl,x_url AS xUrl,website_url AS websiteUrl,updated_at AS updatedAt`;
+// Función read: obtiene o consulta información dentro de este módulo.
 async function read():Promise<GeneralInformation>{const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${select} FROM client_general_information WHERE id=1`);return rows[0]?map(rows[0]):defaultGeneralInformation();}
+// Función publicGeneralInformation: concentra la lógica dentro de este módulo.
 export async function publicGeneralInformation():Promise<GeneralInformation>{
   try{return await runDatabaseOperation(read);}catch(error){if(error instanceof DatabaseError&&error.code==='SCHEMA_UPDATE_REQUIRED')return defaultGeneralInformation();throw error;}
 }
+// Función adminGeneralInformation: concentra la lógica dentro de este módulo.
 export async function adminGeneralInformation(actor:AuthUser):Promise<{information:GeneralInformation;configured:boolean}>{
   clinic.permit(actor,'settings.general.manage');
   try{return {information:await runDatabaseOperation(read),configured:true};}
   catch(error){if(error instanceof DatabaseError&&error.code==='SCHEMA_UPDATE_REQUIRED')return {information:defaultGeneralInformation(),configured:false};throw error;}
 }
+// Función saveGeneralInformation: actualiza o guarda información dentro de este módulo.
 export async function saveGeneralInformation(actor:AuthUser,value:unknown):Promise<GeneralInformation>{
   const information=validateGeneralInformation(value);
   return clinic.transaction(actor,async(connection:PoolConnection,fresh:AuthUser)=>{

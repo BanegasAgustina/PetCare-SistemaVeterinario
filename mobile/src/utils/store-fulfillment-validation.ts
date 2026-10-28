@@ -1,5 +1,12 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
+
+// Tipo StoreFulfillmentFieldErrors: define la forma o las opciones válidas de los datos usados por este módulo.
+// Propósito: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
+
+// Tipo StoreFulfillmentFieldErrors: define la forma o las opciones válidas de datos usados por este módulo.
 export type StoreFulfillmentFieldErrors=Record<string,string>;
 
+// Función validatePostalCodePrefix: comprueba una regla o condición dentro de este módulo.
 export function validatePostalCodePrefix(value:string|null|undefined):string|undefined {
   const prefix=value?.trim()??'';
   if(!prefix)return undefined;
@@ -8,6 +15,7 @@ export function validatePostalCodePrefix(value:string|null|undefined):string|und
   return undefined;
 }
 
+// Función parseArsToCents: transforma o prepara datos dentro de este módulo.
 export function parseArsToCents(value:string, label:string, optional=false):{cents:number|null;error?:string} {
   const input=value.trim();
   if(!input)return optional?{cents:null}:{cents:0};
@@ -18,6 +26,7 @@ export function parseArsToCents(value:string, label:string, optional=false):{cen
   return {cents:Math.round(amount*100)};
 }
 
+// Función validateStoreFulfillment: comprueba una regla o condición dentro de este módulo.
 export function validateStoreFulfillment(values:{pickupEnabled:boolean;pickupAddress:string|null;deliveryEnabled:boolean;zones:{name:string;province:string;city:string;postalCodePrefix?:string|null}[];bankName:string|null;bankAccountHolder:string|null;bankCbuCvu:string|null;bankAlias:string|null},baseFee:string,freeThreshold:string,zoneFees:Record<string,string>):StoreFulfillmentFieldErrors {
   const errors:StoreFulfillmentFieldErrors={};
   if(values.pickupEnabled&&!values.pickupAddress?.trim())errors.pickupAddress='Ingresá la dirección del local para habilitar el retiro.';

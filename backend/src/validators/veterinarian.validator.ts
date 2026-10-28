@@ -1,29 +1,37 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
+
 /** Lista blanca estricta: rol, password_hash y privilegios críticos nunca llegan al modelo. */
 import { AppError } from '../utils/app-error';
 import { normalizeEmail, readName, readPhone, readPassword } from './auth.validator';
+// Tipo VetInput: define la forma o las opciones válidas de datos usados por este módulo.
 export type VetInput = {
   firstName: string; lastName: string; email: string; phone: string | null; licenseNumber: string;
   isActive: boolean; specialtyIds: string[];
 };
+// Tipo PermissionOverride: define la forma o las opciones válidas de datos usados por este módulo.
 export type PermissionOverride = { code: string; allowed: boolean | null };
+// Función objectBody: concentra la lógica dentro de este módulo.
 export function objectBody(value: unknown, fields: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !fields.includes(key))) {
     throw new AppError('VALIDATION_ERROR',400,'La solicitud contiene campos no permitidos.');
   }
   return value as Record<string,unknown>;
 }
+// Función identifier: concentra la lógica dentro de este módulo.
 export function identifier(value: unknown): string {
   if (typeof value !== 'string' || !/^[1-9]\d{0,19}$/.test(value) || BigInt(value) > 18446744073709551615n) {
     throw new AppError('VALIDATION_ERROR',400,'Identificador inválido.');
   }
   return value;
 }
+// Función textField: concentra la lógica dentro de este módulo.
 export function textField(value: unknown, label: string, max: number): string {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max || /[\u0000-\u001f\u007f]/.test(value)) {
     throw new AppError('VALIDATION_ERROR',400,`${label} es obligatorio y admite hasta ${max} caracteres.`);
   }
   return value.trim().normalize('NFC');
 }
+// Función permissionOverrides: concentra la lógica dentro de este módulo.
 export function permissionOverrides(value: unknown): PermissionOverride[] {
   if (!Array.isArray(value) || value.length > 100) throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos.');
   const seen = new Set<string>();
@@ -34,6 +42,7 @@ export function permissionOverrides(value: unknown): PermissionOverride[] {
     seen.add(code); return { code, allowed: body.allowed as boolean | null };
   });
 }
+// Función validateVet: comprueba una regla o condición dentro de este módulo.
 export function validateVet(value: unknown): VetInput {
   const body = objectBody(value,['firstName','lastName','email','phone','licenseNumber','isActive','specialtyIds']);
   // Reutiliza las mismas reglas de identidad sin crear ni conservar una contraseña de administrador.
@@ -44,6 +53,7 @@ export function validateVet(value: unknown): VetInput {
   return { firstName: readName(body.firstName,'El nombre'),lastName: readName(body.lastName,'El apellido'),email: normalizeEmail(body.email),phone: readPhone(body.phone),
     licenseNumber: textField(body.licenseNumber,'La matrícula',80),isActive: body.isActive,specialtyIds };
 }
+// Función validateInvitation: comprueba una regla o condición dentro de este módulo.
 export function validateInvitation(value: unknown) {
   const body = objectBody(value,['token','password']);
   if (typeof body.token !== 'string' || !/^[a-f0-9]{64}$/.test(body.token)) throw new AppError('INVALID_INVITATION',400,'La invitación no es válida o venció.');

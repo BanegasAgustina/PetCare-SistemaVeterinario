@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Autentica JWT y revalida usuario/rol activo desde MySQL en cada solicitud protegida. */
 import type { RequestHandler } from 'express';
 import { findUserById, publicUser } from '../repositories/user.repository';
@@ -7,6 +9,7 @@ import { authorizationData } from '../repositories/authorization.repository';
 import { AppError } from '../utils/app-error';
 import { isAccessSessionCurrent } from '../utils/account-session-guards';
 
+// Función authenticate: concentra una operación reutilizable de este módulo.
 export const authenticate: RequestHandler = async (request, response, next) => {
   try {
     const header = request.headers.authorization;

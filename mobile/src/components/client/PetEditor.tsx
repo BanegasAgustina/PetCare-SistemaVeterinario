@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
+
 /**
  * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos mediante useClient, selecciona foto con ImagePicker y envía cambios al backend; los errores se muestran inline.
  */
@@ -26,6 +28,7 @@ import { firstInvalidField } from '../../utils/auth-validation';
 import { petPhotoResizePlan,PET_PHOTO_MAX_BASE64_LENGTH } from '../../utils/pet-photo';
 import { AdminFormActions,AdminFormField,AdminFormSection } from '../admin/AdminFormLayout';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
+// Función compressPetPhoto: concentra la lógica dentro de este módulo.
 async function compressPetPhoto(uri:string,originalWidth:number,originalHeight:number){
   for(const {width,height,quality} of petPhotoResizePlan(originalWidth,originalHeight)){
     const context=ImageProcessor.manipulate(uri,{maxWidth:width,maxHeight:height});
@@ -39,7 +42,9 @@ async function compressPetPhoto(uri:string,originalWidth:number,originalHeight:n
   }
   return null;
 }
+// Configuración empty: reúne valores o reglas que consume el resto del módulo.
 const empty:PetValues={name:'',sex:'',speciesId:'',breedId:'',breedName:'',birthDate:'',microchipNumber:'',photoUrl:'',weightKg:''};
+// Función PetEditor: concentra la lógica dentro de este módulo.
 export function PetEditor({id}:{id?:string}) {
   const api=useClient();const action=useAsyncAction();const {showToast}=useFeedback();const {colors}=useTheme();
   const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
@@ -55,11 +60,13 @@ export function PetEditor({id}:{id?:string}) {
     if(pet){const loaded:PetValues={name:pet.name,sex:pet.sex??'',speciesId:pet.speciesId,breedId:pet.breedId??'',breedName:pet.breed??'',birthDate:pet.birthDate??'',microchipNumber:pet.microchipNumber??'',photoUrl:pet.photoUrl??'',weightKg:pet.weightKg??''};setValues(loaded);setInitialValues(JSON.stringify(loaded));}
     return {catalog,pet};
   },[api,id]);const query=useClientQuery(load);const disabled=action.loading||picking;
-  function change(key:keyof PetValues,value:string) {
+  // Función change: actualiza o guarda información dentro de este módulo.
+function change(key:keyof PetValues,value:string) {
     setValues(v=>({...v,[key]:value,...(key==='speciesId'||key==='breedName'?{breedId:''}:{})}));
     setErrors(e=>({...e,[key]:undefined}));
   }
-  async function choosePhoto(source:'gallery'|'camera') {
+  // Función choosePhoto: concentra la lógica dentro de este módulo.
+async function choosePhoto(source:'gallery'|'camera') {
     if(pickerBusy.current||action.loading)return;pickerBusy.current=true;setPicking(true);setErrors(e=>({...e,photoUrl:undefined}));
     try {
       if(source==='camera'&&Platform.OS==='web'){setErrors(e=>({...e,photoUrl:'La cámara está disponible desde la app móvil.'}));return;}
@@ -91,7 +98,8 @@ export function PetEditor({id}:{id?:string}) {
     allowNavigation();
     router.replace({pathname:'/client/pets/[id]',params:{id:pendingPetId}});
   },[allowNavigation,id,pendingPetId,showToast]);
-  async function save() {
+  // Función save: actualiza o guarda información dentro de este módulo.
+async function save() {
     if(disabled)return;const next:typeof errors={};
     if(!values.name.trim()||values.name.trim().length>100)next.name='Ingresá un nombre de hasta 100 caracteres.';
     if(!values.sex)next.sex='Seleccioná el sexo de tu mascota.';
@@ -112,16 +120,19 @@ export function PetEditor({id}:{id?:string}) {
     setPendingPetId(savedPetId);
   }
   const preview=photo?.uri||values.photoUrl;
-  return <PetCareScreen wide><PetCareHeader title={id?'Editar mascota':'Agregar mascota'} back/><QueryState {...query}/>{query.data&&!query.loading&&!query.error&&<>
+  return <PetCareScreen wide><PetCareHeader title={id?'Editar mascota':'Agregar mascota'} back/>
+<QueryState {...query}/>{query.data&&!query.loading&&!query.error&&<>
     {!query.data.catalog.species.length?<PetCareEmptyState title="No hay especies disponibles" message="El catálogo debe ser configurado por la clínica antes de registrar una mascota."/>:<>
       <View style={[styles.editorLayout,desktop&&styles.editorLayoutDesktop]}>
       <View style={desktop?styles.photoPanel:undefined}><PetCareCard><AppText variant="subtitle">Foto de la mascota</AppText><View style={styles.photoSection}><View style={[styles.photo,{backgroundColor:colors.accent}]}>
         {preview?<Image source={{uri:preview}} style={styles.photo} accessibilityLabel="Foto de la mascota" onError={()=>setErrors(e=>({...e,photoUrl:'No pudimos mostrar la foto. Podés elegir otra imagen.'}))}/>:<Ionicons name="paw-outline" size={54} color={colors.primary} accessible={false}/>}
       </View></View>
-      <AdminFormActions><AppButton compact={desktop} variant="secondary" label={preview?(desktop?'Cambiar foto':'Cambiar foto desde la galería'):(desktop?'Elegir foto':'Elegir de la galería')} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('gallery')}/>
+      
+<AdminFormActions><AppButton compact={desktop} variant="secondary" label={preview?(desktop?'Cambiar foto':'Cambiar foto desde la galería'):(desktop?'Elegir foto':'Elegir de la galería')} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('gallery')}/>
       {Platform.OS!=='web'&&<AppButton compact={desktop} variant="secondary" label={desktop?'Tomar foto':'Tomar foto con la cámara'} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('camera')}/>}
       {Boolean(preview)&&<AppButton compact={desktop} variant="secondary" label="Quitar foto" disabled={disabled} onPress={()=>{setPhoto(null);change('photoUrl','');}}/>}</AdminFormActions><FormNotice error message={errors.photoUrl??null}/></PetCareCard></View>
-      <View style={desktop?styles.fieldsPanel:undefined}><PetCareCard><AdminFormSection title="Datos de la mascota" columns={2}>
+      <View style={desktop?styles.fieldsPanel:undefined}><PetCareCard>
+<AdminFormSection title="Datos de la mascota" columns={2}>
       <AdminFormField fullWidth><AppInput ref={input=>{inputRefs.current.name=input;}} label="Nombre" required value={values.name} error={errors.name} maxLength={100} editable={!disabled} onChangeText={v=>change('name',v)}/></AdminFormField>
       <AdminFormField fullWidth><View style={styles.fieldGroup}><AppText variant="subtitle" accessibilityLabel="Especie, obligatorio">Especie *</AppText><View style={[styles.speciesOptions,desktop&&styles.speciesOptionsDesktop]}>{query.data.catalog.species.map(s=>{const name=s.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');const icon=name.includes('perro')||name.includes('dog')?'dog':name.includes('gato')||name.includes('cat')?'cat':'paw';return <Pressable key={s.id} accessibilityRole="radio" accessibilityLabel={s.name} accessibilityState={{checked:s.id===values.speciesId}} disabled={disabled} onPress={()=>change('speciesId',s.id)} style={[styles.speciesChoice,desktop&&styles.speciesChoiceDesktop,{backgroundColor:s.id===values.speciesId?colors.accent:colors.surface,borderColor:s.id===values.speciesId?colors.primary:colors.border}]}><MaterialCommunityIcons name={icon} size={desktop?38:46} color={s.id===values.speciesId?colors.primary:colors.muted}/><AppText variant="caption" style={{fontWeight:'700'}}>{s.name}</AppText>{s.id===values.speciesId&&<View style={[styles.speciesSelected,{backgroundColor:colors.primary}]}><Ionicons name="checkmark" size={13} color={colors.onPrimary}/></View>}</Pressable>;})}</View><FormNotice error message={errors.speciesId??null}/></View></AdminFormField>
       <AdminFormField fullWidth><View style={styles.fieldGroup}><AppText variant="subtitle" accessibilityLabel="Sexo, obligatorio">Sexo *</AppText>{([{value:'FEMALE',label:'Hembra'},{value:'MALE',label:'Macho'},{value:'UNKNOWN',label:'No lo sé'}] as const).map(option=><SelectionRow radio key={option.value} label={option.label} checked={values.sex===option.value} disabled={disabled} onPress={()=>change('sex',option.value)}/>) }<FormNotice error message={errors.sex??null}/></View></AdminFormField>
@@ -130,9 +141,11 @@ export function PetEditor({id}:{id?:string}) {
       <AdminFormField><AppInput ref={input=>{inputRefs.current.weightKg=input;}} label="Peso en kg (opcional)" value={values.weightKg} error={errors.weightKg} keyboardType="decimal-pad" maxLength={8} editable={!disabled} onChangeText={v=>change('weightKg',v.replace(',','.'))}/></AdminFormField>
       <AdminFormField><AppInput ref={input=>{inputRefs.current.microchipNumber=input;}} label="Microchip (opcional)" value={values.microchipNumber} error={errors.microchipNumber} maxLength={32} editable={!disabled} onChangeText={v=>change('microchipNumber',v)}/></AdminFormField>
       </AdminFormSection></PetCareCard>
-      <FormNotice error message={action.error}/><AdminFormActions><AppButton compact={desktop} label={id?'Guardar cambios':'Agregar mascota'} loading={action.loading} disabled={picking} onPress={save}/></AdminFormActions></View>
+      <FormNotice error message={action.error}/>
+<AdminFormActions><AppButton compact={desktop} label={id?'Guardar cambios':'Agregar mascota'} loading={action.loading} disabled={picking} onPress={save}/></AdminFormActions></View>
       </View>
     </>}
   </>}{unsavedChangesPrompt}</PetCareScreen>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({editorLayout:{gap:16},editorLayoutDesktop:{flexDirection:'row',alignItems:'flex-start'},photoPanel:{flex:.7,minWidth:250,maxWidth:350},fieldsPanel:{flex:1.8,minWidth:0},photoSection:{alignItems:'center',paddingVertical:8},photo:{width:132,height:132,borderRadius:66,alignItems:'center',justifyContent:'center',overflow:'hidden'},fieldGroup:{gap:8},speciesOptions:{flexDirection:'row',flexWrap:'wrap',gap:12},speciesOptionsDesktop:{gap:10},speciesChoice:{position:'relative',width:116,minHeight:114,borderWidth:2,borderRadius:20,alignItems:'center',justifyContent:'center',gap:6,padding:12},speciesChoiceDesktop:{width:106,minHeight:100,borderRadius:16,padding:10},speciesSelected:{position:'absolute',top:8,right:8,width:22,height:22,borderRadius:11,alignItems:'center',justifyContent:'center'}});

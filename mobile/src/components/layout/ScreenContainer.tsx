@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
+
 /** Contenedor desplazable que respeta notch y barra inferior en distintos celulares. */
 import { useRef,useState,type ComponentRef,type PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
@@ -7,6 +9,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { PetCareDecorativeBackground } from '../client/PetCareDecorations';
 
+// Función ScreenContainer: concentra la lógica dentro de este módulo.
 export function ScreenContainer({ children, keyboardAvoiding = false, wide = false }: PropsWithChildren<{ keyboardAvoiding?: boolean; wide?: boolean }>) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -23,6 +26,7 @@ export function ScreenContainer({ children, keyboardAvoiding = false, wide = fal
     </SafeAreaView>
   );
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   content: { flexGrow: 1, width: '100%', maxWidth: responsiveLayout.content.mobileMaxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 20, paddingBottom:80, gap: 18, overflow:'hidden' },

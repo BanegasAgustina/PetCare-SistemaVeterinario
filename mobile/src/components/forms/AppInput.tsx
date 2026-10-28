@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 /** Campo accesible con error, foco, autocompletado y opción para mostrar contraseña. */
 import { forwardRef, useState } from 'react';
 import type { ComponentRef } from 'react';
@@ -6,7 +8,9 @@ import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+// Tipo AppInputProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type AppInputProps = TextInputProps & { label: string; error?: string; hint?: string; password?: boolean; compact?: boolean; icon?: 'mail-outline' | 'lock-closed-outline' | 'search-outline'; prefix?: string; required?: boolean };
+// Dato AppInput: conserva un valor calculado o de configuración usado por este módulo.
 export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps>(function AppInput({ label, error, hint, password = false, compact = false, icon, prefix, required = false, style, onFocus, onBlur, ...props }, ref) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
@@ -34,6 +38,7 @@ export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps
     </View>
   );
 });
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   container: { gap: 6, width: '100%' },
   field: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 15 },

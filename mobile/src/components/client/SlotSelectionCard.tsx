@@ -1,9 +1,12 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
+
 import { Children, type PropsWithChildren } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { PetCareCard } from './PetCareUI';
 import { AppText } from '../ui/AppText';
 
 /** Lista de horarios con desplazamiento propio y altura acotada para conservar visible su encabezado. */
+// Función SlotSelectionCard: concentra la lógica dentro de este módulo.
 export function SlotSelectionCard({ title = 'Horarios disponibles', subtitle, emptyMessage, children }: PropsWithChildren<{ title?: string; subtitle?: string; emptyMessage?: string }>) {
   const hasItems = Children.count(children) > 0;
   return <PetCareCard>

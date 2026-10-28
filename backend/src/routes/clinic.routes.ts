@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Expone /api/clinic con filtros de rol y permisos efectivos. Los repositories repiten controles dentro de las transacciones para evitar operar con privilegios desactualizados.
  */
@@ -6,6 +8,7 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { requireRole,requireAnyPermission,requirePermission } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { clinicHandler as h } from '../controllers/clinic.controller';
+// Dato clinicRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const clinicRouter=Router();clinicRouter.use(authenticate);clinicRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 clinicRouter.post('/home',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),h('home'));
 clinicRouter.post('/catalog',requireRole('CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),h('catalog'));

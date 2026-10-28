@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /** Detalle del pedido propio; el backend verifica el propietario a partir de la sesión. */
 import { useCallback } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -7,13 +9,15 @@ import { PetCareCard, PetCareHeader, PetCareScreen, QueryState, money } from '..
 import { AppText } from '../../../components/ui/AppText';
 import { AppButton } from '../../../components/ui/AppButton';
 
+// Función ClientOrderDetail: concentra la lógica dentro de este módulo.
 export default function ClientOrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const api = useClient();
   const query = useClientQuery(useCallback(() => api.order(id), [api, id]));
   return <PetCareScreen>
     <PetCareHeader title="Comprobante" subtitle={query.data ? `Pedido #${query.data.id}` : undefined} back />
-    <QueryState {...query} />
+    
+<QueryState {...query} />
     {query.data && <PetCareCard>
       <AppText variant="subtitle">Pedido #{query.data.id}</AppText>
       <AppText>Operación: {query.data.isStoreOrder ? 'Pedido de tienda' : query.data.orderType === 'DEMO_PURCHASE' ? 'Pedido de demostración' : 'Registro histórico'}</AppText>

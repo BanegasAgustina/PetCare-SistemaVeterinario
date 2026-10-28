@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
+
 /** Un formulario compartido para crear y editar; catálogos y herencia provienen del backend. */
 import { useEffect,useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
@@ -20,7 +22,9 @@ import { validateIdentityForm } from '../../../utils/auth-validation';
 import { friendlyError } from '../../../services/api';
 import type { VetCatalog,VetDetail,VetValues } from '../../../types/veterinarian';
 
+// Configuración empty: reúne valores o reglas que consume el resto del módulo.
 const empty:VetValues={firstName:'',lastName:'',email:'',phone:'',licenseNumber:'',isActive:true,specialtyIds:[]};
+// Función VeterinarianEditor: concentra la lógica dentro de este módulo.
 export default function VeterinarianEditor() {
   const {id}=useLocalSearchParams<{id:string}>();const creating=id==='new';
   const auth=useAuth();const {request}=auth;const {colors}=useTheme();const action=useAsyncAction();const {showToast}=useFeedback();
@@ -30,7 +34,8 @@ export default function VeterinarianEditor() {
   const [photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const [removePhoto,setRemovePhoto]=useState(false);
   const canEdit=auth.hasPermission('veterinarians.manage');
   const canChangeStatus=auth.hasRole('SUPER_ADMIN');
-  const fill=(vet:VetDetail)=>{setDetail(vet);setValues({firstName:vet.firstName,lastName:vet.lastName,email:vet.email,phone:vet.phone??'',licenseNumber:vet.licenseNumber,isActive:vet.isActive,
+  // Función fill: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const fill=(vet:VetDetail)=>{setDetail(vet);setValues({firstName:vet.firstName,lastName:vet.lastName,email:vet.email,phone:vet.phone??'',licenseNumber:vet.licenseNumber,isActive:vet.isActive,
     specialtyIds:vet.specialties.map(s=>s.id)});};
   useEffect(()=>{
     let active=true;
@@ -38,15 +43,18 @@ export default function VeterinarianEditor() {
       .then(([options,vet])=>{if(active){setLoadError(null);setCatalog(options);if(vet)fill(vet);}}).catch(err=>{if(active)setLoadError(friendlyError(err));});
     return ()=>{active=false;};
   },[request,id,creating,retry]);
-  function change<K extends keyof VetValues>(key:K,value:VetValues[K]) {setValues(current=>({...current,[key]:value}));setErrors(current=>({...current,[key]:undefined}));setReview(false);}
-  const prepare=()=>{
+  // Función change: actualiza o guarda información dentro de este módulo.
+function change<K extends keyof VetValues>(key:K,value:VetValues[K]) {setValues(current=>({...current,[key]:value}));setErrors(current=>({...current,[key]:undefined}));setReview(false);}
+  // Función prepare: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const prepare=()=>{
     const identity=validateIdentityForm(values);
     const next:Partial<Record<keyof VetValues,string>>={firstName:identity.firstName,lastName:identity.lastName,email:identity.email,phone:identity.phone};
     if (!values.licenseNumber.trim() || values.licenseNumber.trim().length>80) next.licenseNumber='Ingresá una matrícula de hasta 80 caracteres.';
     if (!values.specialtyIds.length) next.specialtyIds='Seleccioná al menos una especialidad.';
     setErrors(next);if (!Object.values(next).some(Boolean)) setReview(true);
   };
-  const save=async()=>{
+  // Función save: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const save=async()=>{
     if (creating) {
       const result=await auth.request<{veterinarian:VetDetail;invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:values});
       const created=result.veterinarian;let photoFailed=false;
@@ -67,7 +75,8 @@ export default function VeterinarianEditor() {
     {Boolean(loadError) && <AppButton label="Reintentar" onPress={()=>setRetry(retry+1)} />}
     {!catalog && !loadError && <AppText muted>Cargando catálogos…</AppText>}
     {catalog && (!creating || canEdit) && <>
-      <AdminFormSection title="1. Datos personales" description="Información de contacto y perfil profesional." columns={2}>
+      
+<AdminFormSection title="1. Datos personales" description="Información de contacto y perfil profesional." columns={2}>
         <AdminFormField fullWidth><ProfilePhotoInput currentUri={removePhoto?null:detail?.profilePhotoUrl??null} photo={photo} disabled={!canEdit||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);setReview(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);setReview(false);}}/></AdminFormField>
         <AdminFormField><AppInput label="Nombre" value={values.firstName} error={errors.firstName} editable={canEdit&&!action.loading} onChangeText={v=>change('firstName',v)} /></AdminFormField>
         <AdminFormField><AppInput label="Apellido" value={values.lastName} error={errors.lastName} editable={canEdit&&!action.loading} onChangeText={v=>change('lastName',v)} /></AdminFormField>
@@ -75,16 +84,19 @@ export default function VeterinarianEditor() {
         <AdminFormField><AppInput label="Teléfono" value={values.phone} error={errors.phone} keyboardType="phone-pad" editable={canEdit&&!action.loading} onChangeText={v=>change('phone',v)} /></AdminFormField>
         {!creating && <AdminFormField fullWidth><AppText variant="caption" muted>Cambiar el correo revoca la sesión y exige verificar el nuevo correo al iniciar sesión.</AppText></AdminFormField>}
       </AdminFormSection>
-      <AdminFormSection title="2. Datos profesionales" description="La matrícula identifica al profesional en la clínica.">
+      
+<AdminFormSection title="2. Datos profesionales" description="La matrícula identifica al profesional en la clínica.">
         <AppInput label="Matrícula profesional" value={values.licenseNumber} error={errors.licenseNumber} editable={canEdit&&!action.loading} onChangeText={v=>change('licenseNumber',v)} />
       </AdminFormSection>
-      <AdminFormSection title="3. Especialidades" description="Las especialidades habilitan servicios clínicos compatibles.">
+      
+<AdminFormSection title="3. Especialidades" description="Las especialidades habilitan servicios clínicos compatibles.">
       <FormNotice error message={errors.specialtyIds??null} />
       {!catalog.specialties.length && <View style={styles.section}><AppText muted>No hay especialidades activas. Se necesita al menos una para completar el perfil veterinario y validar los servicios clínicos que puede brindar.</AppText>{auth.hasPermission('specialties.manage')&&<AppButton compact variant="secondary" label="Administrar especialidades" onPress={()=>router.push('/admin/veterinarians/specialties')}/>}</View>}
       {catalog.specialties.map(s=><SelectionRow key={s.id} label={s.name} checked={values.specialtyIds.includes(s.id)} disabled={!canEdit||action.loading}
         onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
       </AdminFormSection>
-      <AdminFormSection title="Cuenta" description="El rol se asigna automáticamente como Veterinario.">
+      
+<AdminFormSection title="Cuenta" description="El rol se asigna automáticamente como Veterinario.">
       <AppText muted>Rol Veterinario · asignado automáticamente</AppText>
       {!creating&&<View style={styles.state}><AppText>{values.isActive?'Activa':'Inactiva'}</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={action.loading||!canEdit||!canChangeStatus||!detail?.emailVerified&&!values.isActive}
         onValueChange={value=>{if (!value&&detail?.isActive)setDeactivate(true);else change('isActive',value);}} trackColor={{true:colors.primary}} /></View>}
@@ -93,7 +105,9 @@ export default function VeterinarianEditor() {
       {detail && <AppText muted>Correo: {detail.emailVerified?'Verificado':'Sin verificar'}</AppText>}
       </AdminFormSection>
       <FormNotice error message={action.error} />
-        {canEdit && <AdminFormActions><AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} /></AdminFormActions>}
+        {canEdit && (
+          <AdminFormActions><AppButton label="4. Revisar cambios" disabled={action.loading} onPress={prepare} /></AdminFormActions>
+        )}
       {review && <View style={[styles.review,softSurfaceShadow(colors.primary),{backgroundColor:colors.surface,borderColor:colors.border}]}>
         <AppText variant="subtitle">Revisar y {creating?'crear':'guardar'}</AppText>
         <AppText>{values.firstName} {values.lastName} · {values.email}</AppText><AppText>Matrícula {values.licenseNumber} · Cuenta {creating?'pendiente de activación':values.isActive?'activa':'inactiva'}</AppText>
@@ -107,4 +121,5 @@ export default function VeterinarianEditor() {
       onCancel={()=>setDeactivate(false)} onConfirm={async()=>{const vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}/status`,{method:'PATCH',body:{isActive:false}});setDetail(vet);change('isActive',false);setDeactivate(false);showToast('Veterinario desactivado','success');}} />
   </ScreenContainer>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({section:{gap:10},state:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},review:{padding:18,borderWidth:1,borderRadius:20,gap:12}});

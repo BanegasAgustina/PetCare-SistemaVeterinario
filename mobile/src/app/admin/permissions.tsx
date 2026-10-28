@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
+
 /**
  * Pantalla de permisos efectivos para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -12,8 +14,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { groupPermissionsByModule } from '../../utils/admin-permissions';
 import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
+// Función PermissionsScreen: concentra la lógica dentro de este módulo.
 export default function PermissionsScreen(){const api=useAdmin();const auth=useAuth();const query=useClientQuery(api.catalog);
-  return <ScreenContainer wide><AdminPageHeading title="Permisos"/><QueryState {...query}/>
+  return <ScreenContainer wide><AdminPageHeading title="Permisos"/>
+<QueryState {...query}/>
     <AppText muted>Los roles definen permisos compartidos y cada usuario puede tener excepciones individuales.</AppText>
     {auth.hasPermission('roles.manage')&&<AppButton label="Gestionar permisos de roles" onPress={()=>router.push('/admin/roles')}/>}
     {auth.hasPermission('users.manage')&&<AppButton label="Gestionar excepciones de usuarios" onPress={()=>router.push('/admin/users')}/>}

@@ -1,9 +1,13 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Intercambia códigos por identidad con el proveedor; no persiste sus access tokens. */
 import { createHmac } from 'node:crypto';
 import { oauthConfig, type OAuthProvider } from '../config/oauth';
 import { AppError } from '../utils/app-error';
+// Tipo ProviderIdentity: define la forma o las opciones válidas de datos usados por este módulo.
 export type ProviderIdentity = { subject: string; email: string | null; name: string | null };
 /** Limita esperas y oculta respuestas externas que podrían incluir credenciales. */
+// Función json: concentra la lógica dentro de este módulo.
 async function json(url: string, options: RequestInit = {}, provider?: OAuthProvider, stage?: string): Promise<Record<string,unknown>> {
   try {const response=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(10000)});const body:unknown=await response.json();
     if(!response.ok||!body||typeof body!=='object'||Array.isArray(body)){
@@ -15,17 +19,20 @@ async function json(url: string, options: RequestInit = {}, provider?: OAuthProv
     }return body as Record<string,unknown>;
   }catch{if(provider)console.warn(JSON.stringify({event:'oauth.provider_request_failed',provider,stage}));throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
 }
+// Función identity: concentra la lógica dentro de este módulo.
 function identity(subject:unknown,email:unknown,name:unknown,emailVerified=false):ProviderIdentity {
   if(typeof subject!=='string'||!/^[\x21-\x7e]{1,255}$/.test(subject))throw new AppError('OAUTH_PROVIDER_ERROR',502,'El proveedor no devolvió una identidad válida.');
   // Solo se usa el email verificado del proveedor como sugerencia; PetCare siempre pide su propio código.
   return {subject,email:emailVerified&&typeof email==='string'&&email.length<=254?email:null,name:typeof name==='string'&&name.length<=200?name:null};
 }
+// Función authorizationUrl: concentra la lógica dentro de este módulo.
 export function authorizationUrl(provider:OAuthProvider,state:string,challenge:string):string {
   const c=oauthConfig(provider);const url=new URL(provider==='google'?'https://accounts.google.com/o/oauth2/v2/auth':provider==='facebook'?`https://www.facebook.com/${c.facebookVersion}/dialog/oauth`:'https://x.com/i/oauth2/authorize');
   url.search=new URLSearchParams({client_id:c.clientId,redirect_uri:c.callback,response_type:'code',state,scope:provider==='google'?'openid email profile':provider==='facebook'?'email,public_profile':'users.read'}).toString();
   // Facebook usa cliente confidencial y state; Google/X también usan PKCE S256.
   if(provider!=='facebook'){url.searchParams.set('code_challenge',challenge);url.searchParams.set('code_challenge_method','S256');}return url.toString();
 }
+// Función providerIdentity: concentra la lógica dentro de este módulo.
 export async function providerIdentity(provider:OAuthProvider,code:string,verifier:string):Promise<ProviderIdentity> {
   const c=oauthConfig(provider);
   if(provider==='facebook'){

@@ -1,5 +1,8 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 /**
  * Entrada pública del enlace de invitación. Renderiza ActivationForm para validar el token y definir contraseña mediante /auth/invitations; el enlace no concede una sesión PetCare.
  */
 import { ActivationForm } from '../components/forms/ActivationForm';
+// Función ActivateVet: concentra la lógica dentro de este módulo.
 export default function ActivateVet(){return <ActivationForm kind='veterinarian'/>;}

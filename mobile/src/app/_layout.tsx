@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 /** Raíz de Expo Router: ofrece tema y áreas seguras a todas las pantallas. */
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +22,7 @@ import { canEnterClientRoot, canEnterWorkspace } from '../utils/role-home';
 // Completa el retorno de Expo solo en ventanas emergentes; el login web principal usa redirección completa.
 if(Platform.OS==='web'&&(window.opener||window.parent!==window))WebBrowser.maybeCompleteAuthSession();
 
+// Función ThemedNavigation: concentra la lógica dentro de este módulo.
 function ThemedNavigation() {
   const { mode, colors } = useTheme();
   const auth = useAuth();
@@ -44,6 +47,7 @@ function ThemedNavigation() {
     <NotificationBridge />
   </>;
 }
+// Función RootLayout: concentra la lógica dentro de este módulo.
 export default function RootLayout() {
   return <SafeAreaProvider><ThemeProvider><FeedbackProvider><AuthProvider><ThemedNavigation /></AuthProvider></FeedbackProvider></ThemeProvider></SafeAreaProvider>;
 }

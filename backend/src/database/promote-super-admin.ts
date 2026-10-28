@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Operación de bootstrap exclusivamente por consola de un operador con acceso DB.
  * Nunca se expone por HTTP ni promueve usuarios automáticamente. Requiere ID explícito.
  */
@@ -6,6 +8,7 @@ import {identifier} from '../validators/veterinarian.validator';
 import {runDatabaseOperation} from '../utils/database-error';
 import {AppError} from '../utils/app-error';
 import type {RowDataPacket} from 'mysql2/promise';
+// Función promote: concentra la lógica dentro de este módulo.
 async function promote() {
   const userId=identifier(process.argv[2]);
   await runDatabaseOperation(async()=>{

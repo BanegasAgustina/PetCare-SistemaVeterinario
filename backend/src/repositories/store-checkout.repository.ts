@@ -1,13 +1,18 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import type { CheckoutAddress, CheckoutPayment } from '../validators/store-checkout.validator';
 import { createClientNotification } from './notification.repository';
 
+// Tipo Fulfillment: define la forma o las opciones válidas de los datos usados por este módulo.
 type Fulfillment = RowDataPacket & { pickupEnabled:number;pickupAddress:string|null;deliveryEnabled:number;deliveryBaseFeeCents:number;freeDeliveryThresholdCents:number|null;bankName:string|null;bankAccountHolder:string|null;bankCbuCvu:string|null;bankAlias:string|null };
+// Función normalize: concentra una operación reutilizable de este módulo.
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es');
 
 /** Crea un pedido de tienda idempotente. Valida nuevamente catálogo, precio, envío y configuración bajo transacción. */
+// Función create: crea un registro o inicia una operación dentro de este módulo.
 export async function create(owner:string,key:string,paymentMethod:CheckoutPayment,method:'PICKUP'|'DELIVERY',address:CheckoutAddress|null,paymentReference:string,transferBuyer?:{name:string;email:string}){
   const connection=await databasePool.getConnection();let orderId='';
   try{

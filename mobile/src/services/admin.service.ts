@@ -1,6 +1,9 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** API administrativa autenticada. Ningún permiso se infiere por email/ID. */
 import type { ClientRequest } from './client.service';
 import type { AdminCatalog,AdminHome,AdminUserDetail,AdminUserPage,GeneralInformation } from '../types/admin';
+// Función adminService: concentra la lógica dentro de este módulo.
 export function adminService(request:ClientRequest) {
   return {
     home:()=>request<AdminHome>('/admin/home',{method:'POST',body:{}}),catalog:()=>request<AdminCatalog>('/admin/catalog',{method:'POST',body:{}}),

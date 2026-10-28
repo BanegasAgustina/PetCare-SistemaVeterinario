@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { LoginLayout } from '../components/layout/LoginLayout';
@@ -10,6 +12,7 @@ import { useAsyncAction } from '../hooks/useAsyncAction';
 import { resetPassword } from '../services/auth.service';
 import { isValidPasswordResetToken, normalizePasswordResetToken } from '../utils/password-reset-token';
 
+// Función ResetPasswordScreen: concentra la lógica dentro de este módulo.
 export default function ResetPasswordScreen(){
   const rawToken = useLocalSearchParams<{token?: string | string[]}>().token;
   const token = normalizePasswordResetToken(rawToken);
@@ -18,7 +21,8 @@ export default function ResetPasswordScreen(){
   const [validationError,setValidationError]=useState('');
   const [done,setDone]=useState(false);
   const action=useAsyncAction();
-  const submit=()=>{
+  // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const submit=()=>{
     if(!isValidPasswordResetToken(token)){setValidationError('El enlace no es válido. Solicitá uno nuevo desde el inicio de sesión.');return;}
     if([...password].length<8||!/\p{Lu}/u.test(password)||!/\p{Ll}/u.test(password)||!/\d/.test(password)||!/[^\p{L}\p{N}\s]/u.test(password)){setValidationError('Usá al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.');return;}
     if(password!==confirm){setValidationError('Las contraseñas no coinciden.');return;}

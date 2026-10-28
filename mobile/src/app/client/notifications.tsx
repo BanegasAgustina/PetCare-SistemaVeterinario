@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /**
  * Pantalla de notificaciones propias para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -17,6 +19,7 @@ import { publishNotificationChange, subscribeToNotificationChanges } from '../..
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 import { useTheme } from '../../hooks/useTheme';
 
+// Función NotificationsScreen: concentra la lógica dentro de este módulo.
 export default function NotificationsScreen(){
   const api=useClient();
   const query=useClientQuery(api.notifications);
@@ -37,11 +40,13 @@ export default function NotificationsScreen(){
     const unsubscribe=subscribeToNotificationChanges(query.reload);
     return unsubscribe;
   },[query.reload]);
-  const readAll=()=>void action.run(async()=>{
+  // Función readAll: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const readAll=()=>void action.run(async()=>{
     await api.readAllNotifications();
     publishNotificationChange();
   });
-  const loadMore=()=>void action.run(async()=>{
+  // Función loadMore: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const loadMore=()=>void action.run(async()=>{
     if(!pageCursor||!firstId)return;
     const page=await api.notifications(pageCursor);
     setExtraPages(current=>({baseId:firstId,items:[...(current?.baseId===firstId?current.items:[]),...page.items],cursor:page.nextCursor}));
@@ -60,7 +65,8 @@ export default function NotificationsScreen(){
       })}
     </View>
     {!!query.data?.unreadCount&&<View style={desktopWeb?styles.desktopBulkAction:undefined}><AppButton compact={desktopWeb} label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/></View>}
-    <QueryState {...query}/>
+    
+<QueryState {...query}/>
     <FormNotice error message={action.error}/>
     {query.data&&<>
       <AppText variant="subtitle">{showRead?'Notificaciones leídas':'Notificaciones no leídas'}{!showRead&&query.data.unreadCount?` · ${query.data.unreadCount}`:''}</AppText>
@@ -82,4 +88,5 @@ export default function NotificationsScreen(){
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({filterGroup:{flexDirection:'row',gap:8},desktopFilterGroup:{alignSelf:'flex-start',width:380,maxWidth:'100%'},filterOption:{minHeight:46,flex:1,paddingHorizontal:14,borderRadius:14,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},desktopBulkAction:{alignSelf:'flex-start'},desktopCard:{flex:1,minWidth:0},desktopBody:{flexGrow:1},actions:{gap:16},desktopActions:{gap:8,marginTop:'auto',paddingTop:8,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});

@@ -1,9 +1,12 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Acceso a auth/register, auth/login y auth/me; la confirmación nunca se envía al backend. */
 import { apiRequest, ApiError } from './api';
 import { normalizeEmail } from '../utils/auth-validation';
 import type { AccessSession, AuthUser, LoginValues, RegisterValues, RegistrationResult } from '../types/auth';
 import { readVerification } from './verification.service';
 
+// Función readUser: obtiene o consulta información dentro de este módulo.
 function readUser(value: unknown): AuthUser {
   if (typeof value !== 'object' || !value) throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la respuesta de PetCare.');
   const user = value as AuthUser;
@@ -21,6 +24,7 @@ function readUser(value: unknown): AuthUser {
     ...(typeof user.roleName==='string'?{roleName:user.roleName}:{}) };
 }
 
+// Función register: crea un registro o inicia una operación dentro de este módulo.
 export async function register(values: RegisterValues): Promise<RegistrationResult> {
   const result = await apiRequest<{ user: unknown; verification: unknown }>('/auth/register', { method: 'POST', body: {
     firstName: values.firstName.trim().normalize('NFC').replace(/\s+/g, ' '),
@@ -29,20 +33,25 @@ export async function register(values: RegisterValues): Promise<RegistrationResu
   } });
   return { user: readUser(result.user), verification: readVerification(result.verification) };
 }
+// Función login: concentra la lógica dentro de este módulo.
 export async function login(values: LoginValues): Promise<AccessSession> {
   const result = await apiRequest<AccessSession>('/auth/login', { method: 'POST', body: { email: normalizeEmail(values.email), password: values.password } });
   return readAccessSession(result);
 }
+// Función requestPasswordReset: concentra la lógica dentro de este módulo.
 export async function requestPasswordReset(email: string): Promise<void> {
   await apiRequest('/auth/password-reset/request',{method:'POST',body:{email:normalizeEmail(email)}});
 }
+// Función resetPassword: concentra la lógica dentro de este módulo.
 export async function resetPassword(token: string,password: string): Promise<void> {
   await apiRequest('/auth/password-reset/confirm',{method:'POST',body:{token,password}});
 }
+// Función changeInitialPassword: actualiza o guarda información dentro de este módulo.
 export async function changeInitialPassword(email:string,currentPassword:string,newPassword:string):Promise<void>{
   await apiRequest('/auth/change-initial-password',{method:'POST',body:{email:normalizeEmail(email),currentPassword,newPassword}});
 }
 /** Valida todas las entradas de sesión, incluyendo OAuth y renovación, antes de persistirlas. */
+// Función readAccessSession: obtiene o consulta información dentro de este módulo.
 export function readAccessSession(value: unknown): AccessSession {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new ApiError('INVALID_RESPONSE', 'No pudimos validar la sesión de PetCare.');
@@ -54,12 +63,15 @@ export function readAccessSession(value: unknown): AccessSession {
   if (typeof result.refreshToken !== 'string' || !/^[a-f0-9]{64}$/.test(result.refreshToken)) throw new ApiError('INVALID_RESPONSE','No pudimos validar la renovación de sesión.');
   return { ...result, user: readUser(result.user) };
 }
+// Función refresh: concentra la lógica dentro de este módulo.
 export async function refresh(refreshToken: string): Promise<AccessSession> {
   return readAccessSession(await apiRequest<AccessSession>('/auth/refresh',{method:'POST',body:{refreshToken}}));
 }
+// Función logout: concentra la lógica dentro de este módulo.
 export async function logout(refreshToken: string): Promise<void> {
   await apiRequest('/auth/logout',{method:'POST',body:{refreshToken}});
 }
+// Función getCurrentUser: obtiene o consulta información dentro de este módulo.
 export async function getCurrentUser(accessToken: string): Promise<AuthUser> {
   const result = await apiRequest<{ user: unknown }>('/auth/me', { method: 'POST', body: {}, accessToken });
   return readUser(result.user);

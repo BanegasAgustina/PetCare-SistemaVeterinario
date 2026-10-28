@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Limpieza transitoria de reservas comerciales históricas.
  * No permite crear, consultar ni cambiar reservas; solo libera stock vencido existente.
@@ -9,6 +11,7 @@ import * as db from './clinic.repository';
 import { AppError } from '../utils/app-error';
 
 /** Mantiene consistente reserved_stock mientras se auditan las operaciones heredadas. */
+// Función expireDueReservations: concentra la lógica dentro de este módulo.
 export async function expireDueReservations(batchSize=100):Promise<number> {
  const connection=await databasePool.getConnection();let count=0;
  try {await connection.beginTransaction();

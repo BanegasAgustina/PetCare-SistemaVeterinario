@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Comandos explícitos de preparación: el inicio HTTP no aplica cambios al esquema. */
 import { databasePool } from '../config/database';
 import { checkDatabaseConnection } from '../services/database.service';
@@ -6,6 +8,7 @@ import { createDatabase } from './create-database';
 import { runMigrations } from './migration-runner';
 import { runSeeds } from './seed-runner';
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   try {
     switch (process.argv[2]) {

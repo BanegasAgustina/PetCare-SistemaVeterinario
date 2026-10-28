@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Adopta el esquema clínico existente con validación y DDL mínimo reanudable. */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -7,16 +9,25 @@ import { databasePool } from '../config/database';
 import { env } from '../config/env';
 import { withDatabaseLock } from './lock';
 
+// Dato RECONCILIATION_VERSION: conserva un valor calculado o de configuración usado por este módulo.
 export const RECONCILIATION_VERSION = '002_adopt_existing_clinic_schema.sql';
+// Dato HISTORICAL_VERSION: conserva un valor calculado o de configuración usado por este módulo.
 export const HISTORICAL_VERSION = '001_connected_clinic.sql';
+// Dato MIGRATION_PATH: conserva un valor calculado o de configuración usado por este módulo.
 const MIGRATION_PATH = resolve(process.cwd(), 'clinic-migrations', RECONCILIATION_VERSION);
 
+// Tipo IndexRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type IndexRow = RowDataPacket & { TABLE_NAME: string; INDEX_NAME: string; NON_UNIQUE: number | string; SEQ_IN_INDEX: number | string; COLUMN_NAME: string };
+// Tipo ForeignKeyRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type ForeignKeyRow = RowDataPacket & { COLUMN_NAME: string; REFERENCED_TABLE_NAME: string; REFERENCED_COLUMN_NAME: string };
+// Tipo Queryable: define la forma o las opciones válidas de los datos usados por este módulo.
 type Queryable = Pick<PoolConnection, 'execute' | 'query'>;
+// Tipo IndexSpec: define la forma o las opciones válidas de los datos usados por este módulo.
 export type IndexSpec = { name: string; unique: boolean; columns: string[] };
+// Tipo ReconcilePlan: define la forma o las opciones válidas de los datos usados por este módulo.
 export type ReconcilePlan = { addSupportIndex: boolean; dropHistoricalUnique: boolean };
 
+// Función decideLedgerAction: concentra la lógica dentro de este módulo.
 export function decideLedgerAction(entry: { checksum: string; state: string } | undefined, checksum: string, historicalRecorded: boolean): 'start' | 'resume' | 'skip' {
   if (entry && entry.checksum !== checksum) throw new Error('El checksum de 002 no coincide con el historial; se aborta.');
   if (historicalRecorded) throw new Error('Existe un registro de 001; revisar manualmente la historia antes de adoptar 002.');
@@ -26,6 +37,7 @@ export function decideLedgerAction(entry: { checksum: string; state: string } | 
   throw new Error(`Estado de 002 no reconocido: ${entry.state}.`);
 }
 
+// Función planIndexReconciliation: concentra la lógica dentro de este módulo.
 export function planIndexReconciliation(indexes: IndexSpec[], foreignKeyExists: boolean, duplicatePairs: number): ReconcilePlan {
   if (duplicatePairs !== 0) throw new Error('Hay pares veterinarian_id + starts_at duplicados; se aborta sin cambios.');
   const exactOld = indexes.find((index) => index.name === 'veterinarian_start');
@@ -38,11 +50,13 @@ export function planIndexReconciliation(indexes: IndexSpec[], foreignKeyExists: 
   return { addSupportIndex: !hasSupport && !hasNamedHistory, dropHistoricalUnique: Boolean(exactOld) };
 }
 
+// Función rows: concentra la lógica dentro de este módulo.
 async function rows<T extends RowDataPacket>(connection: Queryable, sql: string, values: unknown[] = []): Promise<T[]> {
   const [result] = await connection.execute<T[]>(sql, values as (string | number | boolean | null)[]);
   return result;
 }
 
+// Función assertPreflight: comprueba una regla o condición dentro de este módulo.
 async function assertPreflight(connection: Queryable, expectedDatabase: string): Promise<{ plan: ReconcilePlan; rowCount: number; duplicatePairs: number }> {
   const [database] = await rows<RowDataPacket & { db: string }>(connection, 'SELECT DATABASE() AS db');
   if (!database?.db || database.db !== expectedDatabase || database.db !== env.database.database) {
@@ -55,7 +69,8 @@ async function assertPreflight(connection: Queryable, expectedDatabase: string):
 
   const columns = await rows<RowDataPacket & { TABLE_NAME: string; COLUMN_NAME: string; COLUMN_TYPE: string; IS_NULLABLE: string; EXTRA: string }>(connection,
     "SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND ((TABLE_NAME='client_appointment_slots' AND COLUMN_NAME IN ('id','veterinarian_id','professional_user_id','starts_at','active_start')) OR (TABLE_NAME='client_appointments' AND COLUMN_NAME IN ('slot_id','occupied_slot_id')) OR (TABLE_NAME='veterinarians' AND COLUMN_NAME='id'))");
-  const column = (table: string, name: string) => columns.find((item) => item.TABLE_NAME === table && item.COLUMN_NAME === name);
+  // Función column: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const column = (table: string, name: string) => columns.find((item) => item.TABLE_NAME === table && item.COLUMN_NAME === name);
   const checks: Array<[string, string, (item: typeof columns[number]) => boolean]> = [
     ['client_appointment_slots', 'veterinarian_id', (item) => item.COLUMN_TYPE === 'bigint unsigned'],
     ['client_appointment_slots', 'id', (item) => item.COLUMN_TYPE === 'bigint unsigned'],
@@ -101,7 +116,8 @@ async function assertPreflight(connection: Queryable, expectedDatabase: string):
     found.columns[Number(row.SEQ_IN_INDEX) - 1] = row.COLUMN_NAME;
     appointmentIndexes.set(row.INDEX_NAME, found);
   }
-  const hasEquivalent = (unique: boolean, columnName: string) => [...appointmentIndexes.values()].some((index) => index.unique === unique && index.columns.join(',') === columnName);
+  // Función hasEquivalent: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const hasEquivalent = (unique: boolean, columnName: string) => [...appointmentIndexes.values()].some((index) => index.unique === unique && index.columns.join(',') === columnName);
   if (!hasEquivalent(true, 'occupied_slot_id') || !hasEquivalent(false, 'slot_id')) {
     throw new Error('client_appointments no conserva los índices funcionales esperados (occupied_slot_id y slot_id).');
   }
@@ -116,6 +132,7 @@ async function assertPreflight(connection: Queryable, expectedDatabase: string):
   return { plan, rowCount, duplicatePairs };
 }
 
+// Función readLedger: obtiene o consulta información dentro de este módulo.
 async function readLedger(connection: Queryable, checksum: string) {
   const ledger = await rows<RowDataPacket & { version: string; checksum: string; state: string }>(connection,
     'SELECT version,checksum,state FROM clinic_schema_migrations WHERE version IN (?,?)', [RECONCILIATION_VERSION, HISTORICAL_VERSION]);
@@ -124,6 +141,7 @@ async function readLedger(connection: Queryable, checksum: string) {
   return { adopted, historical: ledger.some((entry) => entry.version === HISTORICAL_VERSION) };
 }
 
+// Función reconcileIndexes: concentra la lógica dentro de este módulo.
 async function reconcileIndexes(connection: PoolConnection): Promise<void> {
   // Se vuelve a leer el estado antes de cada DDL para permitir reanudación tras DDL no transaccional.
   const current = await assertPreflight(connection, env.database.database);
@@ -142,6 +160,7 @@ async function reconcileIndexes(connection: PoolConnection): Promise<void> {
   }
 }
 
+// Función reconcileClinic: concentra la lógica dentro de este módulo.
 export async function reconcileClinic(connection: PoolConnection, sql: string): Promise<void> {
   const checksum = createHash('sha256').update(sql).digest('hex');
   await withDatabaseLock(connection, async () => {
@@ -170,6 +189,7 @@ export async function reconcileClinic(connection: PoolConnection, sql: string): 
   });
 }
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   const sql = await readFile(MIGRATION_PATH, 'utf8');
   const connection = await databasePool.getConnection();

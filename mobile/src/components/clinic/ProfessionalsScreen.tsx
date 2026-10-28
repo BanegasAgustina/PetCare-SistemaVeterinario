@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
+
 /** Gestión de profesionales y asignaciones reales de la clínica. */
 import { useCallback, useMemo, useState } from 'react';
 import { Platform,Pressable,StyleSheet,View,useWindowDimensions } from 'react-native';
@@ -24,6 +26,7 @@ import { AdminFormActions, AdminFormField, AdminFormGrid, AdminFormSection } fro
 import { FormNotice } from '../ui/FormNotice';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 
+// Función ProfessionalsScreen: concentra la lógica dentro de este módulo.
 export function ProfessionalsScreen() {
   const {width}=useWindowDimensions();
   const desktopWeb=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
@@ -55,7 +58,8 @@ export function ProfessionalsScreen() {
   const selectedProfessional = query.data?.find(person => person.id === selected);
   const selectedIsVeterinarian = Boolean(selectedProfessional && 'veterinarianId' in selectedProfessional && selectedProfessional.veterinarianId);
 
-  async function changeActiveStatus() {
+  // Función changeActiveStatus: actualiza o guarda información dentro de este módulo.
+async function changeActiveStatus() {
     if (!selectedProfessional) return;
     const saved = await statusAction.run(async () => {
       const user = await admin.user(selectedProfessional.id);
@@ -87,7 +91,9 @@ export function ProfessionalsScreen() {
         <AppText variant="subtitle">Estado</AppText>{[['', 'Todos los estados'], ['1', 'Activos'], ['0', 'Inactivos']].map(([value, label]) => <SelectionRow key={value || 'all'} label={label} checked={active === value} onPress={() => setActive(value)}/>)}
       </>}
       filterCount={activeCount} onApply={() => { setPage(1); void query.reload(); }} onClear={() => { setType(''); setActive(''); setSort('recent'); setPage(1); }}/>
-    <QueryState {...catalog}/><QueryState {...query}/>
+    
+<QueryState {...catalog}/>
+<QueryState {...query}/>
     {query.data && (professionals.length ? desktopWeb ? <AdminDataTable rows={visibleProfessionals} rowKey={person=>person.id} columns={[
       {key:'professional',label:'Profesional',flex:1.2,minWidth:160,render:person=><View style={{flexDirection:'row',alignItems:'center',gap:8}}><PetImage uri={typeof person.profilePhotoUrl==='string'?person.profilePhotoUrl:null} size={36}/><View style={{flex:1,minWidth:0}}><AppText variant="subtitle" numberOfLines={2}>{String(person.name)}</AppText><AppText variant="caption" muted numberOfLines={1}>{String(person.typeName)}</AppText></View></View>},
       {key:'specialty',label:'Especialidad',flex:1,minWidth:120,render:person=><AppText muted numberOfLines={2}>{String(person.specialties||'—')}</AppText>},
@@ -113,7 +119,8 @@ export function ProfessionalsScreen() {
         <AppText>Estado: {selectedProfessional.isActive ? 'Activo' : 'Inactivo'}</AppText>
         {Boolean(selectedProfessional.specialties) && <AppText>Especialidad: {String(selectedProfessional.specialties)}</AppText>}
         {selectedProfessional.emailVerified !== undefined && <AppText>Correo: {selectedProfessional.emailVerified ? 'Verificado' : 'Sin verificar'}</AppText>}
-        {catalog.data && <AdminFormSection title={`Servicios asignados (${services.length})`} description="La asignación se conserva hasta que confirmes un cambio. Los servicios inactivos no permiten publicar nuevos horarios.">
+        {catalog.data && 
+<AdminFormSection title={`Servicios asignados (${services.length})`} description="La asignación se conserva hasta que confirmes un cambio. Los servicios inactivos no permiten publicar nuevos horarios.">
           {services.map(id => catalog.data?.services.find(service => service.id === id)).filter((service): service is NonNullable<typeof service> => Boolean(service)).map(service => <AppText key={service.id} muted>{String(service.name)} · {String(catalog.data?.types.find(item => item.id === service.typeId)?.name ?? 'Tipo no disponible')} · {service.isActive ? 'Activo' : 'Inactivo'}</AppText>)}
           {!services.length && <AppText muted>No tiene servicios asignados.</AppText>}
           {hasPermission('schedule.manage') && <AppButton compact variant="secondary" label="Consultar disponibilidad" onPress={() => { setSelected(''); router.push({ pathname: '/admin/availability', params: { professionalId: selectedProfessional.id } }); }} />}
@@ -121,14 +128,18 @@ export function ProfessionalsScreen() {
         {!selectedIsVeterinarian && hasPermission('users.manage') && hasRole('SUPER_ADMIN') && <AppButton label={selectedProfessional.isActive ? 'Desactivar profesional' : 'Reactivar profesional'} destructive={Boolean(selectedProfessional.isActive)} variant={selectedProfessional.isActive ? 'secondary' : 'primary'} onPress={() => setStatusConfirm(true)} />}
         <FormNotice error message={statusAction.error} />
         <AdminFormGrid columns={2}>
-        <AdminFormField><AdminFormSection title="Tipo profesional" description="Cambiarlo puede quitar servicios incompatibles. Primero reprogramá los turnos vigentes.">
+        <AdminFormField>
+<AdminFormSection title="Tipo profesional" description="Cambiarlo puede quitar servicios incompatibles. Primero reprogramá los turnos vigentes.">
           {catalog.data.types.filter(item => Boolean(item.isClinical) === Boolean(query.data?.find(person => person.id === selected)?.isClinical)).map(item => <SelectionRow key={item.id} radio label={String(item.name)} checked={newType === item.id} onPress={() => setNewType(item.id)}/>)}
-          <AdminFormActions><AppButton label="Revisar cambio de tipo" variant="secondary" disabled={!newType} onPress={() => setTypeConfirm(true)}/></AdminFormActions>
+          
+<AdminFormActions><AppButton label="Revisar cambio de tipo" variant="secondary" disabled={!newType} onPress={() => setTypeConfirm(true)}/></AdminFormActions>
         </AdminFormSection></AdminFormField>
-        <AdminFormField><AdminFormSection title="Servicios asignados" description="Seleccioná qué servicios puede atender este profesional.">
+        <AdminFormField>
+<AdminFormSection title="Servicios asignados" description="Seleccioná qué servicios puede atender este profesional.">
           {catalog.data.services.filter(service => service.typeId === selectedProfessional.typeId && (Boolean(service.isActive) || services.includes(service.id))).map(service => <SelectionRow key={service.id} label={`${String(service.name)} · ${service.isActive ? 'Activo' : 'Inactivo, sin nuevos horarios'}`} checked={services.includes(service.id)} onPress={() => setServices(current => current.includes(service.id) ? current.filter(id => id !== service.id) : service.isActive ? [...current, service.id] : current)}/>)}
           {catalog.data.services.filter(service => service.typeId === selectedProfessional.typeId && Boolean(service.isActive)).length === 0 && <AppText muted>No hay servicios activos compatibles con este tipo profesional. Podés revisar el catálogo de servicios si tenés ese permiso.</AppText>}
-          <AdminFormActions><AppButton label="Revisar asignación" onPress={() => setConfirm(true)}/><AppButton label="Cerrar" variant="secondary" onPress={() => setSelected('')}/></AdminFormActions>
+          
+<AdminFormActions><AppButton label="Revisar asignación" onPress={() => setConfirm(true)}/><AppButton label="Cerrar" variant="secondary" onPress={() => setSelected('')}/></AdminFormActions>
         </AdminFormSection></AdminFormField>
         </AdminFormGrid>
       </>}
@@ -139,4 +150,5 @@ export function ProfessionalsScreen() {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({actions:{gap:16},desktopActions:{gap:10,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});

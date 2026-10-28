@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
+
 import { useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useClinic } from '../../hooks/useClinic';
@@ -14,6 +16,7 @@ import { FormNotice } from '../ui/FormNotice';
 import { ConfirmModal } from '../ui/ConfirmModal';
 
 /** Shared lifecycle actions for list details and the full patient chart. */
+// Función PatientLifecycleControl: concentra la lógica dentro de este módulo.
 export function PatientLifecycleControl({ patientId, isActive, canManage, onComplete }: { patientId: string; isActive: boolean | null; canManage: boolean; onComplete: () => void }) {
   const api = useClinic();
   const action = useAsyncAction();
@@ -30,7 +33,8 @@ export function PatientLifecycleControl({ patientId, isActive, canManage, onComp
   const hasAppointmentConflict = /turno/i.test(action.error ?? '');
   const agendaPath = user?.role === 'GROOMER' ? '/professional/agenda' : user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? '/admin/agenda' : '/vet/agenda';
 
-  async function deactivate() {
+  // Función deactivate: concentra la lógica dentro de este módulo.
+async function deactivate() {
     const normalizedReason = reason.trim();
     if (normalizedReason.length < 3 || normalizedReason.length > 500) {
       setReasonError('Ingresá un motivo de entre 3 y 500 caracteres.');
@@ -46,7 +50,8 @@ export function PatientLifecycleControl({ patientId, isActive, canManage, onComp
     }
   }
 
-  async function reactivate() {
+  // Función reactivate: concentra la lógica dentro de este módulo.
+async function reactivate() {
     const saved = await action.run(() => api.reactivatePatient(patientId));
     if (saved) {
       setReactivateOpen(false);
@@ -75,4 +80,5 @@ export function PatientLifecycleControl({ patientId, isActive, canManage, onComp
   </>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ actions: { gap: 9 }, desktopActions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10 } });

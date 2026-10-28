@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
+
 /** Consulta y gestiona un turno, de acuerdo con los permisos vigentes. */
 import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -21,6 +23,7 @@ import { appointmentDisplayValue,appointmentRouteId } from '../../utils/appointm
 import { AdminStatusBadge } from '../admin/AdminStatusBadge';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
+// Función AppointmentScreen: concentra la lógica dentro de este módulo.
 export function AppointmentScreen() {
   const { id:rawId } = useLocalSearchParams<{ id: string|string[] }>();
   const id=appointmentRouteId(rawId);
@@ -56,12 +59,14 @@ export function AppointmentScreen() {
   const transitions: Record<string, string[]> = { REQUESTED: ['CONFIRMED', 'REJECTED', 'CANCELLED'], CONFIRMED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'] };
   const hasSavedConsultation=Boolean(id&&historyItems.some(record=>String(record.appointmentId)===id));
 
-  async function saveObservations() {
+  // Función saveObservations: actualiza o guarda información dentro de este módulo.
+async function saveObservations() {
     if(!id)return;
     const saved = await observationAction.run(() => api.changeAppointment(id, { observations: observationValue }));
     if (saved) { showToast('Observaciones guardadas', 'success'); query.reload(); }
   }
-  async function cancelAppointment() {
+  // Función cancelAppointment: elimina, revoca o cancela una operación dentro de este módulo.
+async function cancelAppointment() {
     if(!id)return;
     const reason = cancellationReason.trim();
     if (reason.length < 3 || reason.length > 500) { setCancellationError('Ingresá un motivo de entre 3 y 500 caracteres.'); return; }
@@ -72,7 +77,8 @@ export function AppointmentScreen() {
 
   return <PetCareScreen wide>
     <PetCareHeader title="Detalle del turno" back/>
-    <QueryState {...query} />
+    
+<QueryState {...query} />
     {!id&&<FormNotice error message="No se pudo identificar el turno. Volvé a la agenda y abrilo nuevamente."/>}
     {query.data && <>
       <View style={[styles.detailOverview,desktop&&styles.detailOverviewDesktop]}>
@@ -106,7 +112,8 @@ export function AppointmentScreen() {
       {user?.role==='GROOMER'&&['IN_PROGRESS','COMPLETED'].includes(String(query.data.status))&&<PetCareCard>
         <AppText variant="subtitle">Registro de peluquería</AppText>
         <AppText muted>Este historial se guarda separado de la historia clínica veterinaria.</AppText>
-        <QueryState {...groomingRecord}/>
+        
+<QueryState {...groomingRecord}/>
         <AppInput label="Observaciones del pelaje" multiline maxLength={5000} value={coatNotes??String(groomingRecord.data?.coatNotes??'')} onChangeText={setCoatNotes}/>
         <AppInput label="Comportamiento durante el servicio" multiline maxLength={5000} value={behaviorNotes??String(groomingRecord.data?.behaviorNotes??'')} onChangeText={setBehaviorNotes}/>
         <AppInput label="Indicaciones de cuidado" multiline maxLength={5000} value={careInstructions??String(groomingRecord.data?.careInstructions??'')} onChangeText={setCareInstructions}/>
@@ -126,9 +133,11 @@ export function AppointmentScreen() {
         {hasPermission('appointments.manage') && !['COMPLETED', 'CANCELLED'].includes(String(query.data.status)) && <PetCareCard style={[styles.rescheduleCard,desktop&&styles.rescheduleCardDesktop]}>
           <AppText variant="subtitle">Reprogramar turno</AppText>
           <AppText variant="caption" muted>Seleccioná un profesional y un horario disponible para este servicio.</AppText>
-          <QueryState {...catalog} />
+          
+<QueryState {...catalog} />
           <View style={[styles.professionalChoices,desktop&&styles.professionalChoicesDesktop]}>{catalog.data?.professionals.filter(person => catalog.data?.assignments.some(item => item.professionalId === person.id && item.serviceId === query.data?.serviceId)).map(person => <SelectionRow key={person.id} label={String(person.name)} checked={professional === person.id} onPress={() => { setProfessional(person.id); setSlot(''); }} />)}</View>
-          <QueryState {...slots} />
+          
+<QueryState {...slots} />
           {slots.data && <SlotSelectionCard emptyMessage="No hay horarios disponibles para reasignar en este momento.">{slots.data.map(item => <SelectionRow key={item.id} label={clinicDateTime(item.startsAt)} hint={item.veterinarian} checked={slot === item.id} onPress={() => setSlot(item.id)} />)}</SlotSelectionCard>}
           <View style={[styles.saveActions,desktop&&styles.saveActionsDesktop]}><AppButton compact={desktop} label="Confirmar nuevo horario" disabled={!slot} onPress={() => setNext('reschedule')} /></View>
         </PetCareCard>}
@@ -149,6 +158,7 @@ export function AppointmentScreen() {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({
   detailOverview:{gap:16},detailOverviewDesktop:{flexDirection:'row',alignItems:'flex-start'},overviewCard:{minWidth:0},overviewMain:{flex:1.4},overviewSecondary:{flex:1},
   petIdentity:{flexDirection:'row',alignItems:'center',gap:14},petIdentityDesktop:{alignItems:'flex-start'},petIdentityCopy:{flex:1,minWidth:0,gap:6},detailFacts:{gap:10},detailFactsDesktop:{flexDirection:'row',flexWrap:'wrap'},detailFact:{gap:3},detailFactDesktop:{flex:1,minWidth:145},

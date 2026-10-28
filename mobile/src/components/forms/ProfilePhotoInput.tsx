@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 import { useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,10 +9,13 @@ import { FormNotice } from '../ui/FormNotice';
 import { PetImage } from '../client/PetCareUI';
 import { isValidProfilePhotoAsset } from '../../utils/profile-photo';
 
+// Tipo PickedProfilePhoto: define la forma o las opciones válidas de los datos usados por este módulo.
 export type PickedProfilePhoto={uri:string;base64:string};
+// Función ProfilePhotoInput: concentra la lógica dentro de este módulo.
 export function ProfilePhotoInput({currentUri,photo,onSelect,onRemove,disabled=false,allowCamera=false,removable=true,size=100}:{currentUri:string|null;photo:PickedProfilePhoto|null;onSelect:(photo:PickedProfilePhoto)=>void;onRemove:()=>void;disabled?:boolean;allowCamera?:boolean;removable?:boolean;size?:number}) {
   const [error,setError]=useState<string|null>(null);const [loading,setLoading]=useState(false);const [settingsRequired,setSettingsRequired]=useState(false);
-  async function choose(source:'gallery'|'camera'){if(loading||disabled)return;setLoading(true);setError(null);try{
+  // Función choose: concentra la lógica dentro de este módulo.
+async function choose(source:'gallery'|'camera'){if(loading||disabled)return;setLoading(true);setError(null);try{
     setSettingsRequired(false);
     if(source==='camera'&&Platform.OS==='web'){setError('La cámara está disponible desde la app móvil.');return;}
     if(source==='camera'||Platform.OS!=='web'){const permission=source==='camera'?await ImagePicker.requestCameraPermissionsAsync():await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setSettingsRequired(true);setError(source==='camera'?'No se concedió acceso a la cámara. Podés habilitarlo desde los ajustes del dispositivo.':'No se concedió acceso a la galería. Podés elegir la foto desde los ajustes del dispositivo.');return;}}

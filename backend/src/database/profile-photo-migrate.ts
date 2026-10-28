@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Migración aditiva e idempotente para la referencia privada de fotos de staff. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
+// Función migrateProfilePhoto: concentra la lógica dentro de este módulo.
 export async function migrateProfilePhoto() {
   const connection=await databasePool.getConnection();
   try {

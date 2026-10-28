@@ -1,9 +1,12 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { publishNotificationChange } from '../../services/notification-events';
 
 /** Polls the internal notification center while a client session is active. */
+// Función NotificationBridge: concentra la lógica dentro de este módulo.
 export function NotificationBridge() {
   const { user, request } = useAuth();
   useEffect(() => {
@@ -12,7 +15,8 @@ export function NotificationBridge() {
     let interval: ReturnType<typeof setInterval> | undefined;
     let requestInProgress = false;
     let previousSnapshot: string | null = null;
-    const poll = async () => {
+    // Función poll: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const poll = async () => {
       if (!active || requestInProgress) return;
       requestInProgress = true;
       try {
@@ -30,11 +34,13 @@ export function NotificationBridge() {
         requestInProgress = false;
       }
     };
-    const stopPolling = () => {
+    // Función stopPolling: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const stopPolling = () => {
       if (interval) clearInterval(interval);
       interval = undefined;
     };
-    const startPolling = () => {
+    // Función startPolling: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const startPolling = () => {
       stopPolling();
       void poll();
       interval = setInterval(() => void poll(), 30_000);

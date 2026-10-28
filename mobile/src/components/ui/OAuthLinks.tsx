@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
+
 /** Vinculación explícita para usuarios autenticados; recibe identidad desde AuthContext, nunca por email. */
 import { View } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,6 +8,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { AppText } from './AppText';
 import { AppButton } from './AppButton';
 import { FormNotice } from './FormNotice';
+// Función OAuthLinks: concentra la lógica dentro de este módulo.
 export function OAuthLinks(){
   const auth=useAuth(),action=useAsyncAction(),feedback=useFeedback();
   return <View style={{gap:12}}><AppText variant="subtitle">Vincular inicio de sesión</AppText><AppText muted>Autorizá tu propia cuenta del proveedor para usarla al ingresar a PetCare.</AppText><FormNotice message={action.error} error/>

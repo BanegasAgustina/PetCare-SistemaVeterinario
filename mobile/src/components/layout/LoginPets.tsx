@@ -1,7 +1,11 @@
+// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
+
 /** Franja inferior full bleed; el marco recorta solo los cuerpos. */
 import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+// Dato artwork: conserva un valor calculado o de configuración usado por este módulo.
 const artwork = require('../../assets/auth-pets.png');
+// Función LoginPets: concentra la lógica dentro de este módulo.
 export function LoginPets({ registration = false }: { registration?: boolean }) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -18,6 +22,7 @@ export function LoginPets({ registration = false }: { registration?: boolean }) 
     <Image source={artwork} resizeMode="contain" style={{ position: 'absolute', left: 0, top: -10, width, height: imageHeight }} />
   </View>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   frame: { pointerEvents: 'none', flexShrink: 0, overflow: 'hidden', alignSelf: 'center' },
   shape: { position: 'absolute', bottom: 0, width: '100%', height: '55%', borderTopLeftRadius: 100, borderTopRightRadius: 100, opacity: 0.5 },

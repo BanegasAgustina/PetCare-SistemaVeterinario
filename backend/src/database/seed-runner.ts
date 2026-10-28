@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Carga únicamente catálogos reales, de forma transaccional e idempotente. */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -7,9 +9,11 @@ import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 import { withDatabaseLock } from './lock';
 import { readMigrationFiles, verifyMigrationHistory, type MigrationRecord } from './migration-files';
 
+// Tipo CatalogEntry: define la forma o las opciones válidas de los datos usados por este módulo.
 type CatalogEntry = { code: string; name: string };
 
 /** Aunque el JSON sea versionado, validarlo evita cargar un catálogo mal editado. */
+// Función readCatalog: obtiene o consulta información dentro de este módulo.
 export function readCatalog(value: unknown): CatalogEntry[] {
   if (!Array.isArray(value) || value.length === 0) throw new DatabaseError('SEED_INVALID', 500, 'El catálogo de seed es inválido.');
   const codes = new Set<string>();
@@ -24,6 +28,7 @@ export function readCatalog(value: unknown): CatalogEntry[] {
   });
 }
 
+// Función runSeeds: concentra la lógica dentro de este módulo.
 export async function runSeeds(): Promise<void> {
   const source: unknown = JSON.parse(await readFile(resolve(__dirname, '../../seeds/001_reference_catalogs.json'), 'utf8'));
   if (typeof source !== 'object' || source === null || !('roles' in source) || !('species' in source)) {

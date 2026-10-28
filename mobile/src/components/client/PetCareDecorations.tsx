@@ -1,10 +1,14 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
+
 import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 
+// Tipo PetCareDecorationVariant: define la forma o las opciones válidas de los datos usados por este módulo.
 export type PetCareDecorationVariant = 'pets' | 'care';
 
 /** Fondo decorativo no interactivo, adaptado al tema y sin datos de negocio. */
+// Función PetCareDecorativeBackground: concentra la lógica dentro de este módulo.
 export function PetCareDecorativeBackground({ variant = 'care' }: { variant?: PetCareDecorationVariant }) {
   const { colors } = useTheme();
   return <View pointerEvents="none" accessible={false} style={styles.pageDecoration}>
@@ -18,6 +22,7 @@ export function PetCareDecorativeBackground({ variant = 'care' }: { variant?: Pe
   </View>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   pageDecoration: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
   decorationOrb: { position: 'absolute', borderRadius: 999, opacity: 0.42 },

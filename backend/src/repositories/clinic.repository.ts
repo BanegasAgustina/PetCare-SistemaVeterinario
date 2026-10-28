@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Una sola fuente de turnos, clínica y catálogo para todos los roles. */
 import type { PoolConnection,RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
@@ -16,12 +18,19 @@ import { formatNotificationDateTime } from '../utils/notification-date';
 import { createClientNotification } from './notification.repository';
 import { requiredCancellationReason } from '../utils/appointment-cancellation';
 import { assertCanManagePetLifecycle, assertNoFuturePatientAppointments, assertPetLifecycleTransition, petDeactivationNotification, petReactivationNotification, requirePetActiveFlag, requiredPetDeactivationReason } from '../utils/pet-lifecycle';
+// Tipo Connection: define la forma o las opciones válidas de los datos usados por este módulo.
 export type Connection=Pick<PoolConnection,'execute'>;
+// Tipo SqlValue: define la forma o las opciones válidas de los datos usados por este módulo.
 export type SqlValue=string|number|boolean|null;
+// Tipo Data: define la forma o las opciones válidas de los datos usados por este módulo.
 export type Data=Record<string,SqlValue>;
+// Función utc: concentra una operación reutilizable de este módulo.
 const utc=(value:unknown)=>value?String(value).replace(' ','T')+'Z':null;
+// Función map: transforma o prepara datos dentro de este módulo.
 export function map(row:RowDataPacket):Data {const result:Data={...row};for(const key of Object.keys(result)){if(key==='id'||key.endsWith('Id'))result[key]=result[key]===null?null:String(result[key]);if((key==='typeName'||key==='specialtyName')&&typeof result[key]==='string')result[key]=catalogName(result[key] as string);if(key==='specialties'&&typeof result[key]==='string')result[key]=(result[key] as string).split(' · ').map(catalogName).join(' · ');if(key.endsWith('At')||key==='validUntil')result[key]=utc(result[key]);}return result;}
+// Función permit: concentra la lógica dentro de este módulo.
 export function permit(actor:AuthUser,...codes:string[]) {if(!codes.every(code=>actor.permissions?.includes(code)))forbidden();}
+// Función transaction: concentra la lógica dentro de este módulo.
 export async function transaction<T>(actor:AuthUser,operation:(c:PoolConnection,fresh:AuthUser)=>Promise<T>):Promise<T> {
  return runDatabaseOperation(async()=>{const c=await databasePool.getConnection();try {await c.beginTransaction();
   const [users]=await c.execute<RowDataPacket[]>('SELECT u.is_active,u.email_verified_at,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[actor.id]);
@@ -30,8 +39,11 @@ export async function transaction<T>(actor:AuthUser,operation:(c:PoolConnection,
   const result=await operation(c,fresh);await c.commit();return result;
  }catch(error){await c.rollback();throw error;}finally{c.release();}});
 }
+// Función rows: concentra la lógica dentro de este módulo.
 export async function rows(sql:string,args:unknown[]=[],c:Connection=databasePool):Promise<Data[]> {const [r]=await c.execute<RowDataPacket[]>(sql,args as SqlValue[]);return r.map(map);}
+// Función one: concentra la lógica dentro de este módulo.
 export async function one(sql:string,args:unknown[],c:Connection=databasePool) {const r=await rows(sql,args,c);if(!r[0])throw new AppError('NOT_FOUND',404,'Registro no encontrado.');return r[0];}
+// Función notify: concentra la lógica dentro de este módulo.
 export async function notify(
   c: PoolConnection,
   owner: unknown,
@@ -47,6 +59,7 @@ export async function notify(
   });
 }
 
+// Función appendPetLifecycleHistory: concentra la lógica dentro de este módulo.
 export async function appendPetLifecycleHistory(
  c:PoolConnection,petId:string,previousIsActive:boolean,newIsActive:boolean,actorId:string,actorRole:string,reason:string,
 ) {
@@ -57,6 +70,7 @@ export async function appendPetLifecycleHistory(
  return {id:String(events[0].id),createdAt:utc(events[0].createdAt)};
 }
 
+// Función petLifecycleHistory: concentra la lógica dentro de este módulo.
 async function petLifecycleHistory(petId:string,c:Connection=databasePool) {
  const history=await rows(`SELECT CAST(h.id AS CHAR) AS id,h.previous_is_active AS previousIsActive,h.new_is_active AS newIsActive,
   h.actor_role AS actorRole,h.reason,h.created_at AS createdAt,CONCAT(u.first_name,' ',u.last_name) AS actorName
@@ -64,29 +78,36 @@ async function petLifecycleHistory(petId:string,c:Connection=databasePool) {
  return history.map(event=>({...event,previousIsActive:requirePetActiveFlag(event.previousIsActive),isActive:requirePetActiveFlag(event.newIsActive)}));
 }
 
+// Dato patientLifecycleFields: conserva un valor calculado o de configuración usado por este módulo.
 const patientLifecycleFields=`p.is_active AS isActive,
  (SELECT h.reason FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivationReason,
  (SELECT h.created_at FROM pet_lifecycle_history h WHERE h.pet_id=p.id AND h.new_is_active=0 ORDER BY h.id DESC LIMIT 1) AS deactivatedAt`;
+// Función professionals: concentra la lógica dentro de este módulo.
 export async function professionals(activeOnly=false) {const result=await rows(`SELECT u.id,CONCAT(u.first_name,' ',u.last_name) AS name,u.profile_photo_url AS profilePhotoUrl,u.created_at AS createdAt,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified,pt.id AS typeId,pt.name AS typeName,pt.is_clinical AS isClinical,v.id AS veterinarianId,(SELECT GROUP_CONCAT(sp.name ORDER BY sp.name SEPARATOR ' · ') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialties,(SELECT GROUP_CONCAT(vs.specialty_id ORDER BY vs.specialty_id SEPARATOR ',') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialtyIds FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians v ON v.user_id=u.id ${activeOnly?'WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL':''} ORDER BY u.created_at DESC,u.last_name,u.first_name`);return Promise.all(result.map(async person=>({...person,profilePhotoUrl:await profilePhotoUrl(person.profilePhotoUrl)})));}
+// Función catalog: concentra la lógica dentro de este módulo.
 export async function catalog(actor?:AuthUser) {
  const admin=actor&&['ADMIN','SUPER_ADMIN'].includes(actor.role);
- const presentNames=(items:Data[])=>items.map(item=>({...item,name:catalogName(String(item.name))}));
+ // Función presentNames: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const presentNames=(items:Data[])=>items.map(item=>({...item,name:catalogName(String(item.name))}));
  return {types:presentNames(await rows('SELECT pt.id,pt.name,pt.role_id AS roleId,pt.is_clinical AS isClinical FROM professional_types pt ORDER BY pt.name')),
  services:await rows(`SELECT id,name,description,image_url AS imageUrl,specialty_id AS specialtyId,professional_type_id AS typeId,duration_minutes AS durationMinutes,price_cents AS priceCents,requirements,is_active AS isActive FROM client_services ${admin?'':'WHERE is_active=1'} ORDER BY name`),
  specialties:presentNames(await rows('SELECT id,name,is_active AS isActive FROM specialties WHERE is_active=1 ORDER BY name')),
  professionals:await professionals(!admin),assignments:await rows('SELECT user_id AS professionalId,service_id AS serviceId FROM professional_services'),
  categories:await rows(`SELECT id,name,is_active AS isActive FROM client_product_categories ${admin?'':'WHERE is_active=1'} ORDER BY name`),species:await rows('SELECT id,name FROM species ORDER BY name'),breeds:await rows('SELECT id,species_id AS speciesId,name FROM breeds ORDER BY name')};
 }
+// Dato compatible: conserva un valor calculado o de configuración usado por este módulo.
 const compatible=`JOIN users u ON u.id=s.professional_user_id JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) JOIN client_services sv ON sv.id=s.service_id
  JOIN professional_services ps ON ps.user_id=u.id AND ps.service_id=sv.id LEFT JOIN veterinarians vet ON vet.user_id=u.id
  WHERE u.is_active=1 AND u.email_verified_at IS NOT NULL AND s.is_active=1 AND sv.is_active=1 AND sv.professional_type_id=pt.id AND s.professional_type_id=pt.id
  AND (sv.specialty_id IS NULL OR EXISTS(SELECT 1 FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=vet.id AND vs.specialty_id=sv.specialty_id AND sp.is_active=1))
  AND NOT EXISTS(SELECT 1 FROM professional_blocks b WHERE b.user_id=u.id AND b.is_active=1 AND b.starts_at<s.ends_at AND b.ends_at>s.starts_at)`;
+// Función slots: concentra la lógica dentro de este módulo.
 export async function slots(service:string,professional?:string,c:Connection=databasePool) {
  return rows(`SELECT s.id,s.service_id AS serviceId,s.professional_user_id AS professionalId,s.starts_at AS startsAt,s.ends_at AS endsAt,CONCAT(u.first_name,' ',u.last_name) AS veterinarian,s.professional_user_id AS veterinarianId FROM client_appointment_slots s ${compatible} AND s.service_id=? AND s.starts_at>UTC_TIMESTAMP()
  AND NOT EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots occupied ON occupied.id=a.slot_id WHERE occupied.professional_user_id=u.id AND a.status<>'CANCELLED' AND occupied.starts_at<s.ends_at AND occupied.ends_at>s.starts_at) ${professional?'AND u.id=?':''} ORDER BY s.starts_at LIMIT 200`,professional?[service,professional]:[service],c);
 }
 /** Serializa por profesional y relee disponibilidad para impedir turnos solapados en solicitudes concurrentes. */
+// Función requestAppointment: concentra la lógica dentro de este módulo.
 export async function requestAppointment(actor:AuthUser,petId:string,slotId:string) {
  return transaction(actor,async(c,fresh)=>{if(fresh.role!=='CLIENT')permit(fresh,'personal.appointments.create');
   await one('SELECT id FROM pets WHERE id=? AND owner_id=? AND is_active=1 FOR UPDATE',[petId,fresh.id],c);
@@ -103,7 +124,9 @@ export async function requestAppointment(actor:AuthUser,petId:string,slotId:stri
   return {id:String(created.id),status:'REQUESTED' as const};
  });
 }
+// Dato appointmentSelect: conserva un valor calculado o de configuración usado por este módulo.
 const appointmentSelect=`SELECT a.id,a.owner_id AS ownerId,a.pet_id AS petId,a.slot_id AS slotId,a.status,a.observations,a.cancellation_reason AS cancellationReason,p.name AS petName,p.photo_url AS petPhotoUrl,CONCAT(owner.first_name,' ',owner.last_name) AS ownerName,owner.phone AS ownerPhone,sv.name AS service,sv.id AS serviceId,pt.id AS typeId,pt.name AS typeName,s.professional_user_id AS professionalId,CONCAT(u.first_name,' ',u.last_name) AS veterinarian,s.starts_at AS startsAt,s.ends_at AS endsAt,(s.starts_at>UTC_TIMESTAMP() AND a.status NOT IN ('CANCELLED','COMPLETED')) AS isUpcoming FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id JOIN users u ON u.id=s.professional_user_id JOIN professional_types pt ON pt.id=s.professional_type_id JOIN users owner ON owner.id=a.owner_id`;
+// Función appointments: concentra la lógica dentro de este módulo.
 export async function appointments(actor:AuthUser,query:Record<string,unknown>={}) {
  const params:unknown[]=[];const clauses:string[]=[];
  if(actor.role==='CLIENT'){clauses.push('a.owner_id=?');params.push(actor.id);}else if(actor.role==='GROOMER'||!actor.permissions?.includes('appointments.view_all')){permit(actor,'appointments.view_own');clauses.push('s.professional_user_id=?');params.push(actor.id);}
@@ -122,6 +145,7 @@ export async function appointments(actor:AuthUser,query:Record<string,unknown>={
   return presented;
  })) as Data[];
 }
+// Función changeAppointment: actualiza o guarda información dentro de este módulo.
 export async function changeAppointment(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['status','slotId','observations','cancellationReason']);return transaction(actor,async(c,fresh)=>{
   const a=await one(`${appointmentSelect} WHERE a.id=? FOR UPDATE`,[id],c);
@@ -178,6 +202,7 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
 }
 
 /** Client cancellation is scoped to the authenticated owner and stores its mandatory reason atomically. */
+// Función cancelClientAppointment: elimina, revoca o cancela una operación dentro de este módulo.
 export async function cancelClientAppointment(ownerId:string,id:string,reason:unknown) {
  const cancellationReason=requiredCancellationReason(reason);
  const actor={id:ownerId,role:'CLIENT'} as AuthUser;
@@ -195,11 +220,13 @@ export async function cancelClientAppointment(ownerId:string,id:string,reason:un
   return {updated:true,status:'CANCELLED'};
  });
 }
+// Función patientScope: concentra la lógica dentro de este módulo.
 export async function patientScope(actor:AuthUser,petId:string,c:Connection=databasePool) {
  if(actor.role!=='VETERINARIAN'&&!['ADMIN','SUPER_ADMIN'].includes(actor.role))forbidden();
  if(actor.permissions?.includes('pets.view_all'))return one('SELECT id,owner_id AS ownerId FROM pets WHERE id=?',[petId],c);
  permit(actor,'pets.view_assigned');return one('SELECT p.id,p.owner_id AS ownerId FROM pets p JOIN veterinarian_patients vp ON vp.pet_id=p.id JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE p.id=? AND vt.user_id=?',[petId,actor.id],c);
 }
+// Función groomerPatientScope: concentra la lógica dentro de este módulo.
 async function groomerPatientScope(actor:AuthUser,petId:string,c:Connection=databasePool) {
  if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
  return one(`SELECT p.id,p.owner_id AS ownerId FROM pets p WHERE p.id=? AND EXISTS(
@@ -208,8 +235,11 @@ async function groomerPatientScope(actor:AuthUser,petId:string,c:Connection=data
   WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER'
  )`,[petId,actor.id],c);
 }
+// Configuración patientListOrdering: reúne valores o reglas que consume el resto del módulo.
 export const patientListOrdering:Record<string,string>={recent:'p.created_at DESC',oldest:'p.created_at ASC',az:'p.name ASC',za:'p.name DESC',weight_high:'d.weight_kg DESC,p.name ASC',weight_low:'d.weight_kg ASC,p.name ASC',birth_recent:'p.birth_date DESC,p.name ASC',birth_oldest:'p.birth_date ASC,p.name ASC'};
+// Dato patientNextAppointmentExpression: conserva un valor calculado o de configuración usado por este módulo.
 export const patientNextAppointmentExpression="(SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt";
+// Función patients: concentra la lógica dentro de este módulo.
 export async function patients(actor:AuthUser,search='',sort='recent',speciesId?:string,status='active') {
  if(!['active','inactive','all'].includes(status))v.invalid('El estado de los pacientes no es válido.');
  const activeFilter=status==='all'?'':status==='inactive'?'p.is_active=0 AND ':'p.is_active=1 AND ';
@@ -232,6 +262,7 @@ export async function patients(actor:AuthUser,search='',sort='recent',speciesId?
  ${patientNextAppointmentExpression} ${owner?",CONCAT(u.first_name,' ',u.last_name) AS ownerName":''} FROM pets p JOIN users u ON u.id=p.owner_id JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE ${activeFilter}(p.name LIKE ? ${owner?"OR CONCAT(u.first_name,' ',u.last_name) LIKE ?":''}) ${speciesId?'AND p.species_id=?':''} ${all?'':'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)'} ORDER BY ${ordering[sort]},p.id LIMIT 200`,params);
  return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,isActive:requirePetActiveFlag(pet.isActive),photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
 }
+// Función clinical: concentra la lógica dentro de este módulo.
 export async function clinical(actor:AuthUser,petId:string,kind:string,page?:number) {
  const permissions:Record<string,string>={'medical-history':'medical_records.view',vaccines:'vaccines.view',prescriptions:'prescriptions.view',recommendations:'medical_records.view'};
  if(!permissions[kind])v.invalid();permit(actor,permissions[kind]);await patientScope(actor,petId);
@@ -242,6 +273,7 @@ export async function clinical(actor:AuthUser,petId:string,kind:string,page?:num
  if(!paginated)return presented;
  const hasMore=presented.length>pageSize;return {items:hasMore?presented.slice(0,pageSize):presented,nextPage:hasMore?page!+1:null};
 }
+// Función saveClinical: actualiza o guarda información dentro de este módulo.
 export async function saveClinical(actor:AuthUser,petId:string,kind:string,value:unknown) {
  const codes:Record<string,string>={'medical-history':'medical_records.create',vaccines:'vaccines.create',prescriptions:'prescriptions.create',recommendations:'recommendations.create'};if(!codes[kind])v.invalid();
  const body=v.body(value,['title','content','occurredAt','nextDueAt','productId','consultationId','validUntil','weightKg','reason','diagnosis','treatment','internalNotes','appointmentId','dose','frequency','duration']);
@@ -278,11 +310,13 @@ export async function saveClinical(actor:AuthUser,petId:string,kind:string,value
   await notify(c,(await patientScope(fresh,petId,c)).ownerId,'Hay información nueva de tu mascota',notificationBody,'CLINICAL_UPDATE',notificationReferenceType,notificationReferenceId,`clinical-record:${String(savedId[0].id)}`);return {created:true,recordId:String(savedId[0].id)};
  });
 }
+// Función clients: concentra la lógica dentro de este módulo.
 export async function clients(actor:AuthUser,search='') {
  const vet=actor.role==='VETERINARIAN';if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else permit(actor,'users.view_basic');
  const contact=!vet||actor.permissions?.includes('users.view_basic');
  return rows(`SELECT DISTINCT u.id,u.first_name AS firstName,u.last_name AS lastName${contact?',u.phone,u.email':''} FROM users u JOIN roles r ON r.id=u.role_id JOIN pets p ON p.owner_id=u.id AND p.is_active=1 ${vet?"LEFT JOIN veterinarian_patients vp ON vp.pet_id=p.id LEFT JOIN veterinarians vt ON vt.id=vp.veterinarian_id":""} WHERE r.code='CLIENT' AND (u.first_name LIKE ? OR u.last_name LIKE ?${contact?' OR u.email LIKE ?':''}) ${vet&& !actor.permissions?.includes('pets.view_all')?'AND vt.user_id=?':''} ORDER BY u.last_name,u.first_name LIMIT 100`,contact?[`%${search}%`,`%${search}%`,`%${search}%`,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]:[`%${search}%`,`%${search}%`,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]);
 }
+// Función clientDetails: concentra la lógica dentro de este módulo.
 export async function clientDetails(actor:AuthUser,id:string) {
  const vet=actor.role==='VETERINARIAN';if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else{permit(actor,'users.view_basic');permit(actor,'appointments.view_all');}
  const contact=!vet||actor.permissions?.includes('users.view_basic');
@@ -293,6 +327,7 @@ export async function clientDetails(actor:AuthUser,id:string) {
  const appointmentRows=vet&&petRows.length?await rows(`${appointmentSelect} WHERE a.owner_id=? AND a.pet_id IN (${petRows.map(()=>'?').join(',')}) ORDER BY s.starts_at DESC LIMIT 100`,[id,...petRows.map(p=>p.id)]):vet?[]:await rows(`${appointmentSelect} WHERE a.owner_id=? ORDER BY s.starts_at DESC LIMIT 100`,[id]);
  return {client,pets,appointments:!contact&&vet?appointmentRows.map(item=>{const visible={...item};delete visible.ownerName;delete visible.ownerPhone;return visible;}):appointmentRows};
 }
+// Función home: concentra la lógica dentro de este módulo.
 export async function home(actor:AuthUser) {
  const all=actor.role!=='GROOMER'&&actor.permissions?.includes('appointments.view_all'),own=actor.permissions?.includes('appointments.view_own');
  let stats:Data|null=null,next:Data|null=null,upcoming:Data[]|null=null;
@@ -313,12 +348,14 @@ export async function home(actor:AuthUser) {
  return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,attentionCount:stats?Number(stats.attentionCount??0):null,confirmedTodayCount:stats?Number(stats.confirmedTodayCount??0):null,cancelledTodayCount:stats?Number(stats.cancelledTodayCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,...(todayAppointments?{todayAppointments}: {}),...(actor.role==='VETERINARIAN'&&upcomingAppointments?{upcomingAppointments:upcomingAppointments.filter(item=>['REQUESTED','CONFIRMED','IN_PROGRESS'].includes(String(item.status))).slice(0,5)}:upcoming?{upcomingAppointments:upcoming}:{})};
 }
 
+// Función patient: concentra la lógica dentro de este módulo.
 export async function patient(actor:AuthUser,id:string) {if(actor.role==='GROOMER')return groomerPatient(actor,id);permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
  const owner=actor.permissions?.includes('users.view_basic');const result=await one(`SELECT p.id,p.name,p.sex,p.species_id AS speciesId,p.breed_id AS breedId,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg,${patientLifecycleFields},
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
  (SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt ${owner?",u.id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS ownerName,u.email AS ownerEmail,u.phone AS ownerPhone":''} FROM pets p JOIN species s ON s.id=p.species_id JOIN users u ON u.id=p.owner_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);
  result.isActive=requirePetActiveFlag(result.isActive);result.deactivatedAt=utc(result.deactivatedAt);const lifecycleHistory=await petLifecycleHistory(id);const photoUrl=await petPhotoUrl(String(scope.ownerId),result.photoUrl);return {...result,lifecycleHistory,photoUrl};
 }
+// Función groomerPatient: concentra la lógica dentro de este módulo.
 export async function groomerPatient(actor:AuthUser,id:string) {
  const scope=await groomerPatientScope(actor,id);
  const result=await one(`SELECT p.id,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed,${patientLifecycleFields}
@@ -330,16 +367,19 @@ export async function groomerPatient(actor:AuthUser,id:string) {
  result.isActive=requirePetActiveFlag(result.isActive);result.deactivatedAt=utc(result.deactivatedAt);
  return {...result,lifecycleHistory:await petLifecycleHistory(id),groomingHistory:history};
 }
+// Función groomerAppointment: concentra la lógica dentro de este módulo.
 async function groomerAppointment(actor:AuthUser,appointmentId:string,c:Connection=databasePool,lock=false) {
  if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
  return one(`${appointmentSelect} JOIN roles grooming_role ON grooming_role.id=pt.role_id WHERE a.id=? AND s.professional_user_id=? AND grooming_role.code='GROOMER'${lock?' FOR UPDATE':''}`,[appointmentId,actor.id],c);
 }
+// Función groomingRecord: concentra la lógica dentro de este módulo.
 export async function groomingRecord(actor:AuthUser,appointmentId:string) {
  const appointment=await groomerAppointment(actor,appointmentId);
  if(!['IN_PROGRESS','COMPLETED'].includes(String(appointment.status)))v.invalid('El registro de peluquería solo está disponible durante la atención o después de finalizarla.');
  const result=await rows('SELECT id,appointment_id AS appointmentId,coat_notes AS coatNotes,behavior_notes AS behaviorNotes,care_instructions AS careInstructions,created_at AS createdAt,updated_at AS updatedAt FROM client_grooming_records WHERE appointment_id=? AND professional_user_id=?',[appointmentId,actor.id]);
  return result[0]??null;
 }
+// Función saveGroomingRecord: actualiza o guarda información dentro de este módulo.
 export async function saveGroomingRecord(actor:AuthUser,appointmentId:string,value:unknown) {
  const body=v.body(value,['coatNotes','behaviorNotes','careInstructions']);
  const coatNotes=v.text(body.coatNotes,5000,true),behaviorNotes=v.text(body.behaviorNotes,5000,true),careInstructions=v.text(body.careInstructions,5000,true);
@@ -354,6 +394,7 @@ export async function saveGroomingRecord(actor:AuthUser,appointmentId:string,val
   return {saved:true,record:saved};
  });
 }
+// Función updatePatient: actualiza o guarda información dentro de este módulo.
 export async function updatePatient(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['name','sex','speciesId','breedId','birthDate','microchipNumber','weightKg']);
  const name=v.text(body.name,100)!,sex=v.text(body.sex,10)!;
@@ -373,6 +414,7 @@ export async function updatePatient(actor:AuthUser,id:string,value:unknown) {
  });
 }
 /** La transición y su auditoría/notificación se guardan en una única transacción. */
+// Función changePatientActive: actualiza o guarda información dentro de este módulo.
 async function changePatientActive(actor:AuthUser,id:string,nextIsActive:boolean,reason:string) {
  return transaction(actor,async(c,fresh)=>{
   assertCanManagePetLifecycle(fresh);
@@ -393,10 +435,12 @@ async function changePatientActive(actor:AuthUser,id:string,nextIsActive:boolean
  });
 }
 
+// Función deactivatePatient: concentra la lógica dentro de este módulo.
 export async function deactivatePatient(actor:AuthUser,id:string,value:unknown) {
  return changePatientActive(actor,id,false,requiredPetDeactivationReason(value));
 }
 
+// Función reactivatePatient: concentra la lógica dentro de este módulo.
 export async function reactivatePatient(actor:AuthUser,id:string) {
  return changePatientActive(actor,id,true,'Reactivación autorizada por el equipo de PetCare.');
 }

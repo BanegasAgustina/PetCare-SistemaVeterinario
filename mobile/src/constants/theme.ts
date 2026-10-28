@@ -1,4 +1,7 @@
+// Este archivo se encarga de lo siguiente: Valores de configuración compartidos para mantener criterios consistentes en la app.
+
 /** Tokens visuales basados en imagenes/paleta de colores .png. */
+// Configuración sharedColors: reúne valores o reglas que consume el resto del módulo.
 const sharedColors = {
   danger: "#c98292",
   logoBackground: "#def1ea",
@@ -7,6 +10,7 @@ const sharedColors = {
   onHighlight: "#173e35",
   focus: "#146b55",
 };
+// Configuración themes: reúne valores o reglas que consume el resto del módulo.
 export const themes = {
   light: {
     ...sharedColors,

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Aplica solo la ampliación auditada, con progreso durable ante DDL no transaccional. */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -5,6 +7,7 @@ import { createHash } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
+// Función main: concentra la lógica dentro de este módulo.
 async function main(){const sql=await readFile(resolve(process.cwd(),'clinic-migrations/001_connected_clinic.sql'),'utf8');const checksum=createHash('sha256').update(sql).digest('hex');const statements=sql.replace(/--[^\r\n]*/g,'').split(';').map(s=>s.trim()).filter(Boolean);const c=await databasePool.getConnection();try{await withDatabaseLock(c,async()=>{
  const [ledgerTable]=await c.execute<RowDataPacket[]>("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='clinic_schema_migrations'");
  if(ledgerTable.length){const [adoption]=await c.execute<RowDataPacket[]>('SELECT state FROM clinic_schema_migrations WHERE version=?',['002_adopt_existing_clinic_schema.sql']);if(adoption.length)throw new Error(`Existe una reconciliación 002 (${String(adoption[0].state)}); no corresponde ejecutar nuevamente el SQL histórico 001_connected_clinic.sql.`);}

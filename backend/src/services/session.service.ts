@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Emite sesiones PetCare; OAuth nunca aporta roles ni permisos. Renueva contra MySQL. */
 import type { StoredUser, AccessSession } from '../types/auth';
 import { publicUser, findUserById } from '../repositories/user.repository';
@@ -6,6 +8,7 @@ import { issueRefresh, rotateRefresh,refreshFamily } from '../repositories/sessi
 import { getJwtConfiguration } from '../config/env';
 import { createAccessToken } from './token.service';
 import { AppError } from '../utils/app-error';
+// Función sessionForUser: concentra la lógica dentro de este módulo.
 export async function sessionForUser(user: StoredUser, refreshToken?: string): Promise<AccessSession> {
   if (!user.isActive || !user.emailVerifiedAt) throw new AppError('INVALID_TOKEN',401,'La cuenta no está habilitada.');
   getJwtConfiguration();
@@ -15,6 +18,7 @@ export async function sessionForUser(user: StoredUser, refreshToken?: string): P
   return {user:{...publicUser(user),...authorization},...access,tokenType:'Bearer',refreshToken:refresh};
 }
 /** Rota el secreto y vuelve a consultar el usuario; cambios de contraseña o estado invalidan la renovación. */
+// Función refreshSession: concentra la lógica dentro de este módulo.
 export async function refreshSession(value: unknown): Promise<AccessSession> {
   getJwtConfiguration();
   const rotated=await rotateRefresh(value);

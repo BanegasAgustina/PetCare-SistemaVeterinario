@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Read-only preflight for client migrations 013–016.
  * Usage from backend/: npx tsx src/database/migration-preflight-readonly.ts
@@ -11,8 +13,10 @@ import { resolve } from 'node:path';
 import { readMigrationFiles } from './migration-files';
 import { env } from '../config/env';
 
+// Tipo DbRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type DbRow = RowDataPacket & Record<string, unknown>;
 
+// Configuración targetTables: reúne valores o reglas que consume el resto del módulo.
 const targetTables = [
   'client_schema_migrations',
   'client_notifications',
@@ -36,6 +40,7 @@ const targetTables = [
   'role_permissions',
 ];
 
+// Función safeErrorCode: concentra la lógica dentro de este módulo.
 function safeErrorCode(error: unknown): string {
   const code = typeof error === 'object' && error !== null && 'code' in error
     ? String(error.code)
@@ -43,6 +48,7 @@ function safeErrorCode(error: unknown): string {
   return /^[A-Z0-9_]+$/.test(code) ? code : 'UNKNOWN';
 }
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   const connection = await mysql.createConnection({
     ...env.database,

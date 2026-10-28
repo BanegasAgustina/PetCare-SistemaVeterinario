@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import type { RowDataPacket } from 'mysql2/promise';
 import type { AuthUser } from '../types/auth';
 import { databasePool } from '../config/database';
@@ -5,6 +7,7 @@ import * as clinic from './clinic.repository';
 import { AppError } from '../utils/app-error';
 import { clientId, text } from '../validators/client.validator';
 
+// Función submitProof: concentra la lógica dentro de este módulo.
 export async function submitProof(owner:string,rawId:unknown,key:string,contentType:string,size:number,reference?:string){
   const id=clientId(rawId),connection=await databasePool.getConnection();
   try{await connection.beginTransaction();
@@ -16,11 +19,13 @@ export async function submitProof(owner:string,rawId:unknown,key:string,contentT
     await connection.commit();return {submitted:true,previousKey:rows[0].oldKey as string|null};
   }catch(e){await connection.rollback();throw e;}finally{connection.release();}
 }
+// Función assertOwnedIntent: comprueba una regla o condición dentro de este módulo.
 export async function assertOwnedIntent(owner:string,rawId:unknown){
   const id=clientId(rawId),[rows]=await databasePool.execute<RowDataPacket[]>(`SELECT pi.id FROM client_store_payment_intents pi JOIN client_orders o ON o.id=pi.order_id WHERE pi.id=? AND pi.owner_id=? AND o.store_payment_status='PENDING' AND pi.id=(SELECT MAX(pi2.id) FROM client_store_payment_intents pi2 WHERE pi2.order_id=pi.order_id)`,[id,owner]);
   if(!rows[0])throw new AppError('NOT_FOUND',404,'No encontramos la intención de pago.');
 }
 
+// Función proofForAdmin: concentra la lógica dentro de este módulo.
 export async function proofForAdmin(actor:AuthUser,rawOrderId:unknown){
   clinic.permit(actor,'orders.payment.manage');const id=clientId(rawOrderId);
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT pi.id,pi.proof_object_key AS objectKey,pi.proof_content_type AS contentType,pi.proof_size_bytes AS sizeBytes,pi.proof_submitted_at AS submittedAt,pi.expires_at AS expiresAt,pi.transfer_reference AS transferReference,pi.buyer_name AS buyerName,pi.buyer_email AS buyerEmail,pi.review_status AS reviewStatus,pi.review_reason AS reviewReason,pi.verified_at AS verifiedAt,CONCAT(v.first_name,' ',v.last_name) AS verifiedBy
@@ -29,6 +34,7 @@ export async function proofForAdmin(actor:AuthUser,rawOrderId:unknown){
   const {objectKey,...data}=rows[0];return {...data,submittedAt:data.submittedAt?String(data.submittedAt).replace(' ','T')+'Z':null,expiresAt:data.expiresAt?String(data.expiresAt).replace(' ','T')+'Z':null,verifiedAt:data.verifiedAt?String(data.verifiedAt).replace(' ','T')+'Z':null,hasProof:Boolean(objectKey),objectKey:objectKey as string|null};
 }
 
+// Función review: concentra la lógica dentro de este módulo.
 export async function review(actor:AuthUser,rawOrderId:unknown,value:unknown){
   const id=clientId(rawOrderId),body=value&&typeof value==='object'?value as Record<string,unknown>:{},status=body.paymentStatus as 'PAID'|'FAILED';
   if(Object.keys(body).some(k=>!['paymentStatus','reason'].includes(k))||!['PAID','FAILED'].includes(status as string))throw new AppError('VALIDATION_ERROR',400,'La revisión de pago no es válida.');
@@ -54,6 +60,7 @@ export async function review(actor:AuthUser,rawOrderId:unknown,value:unknown){
   });
 }
 
+// Función createNewIntent: crea un registro o inicia una operación dentro de este módulo.
 export async function createNewIntent(owner:string,rawOrderId:unknown){
   const orderId=clientId(rawOrderId),c=await databasePool.getConnection();
   try{await c.beginTransaction();await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[owner]);

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
+
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PetImage } from '../client/PetCareUI';
@@ -5,6 +7,7 @@ import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 import { softSurfaceShadow } from '../../constants/surface';
 
+// Tipo AdminPersonRowProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type AdminPersonRowProps = {
   imageUri: string | null;
   name: string;
@@ -14,6 +17,7 @@ type AdminPersonRowProps = {
   onView: () => void;
 };
 
+// Función AdminPersonRow: concentra la lógica dentro de este módulo.
 export function AdminPersonRow({ imageUri, name, role, status, onEdit, onView }: AdminPersonRowProps) {
   const { colors } = useTheme();
   return <View style={[styles.row, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -31,6 +35,7 @@ export function AdminPersonRow({ imageUri, name, role, status, onEdit, onView }:
   </View>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   row: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1, borderRadius: 20 },
   identity: { flex: 1, minWidth: 0, gap: 2 },

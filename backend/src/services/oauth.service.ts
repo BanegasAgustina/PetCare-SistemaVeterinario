@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Coordina OAuth, vínculo explícito y alta con email verificado. MySQL decide el rol. */
 import { createHash,randomBytes } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -12,8 +14,10 @@ import { hashPassword } from './password.service';
 import { createVerificationProof,resendVerification,hashVerificationToken } from './verification.service';
 import { getMailConfiguration,getVerificationSecret } from '../config/mail';
 import { AppError } from '../utils/app-error';
+// Función object: concentra la lógica dentro de este módulo.
 function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'La solicitud debe ser JSON.');return value as Record<string,unknown>;}
 /** Guarda state aleatorio, PKCE del proveedor y prueba del dispositivo en un intento limitado a diez minutos. */
+// Función startOAuth: concentra la lógica dentro de este módulo.
 export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:string,linkFamily?:string){
   const body=object(value);if(!oauthConfigured(provider,body.returnUrl)){const reason=oauthConfigurationIssue(provider,body.returnUrl);console.warn(JSON.stringify({event:'oauth.start_unavailable',provider,reason}));return {configured:false as const,reason};}oauthConfig(provider);if(typeof body.challenge!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(body.challenge))throw new AppError('VALIDATION_ERROR',400,'La prueba OAuth no es válida.');
   const returnUrl=oauthReturnUrl(body.returnUrl),user=linkId?await findUserById(linkId):null;
@@ -21,6 +25,7 @@ export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:st
   const a=await repo.createAttempt(provider,body.challenge,returnUrl,user?{id:user.id,version:user.sessionVersion,family:linkFamily!}:undefined);return {configured:true as const,url:authorizationUrl(provider,a.state,createHash('sha256').update(a.verifier).digest('base64url'))};
 }
 /** Reclama state una sola vez y devuelve un ticket breve; nunca redirige access/refresh tokens. */
+// Función callbackOAuth: concentra la lógica dentro de este módulo.
 export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:unknown,error:unknown):Promise<string>{
   const a=await repo.claimCallback(provider,state),destination=new URL(a.return_url);
   if(error){console.warn(JSON.stringify({event:'oauth.provider_denied',provider}));destination.searchParams.set('error','OAUTH_PROVIDER_DENIED');return destination.toString();}
@@ -30,6 +35,7 @@ export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:un
   return destination.toString();
 }
 /** Exige prueba del dispositivo para vincular o iniciar sesión; una identidad nueva solicita completar el alta. */
+// Función exchangeOAuth: concentra la lógica dentro de este módulo.
 export async function exchangeOAuth(value:unknown){
   const body=object(value);const result=await repo.withTicket(body.ticket,body.proof,async(c,a)=>{
     const [accounts]=await c.execute<RowDataPacket[]>('SELECT user_id FROM oauth_accounts WHERE provider=? AND subject=?',[a.provider,a.identity_json.subject]);
@@ -51,6 +57,7 @@ export async function exchangeOAuth(value:unknown){
   if(!user.emailVerifiedAt)throw new AppError('EMAIL_NOT_VERIFIED',403,'Verificá tu correo para continuar.',await createVerificationProof(user.id));return {session:await sessionForUser(user)};
 }
 /** No fusionar por email. El alta exige contraseña propia y código SMTP, también para X. */
+// Función registerOAuth: crea un registro o inicia una operación dentro de este módulo.
 export async function registerOAuth(value:unknown){
   const body=object(value),input=validateRegister(body.profile);getMailConfiguration();getVerificationSecret();
   assertOAuthRegistrationEmailAvailable(Boolean(await findUserByEmail(input.email)));

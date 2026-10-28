@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /**
  * Navegador del módulo client, para CLIENT autenticado. Organiza las rutas; el backend comprueba nuevamente autorización y ownership.
  */
@@ -9,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { canEnterPersonalPath } from '../../utils/personal-route-access';
 import { roleHome } from '../../utils/role-home';
+// Función ClientLayout: concentra la lógica dentro de este módulo.
 export default function ClientLayout(){const {colors}=useTheme();const {user}=useAuth();const pathname=usePathname();
   if(!canEnterPersonalPath(user?.role??'',user?.permissions,pathname))return <ScreenContainer><AppText variant="title">Acceso denegado</AppText><AppText muted>No tenés permiso para abrir esta función personal.</AppText><AppButton label="Volver a mi espacio" onPress={()=>router.replace(roleHome(user) as never)}/></ScreenContainer>;
   return <Stack screenOptions={{headerShown:false,contentStyle:{backgroundColor:colors.background}}}/>;

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Rutas de autenticación tradicional; ninguna ruta pública acepta privilegios. */
 import { Router } from 'express';
 import { getCurrentUser, login, register, requestPasswordReset, resetPassword, changeInitialPassword } from '../controllers/auth.controller';
@@ -6,6 +8,7 @@ import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware
 import { resend, verify } from '../controllers/verification.controller';
 import * as oauth from '../controllers/oauth.controller';
 
+// Dato authRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const authRouter = Router();
 authRouter.use((_request, response, next) => { response.setHeader('Cache-Control', 'no-store'); next(); });
 authRouter.post('/register', createAuthRateLimiter(), register);

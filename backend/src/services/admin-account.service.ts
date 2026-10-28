@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Edición de la cuenta propia de un administrador, derivada siempre del JWT. */
 import bcrypt from 'bcrypt';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -6,6 +8,7 @@ import { AppError } from '../utils/app-error';
 import { readName, readPassword, readPhone } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 
+// Función bodyObject: concentra la lógica dentro de este módulo.
 function bodyObject(value: unknown, allowed: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !allowed.includes(key))) {
     throw new AppError('VALIDATION_ERROR', 400, 'Revisá los datos enviados.');
@@ -13,6 +16,7 @@ function bodyObject(value: unknown, allowed: string[]): Record<string, unknown> 
   return value as Record<string, unknown>;
 }
 
+// Función updateOwnProfile: actualiza o guarda información dentro de este módulo.
 export async function updateOwnProfile(userId: string, value: unknown) {
   const body = bodyObject(value, ['firstName', 'lastName', 'phone']);
   const firstName = readName(body.firstName, 'El nombre');
@@ -24,6 +28,7 @@ export async function updateOwnProfile(userId: string, value: unknown) {
   return { updated: true };
 }
 
+// Función changeOwnPassword: actualiza o guarda información dentro de este módulo.
 export async function changeOwnPassword(userId: string, value: unknown) {
   const body = bodyObject(value, ['currentPassword', 'newPassword']);
   const current = readPassword(body.currentPassword, false);

@@ -1,29 +1,38 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Sesión web limitada a la pestaña actual y persistente entre recargas. */
 import { ApiError } from './api';
 import type { StoredSession } from '../types/auth';
 
+// Dato sessionKey: conserva un valor calculado o de configuración usado por este módulo.
 const sessionKey = 'petcare.access-session';
+// Dato oauthProofKey: conserva un valor calculado o de configuración usado por este módulo.
 const oauthProofKey = 'petcare.oauth-proof';
 
+// Función saveWebSession: actualiza o guarda información dentro de este módulo.
 export function saveWebSession(session: StoredSession): void {
   try { window.sessionStorage.setItem(sessionKey, JSON.stringify(session)); }
   catch { throw new ApiError('SESSION_STORAGE_ERROR', 'No pudimos actualizar tu sesión de forma segura. Intentá nuevamente.'); }
 }
 
+// Función clearWebSession: concentra la lógica dentro de este módulo.
 export function clearWebSession(): void {
   try { window.sessionStorage.removeItem(sessionKey); }
   catch { throw new ApiError('SESSION_STORAGE_ERROR', 'No pudimos actualizar tu sesión de forma segura. Intentá nuevamente.'); }
 }
 
+// Función saveWebOAuthProof: actualiza o guarda información dentro de este módulo.
 export function saveWebOAuthProof(proof: string): void {
   try { window.sessionStorage.setItem(oauthProofKey, JSON.stringify({ proof, createdAt: Date.now() })); }
   catch { throw new ApiError('SESSION_STORAGE_ERROR', 'No pudimos continuar el inicio de sesión de forma segura. Intentá nuevamente.'); }
 }
 
+// Función hasWebOAuthProof: comprueba una regla o condición dentro de este módulo.
 export function hasWebOAuthProof(): boolean {
   return readWebOAuthProof() !== null;
 }
 
+// Función readWebOAuthProof: obtiene o consulta información dentro de este módulo.
 export function readWebOAuthProof(): string | null {
   try {
     const raw = window.sessionStorage.getItem(oauthProofKey);
@@ -39,11 +48,13 @@ export function readWebOAuthProof(): string | null {
   } catch { throw new ApiError('SESSION_STORAGE_ERROR', 'No pudimos recuperar el inicio de sesión pendiente.'); }
 }
 
+// Función clearWebOAuthProof: concentra la lógica dentro de este módulo.
 export function clearWebOAuthProof(): void {
   try { window.sessionStorage.removeItem(oauthProofKey); }
   catch { throw new ApiError('SESSION_STORAGE_ERROR', 'No pudimos limpiar el inicio de sesión pendiente.'); }
 }
 
+// Función readWebSession: obtiene o consulta información dentro de este módulo.
 export function readWebSession(): StoredSession | null {
   let raw: string | null;
   try { raw = window.sessionStorage.getItem(sessionKey); }

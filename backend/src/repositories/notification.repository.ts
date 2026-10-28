@@ -1,7 +1,10 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { getMailConfiguration } from '../config/mail';
 import { AppError } from '../utils/app-error';
 
+// Tipo ClientNotificationInput: define la forma o las opciones válidas de los datos usados por este módulo.
 export type ClientNotificationInput = {
   ownerId: string;
   title: string;
@@ -13,6 +16,7 @@ export type ClientNotificationInput = {
 };
 
 /** Persist an in-app notice as the source of truth and queue configured email delivery. */
+// Función createClientNotification: crea un registro o inicia una operación dentro de este módulo.
 export async function createClientNotification(connection: PoolConnection, notification: ClientNotificationInput): Promise<boolean> {
   let inserted: ResultSetHeader;
   try {

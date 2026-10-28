@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -25,12 +27,18 @@ import { responsiveLayout } from '../../constants/responsive';
 import { AdminFormActions,AdminFormField,AdminFormGrid,AdminFormSection } from '../admin/AdminFormLayout';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
+// Tipo ProfileSection: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProfileSection = 'all' | 'personal' | 'security' | 'theme';
+// Tipo ProfileValues: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProfileValues = { firstName: string; lastName: string; phone: string };
+// Tipo ProfileErrors: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProfileErrors = Partial<Record<keyof ProfileValues, string>>;
+// Tipo PasswordValues: define la forma o las opciones válidas de los datos usados por este módulo.
 type PasswordValues = { currentPassword: string; password: string; confirmPassword: string };
+// Tipo PasswordErrors: define la forma o las opciones válidas de los datos usados por este módulo.
 type PasswordErrors = Partial<Record<keyof PasswordValues, string>>;
 
+// Función AccountProfileScreen: concentra la lógica dentro de este módulo.
 export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSection }) {
   const auth = useAuth();
   const user = auth.user;
@@ -82,7 +90,8 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   const securityEditPath = isClient ? '/client/profile/security' : '/account?section=security';
   const themePath = isClient ? '/client/profile/appearance' : '/account?section=theme';
 
-  async function saveProfile() {
+  // Función saveProfile: actualiza o guarda información dentro de este módulo.
+async function saveProfile() {
     setErrors({});
     const validation = validateIdentityForm({ ...values, email: user?.email ?? '' });
     const nextErrors: ProfileErrors = {
@@ -115,7 +124,8 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     }
   }
 
-  async function savePhoto() {
+  // Función savePhoto: actualiza o guarda información dentro de este módulo.
+async function savePhoto() {
     if (!isVet || (!photo && !removePhoto)) return;
     const saved = await photoAction.run(async () => {
       await auth.request('/vet/profile/photo', { method: 'PUT', body: photo ? { photoBase64: photo.base64 } : { removePhoto: true } });
@@ -126,7 +136,8 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     if (saved) showToast('Foto de perfil actualizada', 'success');
   }
 
-  async function changePassword() {
+  // Función changePassword: actualiza o guarda información dentro de este módulo.
+async function changePassword() {
     const fieldErrors: PasswordErrors = {};
     if (!password.currentPassword) fieldErrors.currentPassword = 'Ingresá tu contraseña actual.';
     const validation = validatePasswordForm(password);
@@ -161,7 +172,8 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     }
   }
 
-  async function saveProfessionalDescription() {
+  // Función saveProfessionalDescription: actualiza o guarda información dentro de este módulo.
+async function saveProfessionalDescription() {
     if (!isVet) return;
     const saved = await profileAction.run(async () => {
       await auth.request('/vet/profile', { method: 'PATCH', body: { firstName: values.firstName.trim(), lastName: values.lastName.trim(), phone: values.phone.trim() || null, professionalDescription: professionalDescription.trim() } });
@@ -188,7 +200,8 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
       </View>
     </PetCareCard>}
 
-    {showPersonal && <PetCareSection title="Datos personales">
+    {showPersonal && 
+<PetCareSection title="Datos personales">
       {isVet && <VetPhotoCard user={user} photo={photo} removePhoto={removePhoto} action={photoAction} onSelect={value => { setPhoto(value); setRemovePhoto(false); }} onRemove={() => { setPhoto(null); setRemovePhoto(true); }} onSave={() => void savePhoto()}/>}
       <PetCareCard>
         <AdminFormGrid columns={2}>
@@ -200,15 +213,18 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
           {!canEditProfile && <AdminFormField fullWidth><AppText muted>No tenés permiso para editar los datos de tu perfil.</AppText></AdminFormField>}
           <AdminFormField fullWidth><FormNotice error message={profileAction.error}/></AdminFormField>
         </AdminFormGrid>
-        {canEditProfile && <AdminFormActions><AppButton label="Guardar datos" loading={profileAction.loading} disabled={profileAction.loading} onPress={() => void saveProfile()}/></AdminFormActions>}
+        {canEditProfile && 
+<AdminFormActions><AppButton label="Guardar datos" loading={profileAction.loading} disabled={profileAction.loading} onPress={() => void saveProfile()}/></AdminFormActions>}
       </PetCareCard>
     </PetCareSection>}
 
     {isVet && section === 'personal' && <VeterinarianDetails user={user} description={professionalDescription} setDescription={setProfessionalDescription} onSave={() => void saveProfessionalDescription()} loading={profileAction.loading} error={profileAction.error}/>}
 
-    {showSecurity && <PetCareSection title="Seguridad">
+    {showSecurity && 
+<PetCareSection title="Seguridad">
       <PetCareCard>
-        <AdminFormSection title="Actualizar contraseña" columns={2}>
+        
+<AdminFormSection title="Actualizar contraseña" columns={2}>
           <AdminFormField><AppInput ref={input => { passwordInputs.current.currentPassword = input; }} label="Contraseña actual" required password autoComplete="current-password" value={password.currentPassword} error={passwordErrors.currentPassword} editable={canEditPassword && !passwordAction.loading} onChangeText={currentPassword => { setPassword(current => ({ ...current, currentPassword })); setPasswordErrors(current => ({ ...current, currentPassword: undefined })); }}/></AdminFormField>
           <AdminFormField><AppInput ref={input => { passwordInputs.current.password = input; }} label="Nueva contraseña" required password autoComplete="new-password" value={password.password} error={passwordErrors.password} editable={canEditPassword && !passwordAction.loading} onChangeText={next => { setPassword(current => ({ ...current, password: next })); setPasswordErrors(current => ({ ...current, password: undefined })); }}/></AdminFormField>
           <AdminFormField fullWidth><AppText variant="caption" muted>Al menos 8 caracteres, mayúscula, minúscula, número y símbolo. Al cambiarla se cerrarán tus sesiones activas.</AppText></AdminFormField>
@@ -216,11 +232,13 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
           {!canEditPassword && <AdminFormField fullWidth><AppText muted>No tenés permiso para cambiar la contraseña desde el perfil.</AppText></AdminFormField>}
           <AdminFormField fullWidth><FormNotice error message={passwordAction.error}/></AdminFormField>
         </AdminFormSection>
-        {canEditPassword && <AdminFormActions><AppButton label="Cambiar contraseña" loading={passwordAction.loading} disabled={passwordAction.loading} onPress={() => void changePassword()}/></AdminFormActions>}
+        {canEditPassword && 
+<AdminFormActions><AppButton label="Cambiar contraseña" loading={passwordAction.loading} disabled={passwordAction.loading} onPress={() => void changePassword()}/></AdminFormActions>}
       </PetCareCard>
     </PetCareSection>}
 
-    {showTheme && <PetCareSection title="Tema">
+    {showTheme && 
+<PetCareSection title="Tema">
       <PetCareCard>
         <SelectionRow label="Usar tema del dispositivo" checked={preference === 'system'} onPress={() => setPreference('system')}/>
         <SelectionRow label="Modo oscuro" checked={preference === 'dark'} onPress={() => setPreference('dark')}/>
@@ -228,13 +246,15 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
       </PetCareCard>
     </PetCareSection>}
 
-    {section === 'all' && <PetCareSection title="Configuración de cuenta">
+    {section === 'all' && 
+<PetCareSection title="Configuración de cuenta">
       <PetCareAction title="Editar datos personales" icon="person-outline" onPress={() => router.push(personalEditPath as never)}/>
       <PetCareAction title="Cambiar contraseña" icon="lock-closed-outline" onPress={() => router.push(securityEditPath as never)}/>
       <PetCareAction title="Tema" icon="contrast-outline" onPress={() => router.push(themePath as never)}/>
     </PetCareSection>}
 
-    {section === 'all' && <PetCareSection title="Sesión">
+    {section === 'all' && 
+<PetCareSection title="Sesión">
       {!isClient && <AppButton label="Volver a mi espacio" variant="secondary" onPress={() => router.replace(roleHome(user) as never)}/>}
       <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={() => setLogoutOpen(true)} style={({ pressed }) => [styles.logout, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.82 : 1 }]}>
         <AppText style={{ color: colors.text, fontWeight: '600' }}>Cerrar sesión</AppText>
@@ -245,6 +265,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   </PetCareScreen>;
 }
 
+// Función VetPhotoCard: concentra la lógica dentro de este módulo.
 function VetPhotoCard({ user, photo, removePhoto, action, onSelect, onRemove, onSave }: { user: AuthUser; photo: PickedProfilePhoto | null; removePhoto: boolean; action: ReturnType<typeof useAsyncAction>; onSelect: (value: PickedProfilePhoto) => void; onRemove: () => void; onSave: () => void }) {
   return <PetCareCard>
     <AppText variant="subtitle">Foto de perfil</AppText>
@@ -253,6 +274,7 @@ function VetPhotoCard({ user, photo, removePhoto, action, onSelect, onRemove, on
   </PetCareCard>;
 }
 
+// Función VeterinarianDetails: concentra la lógica dentro de este módulo.
 function VeterinarianDetails({ user, description, setDescription, onSave, loading, error }: { user: AuthUser; description: string; setDescription: (value: string) => void; onSave: () => void; loading: boolean; error: string | null }) {
   const clinic = useClinic();
   const loadCatalog = useCallback(() => clinic.catalog(), [clinic]);
@@ -266,7 +288,8 @@ function VeterinarianDetails({ user, description, setDescription, onSave, loadin
       <AppText variant="subtitle">Matrícula</AppText>
       <AppText>{user.veterinarian?.licenseNumber || 'Pendiente de completar'}</AppText>
       <AppText variant="subtitle">Servicios asignados</AppText>
-      <QueryState {...catalog}/>
+      
+<QueryState {...catalog}/>
       {!catalog.loading && !catalog.error && <>{services.length ? services.map(service => <AppText key={service.id}>{service.name}</AppText>) : <AppText muted>Sin servicios asignados.</AppText>}</>}
       <AppText muted>La matrícula, las especialidades y los servicios se gestionan con la administración.</AppText>
     </PetCareCard>
@@ -278,9 +301,12 @@ function VeterinarianDetails({ user, description, setDescription, onSave, loadin
   </PetCareSection>;
 }
 
+// Función ProfileEditRoute: concentra la lógica dentro de este módulo.
 export function ProfileEditRoute() { return <AccountProfileScreen section="personal"/>; }
+// Función ProfileSecurityRoute: concentra la lógica dentro de este módulo.
 export function ProfileSecurityRoute() { return <AccountProfileScreen section="security"/>; }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: responsiveLayout.grid.gap },
   identityCopy: { flex: 1, minWidth: 0, gap: responsiveLayout.form.gap / 3 },

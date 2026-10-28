@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 /** Retorno del navegador OAuth. Cierra el popup web; nunca recibe tokens PetCare ni decide el rol. */
 import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -9,9 +11,11 @@ import { roleHome } from '../utils/role-home';
 import { Platform } from 'react-native';
 import { ApiError, friendlyError } from '../services/api';
 import { clearWebOAuthReturn } from '../services/oauth.service';
+// Función clearCallbackQuery: concentra la lógica dentro de este módulo.
 function clearCallbackQuery():void {
   window.history.replaceState(window.history.state,'',window.location.pathname);
 }
+// Función OAuthReturn: concentra la lógica dentro de este módulo.
 export default function OAuthReturn(){
   const {user,completeWebOAuthReturn}=useAuth();
   const params=useLocalSearchParams<{ticket?:string|string[];error?:string|string[]}>();

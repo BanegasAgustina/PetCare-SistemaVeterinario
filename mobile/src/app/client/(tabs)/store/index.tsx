@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /** Catálogo cliente con búsqueda, filtros reales, banners derivados de promociones activas y carrito existente. */
 import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -18,8 +20,10 @@ import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../../../constants/responsive';
 
+// Tipo ProductSort: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProductSort = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 
+// Función StoreScreen: concentra la lógica dentro de este módulo.
 export default function StoreScreen() {
   const routeParams=useLocalSearchParams<{category?:string|string[]}>();const routeCategory=Array.isArray(routeParams.category)?routeParams.category[0]??'':routeParams.category??'';
   const api = useClient();
@@ -134,7 +138,8 @@ export default function StoreScreen() {
   const categoryChips: CatalogItem[] = catalog.data ?? [];
   const sortCount = sort === 'name-asc' ? 0 : 1;
   const activeFilterCount = (category ? 1 : 0) + (productType ? 1 : 0) + sortCount + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (availableOnly ? 1 : 0) + (promotionOnly ? 1 : 0);
-  const applyFilters = () => {
+  // Función applyFilters: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const applyFilters = () => {
     const minCents = toPriceCents(draftMinPrice);
     const maxCents = toPriceCents(draftMaxPrice);
     if ((draftMinPrice.trim() && minCents === null) || (draftMaxPrice.trim() && maxCents === null)) {
@@ -155,7 +160,8 @@ export default function StoreScreen() {
     setPromotionOnly(draftPromotionOnly);
     return true;
   };
-  const clearFilters = () => {
+  // Función clearFilters: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const clearFilters = () => {
     setFilterError(null);
     setDraftCategory(''); setCategory('');
     setDraftType(''); setProductType('');
@@ -172,9 +178,11 @@ export default function StoreScreen() {
       {cartCount > 0 && <View style={[styles.cartBadge, { backgroundColor: colors.accent }]}><AppText variant="caption" style={[styles.cartBadgeText, { color: colors.text }]}>{cartCount > 99 ? '99+' : cartCount}</AppText></View>}
     </Pressable></View>} />
 
-    <QueryState {...banners} />
+    
+<QueryState {...banners} />
     {!!banners.data?.length&&<StoreBannerCarousel banners={banners.data} onOpen={banner=>void openBanner(banner)}/>}
-    <QueryState {...promotions} />
+    
+<QueryState {...promotions} />
     {!!promotions.data?.length && <PromotionCarousel products={promotions.data} onOpen={openProduct} />}
 
     <View style={styles.storeControls}>
@@ -221,9 +229,12 @@ export default function StoreScreen() {
     </View>
 
     <FormNotice error message={actionError} />
-    <QueryState {...catalog} />
-    <QueryState {...cart} />
-    <QueryState {...query} />
+    
+<QueryState {...catalog} />
+    
+<QueryState {...cart} />
+    
+<QueryState {...query} />
     {query.data && <AppText variant="subtitle">Productos disponibles</AppText>}
     {query.data && (products.length ? adaptiveGrid ? <ResponsiveGrid minItemWidth={responsiveLayout.store.productMinItemWidth} maxColumns={responsiveLayout.store.productMaxColumns}>{products.map(product=><StoreProductCard key={product.id} product={product} adding={savingProduct===product.id} cartReady={Boolean(currentCart)&&!savingProduct} onOpen={()=>openProduct(product)} onAdd={()=>void addToCart(product,1)}/>)}</ResponsiveGrid> : <View style={styles.productGrid}>
       {productRows.map((row, index) => <View key={`product-row-${index}`} style={styles.productRow}>
@@ -237,6 +248,7 @@ export default function StoreScreen() {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   storeControls: { width: '100%', gap: 12 },
   cartButton: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -256,6 +268,7 @@ const styles = StyleSheet.create({
   bottomScrollSpace: { height: 24 },
 });
 
+// Función CategoryTile: concentra la lógica dentro de este módulo.
 function CategoryTile({ name, icon, selected, onPress }: { name: string; icon: ComponentProps<typeof Ionicons>['name']; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onPress} style={styles.categoryTile}>
@@ -266,6 +279,7 @@ function CategoryTile({ name, icon, selected, onPress }: { name: string; icon: C
   </Pressable>;
 }
 
+// Función categoryIcon: concentra la lógica dentro de este módulo.
 function categoryIcon(name: string): ComponentProps<typeof Ionicons>['name'] {
   const normalized = name.toLocaleLowerCase('es');
   if (/alimento|comida|nutric/.test(normalized)) return 'restaurant-outline';
@@ -276,6 +290,7 @@ function categoryIcon(name: string): ComponentProps<typeof Ionicons>['name'] {
   return 'paw-outline';
 }
 
+// Función toPriceCents: concentra la lógica dentro de este módulo.
 function toPriceCents(value: string): number | null {
   if (!value.trim()) return null;
   const amount = Number(value.trim().replace(',', '.'));

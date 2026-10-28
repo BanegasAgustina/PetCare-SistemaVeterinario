@@ -1,4 +1,7 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
+
 /** Guardia de presentación para rutas del espacio personal; backend vuelve a validar cada operación. */
+// Función personalPermissionsForPathname: concentra la lógica dentro de este módulo.
 export function personalPermissionsForPathname(pathname:string):string[]|null {
   const path=pathname.replace(/\/+$/,'')||'/';
   if(path==='/client/pets'||path.startsWith('/client/pets/'))return ['personal.pets.view','personal.pets.manage'];
@@ -12,6 +15,7 @@ export function personalPermissionsForPathname(pathname:string):string[]|null {
   return null;
 }
 
+// Función canEnterPersonalPath: comprueba una regla o condición dentro de este módulo.
 export function canEnterPersonalPath(role:string,permissions:string[]|undefined,pathname:string):boolean {
   if(role==='CLIENT')return true;
   const required=personalPermissionsForPathname(pathname);

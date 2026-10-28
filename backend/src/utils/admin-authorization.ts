@@ -1,20 +1,28 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
+
 /** Límites de delegación: tener un rol administrativo nunca equivale a tener todos los permisos. */
 import type { AuthUser } from '../types/auth';
 import { AppError } from './app-error';
+// Función forbidden: concentra la lógica dentro de este módulo.
 export function forbidden(message='No tenés permiso para esta operación.'):never {throw new AppError('FORBIDDEN',403,message);}
+// Función assertAdminPermission: comprueba una regla o condición dentro de este módulo.
 export function assertAdminPermission(actor:AuthUser,...codes:string[]) {
   if(!['ADMIN','SUPER_ADMIN'].includes(actor.role)||!codes.every(code=>actor.permissions?.includes(code)))forbidden();
 }
 /** Autoriza módulos operativos por grant efectivo aunque el actor tenga un rol personalizado. */
+// Función assertCapabilityPermission: comprueba una regla o condición dentro de este módulo.
 export function assertCapabilityPermission(actor:AuthUser,...codes:string[]) {
   if(!codes.every(code=>actor.permissions?.includes(code)))forbidden();
 }
+// Función assertDelegation: comprueba una regla o condición dentro de este módulo.
 export function assertDelegation(actor:AuthUser,codes:string[]) {
   if(codes.some(code=>!actor.permissions?.includes(code)))forbidden('No podés conceder ni modificar permisos que no tenés.');
 }
+// Función assertTarget: comprueba una regla o condición dentro de este módulo.
 export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
   if(actor.role==='ADMIN'&&target.role==='SUPER_ADMIN')forbidden('Un ADMIN no puede modificar una cuenta SUPER_ADMIN.');
 }
+// Función assertRoleAssignment: comprueba una regla o condición dentro de este módulo.
 export function assertRoleAssignment(actor:AuthUser,role:string,permissions:string[]) {
   assertAdminPermission(actor,'roles.manage');
   if(role==='SECRETARY')throw new AppError('ROLE_RETIRED',409,'El rol de Secretaría fue retirado; las cuentas existentes deben migrarse a ADMIN.');

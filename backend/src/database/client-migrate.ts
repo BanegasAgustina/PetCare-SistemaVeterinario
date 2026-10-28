@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Migración aditiva independiente: el checkout no contiene las migraciones originales aplicadas. */
 import { readMigrationFiles, verifyMigrationHistory, type MigrationFile, type MigrationRecord } from './migration-files';
 import { resolve } from 'node:path';
@@ -7,6 +9,7 @@ import { withDatabaseLock } from './lock';
 // SQL 002 is absent from every reachable Git revision, but Layerbase records this
 // exact checksum as applied and the audited schema contains client_pet_details.breed_name.
 // Keep it only as a verification fingerprint; it has no statements and is never executed.
+// Configuración archivedAppliedClientMigrations: reúne valores o reglas que consume el resto del módulo.
 const archivedAppliedClientMigrations: MigrationFile[] = [{
   version: '002_pet_breed_name.sql',
   checksum: 'd2d34703a1a7b42d04709d3c25db62cb6f1ce7a30de8f93a42c727a4f7cd28a5',
@@ -16,8 +19,10 @@ const archivedAppliedClientMigrations: MigrationFile[] = [{
 // 007 contains only additive/idempotent DDL. MariaDB may leave its ledger row
 // as `running` if a later CREATE TABLE fails after earlier DDL has committed.
 // Allow that exact migration to resume after its SQL has been corrected.
+// Dato resumableMigration: conserva un valor calculado o de configuración usado por este módulo.
 const resumableMigration = '007_notification_push_schema.sql';
 
+// Función migrate: concentra la lógica dentro de este módulo.
 async function migrate() {
   const files = await readMigrationFiles(resolve(__dirname, '../../client-migrations'));
   const connection = await databasePool.getConnection();

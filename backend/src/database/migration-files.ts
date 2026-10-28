@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Lee SQL versionado y verifica integridad; no acepta archivos arbitrarios ni DELIMITER. */
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
@@ -5,10 +7,14 @@ import { resolve } from 'node:path';
 import type { RowDataPacket } from 'mysql2/promise';
 import { DatabaseError } from '../utils/database-error';
 
+// Dato migrationsDirectory: conserva un valor calculado o de configuración usado por este módulo.
 export const migrationsDirectory = resolve(__dirname, '../../migrations');
+// Tipo MigrationFile: define la forma o las opciones válidas de los datos usados por este módulo.
 export type MigrationFile = { version: string; checksum: string; statements: string[] };
+// Tipo MigrationRecord: define la forma o las opciones válidas de los datos usados por este módulo.
 export type MigrationRecord = RowDataPacket & { version: string; checksum: string; state: 'running' | 'applied' };
 
+// Función readMigrationFiles: obtiene o consulta información dentro de este módulo.
 export async function readMigrationFiles(directory = migrationsDirectory): Promise<MigrationFile[]> {
   const names = (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort();
   const versionNumbers = new Set<string>();
@@ -31,6 +37,7 @@ export async function readMigrationFiles(directory = migrationsDirectory): Promi
 }
 
 /** Una migración aplicada es inmutable; la falta de un archivo también se considera deriva. */
+// Función verifyMigrationHistory: concentra la lógica dentro de este módulo.
 export function verifyMigrationHistory(files: MigrationFile[], records: MigrationRecord[]): void {
   for (const record of records) {
     const file = files.find((candidate) => candidate.version === record.version);

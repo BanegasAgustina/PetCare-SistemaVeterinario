@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
+
 /**
  * Tarjetas que reciben mascotas, turnos y productos obtenidos de la API. Presentan sus campos y disparan navegación; no mantienen otra copia persistida de esos registros.
  */
@@ -13,12 +15,15 @@ import { useTheme } from '../../hooks/useTheme';
 import { clinicDate } from '../../utils/clinic-date';
 import { normalizePetActiveFlag } from '../../utils/pet-status';
 import type { Pet,Appointment,ClinicalRecord,Product,Order } from '../../types/client';
+// Función PetCard: concentra la lógica dentro de este módulo.
 export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=false,compact=false,footer}:{pet:Pet;portraitSize?:number;showViewButton?:boolean;showMicrochip?:boolean;compact?:boolean;footer?:ReactNode}){
   const {colors}=useTheme();
   const {width}=useWindowDimensions();
   const photoSize=portraitSize??(compact?76:Math.min(190,Math.max(124,Math.round(Math.min(width,600)*0.36))));
-  const openPet=()=>router.push({pathname:'/client/pets/[id]',params:{id:pet.id}});
-  const editPet=()=>router.push({pathname:'/client/pets/[id]/edit',params:{id:pet.id}});
+  // Función openPet: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const openPet=()=>router.push({pathname:'/client/pets/[id]',params:{id:pet.id}});
+  // Función editPet: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const editPet=()=>router.push({pathname:'/client/pets/[id]/edit',params:{id:pet.id}});
   const petIsActive=normalizePetActiveFlag(pet.isActive);
   return <PetCareCard style={styles.petCard}><PetCarePetCardDecoration species={pet.species}/>
     <View style={[styles.petHeader,compact&&{alignItems:'center'}]}>
@@ -46,18 +51,27 @@ export function PetCard({pet,portraitSize,showViewButton=true,showMicrochip=fals
     {footer}
   </PetCareCard>;
 }
+// Función ViewAllPetsButton: concentra la lógica dentro de este módulo.
 export function ViewAllPetsButton({onPress}:{onPress:()=>void}){
   const {colors}=useTheme();
   return <Pressable accessibilityRole="button" onPress={onPress} style={({pressed})=>[styles.petSecondaryAction,{borderColor:colors.border,opacity:pressed?0.78:1}]}>
     <Ionicons name="paw-outline" size={22} color={colors.text}/><AppText style={[styles.petSecondaryLabel,{color:colors.text}]}>Ver todas mis mascotas</AppText><Ionicons name="chevron-forward" size={23} color={colors.text} style={styles.actionEnd}/>
   </Pressable>;
 }
+// Función AppointmentCard: concentra la lógica dentro de este módulo.
 export function AppointmentCard({appointment:a,onPress}:{appointment:Appointment;onPress?:()=>void}){const content=<PetCareCard><PetCareBadge label={statusLabel(a.status)}/><View style={styles.row}><PetImage uri={a.petPhotoUrl??null} size={52}/><View style={styles.flex}><AppText variant="subtitle">{a.petName}</AppText><AppText muted>{a.veterinarian}</AppText></View></View><AppText variant="subtitle">{a.service}</AppText><AppText>{dateTime(a.startsAt)}</AppText></PetCareCard>;return onPress?<Pressable accessibilityRole="button" accessibilityLabel={`Ver turno de ${a.petName}, ${a.service}`} onPress={onPress} style={({pressed})=>({opacity:pressed?0.88:1,transform:[{scale:pressed?0.99:1}]})}>{content}</Pressable>:content;}
+// Función MedicalRecordCard: concentra la lógica dentro de este módulo.
 export function MedicalRecordCard({record:r}:{record:ClinicalRecord}){return <PetCareCard><AppText variant="subtitle">{r.title}</AppText><AppText variant="caption" muted>{r.petName} · {dateTime(r.occurredAt)}</AppText><AppText>{r.content}</AppText>{Boolean(r.dose)&&<AppText>Dosis: {r.dose}</AppText>}{Boolean(r.frequency)&&<AppText>Frecuencia: {r.frequency}</AppText>}{Boolean(r.duration)&&<AppText>Duración: {r.duration}</AppText>}{r.weightKg != null&&<AppText>Peso: {r.weightKg} kg</AppText>}{Boolean(r.validUntil)&&<AppText>Vigencia: {dateTime(r.validUntil!)}</AppText>}{Boolean(r.nextDueAt)&&<AppText>Próxima fecha: {dateTime(r.nextDueAt!)}</AppText>}<AppText muted>{r.veterinarian}</AppText></PetCareCard>;}
+// Dato VaccineCard: conserva un valor calculado o de configuración usado por este módulo.
 export const VaccineCard=MedicalRecordCard;
+// Dato PrescriptionCard: conserva un valor calculado o de configuración usado por este módulo.
 export const PrescriptionCard=MedicalRecordCard;
+// Función RecommendationCard: concentra la lógica dentro de este módulo.
 export function RecommendationCard({record:r}:{record:ClinicalRecord}){return <PetCareCard><AppText variant="subtitle">{r.title}</AppText><AppText variant="caption" muted>{r.petName} · {dateTime(r.occurredAt)}</AppText>{Boolean(r.productName)&&<AppText>Producto recomendado: {r.productName}</AppText>}<AppText>{r.content}</AppText>{Boolean(r.nextDueAt)&&<AppText>Próxima fecha: {dateTime(r.nextDueAt!)}</AppText>}<AppText muted>{r.veterinarian}</AppText></PetCareCard>;}
 // La tarjeta usa el catálogo interno consultado por API y presenta enlace externo cuando fue cargado por un administrador.
+// Función ProductCard: concentra la lógica dentro de este módulo.
 export function ProductCard({product:p}:{product:Product}){return <PetCareCard><View style={styles.row}><PetImage uri={p.imageUrl}/><View style={styles.flex}><AppText variant="subtitle">{p.name}</AppText>{p.productType==='MEDICINE'&&<PetCareBadge label="Medicamento"/>}{p.productType==='ACCESSORY'&&<PetCareBadge label="Accesorio"/>}{p.productType==='GENERAL'&&<PetCareBadge label="Producto sin clasificar"/>}{Boolean(p.description)&&<AppText>{p.description}</AppText>}{Boolean(p.category)&&<AppText muted>{p.category}</AppText>}<AppText>{money(p.priceCents)}</AppText>{p.priceCents<p.regularPriceCents&&<PetCareBadge label="Promoción vigente"/>}<AppText variant="caption" muted>{p.stock>0?`${p.stock} disponibles`:'Sin stock disponible'}</AppText></View></View><AppButton label="Ver producto" onPress={()=>router.push({pathname:'/client/store/[id]',params:{id:p.id}})}/></PetCareCard>;}
+// Función OrderCard: concentra la lógica dentro de este módulo.
 export function OrderCard({order:o}:{order:Order}){return <PetCareCard><PetCareBadge label={statusLabel(o.status)}/><AppText variant="subtitle">Pedido #{o.id}</AppText><AppText muted>{dateTime(o.createdAt)}</AppText><AppText>{money(o.totalCents)}</AppText><AppButton label="Ver pedido" variant="secondary" onPress={()=>router.push({pathname:'/client/orders/[id]',params:{id:o.id}})}/></PetCareCard>;}
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({row:{flexDirection:'row',gap:14,alignItems:'center'},flex:{flex:1,minWidth:0},petCard:{overflow:'hidden'},petHeader:{flexDirection:'row',alignItems:'center',gap:16},petPhotoFrame:{padding:3,borderWidth:2,borderRadius:23,position:'relative'},photoMark:{position:'absolute',left:8,top:8,width:30,height:30,borderRadius:10,alignItems:'center',justifyContent:'center'},compactPhotoMark:{left:7,top:7,width:24,height:24,borderRadius:8},petInfo:{flex:1,minWidth:0,gap:13},petTitleRow:{flexDirection:'row',alignItems:'center',gap:8},petName:{flex:1,minWidth:0,fontSize:27,lineHeight:32,fontWeight:'700'},editButton:{width:48,height:48,borderRadius:24,alignItems:'center',justifyContent:'center'},speciesRow:{flexDirection:'row',alignItems:'center',gap:10,minHeight:28},speciesText:{flex:1,minWidth:0,fontSize:16,fontWeight:'600'},infoDivider:{height:1,opacity:.65},detailRow:{flexDirection:'row',alignItems:'center',gap:10,minHeight:28},detailText:{flex:1,minWidth:0,fontSize:15},petPrimaryAction:{minHeight:58,borderRadius:30,paddingHorizontal:22,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:12,position:'relative'},petPrimaryLabel:{fontSize:17,fontWeight:'700'},petSecondaryAction:{minHeight:58,borderRadius:30,borderWidth:1.5,paddingHorizontal:22,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:12,position:'relative'},petSecondaryLabel:{fontSize:16,fontWeight:'600'},actionEnd:{position:'absolute',right:18}});

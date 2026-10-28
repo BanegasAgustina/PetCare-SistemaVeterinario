@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /** Asistente de solicitud de turnos. Solo presenta servicios, mascotas y slots reales del backend. */
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -18,9 +20,12 @@ import { clinicDate, clinicDateFilterToApi, clinicDateTime } from '../../../util
 import { normalizePetActiveFlag } from '../../../utils/pet-status';
 import type { AppointmentCatalog, Pet, Slot } from '../../../types/client';
 
+// Configuración stepTitles: reúne valores o reglas que consume el resto del módulo.
 const stepTitles = ['Mascota', 'Servicio', 'Profesional', 'Fecha y horario', 'Confirmación'];
+// Tipo Submission: define la forma o las opciones válidas de los datos usados por este módulo.
 type Submission = { id: string; status: 'REQUESTED' | 'CONFIRMED' };
 
+// Función RequestAppointment: concentra la lógica dentro de este módulo.
 export default function RequestAppointment() {
   const api = useClient();
   const action = useAsyncAction();
@@ -61,13 +66,15 @@ export default function RequestAppointment() {
     Boolean(professional.isActive) && data?.catalog.assignments.some(assignment => assignment.professionalId === professional.id && assignment.serviceId === serviceId),
   );
 
-  function clearLaterSelections() {
+  // Función clearLaterSelections: concentra la lógica dentro de este módulo.
+function clearLaterSelections() {
     setVetId('');
     setSelectedDate('');
     setSlotId('');
   }
 
-  function chooseType(id: string) {
+  // Función chooseType: concentra la lógica dentro de este módulo.
+function chooseType(id: string) {
     if (id === typeId) return;
     setTypeId(id);
     setSpecialtyId('');
@@ -77,7 +84,8 @@ export default function RequestAppointment() {
     action.clearError();
   }
 
-  function chooseSpecialty(id: string) {
+  // Función chooseSpecialty: concentra la lógica dentro de este módulo.
+function chooseSpecialty(id: string) {
     if (id === specialtyId) return;
     setSpecialtyId(id);
     setServiceId('');
@@ -86,7 +94,8 @@ export default function RequestAppointment() {
     action.clearError();
   }
 
-  function chooseService(id: string) {
+  // Función chooseService: concentra la lógica dentro de este módulo.
+function chooseService(id: string) {
     if (id === serviceId) return;
     setServiceId(id);
     clearLaterSelections();
@@ -94,7 +103,8 @@ export default function RequestAppointment() {
     action.clearError();
   }
 
-  function chooseProfessional(id: string) {
+  // Función chooseProfessional: concentra la lógica dentro de este módulo.
+function chooseProfessional(id: string) {
     if (id === vetId) return;
     setVetId(id);
     setSelectedDate('');
@@ -103,7 +113,8 @@ export default function RequestAppointment() {
     action.clearError();
   }
 
-  function continueStep() {
+  // Función continueStep: concentra la lógica dentro de este módulo.
+function continueStep() {
     setFormError(null);
     if (step === 1 && !activePets.some(pet => pet.id === petId)) {
       setFormError('Elegí la mascota que necesita atención.');
@@ -124,7 +135,8 @@ export default function RequestAppointment() {
     setStep(current => Math.min(5, current + 1));
   }
 
-  async function submitRequest() {
+  // Función submitRequest: concentra la lógica dentro de este módulo.
+async function submitRequest() {
     if (!selectedPet || !selectedSlot || !serviceId) {
       setFormError('Revisá la mascota, el servicio y el horario antes de enviar.');
       setStep(!selectedPet ? 1 : !serviceId ? 2 : 4);
@@ -159,7 +171,8 @@ export default function RequestAppointment() {
     <StepProgress step={step} />
     <AppText variant="subtitle">{stepTitles[step - 1]}</AppText>
     <SelectionSummary step={step} typeName={selectedType?.name} pet={selectedPet} serviceName={selectedService?.name} slot={selectedSlot} />
-    <QueryState {...query} />
+    
+<QueryState {...query} />
     {data && step === 1 && <>
       <AppText>¿A qué mascota vamos a atender?</AppText>
       {!activePets.length ? <PetCareEmptyState
@@ -258,6 +271,7 @@ export default function RequestAppointment() {
   </PetCareScreen>;
 }
 
+// Función MonthCalendar: concentra la lógica dentro de este módulo.
 function MonthCalendar({dates,selectedDate,disabled,onSelect}:{dates:string[];selectedDate:string;disabled:boolean;onSelect:(date:string)=>void}){
   const {colors}=useTheme();
   const [month,setMonth]=useState(()=>new Date());
@@ -284,6 +298,7 @@ function MonthCalendar({dates,selectedDate,disabled,onSelect}:{dates:string[];se
   </PetCareCard>;
 }
 
+// Función canContinue: comprueba una regla o condición dentro de este módulo.
 function canContinue(step: number, petId: string, pets: Pet[], serviceId: string, services: AppointmentCatalog['services'], slotId: string, slot?: Slot) {
   if (step === 1) return pets.some(pet => pet.id === petId);
   if (step === 2) return services.some(service => service.id === serviceId);
@@ -292,24 +307,28 @@ function canContinue(step: number, petId: string, pets: Pet[], serviceId: string
   return false;
 }
 
+// Función typeDescription: concentra la lógica dentro de este módulo.
 function typeDescription(type: AppointmentCatalog['types'][number]) {
   if (Boolean(type.isClinical)) return 'Consultas médicas, controles y atención de salud.';
   if (/peluquer|groom/i.test(type.name)) return 'Baño, corte y cuidado del pelo.';
   return `Servicios disponibles del área ${type.name}.`;
 }
 
+// Función typeIcon: concentra la lógica dentro de este módulo.
 function typeIcon(type: AppointmentCatalog['types'][number]): IconName {
   if (Boolean(type.isClinical)) return 'medkit-outline';
   if (/peluquer|groom/i.test(type.name)) return 'cut-outline';
   return 'calendar-outline';
 }
 
+// Función weekday: concentra la lógica dentro de este módulo.
 function weekday(date: string) {
   const normalized = clinicDateFilterToApi(date);
   const value = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long' }).format(new Date(`${normalized}T12:00:00-03:00`));
   return value.charAt(0).toLocaleUpperCase('es-AR') + value.slice(1);
 }
 
+// Función StepProgress: concentra la lógica dentro de este módulo.
 function StepProgress({ step }: { step: number }) {
   const { colors } = useTheme();
   return <PetCareCard>
@@ -320,6 +339,7 @@ function StepProgress({ step }: { step: number }) {
   </PetCareCard>;
 }
 
+// Función ChoiceCard: concentra la lógica dentro de este módulo.
 function ChoiceCard({ title, description, detail, imageUrl, icon = 'checkmark-circle-outline', selected, onPress }: { title: string; description?: string; detail?: string; imageUrl?: string; icon?: IconName; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityLabel={title} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.choice, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }]}>
@@ -333,6 +353,7 @@ function ChoiceCard({ title, description, detail, imageUrl, icon = 'checkmark-ci
   </Pressable>;
 }
 
+// Función PetChoice: concentra la lógica dentro de este módulo.
 function PetChoice({ pet, selected, onPress }: { pet: Pet; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityLabel={pet.name} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.petChoice, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }]}>
@@ -342,6 +363,7 @@ function PetChoice({ pet, selected, onPress }: { pet: Pet; selected: boolean; on
   </Pressable>;
 }
 
+// Función PetChoiceProfessional: concentra la lógica dentro de este módulo.
 function PetChoiceProfessional({ name, photoUrl, specialties, selected, onPress }: { name: string; photoUrl: string | null | undefined; specialties?: string | null; selected: boolean; onPress: () => void }) {
   return <Pressable accessibilityRole="radio" accessibilityLabel={name} accessibilityState={{ checked: selected }} onPress={onPress} style={styles.professionalChoice}>
     <PetImage uri={photoUrl ?? null} size={48} />
@@ -350,21 +372,25 @@ function PetChoiceProfessional({ name, photoUrl, specialties, selected, onPress 
   </Pressable>;
 }
 
+// Función SelectionSummary: concentra la lógica dentro de este módulo.
 function SelectionSummary({ step, typeName, pet, serviceName, slot }: { step: number; typeName?: string; pet?: Pet; serviceName?: string; slot?: Slot }) {
   const values = [typeName, pet?.name, serviceName, slot ? clinicDateTime(slot.startsAt) : undefined].filter(Boolean);
   if (step < 2 || !values.length) return null;
   return <AppText variant="caption" muted>Elegido: {values.join(' · ')}</AppText>;
 }
 
+// Función SummaryLine: concentra la lógica dentro de este módulo.
 function SummaryLine({ label, value }: { label: string; value?: string }) {
   return <View style={styles.summaryLine}><AppText muted>{label}</AppText><AppText>{value || 'Elegí una opción'}</AppText></View>;
 }
 
+// Función StepHelp: concentra la lógica dentro de este módulo.
 function StepHelp({ text }: { text: string | null }) {
   if (!text) return null;
   return <AppText variant="caption" muted>{text}</AppText>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   progressHeader: { gap: 4 },
   progressTrack: { flexDirection: 'row', gap: 6, minHeight: 8 },

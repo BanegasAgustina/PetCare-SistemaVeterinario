@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
+
 /** Modal único para registro/login: obligatorio hasta verificar o volver a autenticarse si la prueba vence. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Keyboard, Pressable, StyleSheet, View } from 'react-native';
@@ -16,6 +18,7 @@ import { readVerification, resendCode, verifyCode } from '../../services/verific
 import type { VerificationChallenge } from '../../types/auth';
 import { roleHome } from '../../utils/role-home';
 
+// Función VerificationCodeModal: concentra la lógica dentro de este módulo.
 export function VerificationCodeModal({ challenge, autoSend = false }: { challenge: VerificationChallenge; autoSend?: boolean }) {
   const auth = useAuth(); const { colors } = useTheme(); const { showToast } = useFeedback();
   const [code, setCode] = useState(''); const [error, setError] = useState<string | null>(null);
@@ -61,7 +64,8 @@ export function VerificationCodeModal({ challenge, autoSend = false }: { challen
     const timer = setTimeout(() => { autoAttempt.current = true; void resend(); }, 0);
     return () => clearTimeout(timer);
   }, [autoSend, remaining, challenge.expiresAt, expired, resend]);
-  const verify = async () => {
+  // Función verify: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const verify = async () => {
     if (inFlight.current) return;
     if (code.length !== 6) { setError('Ingresá los seis dígitos del código.'); return; }
     inFlight.current = true; setLoading('verify'); setError(null); setInfo(null);
@@ -79,7 +83,8 @@ export function VerificationCodeModal({ challenge, autoSend = false }: { challen
       }
     } finally { inFlight.current = false; if (mounted.current) setLoading(null); }
   };
-  const continueToLogin = () => { auth.finishVerification(); showToast('Correo verificado. Tu cuenta está lista.', 'success'); router.replace('/login'); };
+  // Función continueToLogin: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const continueToLogin = () => { auth.finishVerification(); showToast('Correo verificado. Tu cuenta está lista.', 'success'); router.replace('/login'); };
   return <AppModal visible>
     <View style={[styles.icon, { backgroundColor: colors.accent }]}><Ionicons name={verified ? 'checkmark-circle-outline' : 'mail-outline'} size={28} color={colors.primary} accessible={false} /></View>
     {verified ? <>
@@ -104,4 +109,5 @@ export function VerificationCodeModal({ challenge, autoSend = false }: { challen
     </>}
   </AppModal>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ center: { textAlign: 'center' }, icon: { width: 56, height: 56, borderRadius: 18, alignSelf: 'center', justifyContent: 'center', alignItems: 'center' }, resend: { alignItems: 'center' }, resendButton: { minHeight: 44, justifyContent: 'center' } });

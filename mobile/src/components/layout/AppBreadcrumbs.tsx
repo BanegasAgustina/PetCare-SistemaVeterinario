@@ -1,16 +1,23 @@
+// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
+
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { AppText } from '../ui/AppText';
 
+// Tipo Destination: define la forma o las opciones válidas de los datos usados por este módulo.
 type Destination = { label: string; path: string };
+// Tipo Crumb: define la forma o las opciones válidas de los datos usados por este módulo.
 type Crumb = { label: string; path?: string };
+// Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props = { role: string; destinations: Destination[] };
 
+// Configuración catalogLabels: reúne valores o reglas que consume el resto del módulo.
 const catalogLabels: Record<string, string> = {
   services: 'Servicios', products: 'Productos', categories: 'Categorías', promotions: 'Promociones', types: 'Tipos profesionales', specialties: 'Especialidades',
 };
+// Configuración knownLabels: reúne valores o reglas que consume el resto del módulo.
 const knownLabels: Record<string, string> = {
   '/admin': 'Inicio', '/admin/clinic': 'Clínica', '/admin/store': 'Tienda', '/admin/administration': 'Administración',
   '/admin/agenda': 'Turnos', '/admin/patients': 'Pacientes', '/admin/clients': 'Clientes', '/admin/professionals': 'Profesionales', '/admin/veterinarians': 'Veterinarios',
@@ -24,6 +31,7 @@ const knownLabels: Record<string, string> = {
   '/workspace': 'Inicio', '/account': 'Mi cuenta',
 };
 
+// Función adminRoute: concentra la lógica dentro de este módulo.
 function adminRoute(path: string): { group?: string; parent?: string; label: string } {
   if (path === '/admin/clinic') return { label: 'Clínica' };
   if (path === '/admin/store') return { label: 'Tienda' };
@@ -54,6 +62,7 @@ function adminRoute(path: string): { group?: string; parent?: string; label: str
   return entry ? { ...entry } : { label: 'Administración' };
 }
 
+// Función resolveCrumbs: concentra la lógica dentro de este módulo.
 function resolveCrumbs(path: string, role: string, destinations: Destination[]): Crumb[] {
   const allowed = new Set(destinations.map(item => item.path));
   const root = role === 'ADMIN' || role === 'SUPER_ADMIN' ? '/admin'
@@ -78,6 +87,7 @@ function resolveCrumbs(path: string, role: string, destinations: Destination[]):
   return deduplicate(trail);
 }
 
+// Función resolveRoleRoute: concentra la lógica dentro de este módulo.
 function resolveRoleRoute(path: string, role: string): { parent?: string; label: string } {
   const patterns: [RegExp, (match: RegExpExecArray) => { parent?: string; label: string }][] = [
     [/^\/client\/pets\/new$/, () => ({ parent: '/client/pets', label: 'Agregar mascota' })],
@@ -105,13 +115,16 @@ function resolveRoleRoute(path: string, role: string): { parent?: string; label:
   return { label: 'PetCare' };
 }
 
+// Función rootForPath: concentra la lógica dentro de este módulo.
 function rootForPath(path: string, role: string): string | undefined {
   const roleRoot = role === 'CLIENT' ? '/client' : role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional' : '/workspace';
   return path === roleRoot ? undefined : roleRoot;
 }
 
+// Función deduplicate: concentra la lógica dentro de este módulo.
 function deduplicate(crumbs: Crumb[]): Crumb[] { return crumbs.filter((crumb, index) => index === 0 || crumb.label !== crumbs[index - 1]?.label); }
 
+// Función AppBreadcrumbs: concentra la lógica dentro de este módulo.
 export function AppBreadcrumbs({ role, destinations }: Props) {
   const pathname = usePathname();
   const { colors } = useTheme();
@@ -125,6 +138,7 @@ export function AppBreadcrumbs({ role, destinations }: Props) {
   </ScrollView>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   scroll: { flexGrow: 0, flexShrink: 0, width: '100%', maxHeight: 38 },
   container: { minHeight: 34, alignItems: 'center', gap: 9, paddingHorizontal: 24 },

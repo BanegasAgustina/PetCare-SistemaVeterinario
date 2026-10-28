@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Actualizaciones propias del profesional; su identidad nunca proviene del cuerpo HTTP. */
 import bcrypt from 'bcrypt';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -6,6 +8,7 @@ import { AppError } from '../utils/app-error';
 import { readName, readPassword, readPhone } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 
+// Función updateOwnProfile: actualiza o guarda información dentro de este módulo.
 export async function updateOwnProfile(userId:string,value:unknown) {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá los datos del perfil.');
   const body=value as Record<string,unknown>;
@@ -18,6 +21,7 @@ export async function updateOwnProfile(userId:string,value:unknown) {
   catch(error){await connection.rollback();throw error;}finally{connection.release();}
 }
 
+// Función changeOwnPassword: actualiza o guarda información dentro de este módulo.
 export async function changeOwnPassword(userId:string,value:unknown) {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá las contraseñas ingresadas.');
   const body=value as Record<string,unknown>;

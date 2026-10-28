@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Cada recurso administrativo exige identidad JWT, rol permitido y permiso real. */
 import { Router,type Request,type Response,type RequestHandler } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
@@ -10,10 +12,13 @@ import { isProductPhotoKey,isProfilePhotoKey,presentProductImages,removeProductP
 import { AppError } from '../utils/app-error';
 import * as account from '../services/admin-account.service';
 import * as generalInformation from '../repositories/general-information.repository';
+// Función handle: atiende una acción o evento dentro de este módulo.
 function handle(operation:(req:Request,res:Response)=>Promise<unknown>,status=200):RequestHandler {
   return async(req,res,next)=>{try{res.status(status).json({success:true,data:await operation(req,res)});}catch(error){next(error);}};
 }
+// Función actor: concentra una operación reutilizable de este módulo.
 const actor=(res:Response)=>res.locals.authenticatedUser as AuthUser;
+// Función updateProduct: actualiza o guarda información dentro de este módulo.
 async function updateProduct(req:Request,res:Response) {
   const identity=actor(res);const raw=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   const {photoBase64,...fields}=raw;
@@ -23,6 +28,7 @@ async function updateProduct(req:Request,res:Response) {
   try{const result=await repository.updateAdminProduct(identity,identifier(req.params.id),{...fields,imageUrl:image.url});if(result.previousImage!==image.url&&isProductPhotoKey(result.previousImage))await removeProductPhoto(result.previousImage).catch(()=>console.error('No se pudo limpiar la imagen anterior del producto.'));return {updated:true};}
   catch(error){await image.remove().catch(()=>console.error('No se pudo limpiar una imagen de producto sin referencia.'));throw error;}
 }
+// Función updateUserPhoto: actualiza o guarda información dentro de este módulo.
 async function updateUserPhoto(req:Request,res:Response) {
   const identity=actor(res);const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   if(Object.keys(body).some(key=>!['photoBase64','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&body.photoBase64!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
@@ -30,6 +36,7 @@ async function updateUserPhoto(req:Request,res:Response) {
   try {const result=await repository.updateAdminUserPhoto(identity,identifier(req.params.id),image?.url??null);if(isProfilePhotoKey(result.previous)&&result.previous!==image?.url)await removeProfilePhoto(result.previous).catch(()=>console.error('No se pudo limpiar la foto de perfil anterior.'));return {updated:true};}
   catch(error){if(image)await image.remove().catch(()=>console.error('No se pudo limpiar una foto de perfil sin referencia.'));throw error;}
 }
+// Dato adminRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const adminRouter=Router();
 adminRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 adminRouter.use(authenticate);

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+
 /** Registro conserva la ruta de fondo: el AuthContext abre el modal después de crear la cuenta. */
 import { router } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
@@ -12,6 +14,7 @@ import { useTheme } from '../hooks/useTheme';
 import { registrationPayload, validateRegistrationForm } from '../utils/auth-validation';
 import type { RegistrationFormValues } from '../types/auth';
 
+// Configuración fields: reúne valores o reglas que consume el resto del módulo.
 const fields: AuthField<RegistrationFormValues>[] = [
   { key: 'fullName', label: 'Nombre completo', inputProps: { autoCapitalize: 'words', autoComplete: 'name', textContentType: 'name', maxLength: 201 } },
   { key: 'email', label: 'Correo electrónico', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, maxLength: 254, placeholder: 'nombre@ejemplo.com' } },
@@ -19,6 +22,7 @@ const fields: AuthField<RegistrationFormValues>[] = [
   { key: 'password', label: 'Contraseña', password: true, hint: '8 caracteres, mayúscula, minúscula, número y símbolo.', inputProps: { autoComplete: 'new-password', textContentType: 'newPassword', autoCorrect: false } },
   { key: 'confirmPassword', label: 'Repetir contraseña', password: true, inputProps: { autoComplete: 'new-password', textContentType: 'newPassword', autoCorrect: false } },
 ];
+// Función RegisterScreen: crea un registro o inicia una operación dentro de este módulo.
 export default function RegisterScreen() {
   const auth = useAuth(); const { colors } = useTheme();
   return <LoginLayout showDesktopImage petArtwork="register">
@@ -29,4 +33,5 @@ export default function RegisterScreen() {
 
   </LoginLayout>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ link: { minHeight: 44, justifyContent: 'center' } });

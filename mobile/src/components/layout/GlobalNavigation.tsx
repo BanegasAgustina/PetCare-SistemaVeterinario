@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
+
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { subscribeToNotificationChanges } from '../../services/notification-events';
@@ -22,21 +24,32 @@ import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { activePrimaryNavigationPath, selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
 
+// Tipo MenuItem: define la forma o las opciones válidas de los datos usados por este módulo.
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
+// Tipo AdminModule: define la forma o las opciones válidas de los datos usados por este módulo.
 type AdminModule = { code: string; name: string; path: string };
+// Configuración noAdminModules: reúne valores o reglas que consume el resto del módulo.
 const noAdminModules: AdminModule[] = [];
+// Dato AdminModulesContext: conserva un valor calculado o de configuración usado por este módulo.
 const AdminModulesContext = createContext<AdminModule[]>([]);
+// Dato AdminModulesLoadingContext: conserva un valor calculado o de configuración usado por este módulo.
 const AdminModulesLoadingContext = createContext(false);
+// Configuración scheduleAdminModule: reúne valores o reglas que consume el resto del módulo.
 const scheduleAdminModule: AdminModule = { code: 'schedule.manage', name: 'Horarios', path: '/admin/availability' };
+// Función useAdminModules: concentra la lógica dentro de este módulo.
 export function useAdminModules() { return useContext(AdminModulesContext); }
+// Función useAdminModulesLoading: concentra la lógica dentro de este módulo.
 export function useAdminModulesLoading() { return useContext(AdminModulesLoadingContext); }
+// Dato adminGroups: conserva un valor calculado o de configuración usado por este módulo.
 const adminGroups = ['Inicio', 'Clínica', 'Tienda', 'Administración'] as const;
+// Función adminGroup: concentra la lógica dentro de este módulo.
 function adminGroup(path: string): typeof adminGroups[number] {
   if (path === '/admin') return 'Inicio';
   if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/clients','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
   if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners'].includes(path)) return 'Tienda';
   return 'Administración';
 }
+// Función adminLabel: concentra la lógica dentro de este módulo.
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
     '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/clients':'Clientes','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
@@ -45,6 +58,7 @@ function adminLabel(module: AdminModule) {
   };
   return labels[module.path] ?? module.name;
 }
+// Configuración clientItems: reúne valores o reglas que consume el resto del módulo.
 const clientItems: MenuItem[] = [
   { label: 'Inicio', path: '/client', icon: 'home-outline' },
   { label: 'Mis mascotas', path: '/client/pets', icon: 'paw-outline' },
@@ -57,12 +71,14 @@ const clientItems: MenuItem[] = [
   { label: 'Recetas', path: '/client/prescriptions', icon: 'document-text-outline', group: 'Salud' },
   { label: 'Recomendaciones', path: '/client/recommendations', icon: 'heart-outline', group: 'Salud' },
 ];
+// Configuración staffItems: reúne valores o reglas que consume el resto del módulo.
 const staffItems: MenuItem[] = [
   { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
   { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
   { label: 'Productos', path: 'products', icon: 'pricetags-outline', permission: 'products.view', group: 'Tienda' },
   { label: 'Clientes', path: 'clients', icon: 'people-outline', permission: 'users.view_basic' },
 ];
+// Configuración veterinarianItems: reúne valores o reglas que consume el resto del módulo.
 const veterinarianItems: MenuItem[] = [
   { label: 'Inicio', path: '/vet', icon: 'home-outline' },
   { label: 'Agenda', path: '/vet/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
@@ -71,6 +87,7 @@ const veterinarianItems: MenuItem[] = [
   { label: 'Mis clientes', path: '/vet/clients', icon: 'people-outline', permission: 'pets.view_information' },
   { label: 'Productos', path: '/vet/products', icon: 'pricetags-outline', permission: 'products.view' },
 ];
+// Configuración groomerItems: reúne valores o reglas que consume el resto del módulo.
 const groomerItems: MenuItem[] = [
   { label: 'Panel principal', path: '/professional', icon: 'home-outline' },
   { label: 'Mi agenda', path: '/professional/agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
@@ -80,6 +97,7 @@ const groomerItems: MenuItem[] = [
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_own' },
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_all' },
 ];
+// Función iconFor: concentra la lógica dentro de este módulo.
 function iconFor(code: string): IconName {
   if (code.includes('pet')) return 'paw-outline';
   if (code.includes('appointment') || code.includes('schedule')) return 'calendar-outline';
@@ -92,6 +110,7 @@ function iconFor(code: string): IconName {
   return 'settings-outline';
 }
 
+// Configuración adminTabs: reúne valores o reglas que consume el resto del módulo.
 const adminTabs = [
   { label: 'Inicio', path: '/admin', icon: 'home-outline' as const },
   { label: 'Clínica', path: '/admin/clinic', icon: 'medkit-outline' as const },
@@ -99,6 +118,7 @@ const adminTabs = [
   { label: 'Administración', path: '/admin/administration', icon: 'settings-outline' as const },
 ];
 
+// Función GlobalNavigation: concentra la lógica dentro de este módulo.
 export function GlobalNavigation({ children }: PropsWithChildren) {
   const auth = useAuth();
   const { colors } = useTheme();
@@ -127,7 +147,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     if (!isClient) return () => { active = false; };
-    const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifications',{method:'POST',body:{limit:1}}).then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
+    // Función refreshUnread: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifications',{method:'POST',body:{limit:1}}).then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
     refreshUnread();
     const unsubscribe=subscribeToNotificationChanges(refreshUnread);
     return () => { active = false;unsubscribe(); };
@@ -173,7 +194,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const activePrimaryPath=activePrimaryNavigationPath(user?.role??'',pathname,primaryItems);
 
   if (!user || ['/login','/register','/reset-password','/change-initial-password','/oauth','/activate-account','/activate-vet'].includes(pathname)) return <>{children}</>;
-  const navigate = (path: string) => router.navigate(path as never);
+  // Función navigate: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const navigate = (path: string) => router.navigate(path as never);
 
   if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View style={[styles.root, { backgroundColor: colors.background }]}>
     <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
@@ -235,6 +257,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 
+// Función DesktopPageContent: concentra la lógica dentro de este módulo.
 function DesktopPageContent({children,role,destinations}:PropsWithChildren<{role:string;destinations:MenuItem[]}>) {
   return <View style={styles.desktopPage}>
     <AppBreadcrumbs role={role} destinations={destinations}/>
@@ -242,6 +265,7 @@ function DesktopPageContent({children,role,destinations}:PropsWithChildren<{role
   </View>;
 }
 
+// Función DesktopSidebar: concentra la lógica dentro de este módulo.
 function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePath:string|null;onNavigate:(path:string)=>void}) {
   const {colors,mode,setPreference}=useTheme();
   const {user,signOut}=useAuth();
@@ -250,7 +274,8 @@ function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePa
   const [confirmLogout,setConfirmLogout]=useState(false);
   const groups=items.some(item=>item.group);
   const initials=[user?.firstName?.[0],user?.lastName?.[0]].filter(Boolean).join('').toLocaleUpperCase();
-  const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="button" accessibilityState={{selected:item.path===activePath}} onPress={()=>onNavigate(item.path)} style={[styles.desktopNavItem,{backgroundColor:item.path===activePath?colors.accent:'transparent',borderColor:item.path===activePath?colors.primary:'transparent'}]}>
+  // Función navItem: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="button" accessibilityState={{selected:item.path===activePath}} onPress={()=>onNavigate(item.path)} style={[styles.desktopNavItem,{backgroundColor:item.path===activePath?colors.accent:'transparent',borderColor:item.path===activePath?colors.primary:'transparent'}]}>
     <Ionicons name={item.icon} size={20} color={item.path===activePath?colors.primary:colors.muted}/>
     <AppText numberOfLines={1} style={[styles.itemText,{color:item.path===activePath?colors.primary:colors.text,fontWeight:item.path===activePath?'700':'500'}]}>{item.label}</AppText>
   </Pressable>;
@@ -270,6 +295,7 @@ function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePa
   </View>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   desktopRoot:{flex:1,minHeight:0,flexDirection:'row'},desktopPage:{flex:1,minWidth:0,minHeight:0},desktopContent:{flex:1,minWidth:0,minHeight:0},desktopSidebar:{flexShrink:0,minHeight:0,paddingHorizontal:16,paddingVertical:18,borderRightWidth:1},desktopBrand:{minHeight:54,justifyContent:'center',paddingHorizontal:2},desktopLogo:{width:132,height:36,alignSelf:'flex-start'},desktopMenu:{flex:1,minHeight:0},desktopMenuContent:{flexGrow:1,gap:5,paddingBottom:12},desktopNavItem:{minHeight:46,paddingHorizontal:11,borderRadius:13,borderLeftWidth:3,flexDirection:'row',alignItems:'center',gap:11},desktopAccount:{gap:9,paddingTop:14,marginTop:'auto',borderTopWidth:1},desktopIdentity:{minHeight:42,flexDirection:'row',alignItems:'center',gap:10},desktopAvatar:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},desktopUserCopy:{flex:1,minWidth:0,gap:2},desktopUserName:{fontWeight:'700'},desktopAction:{minHeight:38,paddingHorizontal:4,flexDirection:'row',alignItems:'center',gap:10},
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },

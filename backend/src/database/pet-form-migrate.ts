@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Aplica únicamente la extensión del formulario sobre las tablas existentes.
  * No depende de restaurar la migración Cliente original eliminada del checkout.
  */
@@ -7,6 +9,7 @@ import { createHash } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
+// Función migrate: concentra la lógica dentro de este módulo.
 async function migrate() {
   const version='002_pet_breed_name.sql';
   const sql=await readFile(resolve(__dirname,'../../client-migrations',version),'utf8');

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
+
 /** Listado paginado: búsqueda/filtros consultan MySQL mediante la API. */
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { router,useFocusEffect,useLocalSearchParams } from 'expo-router';
@@ -28,7 +30,9 @@ import { AdminFormActions, AdminFormField, AdminFormSection } from '../../../com
 import { AdminPageHeading } from '../../../components/admin/AdminPageHeading';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { invitationLabel } from '../../../utils/invitation-label';
+// Configuración emptyVet: reúne valores o reglas que consume el resto del módulo.
 const emptyVet:VetValues={firstName:'',lastName:'',email:'',phone:'',licenseNumber:'',isActive:true,specialtyIds:[]};
+// Función VeterinariansScreen: concentra la lógica dentro de este módulo.
 export default function VeterinariansScreen() {
   const {width}=useWindowDimensions();
   const {create}=useLocalSearchParams<{create?:string}>();
@@ -49,10 +53,14 @@ export default function VeterinariansScreen() {
       .catch(err=>{if(attempt===sequence.current)setError(friendlyError(err));}).finally(()=>{if(attempt===sequence.current)setLoading(false);});
     return ()=>{sequence.current++;};
   },[request,submittedSearch,status,sort,page,specialty]);
-  function changeCreate<K extends keyof VetValues>(key:K,value:VetValues[K]){setCreateValues(current=>({...current,[key]:value}));setCreateErrors(current=>({...current,[key]:undefined}));}
-  function openVetDetails(id:string){setSelectedVetId(id);setSelectedVet(null);setDetailError(null);setDetailLoading(true);}
-  async function saveVetStatus(){if(!selectedVet||statusTarget===null)return;const updated=await request<VetDetail>(`/admin/veterinarians/${selectedVet.id}/status`,{method:'PATCH',body:{isActive:statusTarget}});setSelectedVet(updated);setStatusTarget(null);load();showToast(statusTarget?'Veterinario activado':'Veterinario desactivado','success');}
-  function createVeterinarian(){const identity=validateIdentityForm(createValues);const errors:Partial<Record<keyof VetValues,string>>={firstName:identity.firstName,lastName:identity.lastName,email:identity.email,phone:identity.phone};if(!createValues.licenseNumber.trim()||createValues.licenseNumber.trim().length>80)errors.licenseNumber='Ingresá una matrícula de hasta 80 caracteres.';if(!createValues.specialtyIds.length)errors.specialtyIds='Seleccioná al menos una especialidad.';setCreateErrors(errors);if(Object.values(errors).some(Boolean))return;void action.run(async()=>{const saved=await request<{veterinarian:{id:string};invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:createValues});let photoFailed=false;if(createPhoto){try{await request(`/admin/veterinarians/${saved.veterinarian.id}/photo`,{method:'PUT',body:{photoBase64:createPhoto.base64}});}catch{photoFailed=true;}}setCreateOpen(false);router.setParams({create:undefined});setCreateValues(emptyVet);setCreatePhoto(null);load();const delivery=saved.invitationDelivery==='sent'?'Invitación enviada por correo.':'El veterinario quedó creado, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';showToast(photoFailed?`${delivery} La foto puede agregarse desde su perfil.`:delivery,photoFailed?'info':saved.invitationDelivery==='sent'?'success':'info');});}
+  // Función changeCreate: actualiza o guarda información dentro de este módulo.
+function changeCreate<K extends keyof VetValues>(key:K,value:VetValues[K]){setCreateValues(current=>({...current,[key]:value}));setCreateErrors(current=>({...current,[key]:undefined}));}
+  // Función openVetDetails: concentra la lógica dentro de este módulo.
+function openVetDetails(id:string){setSelectedVetId(id);setSelectedVet(null);setDetailError(null);setDetailLoading(true);}
+  // Función saveVetStatus: actualiza o guarda información dentro de este módulo.
+async function saveVetStatus(){if(!selectedVet||statusTarget===null)return;const updated=await request<VetDetail>(`/admin/veterinarians/${selectedVet.id}/status`,{method:'PATCH',body:{isActive:statusTarget}});setSelectedVet(updated);setStatusTarget(null);load();showToast(statusTarget?'Veterinario activado':'Veterinario desactivado','success');}
+  // Función createVeterinarian: crea un registro o inicia una operación dentro de este módulo.
+function createVeterinarian(){const identity=validateIdentityForm(createValues);const errors:Partial<Record<keyof VetValues,string>>={firstName:identity.firstName,lastName:identity.lastName,email:identity.email,phone:identity.phone};if(!createValues.licenseNumber.trim()||createValues.licenseNumber.trim().length>80)errors.licenseNumber='Ingresá una matrícula de hasta 80 caracteres.';if(!createValues.specialtyIds.length)errors.specialtyIds='Seleccioná al menos una especialidad.';setCreateErrors(errors);if(Object.values(errors).some(Boolean))return;void action.run(async()=>{const saved=await request<{veterinarian:{id:string};invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:createValues});let photoFailed=false;if(createPhoto){try{await request(`/admin/veterinarians/${saved.veterinarian.id}/photo`,{method:'PUT',body:{photoBase64:createPhoto.base64}});}catch{photoFailed=true;}}setCreateOpen(false);router.setParams({create:undefined});setCreateValues(emptyVet);setCreatePhoto(null);load();const delivery=saved.invitationDelivery==='sent'?'Invitación enviada por correo.':'El veterinario quedó creado, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';showToast(photoFailed?`${delivery} La foto puede agregarse desde su perfil.`:delivery,photoFailed?'info':saved.invitationDelivery==='sent'?'success':'info');});}
   useFocusEffect(useCallback(()=>{const timer=setTimeout(load,300);return ()=>{clearTimeout(timer);sequence.current++;};},[load]));
   return <ScreenContainer wide>
     <AdminPageHeading title="Veterinarios"/>
@@ -77,7 +85,8 @@ export default function VeterinariansScreen() {
     <CompactPagination page={page} canPrevious={!loading&&page>1} canNext={!loading&&Boolean(result?.hasMore)} onPrevious={()=>setPage(value=>value-1)} onNext={()=>setPage(value=>value+1)} summary={result?`${result.total} veterinarios`:undefined}/>
     <AppModal size="wide" visible={createOpen||create==='1'} dismissible onClose={()=>{if(!action.loading){setCreateOpen(false);router.setParams({create:undefined});}}}>
       <AppText variant="title">Crear veterinario</AppText><AppText muted>Enviaremos una invitación al correo indicado. El veterinario configurará su contraseña desde un enlace de un solo uso válido durante 24 horas.</AppText>
-      <AdminFormSection title="Datos de la persona" description="La cuenta profesional debe tener datos de contacto y matrícula vigentes." columns={2}>
+      
+<AdminFormSection title="Datos de la persona" description="La cuenta profesional debe tener datos de contacto y matrícula vigentes." columns={2}>
         <AdminFormField fullWidth><ProfilePhotoInput currentUri={null} photo={createPhoto} disabled={action.loading} onSelect={setCreatePhoto} onRemove={()=>setCreatePhoto(null)}/></AdminFormField>
         <AdminFormField><AppInput label="Nombre" required value={createValues.firstName} error={createErrors.firstName} onChangeText={value=>changeCreate('firstName',value)}/></AdminFormField>
         <AdminFormField><AppInput label="Apellido" required value={createValues.lastName} error={createErrors.lastName} onChangeText={value=>changeCreate('lastName',value)}/></AdminFormField>
@@ -85,12 +94,14 @@ export default function VeterinariansScreen() {
         <AdminFormField><AppInput label="Teléfono" value={createValues.phone} error={createErrors.phone} keyboardType="phone-pad" onChangeText={value=>changeCreate('phone',value)}/></AdminFormField>
         <AdminFormField><AppInput label="Matrícula profesional" required value={createValues.licenseNumber} error={createErrors.licenseNumber} maxLength={80} onChangeText={value=>changeCreate('licenseNumber',value)}/></AdminFormField>
       </AdminFormSection>
-      <AdminFormSection title="Especialidades" description="Seleccioná las áreas de atención del veterinario.">
+      
+<AdminFormSection title="Especialidades" description="Seleccioná las áreas de atención del veterinario.">
         <FormNotice error message={createErrors.specialtyIds??null}/>
         {catalog?.specialties.map(item=><SelectionRow key={item.id} label={item.name} checked={createValues.specialtyIds.includes(item.id)} onPress={()=>changeCreate('specialtyIds',createValues.specialtyIds.includes(item.id)?createValues.specialtyIds.filter(value=>value!==item.id):[...createValues.specialtyIds,item.id])}/>)}
         {!catalog?.specialties.length&&<><AppText muted>{auth.hasPermission('specialties.manage')?'Primero creá una especialidad para poder completar el alta.':'No hay especialidades disponibles. Pedile a un administrador que agregue una antes de registrar el veterinario.'}</AppText>{auth.hasPermission('specialties.manage')&&<AppButton variant="secondary" label="Crear especialidad" onPress={()=>router.push('/admin/veterinarians/specialties')}/>}</>}
       </AdminFormSection>
-      <FormNotice error message={action.error}/><AdminFormActions><AppButton label="Crear veterinario" loading={action.loading} disabled={!catalog?.specialties.length} onPress={createVeterinarian}/><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={()=>{setCreateOpen(false);router.setParams({create:undefined});}}/></AdminFormActions>
+      <FormNotice error message={action.error}/>
+<AdminFormActions><AppButton label="Crear veterinario" loading={action.loading} disabled={!catalog?.specialties.length} onPress={createVeterinarian}/><AppButton label="Cancelar" variant="secondary" disabled={action.loading} onPress={()=>{setCreateOpen(false);router.setParams({create:undefined});}}/></AdminFormActions>
     </AppModal>
     <AppModal visible={selectedVetId!==null} dismissible onClose={()=>setSelectedVetId(null)}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><AppText variant="title">Detalle del veterinario</AppText>{auth.hasPermission('veterinarians.manage')&&selectedVet&&<Pressable accessibilityRole="button" accessibilityLabel="Editar veterinario" onPress={()=>{setSelectedVetId(null);router.push({pathname:'/admin/veterinarians/[id]',params:{id:selectedVet.id}});}} style={{padding:10}}><Ionicons name="create-outline" size={22}/></Pressable>}</View>

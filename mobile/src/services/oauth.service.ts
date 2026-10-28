@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Inicia OAuth: web redirige la pestaña y Android usa el navegador seguro; tickets se canjean por POST. */
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
@@ -8,21 +10,30 @@ import { readAccessSession } from './auth.service';
 import type { AccessSession,RegisterValues,VerificationChallenge } from '../types/auth';
 import { clearWebOAuthProof,readWebOAuthProof,saveWebOAuthProof } from './web-session-store';
 import { nativeOAuthSupported,oauthBrowserResultError,parseOAuthCallback } from './oauth-flow';
+// Tipo OAuthProvider: define la forma o las opciones válidas de los datos usados por este módulo.
 export type OAuthProvider = 'google'|'facebook'|'x';
+// Tipo OAuthPending: define la forma o las opciones válidas de los datos usados por este módulo.
 export type OAuthPending = {ticket:string;proof:string;email:string|null};
+// Tipo Exchange: define la forma o las opciones válidas de los datos usados por este módulo.
 type Exchange = {session?:AccessSession;linked?:boolean;registrationRequired?:boolean;email?:string|null};
+// Tipo OAuthStart: define la forma o las opciones válidas de los datos usados por este módulo.
 type OAuthStart = {configured?:boolean;reason?:string;url?:string};
+// Tipo OAuthResult: define la forma o las opciones válidas de los datos usados por este módulo.
 type OAuthResult = {session?:AccessSession;linked?:boolean;pending?:OAuthPending};
+// Función oauthDiagnostic: concentra la lógica dentro de este módulo.
 export function oauthDiagnostic(event:string,provider:OAuthProvider|'web',details:Record<string,string|boolean>={}):void {
   if(__DEV__)console.info('[PetCare OAuth]',JSON.stringify({event,provider,...details}));
 }
+// Función returnUrl: concentra la lógica dentro de este módulo.
 function returnUrl():string {
   if(Platform.OS!=='web')return 'petcare://oauth';
   // WebBrowser cierra la ventana emergente solo desde el mismo origen HTTPS.
   return `${globalThis.location.origin}/oauth`;
 }
+// Función base64Url: concentra la lógica dentro de este módulo.
 function base64Url(value:string):string {return value.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 /** Genera prueba criptográfica y valida el destino del retorno; un proveedor no puede elegir el panel. */
+// Función beginOAuth: concentra la lógica dentro de este módulo.
 export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Promise<OAuthResult|{redirecting:true}> {
   if(!nativeOAuthSupported(Platform.OS,isRunningInExpoGo())){
     oauthDiagnostic('development_build_required',provider);
@@ -69,6 +80,7 @@ export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Pro
   }catch(error){oauthDiagnostic('failed',provider,{code:error instanceof ApiError?error.code:'UNEXPECTED_ERROR'});throw error;
   } finally {popup?.close();}
 }
+// Función exchangeOAuthTicket: concentra la lógica dentro de este módulo.
 async function exchangeOAuthTicket(ticket:string,proof:string,provider:OAuthProvider|'web'='web'):Promise<OAuthResult> {
   oauthDiagnostic('backend_exchange_started',provider);
   const exchange=await apiRequest<Exchange>('/auth/oauth/exchange',{method:'POST',body:{ticket,proof}});
@@ -78,9 +90,11 @@ async function exchangeOAuthTicket(ticket:string,proof:string,provider:OAuthProv
   if(exchange.registrationRequired===true)return {pending:{ticket,proof,email:typeof exchange.email==='string'?exchange.email:null}};
   throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
 }
+// Función clearWebOAuthReturn: concentra la lógica dentro de este módulo.
 export function clearWebOAuthReturn():void {
   if(Platform.OS==='web')clearWebOAuthProof();
 }
+// Función exchangeWebOAuthReturn: concentra la lógica dentro de este módulo.
 export async function exchangeWebOAuthReturn(ticket:string):Promise<OAuthResult> {
   if(Platform.OS!=='web'||!/^[a-f0-9]{64}$/.test(ticket))throw new ApiError('OAUTH_FAILED','La respuesta OAuth no es válida. Iniciá el proceso nuevamente.');
   const proof=readWebOAuthProof();
@@ -95,6 +109,7 @@ export async function exchangeWebOAuthReturn(ticket:string):Promise<OAuthResult>
     throw error;
   }
 }
+// Función completeOAuth: concentra la lógica dentro de este módulo.
 export async function completeOAuth(pending:OAuthPending,profile:RegisterValues):Promise<VerificationChallenge> {
   const {confirmPassword,...input}=profile;
   if(profile.password!==confirmPassword)throw new ApiError('VALIDATION_ERROR','Las contraseñas no coinciden.');

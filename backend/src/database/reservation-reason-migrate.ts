@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Agrega el motivo opcional a cada cambio de estado de reserva existente. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
+// Función migrateReservationReason: concentra la lógica dentro de este módulo.
 export async function migrateReservationReason() {
   const connection = await databasePool.getConnection();
   try {

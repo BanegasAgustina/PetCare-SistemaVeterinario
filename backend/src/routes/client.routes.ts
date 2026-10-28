@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Expone /api/client para CLIENT autenticados. El controller deriva ownership del JWT y el servicio consulta MySQL; estas rutas no deben aceptar un owner enviado por la app.
  */
@@ -6,6 +8,7 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { requirePersonalAccess } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { clientHandler as handle } from '../controllers/client.controller';
+// Dato clientRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const clientRouter=Router();
 clientRouter.use(authenticate,requirePersonalAccess);
 clientRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});

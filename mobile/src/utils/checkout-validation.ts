@@ -1,3 +1,9 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
+
+// Tipo CheckoutAddressValues: define la forma o las opciones válidas de los datos usados por este módulo.
+// Propósito: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
+
+// Tipo CheckoutAddressValues: define la forma o las opciones válidas de datos usados por este módulo.
 export type CheckoutAddressValues = {
   recipientName: string;
   phone: string;
@@ -10,9 +16,12 @@ export type CheckoutAddressValues = {
   reference: string;
 };
 
+// Tipo CheckoutBuyerValues: define la forma o las opciones válidas de los datos usados por este módulo.
 export type CheckoutBuyerValues = { name: string; email: string; dni: string };
+// Tipo CheckoutFieldErrors: define la forma o las opciones válidas de los datos usados por este módulo.
 export type CheckoutFieldErrors = Record<string, string>;
 
+// Dato requiredAddressFields: conserva un valor calculado o de configuración usado por este módulo.
 const requiredAddressFields = [
   ['recipientName', 'el nombre del destinatario', 160],
   ['phone', 'el teléfono', 40],
@@ -23,6 +32,7 @@ const requiredAddressFields = [
   ['postalCode', 'el código postal', 16],
 ] as const;
 
+// Función validateCheckoutAddress: comprueba una regla o condición dentro de este módulo.
 export function validateCheckoutAddress(address: CheckoutAddressValues): CheckoutFieldErrors {
   const errors: CheckoutFieldErrors = {};
   for (const [field, label, maxLength] of requiredAddressFields) {
@@ -35,6 +45,7 @@ export function validateCheckoutAddress(address: CheckoutAddressValues): Checkou
   return errors;
 }
 
+// Función validateCheckoutBuyer: comprueba una regla o condición dentro de este módulo.
 export function validateCheckoutBuyer({ name, email, dni }: CheckoutBuyerValues): CheckoutFieldErrors {
   const errors: CheckoutFieldErrors = {};
   const normalizedName = name.trim();
@@ -49,6 +60,7 @@ export function validateCheckoutBuyer({ name, email, dni }: CheckoutBuyerValues)
   return errors;
 }
 
+// Función mapCheckoutFieldErrors: transforma o prepara datos dentro de este módulo.
 export function mapCheckoutFieldErrors(errors: readonly { field: string; message: string }[]): CheckoutFieldErrors {
   return Object.fromEntries(errors.map(({ field, message }) => [field.replace(/^address\./, ''), message]));
 }

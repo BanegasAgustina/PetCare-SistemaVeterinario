@@ -1,9 +1,12 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Traduce errores internos a mensajes seguros sin revelar detalles de Node o SQL. */
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { ApiFailure } from '../types/api';
 import { DatabaseError } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 
+// Función notFoundHandler: concentra una operación reutilizable de este módulo.
 export const notFoundHandler: RequestHandler = (request, response) => {
   const path = request.path.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140);
   const storeRoute = /^\/api\/client\/(?:store(?:\/|$)|cart(?:\/|$))/.test(request.path);
@@ -14,6 +17,7 @@ export const notFoundHandler: RequestHandler = (request, response) => {
   response.status(404).json(result);
 };
 
+// Función errorHandler: concentra una operación reutilizable de este módulo.
 export const errorHandler: ErrorRequestHandler = (error: unknown, request, response, next) => {
   if (response.headersSent) { next(error); return; }
   if (error instanceof DatabaseError || error instanceof AppError) {

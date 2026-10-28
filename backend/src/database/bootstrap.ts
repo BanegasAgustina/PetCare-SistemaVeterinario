@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Instala el esquema nuevo solo en DB vacía. No sustituye ni inventa migraciones históricas. */
 import { resolve } from 'node:path';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -5,6 +7,7 @@ import { databasePool } from '../config/database';
 import { checkDatabaseConnection } from '../services/database.service';
 import { readMigrationFiles } from './migration-files';
 import { withDatabaseLock } from './lock';
+// Función bootstrapDatabase: concentra la lógica dentro de este módulo.
 export async function bootstrapDatabase():Promise<void>{
   const files=await readMigrationFiles(resolve(__dirname,'../../bootstrap'));await checkDatabaseConnection();
   const c=await databasePool.getConnection();

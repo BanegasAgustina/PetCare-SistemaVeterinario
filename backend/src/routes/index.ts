@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Agrupa las rutas públicas bajo /api para ampliar la API por módulos. */
 import { Router } from 'express';
 import { getHealth } from '../controllers/health.controller';
@@ -9,6 +11,7 @@ import { clinicRouter } from './clinic.routes';
 import { veterinarianAdminRouter, invitationRouter, specialtiesAdminRouter, veterinarianPanelRouter } from './veterinarian.routes';
 import { publicSettingsRouter } from './settings.routes';
 
+// Dato apiRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const apiRouter = Router();
 apiRouter.get('/health', getHealth);
 apiRouter.get('/health/database', createDatabaseHealthHandler());

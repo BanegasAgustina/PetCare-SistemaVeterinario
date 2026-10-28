@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Contexto compartido de React; conserva estado y acciones que usan varias pantallas.
+
 /** Sesión global: revalida /me, rota renovación con un único envío y revoca al cerrar sesión. */
 import { createContext, useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -9,6 +11,7 @@ import { readVerification } from '../services/verification.service';
 import { hasRole,hasPermission } from '../utils/authorization';
 import { beginOAuth,completeOAuth,exchangeWebOAuthReturn,oauthDiagnostic,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
 
+// Tipo AuthContextValue: define la forma o las opciones válidas de los datos usados por este módulo.
 type AuthContextValue = {
   socialSignIn: (provider:OAuthProvider)=>Promise<void>;
   completeWebOAuthReturn: (ticket:string)=>Promise<boolean>;
@@ -27,12 +30,15 @@ type AuthContextValue = {
   openVerification: () => void; updateVerification: (value: VerificationChallenge) => void; finishVerification: () => void;
   verificationFromLogin: boolean; leaveVerification: () => void;
 };
+// Dato AuthContext: conserva un valor calculado o de configuración usado por este módulo.
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// Función isWebOAuthCallback: comprueba una regla o condición dentro de este módulo.
 function isWebOAuthCallback():boolean {
   return Platform.OS==='web'&&typeof window!=='undefined'&&window.location.pathname.replace(/\/+$/,'')==='/oauth'&&new URLSearchParams(window.location.search).has('ticket');
 }
 
+// Función AuthProvider: concentra la lógica dentro de este módulo.
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [restoring, setRestoring] = useState(()=>!isWebOAuthCallback());
@@ -117,7 +123,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [restoreSession]);
   useEffect(() => {
     if (expiresAt === null) return;
-    const renew=()=>{const stored=session.current;if(stored)void renewSession(stored).catch(error=>{if(!(error instanceof ApiError&&error.status===401))setNotice(friendlyError(error));});};
+    // Función renew: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const renew=()=>{const stored=session.current;if(stored)void renewSession(stored).catch(error=>{if(!(error instanceof ApiError&&error.status===401))setNotice(friendlyError(error));});};
     const timeout = setTimeout(renew, Math.max(0, expiresAt - Date.now()-30000));
     const subscription = AppState.addEventListener('change', (state) => { if (state === 'active' && expiresAt <= Date.now()+30000) renew(); });
     return () => { clearTimeout(timeout); subscription.remove(); };
@@ -203,7 +210,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, [expireSession,renewSession]);
 
-  const openVerification = () => setVerificationOpen(true);
+  // Función openVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const openVerification = () => setVerificationOpen(true);
   const request = useCallback(async <T,>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown;contentType?:string;headers?:Record<string,string> } = {}): Promise<T> => {
     let stored=session.current;
     if (!stored) throw new ApiError('AUTH_REQUIRED','Iniciá sesión para continuar.',401);
@@ -226,10 +234,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
     return ()=>subscription.remove();
   },[refreshProfile]);
-  const updateVerification = (value: VerificationChallenge) => setPendingVerification(value);
+  // Función updateVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const updateVerification = (value: VerificationChallenge) => setPendingVerification(value);
   // El backend solo devuelve sesión al verificar una cuenta que ya tiene identidad OAuth vinculada.
-  const finishVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice(null); };
-  const leaveVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice('Volvé a iniciar sesión para retomar la verificación de tu correo.'); };
+  // Función finishVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const finishVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice(null); };
+  // Función leaveVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const leaveVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice('Volvé a iniciar sesión para retomar la verificación de tu correo.'); };
   return <AuthContext.Provider value={{socialSignIn,completeWebOAuthReturn,linkProvider,oauthPending,cancelOAuth:()=>setOAuthPending(null),registerOAuth,completeVerifiedSession, hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
     pendingVerification, verificationOpen, openVerification, updateVerification, finishVerification, verificationFromLogin, leaveVerification }}>{children}</AuthContext.Provider>;
 }

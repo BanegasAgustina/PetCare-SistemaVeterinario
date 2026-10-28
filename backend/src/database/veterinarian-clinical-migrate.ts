@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /**
  * Migración aditiva para enlazar consultas con turnos y separar notas privadas.
  * No transforma ni borra registros clínicos existentes.
@@ -6,7 +8,9 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
+// Tipo Column: define la forma o las opciones válidas de los datos usados por este módulo.
 type Column = { table: string; name: string; type: string; nullable: 'YES'|'NO'; length?:number; sql: string };
+// Configuración columns: reúne valores o reglas que consume el resto del módulo.
 const columns: Column[] = [
   { table:'client_clinical_records',name: 'internal_notes', type: 'text', nullable: 'YES', sql: 'TEXT NULL' },
   { table:'client_clinical_records',name: 'appointment_id', type: 'bigint', nullable: 'YES', sql: 'BIGINT UNSIGNED NULL' },
@@ -16,6 +20,7 @@ const columns: Column[] = [
   { table:'veterinarians',name:'professional_description',type:'varchar',nullable:'YES',length:2000,sql:'VARCHAR(2000) NULL' },
 ];
 
+// Función migrate: concentra la lógica dentro de este módulo.
 async function migrate(): Promise<void> {
   const connection = await databasePool.getConnection();
   try {

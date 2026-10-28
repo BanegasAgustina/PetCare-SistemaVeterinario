@@ -1,8 +1,13 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Cliente HTTP con timeout y errores públicos: nunca imprime credenciales ni tokens. */
+// Clase ApiError: agrupa estado y operaciones que trabajan como una unidad.
 export class ApiError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown, public readonly fieldErrors: readonly ApiFieldError[] = []) { super(message); this.name = 'ApiError'; }
 }
+// Tipo ApiFieldError: define la forma o las opciones válidas de los datos usados por este módulo.
 export type ApiFieldError={field:string;message:string};
+// Configuración messages: reúne valores o reglas que consume el resto del módulo.
 const messages: Record<string, string> = {
   OAUTH_UNAVAILABLE:'Este proveedor todavía no está configurado.',
   OAUTH_INVALID_STATE:'La solicitud OAuth venció o ya fue usada. Iniciá el proceso nuevamente.',
@@ -71,29 +76,36 @@ const messages: Record<string, string> = {
   VERIFICATION_SEND_LIMIT: 'Alcanzaste el límite de envíos. Intentá más tarde.',
 };
 
+// Dato internalMessagePattern: conserva un valor calculado o de configuración usado por este módulo.
 const internalMessagePattern = /\b(?:mysql|mariadb|layerbase|backend|server|endpoint|route|sql|sqlstate|http|servidor|base de datos|database|tabla|columnas?|schema|migraci[oó]n|persistencia|persistido|stack trace|exception)\b|\b(?:ER_[A-Z_]+|ECONN[A-Z_]+|ENOTFOUND)\b|\b(?:error|c[oó]digo)\s*[45]\d{2}\b/i;
+// Función publicMessage: concentra la lógica dentro de este módulo.
 function publicMessage(message: string): string | null {
   const clean = message.trim();
   return clean && !internalMessagePattern.test(clean) ? clean.slice(0, 500) : null;
 }
 
+// Dato PRODUCTION_API_URL: conserva un valor calculado o de configuración usado por este módulo.
 export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
 
 /** Registra solo código y estado; nunca URL, encabezados, tokens ni cuerpo de la respuesta. */
+// Función safeEndpoint: concentra la lógica dentro de este módulo.
 function safeEndpoint(path: string): string {
   const pathname = path.split('?')[0].replace(/^\/api(?=\/|$)/i, '');
   return pathname.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140) || '/';
 }
 
+// Función reportApiFailure: concentra la lógica dentro de este módulo.
 function reportApiFailure(code: string, status: number, method: string, endpoint: string, cause?: string): void {
   if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status, ...(cause?{cause:cause.slice(0,180)}:{}) }));
 }
 
+// Función reportApiSuccess: concentra la lógica dentro de este módulo.
 function reportApiSuccess(method:string,endpoint:string,status:number):void {
   if(__DEV__)console.info('[PetCare API]',JSON.stringify({method,endpoint:safeEndpoint(endpoint),status,success:true}));
 }
 
 /** En desarrollo, deriva el host del teléfono/emulador desde el host LAN que Expo usa para Metro. */
+// Función developmentApiUrl: concentra la lógica dentro de este módulo.
 export function developmentApiUrl(configuredValue: string | undefined, hostUri: string | undefined, portValue: string | undefined, isDev: boolean, explicitDevelopmentUrl?: string): string | undefined {
   const explicit=explicitDevelopmentUrl?.trim();
   if (isDev && explicit) return explicit;
@@ -110,6 +122,7 @@ export function developmentApiUrl(configuredValue: string | undefined, hostUri: 
   } catch { return configured || undefined; }
 }
 
+// Función isProductionApiUrl: comprueba una regla o condición dentro de este módulo.
 function isProductionApiUrl(value: string): boolean {
   try {
     const candidate=new URL(value), production=new URL(PRODUCTION_API_URL);
@@ -117,6 +130,7 @@ function isProductionApiUrl(value: string): boolean {
   } catch { return false; }
 }
 
+// Función resolveApiUrl: concentra la lógica dentro de este módulo.
 export function resolveApiUrl(configuredValue: string | undefined, appEnvironment: string | undefined, isDev: boolean, explicitDevelopmentUrl = false): string {
   try {
     // Un build release sin API explícita debe fallar cerrado; nunca asumir producción.
@@ -149,6 +163,7 @@ export function resolveApiUrl(configuredValue: string | undefined, appEnvironmen
   } catch { throw new Error('Invalid or unsafe API configuration.'); }
 }
 
+// Función getApiUrl: obtiene o consulta información dentro de este módulo.
 export function getApiUrl(): string {
   try {
     // Solo se consulta al ejecutar la app: evita cargar React Native al importar utilidades puras en pruebas Node.
@@ -163,15 +178,18 @@ export function getApiUrl(): string {
   }
 }
 
+// Función normalizeApiPath: transforma o prepara datos dentro de este módulo.
 function normalizeApiPath(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return normalizedPath.replace(/^\/api(?=\/|$)/i, '');
 }
 
+// Función buildApiEndpoint: transforma o prepara datos dentro de este módulo.
 export function buildApiEndpoint(apiBaseUrl: string, path: string): string {
   return `${apiBaseUrl}${normalizeApiPath(path)}`;
 }
 
+// Función apiRequest: concentra la lógica dentro de este módulo.
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; contentType?: string; headers?:Record<string,string>;accessToken?: string } = {}): Promise<T> {
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
   const cleanPath = normalizeApiPath(path);
@@ -228,6 +246,7 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   } finally { clearTimeout(timeout); }
 }
 
+// Función friendlyError: concentra la lógica dentro de este módulo.
 export function friendlyError(error: unknown): string {
   return error instanceof ApiError ? error.message : 'No pudimos completar la operación. Intentá nuevamente.';
 }

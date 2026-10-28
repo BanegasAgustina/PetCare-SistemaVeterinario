@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
+
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,11 +23,15 @@ import { useTheme } from '../../hooks/useTheme';
 import type { ClinicRow } from '../../types/clinic';
 import type { Specialty } from '../../types/veterinarian';
 
+// Tipo Tab: define la forma o las opciones válidas de los datos usados por este módulo.
 type Tab = 'types' | 'specialties';
+// Tipo EditItem: define la forma o las opciones válidas de los datos usados por este módulo.
 type EditItem = { kind: 'type'; row: ClinicRow | null } | { kind: 'specialty'; row: Specialty | null };
+// Tipo ListedRow: define la forma o las opciones válidas de los datos usados por este módulo.
 type ListedRow = { kind: 'type'; row: ClinicRow } | { kind: 'specialty'; row: Specialty };
 
 /** Catálogos separados, con permisos y recorridos existentes. */
+// Función SpecialtiesScreen: concentra la lógica dentro de este módulo.
 export default function SpecialtiesScreen() {
   const auth = useAuth();
   const admin = useAdmin();
@@ -63,7 +69,8 @@ export default function SpecialtiesScreen() {
   const listError = tab === 'types' ? types.error ?? roles.error : specialties.error;
   const currentCount = tab === 'types' ? types.data?.length ?? 0 : specialties.data?.length ?? 0;
 
-  function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
+  // Función begin: concentra la lógica dentro de este módulo.
+function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
     setEditing(kind === 'type' ? { kind, row: row as ClinicRow | null } : { kind, row: row as Specialty | null });
     setName(row?.name == null ? '' : String(row.name));
     const professionalType = kind === 'type' ? row as ClinicRow | null : null;
@@ -72,7 +79,8 @@ export default function SpecialtiesScreen() {
     action.clearError();
   }
 
-  function close() {
+  // Función close: concentra la lógica dentro de este módulo.
+function close() {
     if (action.loading) return;
     setEditing(null);
     setName('');
@@ -81,7 +89,8 @@ export default function SpecialtiesScreen() {
     action.clearError();
   }
 
-  async function save() {
+  // Función save: actualiza o guarda información dentro de este módulo.
+async function save() {
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 100) {
       setError('Ingresá un nombre de hasta 100 caracteres.');
@@ -108,7 +117,8 @@ export default function SpecialtiesScreen() {
     if (saved) close();
   }
 
-  function renderRow({ kind, row }: ListedRow) {
+  // Función renderRow: concentra la lógica dentro de este módulo.
+function renderRow({ kind, row }: ListedRow) {
     const permitted = kind === 'type' ? canEditTypes : canEditSpecialties;
     const role = kind === 'type' ? roles.data?.roles.find(item => item.id === String(row.roleId)) : null;
     const active = kind === 'specialty' ? (row as Specialty).isActive !== false : null;
@@ -214,6 +224,7 @@ export default function SpecialtiesScreen() {
   </ScreenContainer>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   content: { width: '100%', alignSelf: 'center', gap: 14 },
   tabs: { flexDirection: 'row', borderRadius: 14, padding: 4, gap: 4 },

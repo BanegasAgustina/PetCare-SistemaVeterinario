@@ -1,7 +1,12 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
+
 import { AppError } from '../utils/app-error';
 import { clientBody, requestKey, text, invalid } from './client.validator';
+// Tipo CheckoutAddress: define la forma o las opciones válidas de datos usados por este módulo.
 export type CheckoutAddress={recipientName:string;phone:string;street:string;streetNumber:string;unit:string;city:string;province:string;postalCode:string;reference:string};
+// Tipo CheckoutPayment: define la forma o las opciones válidas de datos usados por este módulo.
 export type CheckoutPayment='BANK_TRANSFER'|'CARD_DEMO';
+// Función storeCheckoutInput: concentra la lógica dentro de este módulo.
 export function storeCheckoutInput(value:unknown){
   const body=clientBody(value,['requestKey','paymentMethod','paymentReference','fulfillmentMethod','address']);
   const key=requestKey(body.requestKey);
@@ -18,6 +23,7 @@ export function storeCheckoutInput(value:unknown){
   return {key,paymentMethod:body.paymentMethod as CheckoutPayment,paymentReference,fulfillmentMethod:body.fulfillmentMethod as 'PICKUP'|'DELIVERY',address};
 }
 /** DNI se valida en memoria y se descarta antes de persistir la intención. */
+// Función storeTransferInput: concentra la lógica dentro de este módulo.
 export function storeTransferInput(value:unknown){
   const body=clientBody(value,['requestKey','fulfillmentMethod','address','buyerName','buyerEmail','buyerDni']);
   const checkout=storeCheckoutInput({requestKey:body.requestKey,paymentMethod:'BANK_TRANSFER',fulfillmentMethod:body.fulfillmentMethod,address:body.address});
@@ -30,6 +36,7 @@ export function storeTransferInput(value:unknown){
   return {...checkout,buyer:{name:buyerName.trim(),email:buyerEmail.trim().toLowerCase()}};
 }
 
+// Función checkoutText: comprueba una regla o condición dentro de este módulo.
 function checkoutText(value:unknown,field:string,label:string,max:number,optional=false):string|null {
   if(optional&&(value===null||value===undefined||value===''))return null;
   if(typeof value!=='string')fieldInvalid(field,`Ingresá ${label.toLocaleLowerCase('es')}.`);
@@ -39,6 +46,7 @@ function checkoutText(value:unknown,field:string,label:string,max:number,optiona
   return normalized||null;
 }
 
+// Función fieldInvalid: concentra la lógica dentro de este módulo.
 function fieldInvalid(field:string,message:string):never {
   throw new AppError('VALIDATION_ERROR',400,message,undefined,[{field,message}]);
 }

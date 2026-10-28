@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Contexto compartido de React; conserva estado y acciones que usan varias pantallas.
+
 /** Feedback breve propio: una notificación a la vez, no bloquea y desaparece automáticamente. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Animated, Pressable, StyleSheet, View, AccessibilityInfo } from 'react-native';
@@ -6,10 +8,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppText } from '../components/ui/AppText';
 import { useTheme } from '../hooks/useTheme';
 
+// Tipo Kind: define la forma o las opciones válidas de los datos usados por este módulo.
 type Kind = 'success' | 'error' | 'info';
+// Tipo Toast: define la forma o las opciones válidas de los datos usados por este módulo.
 type Toast = { id: number; message: string; kind: Kind };
+// Tipo Feedback: define la forma o las opciones válidas de los datos usados por este módulo.
 type Feedback = { showToast: (message: string, kind?: Kind) => void };
+// Dato FeedbackContext: conserva un valor calculado o de configuración usado por este módulo.
 const FeedbackContext = createContext<Feedback | undefined>(undefined);
+// Función FeedbackProvider: concentra la lógica dentro de este módulo.
 export function FeedbackProvider({ children }: PropsWithChildren) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -39,11 +46,13 @@ export function FeedbackProvider({ children }: PropsWithChildren) {
     </View>}
   </FeedbackContext.Provider>;
 }
+// Función useFeedback: concentra la lógica dentro de este módulo.
 export function useFeedback(): Feedback {
   const feedback = useContext(FeedbackContext);
   if (!feedback) throw new Error('useFeedback requiere FeedbackProvider.');
   return feedback;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   position: { pointerEvents: 'box-none', position: 'absolute', left: 16, right: 16, alignItems: 'center' },
   toast: { width: '100%', maxWidth: 460, flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, paddingLeft: 14, paddingVertical: 8, gap: 10 },

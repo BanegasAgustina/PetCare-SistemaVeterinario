@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /** Historial consultado desde pedidos reales del cliente autenticado. */
 import { useClient } from '../../../hooks/useClient';
 import { useClientQuery } from '../../../hooks/useClientQuery';
@@ -9,6 +11,7 @@ import { Platform,useWindowDimensions } from 'react-native';
 import { AdminDataTable } from '../../../components/admin/AdminDataTable';
 import { isWebAtLeast,responsiveLayout } from '../../../constants/responsive';
 
+// Función ClientOrders: concentra la lógica dentro de este módulo.
 export default function ClientOrders() {
   const api = useClient();
   const {width}=useWindowDimensions();
@@ -16,7 +19,8 @@ export default function ClientOrders() {
   const query = useClientQuery(api.orders);
   return <PetCareScreen>
     <PetCareHeader title="Mis pedidos" subtitle="Historial de operaciones" back />
-    <QueryState {...query} />
+    
+<QueryState {...query} />
     {query.data && query.data.length === 0 && <PetCareEmptyState title="Todavía no hay pedidos" message="Cuando haya una operación registrada, vas a poder consultar acá su estado y detalle." icon="receipt-outline" />}
     {Boolean(query.data?.length)&&desktop?<AdminDataTable rows={query.data??[]} rowKey={order=>order.id} columns={[
       {key:'order',label:'Pedido',flex:.7,minWidth:90,render:order=><AppText variant="subtitle" numberOfLines={1}>#{order.id}</AppText>},

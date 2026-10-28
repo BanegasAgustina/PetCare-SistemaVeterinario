@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Objetos privados S3; las imágenes se procesan en memoria, nunca en disco. */
 import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
@@ -6,18 +8,27 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v2 as cloudinary } from 'cloudinary';
 import { AppError } from '../utils/app-error';
 import { clientId, invalid } from '../validators/client.validator';
+// Dato PHOTO_URL_TTL_SECONDS: conserva un valor calculado o de configuración usado por este módulo.
 export const PHOTO_URL_TTL_SECONDS=900;
+// Dato keyPattern: conserva un valor calculado o de configuración usado por este módulo.
 const keyPattern=/^pets\/([1-9]\d{0,19})\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+// Dato productKeyPattern: conserva un valor calculado o de configuración usado por este módulo.
 const productKeyPattern=/^products\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+// Dato serviceKeyPattern: conserva un valor calculado o de configuración usado por este módulo.
 const serviceKeyPattern=/^services\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+// Dato profileKeyPattern: conserva un valor calculado o de configuración usado por este módulo.
 const profileKeyPattern=/^profiles\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+// Dato bannerKeyPattern: conserva un valor calculado o de configuración usado por este módulo.
 const bannerKeyPattern=/^banners\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.webp$/;
+// Dato cloudinaryPhotoPattern: conserva un valor calculado o de configuración usado por este módulo.
 const cloudinaryPhotoPattern=/^https:\/\/res\.cloudinary\.com\/([a-zA-Z0-9_-]+)\/image\/upload\/(?:v\d+\/)?((?:pets\/[1-9]\d{0,19}|products|services|profiles|banners)\/[a-f0-9-]{36})\.webp$/;
+// Función cloudinaryClient: concentra la lógica dentro de este módulo.
 function cloudinaryClient() {
   const cloud_name=process.env.CLOUDINARY_CLOUD_NAME?.trim(),api_key=process.env.CLOUDINARY_API_KEY?.trim(),api_secret=process.env.CLOUDINARY_API_SECRET?.trim();
   if(!cloud_name||!api_key||!api_secret)throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'Cloudinary no está configurado. Definí CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en el backend.');
   cloudinary.config({cloud_name,api_key,api_secret,secure:true});return {cloud_name};
 }
+// Función uploadCloudinaryPhoto: concentra la lógica dentro de este módulo.
 async function uploadCloudinaryPhoto(image:Buffer,folder:string) {
   cloudinaryClient();
   try {return await new Promise<{secure_url:string;public_id:string}>((resolve,reject)=>{
@@ -26,6 +37,7 @@ async function uploadCloudinaryPhoto(image:Buffer,folder:string) {
     });stream.end(image);
   });} catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos subir la foto a Cloudinary. Intentá nuevamente.');}
 }
+// Función cloudinaryPublicId: concentra la lógica dentro de este módulo.
 function cloudinaryPublicId(value:unknown,kind:'pets'|'products'|'services'|'profiles'|'banners',owner?:string):string|null {
   if(typeof value!=='string')return null;const match=cloudinaryPhotoPattern.exec(value);if(!match)return null;
   const {cloud_name}=cloudinaryClient();if(match[1]!==cloud_name)return null;
@@ -37,6 +49,7 @@ function cloudinaryPublicId(value:unknown,kind:'pets'|'products'|'services'|'pro
   return null;
 }
 /** Una URL pública guardada no necesita credenciales Cloudinary para poder leerse. */
+// Función cloudinaryPetUrl: concentra la lógica dentro de este módulo.
 function cloudinaryPetUrl(value:unknown,owner:string):string|null {
   if(typeof value!=='string')return null;
   const match=cloudinaryPhotoPattern.exec(value);
@@ -44,18 +57,25 @@ function cloudinaryPetUrl(value:unknown,owner:string):string|null {
   const id=match[2];
   return id.startsWith(`pets/${owner}/`)&&/^pets\/[1-9]\d{0,19}\/[a-f0-9-]{36}$/.test(id)?value:null;
 }
+// Función isPetPhotoKey: comprueba una regla o condición dentro de este módulo.
 export function isPetPhotoKey(value:unknown,owner?:string):value is string {
   if(typeof value!=='string')return false;
   const match=keyPattern.exec(value);return Boolean((match&&(!owner||match[1]===owner))||cloudinaryPublicId(value,'pets',owner));
 }
+// Función isProductPhotoKey: comprueba una regla o condición dentro de este módulo.
 export function isProductPhotoKey(value:unknown):value is string {return typeof value==='string'&&(productKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'products')));}
+// Función isServicePhotoKey: comprueba una regla o condición dentro de este módulo.
 export function isServicePhotoKey(value:unknown):value is string {return typeof value==='string'&&(serviceKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'services')));}
+// Función isProfilePhotoKey: comprueba una regla o condición dentro de este módulo.
 export function isProfilePhotoKey(value:unknown):value is string {return typeof value==='string'&&(profileKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'profiles')));}
+// Función isBannerPhotoKey: comprueba una regla o condición dentro de este módulo.
 export function isBannerPhotoKey(value:unknown):value is string {return typeof value==='string'&&(bannerKeyPattern.test(value)||Boolean(cloudinaryPublicId(value,'banners')));}
 /** Construye S3 con credenciales privadas del backend; virtual/path debe coincidir con Railway Credentials. */
+// Función photoStorage: concentra la lógica dentro de este módulo.
 export function photoStorage() {
   const bucket=process.env.BUCKET?.trim(),accessKeyId=process.env.ACCESS_KEY_ID?.trim(),secretAccessKey=process.env.SECRET_ACCESS_KEY?.trim(),region=process.env.REGION?.trim(),endpoint=process.env.ENDPOINT?.trim();
-  const unavailable=()=>new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'El almacenamiento de fotos todavía no está configurado.');
+  // Función unavailable: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const unavailable=()=>new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'El almacenamiento de fotos todavía no está configurado.');
   if(!bucket||!accessKeyId||!secretAccessKey||!region||!endpoint)throw unavailable();
   try {const url=new URL(endpoint);if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw unavailable();}catch {throw unavailable();}
   const style=process.env.PET_PHOTO_S3_URL_STYLE?.trim()||'virtual';
@@ -63,6 +83,7 @@ export function photoStorage() {
   return {bucket,client:new S3Client({region,endpoint,credentials:{accessKeyId,secretAccessKey},forcePathStyle:style==='path',maxAttempts:3})};
 }
 /** Valida bytes reales, tamaño y píxeles antes de convertir a WebP, quitando metadatos de la foto original. */
+// Función optimizePetPhoto: concentra la lógica dentro de este módulo.
 export async function optimizePetPhoto(value:unknown):Promise<Buffer> {
   if(typeof value!=='string'||value.length>7_000_000||!value.length||value.length%4!==0||!/^[A-Za-z0-9+/]*={0,2}$/.test(value))invalid('La imagen no es válida o supera 5 MB.');
   const bytes=Buffer.from(value,'base64');if(bytes.length>5*1024*1024)invalid('La imagen supera 5 MB.');
@@ -72,17 +93,20 @@ export async function optimizePetPhoto(value:unknown):Promise<Buffer> {
   }catch {invalid('Elegí una imagen JPEG, PNG o WebP válida, de hasta 25 megapíxeles.');}
 }
 /** Usa una clave nueva por foto; el servicio elimina el objeto si falla el guardado posterior en MySQL. */
+// Función storePetPhoto: concentra la lógica dentro de este módulo.
 export async function storePetPhoto(owner:string,value:unknown) {
   clientId(owner);const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,`pets/${owner}`);
   return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
 }
 /** Restringe el borrado al prefijo del propietario validado; no acepta URLs ni claves arbitrarias. */
+// Función removePetPhoto: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removePetPhoto(owner:string,key:unknown) {
   const cloudId=cloudinaryPublicId(key,'pets',owner);if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!isPetPhotoKey(key,owner))return;
   const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
 }
 /** Firma lectura por quince minutos; MySQL conserva la clave estable, nunca una URL que caduca. */
+// Función petPhotoUrl: concentra la lógica dentro de este módulo.
 export async function petPhotoUrl(owner:string,key:unknown):Promise<string|null> {
   // Las referencias antiguas al volumen no son recuperables desde el bucket.
   if(!key)return null;
@@ -97,58 +121,71 @@ export async function petPhotoUrl(owner:string,key:unknown):Promise<string|null>
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
 }
 /** MySQL conserva la URL permanente de Cloudinary en client_products.image_url. */
+// Función storeProductPhoto: concentra la lógica dentro de este módulo.
 export async function storeProductPhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'products');
   return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
 }
+// Función storeBannerPhoto: concentra la lógica dentro de este módulo.
 export async function storeBannerPhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'banners');
   return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
 }
+// Función removeBannerPhoto: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removeBannerPhoto(key:unknown) {
   const cloudId=cloudinaryPublicId(key,'banners');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!bannerKeyPattern.test(String(key??'')))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:String(key)}));}finally {storage.client.destroy();}
 }
+// Función storeServicePhoto: concentra la lógica dentro de este módulo.
 export async function storeServicePhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'services');
   return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
 }
+// Función removeServicePhoto: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removeServicePhoto(key:unknown) {
   const cloudId=cloudinaryPublicId(key,'services');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!serviceKeyPattern.test(String(key??'')))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:String(key)}));}finally {storage.client.destroy();}
 }
+// Función removeProductPhoto: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removeProductPhoto(key:unknown) {
   const cloudId=cloudinaryPublicId(key,'products');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!productKeyPattern.test(String(key??'')))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:String(key)}));}finally {storage.client.destroy();}
 }
+// Función productPhotoUrl: concentra la lógica dentro de este módulo.
 export async function productPhotoUrl(key:unknown):Promise<string|null> {
   if(!key)return null;if(cloudinaryPublicId(key,'products'))return String(key);if(!isProductPhotoKey(key))return String(key);
   try {const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:String(key),ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}}
   catch {return null;}
 }
+// Función servicePhotoUrl: concentra la lógica dentro de este módulo.
 export async function servicePhotoUrl(key:unknown):Promise<string|null> {
   if(!key)return null;if(cloudinaryPublicId(key,'services'))return String(key);if(!serviceKeyPattern.test(String(key)))return String(key);
   try {const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:String(key),ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}}
   catch {return null;}
 }
 /** Fotos de perfiles profesionales: solo el backend escribe, las respuestas usan URL firmada. */
+// Función storeProfilePhoto: concentra la lógica dentro de este módulo.
 export async function storeProfilePhoto(value:unknown) {
   const image=await optimizePetPhoto(value);const uploaded=await uploadCloudinaryPhoto(image,'profiles');
   return {url:uploaded.secure_url,remove:()=>removeCloudinaryPhoto(uploaded.public_id)};
 }
+// Función removeCloudinaryPhoto: elimina, revoca o cancela una operación dentro de este módulo.
 async function removeCloudinaryPhoto(publicId:string) {
   cloudinaryClient();try {const result=await cloudinary.uploader.destroy(publicId,{resource_type:'image',invalidate:true});if(result.result!=='ok'&&result.result!=='not found')throw new Error('Delete failed');}
   catch {throw new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'No pudimos limpiar una foto anterior en Cloudinary.');}
 }
+// Función removeProfilePhoto: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removeProfilePhoto(key:unknown) {
   const cloudId=cloudinaryPublicId(key,'profiles');if(cloudId){await removeCloudinaryPhoto(cloudId);return;}
   if(!isProfilePhotoKey(key))return;const storage=photoStorage();try {await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally {storage.client.destroy();}
 }
+// Función profilePhotoUrl: concentra la lógica dentro de este módulo.
 export async function profilePhotoUrl(key:unknown):Promise<string|null> {
   if(!key)return null;if(cloudinaryPublicId(key,'profiles'))return String(key);if(!isProfilePhotoKey(key))throw new AppError('PHOTO_REFERENCE_UNSUPPORTED',409,'La foto de perfil anterior debe volver a subirse al almacenamiento disponible.');
   const storage=photoStorage();try {return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentType:'image/webp'}),{expiresIn:PHOTO_URL_TTL_SECONDS});}finally {storage.client.destroy();}
 }
 /** Guarda comprobantes privados, sin conversiones ni URLs públicas. */
+// Función storePaymentProof: concentra la lógica dentro de este módulo.
 export async function storePaymentProof(intentId:string,bytes:Buffer,contentType:string){
   if(!/^[1-9]\d{0,19}$/.test(intentId)||bytes.length<8||bytes.length>5*1024*1024)throw new AppError('PAYMENT_PROOF_INVALID',400,'El comprobante debe pesar hasta 5 MB.');
   const types:Record<string,{extension:string;valid:(b:Buffer)=>boolean}>={
@@ -163,15 +200,18 @@ export async function storePaymentProof(intentId:string,bytes:Buffer,contentType
   catch{throw new AppError('PAYMENT_PROOF_STORAGE_UNAVAILABLE',503,'No pudimos guardar el comprobante de forma segura. Intentá nuevamente.');}
   finally{storage.client.destroy();}
 }
+// Función paymentProofUrl: concentra la lógica dentro de este módulo.
 export async function paymentProofUrl(key:unknown):Promise<string>{
   if(typeof key!=='string'||!/^payment-proofs\/[1-9]\d{0,19}\/[a-f0-9-]{36}\.(?:pdf|jpg|png|webp)$/.test(key))throw new AppError('NOT_FOUND',404,'No encontramos el comprobante.');
   const storage=photoStorage();try{return await getSignedUrl(storage.client,new GetObjectCommand({Bucket:storage.bucket,Key:key,ResponseContentDisposition:'attachment'}),{expiresIn:300});}finally{storage.client.destroy();}
 }
+// Función removePaymentProof: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removePaymentProof(key:unknown){
   if(typeof key!=='string'||!/^payment-proofs\/[1-9]\d{0,19}\/[a-f0-9-]{36}\.(?:pdf|jpg|png|webp)$/.test(key))return;
   const storage=photoStorage();try{await storage.client.send(new DeleteObjectCommand({Bucket:storage.bucket,Key:key}));}finally{storage.client.destroy();}
 }
 /** Se aplica únicamente a resultados de consultas autorizadas por ownership. */
+// Función presentPetPhotos: concentra la lógica dentro de este módulo.
 export async function presentPetPhotos(owner:string,value:unknown):Promise<unknown> {
   if(Array.isArray(value))return Promise.all(value.map(item=>presentPetPhotos(owner,item)));
   if(!value||typeof value!=='object')return value;
@@ -179,11 +219,13 @@ export async function presentPetPhotos(owner:string,value:unknown):Promise<unkno
   for(const [key,item] of Object.entries(value))result[key]=key==='photoUrl'?await petPhotoUrl(owner,item):key==='imageUrl'?await productPhotoUrl(item):await presentPetPhotos(owner,item);
   return result;
 }
+// Función presentProductImages: concentra la lógica dentro de este módulo.
 export async function presentProductImages(value:unknown):Promise<unknown> {
   if(Array.isArray(value))return Promise.all(value.map(presentProductImages));
   if(!value||typeof value!=='object')return value;
   const result:Record<string,unknown>={};for(const [key,item] of Object.entries(value))result[key]=key==='imageUrl'?await productPhotoUrl(item):await presentProductImages(item);return result;
 }
+// Función presentServiceImages: concentra la lógica dentro de este módulo.
 export async function presentServiceImages(value:unknown):Promise<unknown> {
   if(Array.isArray(value))return Promise.all(value.map(presentServiceImages));
   if(!value||typeof value!=='object')return value;

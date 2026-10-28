@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
+
 /** Presentación de catálogo, promociones vigentes y detalle de productos en la tienda cliente. */
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -13,8 +15,10 @@ import { useTheme } from '../../hooks/useTheme';
 import { softSurfaceShadow } from '../../constants/surface';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
+// Tipo StoreProductCardProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type StoreProductCardProps = { product: Product; adding: boolean; cartReady: boolean; onOpen: () => void; onAdd: () => void };
 
+// Función StoreProductCard: concentra la lógica dentro de este módulo.
 export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: StoreProductCardProps) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -42,6 +46,7 @@ export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: 
   </View>;
 }
 
+// Función PromotionCarousel: concentra la lógica dentro de este módulo.
 export function PromotionCarousel({ products, onOpen }: { products: PromotionBanner[]; onOpen: (product: Product) => void }) {
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
@@ -85,11 +90,13 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
   </View>;
 }
 
+// Función StoreBannerCarousel: concentra la lógica dentro de este módulo.
 export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOpen:(banner:StoreBanner)=>void}) {
   const {colors}=useTheme();const {width:windowWidth}=useWindowDimensions();const [measuredWidth,setMeasuredWidth]=useState(0);const [active,setActive]=useState(0);const [imageFailed,setImageFailed]=useState(false);const scrollRef=useRef<ComponentRef<typeof ScrollView>>(null);
   const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=responsiveLayout.breakpoints.desktop?responsiveLayout.store.desktopBannerHeight:windowWidth>=responsiveLayout.breakpoints.tablet?responsiveLayout.store.tabletBannerHeight:responsiveLayout.store.mobileBannerHeight;const banner=banners[active];
   if(!banner)return null;
-  const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
+  // Función change: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
   return <View onLayout={event=>{const next=event.nativeEvent.layout.width;setMeasuredWidth(current=>Math.abs(current-next)<1?current:next);}} style={styles.storeBannerSection}>
     <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-store-banners':undefined} ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={event=>{const next=Math.min(banners.length-1,Math.max(0,Math.round(event.nativeEvent.contentOffset.x/width)));setActive(next);setImageFailed(false);}}>
       {banners.map((item,index)=><View key={item.id} style={[styles.storeBanner,{width,height,backgroundColor:item.backgroundColor}]}>
@@ -106,6 +113,7 @@ export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOp
   </View>;
 }
 
+// Función ProductDetailModal: concentra la lógica dentro de este módulo.
 export function ProductDetailModal({ product, quantity, inCart, error, saving, cartReady, onQuantityChange, onClose, onAdd }: {
   product: Product | null; quantity: string; inCart: number; error: string | null; saving: boolean; cartReady: boolean;
   onQuantityChange: (value: string) => void; onClose: () => void; onAdd: () => void;
@@ -153,17 +161,20 @@ export function ProductDetailModal({ product, quantity, inCart, error, saving, c
   </AppModal>;
 }
 
+// Función productTypeLabel: concentra la lógica dentro de este módulo.
 function productTypeLabel(type: Product['productType']) {
   if (type === 'MEDICINE') return 'Medicamento';
   if (type === 'ACCESSORY') return 'Accesorio';
   return 'Producto general';
 }
 
+// Función discountPercentage: concentra la lógica dentro de este módulo.
 function discountPercentage(product: Product) {
   if (product.regularPriceCents <= 0) return 0;
   return Math.round((1 - product.priceCents / product.regularPriceCents) * 100);
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   productCard: { flex: 1, minHeight: 0, padding: 10, borderRadius: 20, borderWidth: 1, gap: 6 },
   productImageFrame: { width: '100%', aspectRatio: 1, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

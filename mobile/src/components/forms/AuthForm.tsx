@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 /** Motor pequeño de formularios: errores por campo, foco siguiente y un único envío activo. */
 import { useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Keyboard, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
@@ -7,10 +9,12 @@ import { FormNotice } from '../ui/FormNotice';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { firstInvalidField, type FieldErrors } from '../../utils/auth-validation';
 
+// Tipo AuthField: define la forma o las opciones válidas de los datos usados por este módulo.
 export type AuthField<T> = {
   key: keyof T; label: string; hint?: string; password?: boolean; icon?: 'mail-outline' | 'lock-closed-outline';
   inputProps?: Pick<TextInputProps, 'keyboardType' | 'autoComplete' | 'textContentType' | 'autoCapitalize' | 'placeholder' | 'maxLength' | 'autoCorrect'>;
 };
+// Tipo AuthFormProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type AuthFormProps<T extends Record<string, string>> = {
   fields: AuthField<T>[]; initialValues: T; validate: (values: T) => FieldErrors<T>;
   onSubmit: (values: T) => Promise<void>; submitLabel: string; loadingLabel: string;
@@ -22,12 +26,14 @@ type AuthFormProps<T extends Record<string, string>> = {
   disabled?: boolean;
 };
 
+// Función AuthForm: concentra la lógica dentro de este módulo.
 export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false, disabled = false }: AuthFormProps<T>) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
   const inputs = useRef<Partial<Record<keyof T, ComponentRef<typeof TextInput> | null>>>({});
   const action = useAsyncAction();
-  const submit = async () => {
+  // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const submit = async () => {
     if (action.loading||disabled) return;
     const nextErrors = validate(values);
     setErrors(nextErrors);
@@ -56,4 +62,5 @@ export function AuthForm<T extends Record<string, string>>({ fields, initialValu
     <AppButton compact={dense} centered={centerSubmitButton} label={action.loading ? loadingLabel : submitLabel} loading={action.loading} disabled={disabled} onPress={() => void submit()} />
   </View>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ form: { width: '100%', gap: 18 }, compact: { gap: 12 } });

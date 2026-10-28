@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /** Carrito del cliente sincronizado con el catálogo y la disponibilidad actuales del backend. */
 import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -14,6 +16,7 @@ import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useStoreCheckout } from '../../../../contexts/StoreCheckoutContext';
 
+// Función CartScreen: concentra la lógica dentro de este módulo.
 export default function CartScreen() {
   const api = useClient();
   const cart = useClientQuery(api.cart);
@@ -66,7 +69,8 @@ export default function CartScreen() {
   const unavailable = cartData?.items.some(item => !item.isActive || item.quantity > item.stock) ?? false;
   return <PetCareScreen wide tabbed>
     <PetCareHeader title="Carrito" subtitle={`${totalItems} ${totalItems === 1 ? 'artículo' : 'artículos'}`} right={<Pressable accessibilityRole="button" accessibilityLabel="Seguir comprando" onPress={() => router.navigate('/client/store')} style={[styles.continueButton, { backgroundColor: colors.accent }]}><Ionicons name="bag-handle-outline" size={21} color={colors.text} /></Pressable>} />
-    <QueryState {...cart} />
+    
+<QueryState {...cart} />
     <FormNotice error message={error} />
     {cartData && cartData.items.length === 0 && <PetCareEmptyState title="Tu carrito está vacío" message="Explorá los productos disponibles para encontrar lo que necesita tu mascota." icon="cart-outline" action={() => router.navigate('/client/store')} label="Ir a la tienda" />}
 
@@ -116,6 +120,7 @@ export default function CartScreen() {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   continueButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   itemHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },

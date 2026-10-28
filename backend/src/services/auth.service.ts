@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Registro con bcrypt y login sin distinguir públicamente cuenta inexistente de contraseña incorrecta. */
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'node:crypto';
@@ -14,7 +16,9 @@ import { registerStage } from '../utils/register-diagnostics';
 import { hashPassword } from './password.service';
 import { isLoginAllowed } from '../utils/account-session-guards';
 
+// Dato dummyHash: conserva un valor calculado o de configuración usado por este módulo.
 let dummyHash: Promise<string> | undefined;
+// Función getDummyHash: obtiene o consulta información dentro de este módulo.
 function getDummyHash(): Promise<string> {
   // Se calcula una vez a partir de datos aleatorios; también se compara bcrypt cuando no hay usuario.
   dummyHash ??= bcrypt.hash(randomBytes(32).toString('hex'), env.bcryptSaltRounds);
@@ -22,6 +26,7 @@ function getDummyHash(): Promise<string> {
 }
 
 /** Crea CLIENT pendiente y prepara código SMTP; no emite sesión hasta verificar el email. */
+// Función registerUser: crea un registro o inicia una operación dentro de este módulo.
 export async function registerUser(body: unknown): Promise<{ user: AuthUser; verification: VerificationChallenge }> {
   registerStage('validation');
   const input = validateRegister(body);
@@ -42,6 +47,7 @@ export async function registerUser(body: unknown): Promise<{ user: AuthUser; ver
 }
 
 /** Compara bcrypt incluso si la cuenta no existe para reducir diferencias de tiempo observables. */
+// Función loginUser: concentra la lógica dentro de este módulo.
 export async function loginUser(body: unknown): Promise<AccessSession> {
   const input = validateLogin(body);
   getJwtConfiguration();

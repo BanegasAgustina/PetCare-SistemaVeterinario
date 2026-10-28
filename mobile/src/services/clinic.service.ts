@@ -1,11 +1,16 @@
+// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
 /**
  * Centraliza los endpoints /clinic y recibe request autenticado como dependencia. Serializa filtros y cambios; no contiene catálogos ni respuestas de negocio locales.
  */
 import type { Product,Slot,FulfillmentSettings } from '../types/client';
 import type { ClientRequest } from './client.service';
 import type { ClinicRow,ClinicCatalog } from '../types/clinic';
+// Tipo StoreOrder: define la forma o las opciones válidas de los datos usados por este módulo.
 export type StoreOrder={id:string;ownerId:string;clientName:string;clientEmail:string;clientPhone:string|null;orderStatus:string;paymentStatus:string;paymentMethod:string|null;paymentReference:string|null;fulfillmentMethod:string|null;deliveryStatus:string;subtotalCents:number;deliveryFeeCents:number;totalCents:number;createdAt:string;recipientName:string|null;recipientPhone:string|null;deliveryStreet:string|null;deliveryNumber:string|null;deliveryUnit:string|null;deliveryCity:string|null;deliveryProvince:string|null;deliveryPostalCode:string|null;deliveryReference:string|null};
+// Tipo StoreOrderDetail: define la forma o las opciones válidas de los datos usados por este módulo.
 export type StoreOrderDetail=StoreOrder&{orderType:string;allowedOrderStatuses:string[];buyerName:string|null;buyerEmail:string|null;transferReference:string|null;paymentExpiresAt:string|null;paymentIntentStatus:'ACTIVE'|'EXPIRED'|null;proofSubmittedAt:string|null;paymentProofLate:boolean;paymentReviewStatus:string|null;paymentReviewReason:string|null;paymentVerifiedAt:string|null;verifiedBy:string|null;items:{productId:string;name:string;quantity:number;priceCents:number;subtotalCents:number}[];history:{stateType:string;previousStatus:string|null;newStatus:string;occurredAt:string;reason:string|null;actorName:string|null}[]};
+// Función clinicService: concentra la lógica dentro de este módulo.
 export function clinicService(request:ClientRequest){const read=<T>(path:string,body:Record<string,string>={})=>request<T>(`/clinic${path}`,{method:'POST',body});const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/clinic${path}`,{method,body});return {
  // Consulta productos manuales con un término opcional, que el backend filtra bajo products.view o prescriptions.create.
  products:(search='',categoryId='')=>read<Product[]>('/products/query',{search,...(categoryId?{categoryId}:{})}),slots:(serviceId:string,professionalId?:string)=>read<Slot[]>('/slots',{serviceId,...(professionalId?{professionalId}:{})}),

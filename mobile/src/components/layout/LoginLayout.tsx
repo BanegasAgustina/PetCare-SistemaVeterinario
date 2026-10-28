@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
+
 /** Contenido y artwork son hermanos: solo el formulario hereda el padding horizontal. */
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -7,6 +9,7 @@ import { LoginPets } from './LoginPets';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { PetCareDecorativeBackground } from '../client/PetCareDecorations';
 
+// Función LoginLayout: concentra la lógica dentro de este módulo.
 export function LoginLayout({ children, scrollable = false, showDesktopImage = false, petArtwork = 'login', petDecorations = false }: PropsWithChildren<{ scrollable?: boolean; showDesktopImage?: boolean; petArtwork?: 'login' | 'register'; petDecorations?: boolean }>) {
   const { colors } = useTheme();
   const { height, width } = useWindowDimensions();
@@ -43,6 +46,7 @@ export function LoginLayout({ children, scrollable = false, showDesktopImage = f
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
   scrollContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 16 },

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
+
 /** Shared read-only clinic product catalog for roles allowed by the route and backend grant. */
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
@@ -15,6 +17,7 @@ import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import type { Product } from '../../types/client';
 
+// Función ClinicProductsScreen: concentra la lógica dentro de este módulo.
 export function ClinicProductsScreen() {
   const clinic = useClinic();
   const { hasPermission, user } = useAuth();
@@ -37,8 +40,10 @@ export function ClinicProductsScreen() {
         {catalog.data?.categories.map(category => <SelectionRow key={category.id} label={String(category.name)} checked={categoryId === String(category.id)} onPress={() => setCategoryId(String(category.id))} />)}
       </FilterDisclosure>
     </SearchFilterBar>
-    <QueryState {...catalog} />
-    <QueryState {...query} />
+    
+<QueryState {...catalog} />
+    
+<QueryState {...query} />
     {query.data && (query.data.length
       ? query.data.map(product => <PetCareCard key={product.id}>
         <PressableProduct product={product} />
@@ -64,6 +69,7 @@ export function ClinicProductsScreen() {
   </PetCareScreen>;
 }
 
+// Función PressableProduct: concentra la lógica dentro de este módulo.
 function PressableProduct({ product }: { product: Product }) {
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
     <PetImage uri={product.imageUrl} size={64} />

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
+
 /** Logo transparente sin panel; conserva colores y mejora su contorno en oscuro. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -5,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 import { PetCareLogo } from './PetCareLogo';
+// Función LoginBrand: concentra la lógica dentro de este módulo.
 export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuidamos a quienes más querés' }: { title?: string; subtitle?: string }) {
   const { colors, mode, setPreference } = useTheme();
   const { height, width } = useWindowDimensions();
@@ -24,6 +27,7 @@ export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuida
     <AppText muted style={styles.subtitle}>{subtitle}</AppText>
   </View>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: 2 }, logoRow: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   theme: { position: 'absolute', right: 0, top: 0, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },

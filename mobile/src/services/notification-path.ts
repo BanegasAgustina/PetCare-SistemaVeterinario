@@ -1,3 +1,9 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
+// Función notificationPath: concentra la lógica dentro de este módulo.
+// Propósito: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
+
+// Función notificationPath: concentra la lógica dentro de este módulo.
 export function notificationPath(referenceType: unknown, referenceId: unknown): string | { pathname: '/client/orders/[id]' | '/client/pets/[id]' | '/client/appointments/[id]'; params: { id: string } } {
   const id = typeof referenceId === 'string' && /^[1-9]\d*$/.test(referenceId) ? referenceId : '';
   if ((referenceType === 'reservation' || referenceType === 'order') && id) return { pathname: '/client/orders/[id]', params: { id } };

@@ -1,12 +1,18 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import { isIP } from 'node:net';
 import { env } from './env';
 import { AppError } from '../utils/app-error';
+// Dato providers: conserva un valor calculado o de configuración usado por este módulo.
 export const providers = ['google', 'facebook', 'x'] as const;
+// Tipo OAuthProvider: define la forma o las opciones válidas de los datos usados por este módulo.
 export type OAuthProvider = typeof providers[number];
+// Función oauthProvider: concentra la lógica dentro de este módulo.
 export function oauthProvider(value: unknown): OAuthProvider {
   if (typeof value !== 'string' || !providers.includes(value as OAuthProvider)) throw new AppError('VALIDATION_ERROR',400,'Proveedor no válido.');
   return value as OAuthProvider;
 }
+// Función backendOrigin: concentra la lógica dentro de este módulo.
 export function backendOrigin(): string {
   const isVercelRuntime = Boolean(process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production' || process.env.VERCEL_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
   const isProd = env.nodeEnvironment === 'production' || isVercelRuntime;
@@ -32,6 +38,7 @@ export function backendOrigin(): string {
     throw new AppError('OAUTH_UNAVAILABLE',503,'Configurá el origen público del backend (BACKEND_URL debe ser una URL HTTPS válida).');
   }
 }
+// Función oauthConfig: concentra la lógica dentro de este módulo.
 export function oauthConfig(provider: OAuthProvider) {
   const { clientId, clientSecret } = providerCredentials(provider);
   const facebookVersion = process.env.FACEBOOK_GRAPH_VERSION?.trim();
@@ -39,6 +46,7 @@ export function oauthConfig(provider: OAuthProvider) {
   return { clientId, clientSecret, callback: `${backendOrigin()}/api/auth/oauth/${provider}/callback`, facebookVersion };
 }
 /** X usa X_* en configuración nueva y mantiene compatibilidad con despliegues TWITTER_* previos. */
+// Función providerCredentials: concentra la lógica dentro de este módulo.
 function providerCredentials(provider: OAuthProvider) {
   const prefix = provider.toUpperCase();
   const clientId = process.env[`${prefix}_CLIENT_ID`]?.trim() || (provider === 'x' ? process.env.TWITTER_CLIENT_ID?.trim() : undefined);
@@ -46,6 +54,7 @@ function providerCredentials(provider: OAuthProvider) {
   return { clientId, clientSecret };
 }
 /** Permite informar disponibilidad sin error HTTP cuando faltan credenciales opcionales. */
+// Función oauthConfigured: concentra la lógica dentro de este módulo.
 export function oauthConfigured(provider: OAuthProvider, returnUrl?: unknown): boolean {
   const { clientId, clientSecret } = providerCredentials(provider);
   if (!clientId || !clientSecret) return false;
@@ -58,6 +67,7 @@ export function oauthConfigured(provider: OAuthProvider, returnUrl?: unknown): b
   try { backendOrigin(); return true; } catch { return false; }
 }
 /** Diagnóstico acotado para el cliente: nunca devuelve valores de configuración. */
+// Función oauthConfigurationIssue: concentra la lógica dentro de este módulo.
 export function oauthConfigurationIssue(provider: OAuthProvider, returnUrl?: unknown): string | null {
   const { clientId, clientSecret } = providerCredentials(provider);
   if (!clientId || !clientSecret) return 'CREDENTIALS_MISSING';
@@ -68,6 +78,7 @@ export function oauthConfigurationIssue(provider: OAuthProvider, returnUrl?: unk
   return null;
 }
 /** Lista exacta: no aceptar destinos arbitrarios evita redirecciones abiertas y robo de tickets. */
+// Función oauthReturnUrl: concentra la lógica dentro de este módulo.
 export function oauthReturnUrl(value: unknown): string {
   const allowed = (process.env.OAUTH_RETURN_URLS ?? '').split(',').map(s=>s.trim()).filter(Boolean);
   if (typeof value !== 'string' || !allowed.includes(value)) throw new AppError('VALIDATION_ERROR',400,'El destino OAuth no está autorizado.');

@@ -1,10 +1,14 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
+
 /** Verificación exige el token entregado tras registro o credenciales válidas, no un email arbitrario. */
 import { AppError } from "../utils/app-error";
+// Función validateVerification: comprueba una regla o condición dentro de este módulo.
 export function validateVerification(
   value: unknown,
   withCode: boolean,
 ): { verificationToken: string; code?: string } {
-  const invalid = () =>
+  // Función invalid: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const invalid = () =>
     new AppError(
       "VALIDATION_ERROR",
       400,

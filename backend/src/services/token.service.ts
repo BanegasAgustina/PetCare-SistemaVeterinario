@@ -1,21 +1,26 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Firma y verifica Access Tokens; identidad y permisos reales se consultan en la base. */
 import jwt from 'jsonwebtoken';
 import { getJwtConfiguration } from '../config/env';
 import { AppError } from '../utils/app-error';
 
 /** Firma identidad y versión/familia de sesión; los permisos no se congelan en el JWT. */
+// Función createAccessToken: crea un registro o inicia una operación dentro de este módulo.
 export function createAccessToken(userId: string, sessionVersion = 0, family?:string): { accessToken: string; expiresIn: number } {
   const config = getJwtConfiguration();
   const accessToken = jwt.sign({ sessionVersion,...(family?{sessionId:family}:{}) }, config.secret, { algorithm: 'HS256', subject: userId, issuer: config.issuer, audience: config.audience, expiresIn: config.expiresIn });
   return { accessToken, expiresIn: config.expiresIn };
 }
 /** Leer solo después de verificar firma. Tokens anteriores sin familia vencen con su TTL original. */
+// Función accessTokenFamily: concentra la lógica dentro de este módulo.
 export function accessTokenFamily(token:string):string|null{
   const payload=jwt.decode(token);if(!payload||typeof payload==='string'||payload.sessionId===undefined)return null;
   if(typeof payload.sessionId!=='string'||!/^[a-f0-9-]{36}$/.test(payload.sessionId))throw new AppError('INVALID_TOKEN',401,'La sesión no es válida.');return payload.sessionId;
 }
 
 /** Solo leer la versión después de verificar firma/issuer/audience con verifyAccessToken. */
+// Función accessTokenSessionVersion: concentra la lógica dentro de este módulo.
 export function accessTokenSessionVersion(token: string): number {
   const payload = jwt.decode(token);
   if (!payload || typeof payload === 'string') return -1;
@@ -23,6 +28,7 @@ export function accessTokenSessionVersion(token: string): number {
 }
 
 /** Restringe algoritmo, emisor, audiencia y rango BIGINT antes de usar el subject como identidad. */
+// Función verifyAccessToken: concentra la lógica dentro de este módulo.
 export function verifyAccessToken(token: string): string {
   const config = getJwtConfiguration();
   try {

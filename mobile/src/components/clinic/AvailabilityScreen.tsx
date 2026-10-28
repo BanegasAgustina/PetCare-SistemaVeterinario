@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
+
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Platform, View, useWindowDimensions } from 'react-native';
@@ -14,6 +16,7 @@ import { AdminDataTable } from '../admin/AdminDataTable';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 /** Punto único para publicar y revisar horarios de todos los servicios activos. */
+// Función AvailabilityScreen: concentra la lógica dentro de este módulo.
 export function AvailabilityScreen() {
   const {width}=useWindowDimensions();
   const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
@@ -35,7 +38,8 @@ export function AvailabilityScreen() {
       <AppText muted>Abrí el servicio, elegí al profesional y consultá el calendario de días con turnos. Al tocar una fecha, podés revisar sus horarios y desactivar uno o todos los turnos de ese día. Los horarios libres se ofrecen a clientes en “Solicitar turno”; en Agenda aparecen cuando ya tienen una reserva.</AppText>
     </PetCareCard>}
     <SearchFilterBar><AppInput icon="search-outline" label="Buscar servicio" placeholder="Nombre del servicio" value={search} onChangeText={setSearch} /></SearchFilterBar>
-    <QueryState {...catalog} />
+    
+<QueryState {...catalog} />
     {catalog.data && desktop && services.length > 0 && <AdminDataTable rows={services} rowKey={service=>service.id} columns={[
       {key:'service',label:'Servicio',flex:1.6,minWidth:150,render:service=><AppText variant="subtitle" numberOfLines={1}>{String(service.name)}</AppText>},
       {key:'type',label:'Tipo',flex:.9,minWidth:85,render:service=><AppText muted numberOfLines={1}>{String(catalog.data?.types.find(item=>item.id===service.typeId)?.name??'Servicio')}</AppText>},

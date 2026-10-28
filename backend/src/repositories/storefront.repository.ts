@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Configuración de retiro y envío. No crea pedidos ni reserva stock. */
 import type { RowDataPacket } from 'mysql2/promise';
 import type { PoolConnection } from 'mysql2/promise';
@@ -12,11 +14,16 @@ import { AppError } from '../utils/app-error';
 import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 import { env } from '../config/env';
 
+// Tipo DeliveryZone: define la forma o las opciones válidas de los datos usados por este módulo.
 export type DeliveryZone = { id: string; name: string; province: string; city: string; postalCodePrefix: string | null; feeCents: number | null; isActive: boolean };
+// Tipo FulfillmentSettings: define la forma o las opciones válidas de los datos usados por este módulo.
 export type FulfillmentSettings = { demoModeEnabled:boolean;pickupEnabled: boolean; pickupAddress: string | null; pickupHours: string | null; pickupInstructions: string | null; deliveryEnabled: boolean; deliveryBaseFeeCents: number; freeDeliveryThresholdCents: number | null; deliveryHours: string | null; deliveryDays: string | null; deliveryInformation: string | null; bankName: string | null; bankAccountHolder: string | null; bankCbuCvu: string | null; bankAlias: string | null; zones: DeliveryZone[] };
+// Tipo PromotionBanner: define la forma o las opciones válidas de los datos usados por este módulo.
 export type PromotionBanner = { id:string;name:string;description:string|null;imageUrl:string|null;categoryId:string|null;category:string|null;stock:number;isActive:boolean;priceCents:number;regularPriceCents:number;requiresPrescription:boolean;speciesId:string|null;productType:'GENERAL'|'MEDICINE'|'ACCESSORY';promotionName:string;bannerSubtitle:string|null;bannerCtaText:string };
+// Tipo StoreBanner: define la forma o las opciones válidas de los datos usados por este módulo.
 export type StoreBanner={id:string;title:string|null;subtitle:string|null;description:string|null;mobileImageUrl:string;desktopImageUrl:string|null;backgroundColor:string;textColor:string;contentAlignment:'LEFT'|'CENTER'|'RIGHT';darkOverlay:boolean;destinationType:'PRODUCT'|'CATEGORY'|'PROMOTION'|'PRODUCT_LIST'|'INFO';destinationId:string|null;targetProductId:string|null;ctaText:string|null;sortOrder:number;isActive:boolean;startsAt:string|null;endsAt:string|null};
 
+// Función publicBanners: concentra la lógica dentro de este módulo.
 export async function publicBanners():Promise<StoreBanner[]> {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT CAST(b.id AS CHAR) AS id,b.title,b.subtitle,b.description,b.mobile_image_url AS mobileImageUrl,b.desktop_image_url AS desktopImageUrl,
     b.background_color AS backgroundColor,b.text_color AS textColor,b.content_alignment AS contentAlignment,b.dark_overlay AS darkOverlay,
@@ -32,6 +39,7 @@ export async function publicBanners():Promise<StoreBanner[]> {
   return rows.map(row=>({...row,id:String(row.id),destinationId:row.destinationId===null?null:String(row.destinationId),targetProductId:row.targetProductId===null?null:String(row.targetProductId),darkOverlay:Boolean(row.darkOverlay),isActive:Boolean(row.isActive),sortOrder:Number(row.sortOrder)})) as StoreBanner[];
 }
 
+// Función adminBanners: concentra la lógica dentro de este módulo.
 export async function adminBanners(actor:AuthUser):Promise<{items:StoreBanner[];products:{id:string;name:string}[];categories:{id:string;name:string}[];promotions:{id:string;name:string}[]}> {
   clinic.permit(actor,'store.banners.manage');
   const [[rows],[products],[categories],[promotions]]=await Promise.all([
@@ -47,6 +55,7 @@ export async function adminBanners(actor:AuthUser):Promise<{items:StoreBanner[];
   return {items,products:products.map(row=>({id:String(row.id),name:String(row.name)})),categories:categories.map(row=>({id:String(row.id),name:String(row.name)})),promotions:promotions.map(row=>({id:String(row.id),name:String(row.name)}))};
 }
 
+// Función saveBanner: actualiza o guarda información dentro de este módulo.
 export async function saveBanner(actor:AuthUser,rawId:unknown,value:unknown) {
   const id=rawId===undefined?null:v.id(rawId);
   const body=v.body(value,['title','subtitle','description','mobileImageUrl','desktopImageUrl','backgroundColor','textColor','contentAlignment','darkOverlay','destinationType','destinationId','ctaText','sortOrder','isActive','startsAt','endsAt']);
@@ -74,15 +83,18 @@ export async function saveBanner(actor:AuthUser,rawId:unknown,value:unknown) {
   });
 }
 
+// Función removeBanner: elimina, revoca o cancela una operación dentro de este módulo.
 export async function removeBanner(actor:AuthUser,rawId:unknown) {
   const id=v.id(rawId);return clinic.transaction(actor,async(c,fresh)=>{clinic.permit(fresh,'store.banners.manage');const [rows]=await c.execute<RowDataPacket[]>('SELECT mobile_image_url AS mobileImageUrl,desktop_image_url AS desktopImageUrl FROM client_store_banners WHERE id=? FOR UPDATE',[id]);if(!rows[0])throw new AppError('NOT_FOUND',404,'Banner no encontrado.');await c.execute('DELETE FROM client_store_banners WHERE id=?',[id]);return {deleted:true,mobileImageUrl:String(rows[0].mobileImageUrl),desktopImageUrl:rows[0].desktopImageUrl as string|null};});
 }
 
+// Función reorderBanners: concentra la lógica dentro de este módulo.
 export async function reorderBanners(actor:AuthUser,value:unknown) {
   const body=v.body(value,['ids']);if(!Array.isArray(body.ids)||body.ids.length>200)v.invalid('La lista de orden no es válida.');const ids=[...new Set(body.ids.map(v.id))];if(ids.length!==body.ids.length)v.invalid('La lista contiene banners repetidos.');
   return clinic.transaction(actor,async(c,fresh)=>{clinic.permit(fresh,'store.banners.manage');const [rows]=await c.execute<RowDataPacket[]>('SELECT id FROM client_store_banners ORDER BY sort_order,id FOR UPDATE');if(rows.length!==ids.length||rows.some(row=>!ids.includes(String(row.id))))v.invalid('La lista no coincide con los banners actuales.');for(const [index,id] of ids.entries())await c.execute('UPDATE client_store_banners SET sort_order=? WHERE id=?',[index,id]);return {saved:true};});
 }
 
+// Función publicPromotions: concentra la lógica dentro de este módulo.
 export async function publicPromotions(): Promise<PromotionBanner[]> {
   const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT pr.id,pr.name AS promotionName,pr.product_id AS productId,pr.banner_image_url AS bannerImageUrl,
     pr.banner_subtitle AS bannerSubtitle,pr.banner_cta_text AS bannerCtaText
@@ -99,7 +111,9 @@ export async function publicPromotions(): Promise<PromotionBanner[]> {
   return banners.filter((banner): banner is PromotionBanner => banner !== null);
 }
 
+// Tipo QueryConnection: define la forma o las opciones válidas de los datos usados por este módulo.
 type QueryConnection = Pick<PoolConnection, 'execute'>;
+// Función settingsRow: actualiza o guarda información dentro de este módulo.
 async function settingsRow(connection: QueryConnection = databasePool) {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT pickup_enabled AS pickupEnabled,pickup_address AS pickupAddress,pickup_hours AS pickupHours,pickup_instructions AS pickupInstructions,
     delivery_enabled AS deliveryEnabled,delivery_base_fee_cents AS deliveryBaseFeeCents,free_delivery_threshold_cents AS freeDeliveryThresholdCents,
@@ -109,12 +123,14 @@ async function settingsRow(connection: QueryConnection = databasePool) {
   return rows[0] ?? { pickupEnabled: 0, pickupAddress: null, pickupHours: null, pickupInstructions: null, deliveryEnabled: 0, deliveryBaseFeeCents: 0, freeDeliveryThresholdCents: null, deliveryHours: null, deliveryDays: null, deliveryInformation: null, bankName: null, bankAccountHolder: null, bankCbuCvu: null, bankAlias: null };
 }
 
+// Función zoneRows: concentra la lógica dentro de este módulo.
 async function zoneRows(activeOnly: boolean, connection: QueryConnection = databasePool): Promise<DeliveryZone[]> {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT CAST(id AS CHAR) AS id,name,province,city,postal_code_prefix AS postalCodePrefix,
     fee_cents AS feeCents,is_active AS isActive FROM client_store_delivery_zones ${activeOnly ? 'WHERE is_active=1' : ''} ORDER BY province,city,name,id`);
   return rows.map(row => ({ ...row, id: String(row.id), feeCents: row.feeCents === null ? null : Number(row.feeCents), isActive: Boolean(row.isActive) })) as DeliveryZone[];
 }
 
+// Función publicFulfillment: concentra la lógica dentro de este módulo.
 export async function publicFulfillment(): Promise<FulfillmentSettings> {
   let settings: RowDataPacket;
   let zones: DeliveryZone[];
@@ -138,6 +154,7 @@ export async function publicFulfillment(): Promise<FulfillmentSettings> {
   };
 }
 
+// Función adminFulfillment: concentra la lógica dentro de este módulo.
 export async function adminFulfillment(actor: AuthUser): Promise<FulfillmentSettings> {
   clinic.permit(actor, 'store.settings.view');
   const [settings, zones] = await Promise.all([settingsRow(), zoneRows(false)]);
@@ -152,6 +169,7 @@ export async function adminFulfillment(actor: AuthUser): Promise<FulfillmentSett
   };
 }
 
+// Función quoteDelivery: concentra la lógica dentro de este módulo.
 export async function quoteDelivery(query: Record<string, unknown>) {
   const province = requiredText(query.province, 'Provincia', 100);
   const city = requiredText(query.city, 'Ciudad', 100);
@@ -173,6 +191,7 @@ export async function quoteDelivery(query: Record<string, unknown>) {
   return { available: true, feeCents, reason: null, zoneName: matched.name };
 }
 
+// Función saveFulfillment: actualiza o guarda información dentro de este módulo.
 export async function saveFulfillment(actor: AuthUser, value: unknown) {
   const body = v.body(value, ['pickupEnabled', 'pickupAddress', 'pickupHours', 'pickupInstructions', 'deliveryEnabled', 'deliveryBaseFeeCents', 'freeDeliveryThresholdCents', 'deliveryHours', 'deliveryDays', 'deliveryInformation', 'bankName', 'bankAccountHolder', 'bankCbuCvu', 'bankAlias', 'zones']);
   if (typeof body.pickupEnabled !== 'boolean') v.invalid('Indicá si el retiro en local está habilitado.', 'pickupEnabled');
@@ -239,6 +258,7 @@ export async function saveFulfillment(actor: AuthUser, value: unknown) {
   });
 }
 
+// Función fulfillmentText: concentra la lógica dentro de este módulo.
 function fulfillmentText(value: unknown, maxLength: number, field: string, label: string): string | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value !== 'string') v.invalid(`${label} debe ser texto.`, field);
@@ -247,34 +267,41 @@ function fulfillmentText(value: unknown, maxLength: number, field: string, label
   return normalized || null;
 }
 
+// Función fulfillmentRequiredText: concentra la lógica dentro de este módulo.
 function fulfillmentRequiredText(value: unknown, label: string, maxLength: number, field: string): string {
   const normalized = fulfillmentText(value, maxLength, field, label);
   if (!normalized) v.invalid(`Ingresá ${label}.`, field);
   return normalized;
 }
 
+// Función fulfillmentInteger: concentra la lógica dentro de este módulo.
 function fulfillmentInteger(value: unknown, field: string, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 100000000) v.invalid(`${label} debe ser un importe no negativo y no superar $1.000.000.`, field);
   return value;
 }
 
+// Función zoneId: concentra la lógica dentro de este módulo.
 function zoneId(value: unknown, field: string): string {
   try { return v.id(value); } catch { v.invalid('La zona seleccionada no tiene un identificador válido.', field); }
 }
 
+// Función optionalText: concentra la lógica dentro de este módulo.
 function optionalText(value: unknown, maxLength: number): string | null {
   if (value === null || value === undefined || value === '') return null;
   const result = v.text(value, maxLength);
   return result?.trim() || null;
 }
 
+// Función requiredText: concentra la lógica dentro de este módulo.
 function requiredText(value: unknown, label: string, maxLength: number): string {
   const result = optionalText(value, maxLength);
   if (!result) v.invalid(`Ingresá ${label.toLocaleLowerCase('es')}.`);
   return result;
 }
 
+// Función sameAddress: concentra la lógica dentro de este módulo.
 function sameAddress(first: string, second: string) {
-  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es');
+  // Función normalize: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es');
   return normalize(first) === normalize(second);
 }

@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Extensión de auth independiente del historial base ausente; exige users previamente existente. */
 import { resolve } from 'node:path';
 import { databasePool } from '../config/database';
 import { readMigrationFiles, verifyMigrationHistory, type MigrationRecord } from './migration-files';
 import { withDatabaseLock } from './lock';
+// Función migrateAuth: concentra la lógica dentro de este módulo.
 export async function migrateAuth() {
   const files = await readMigrationFiles(resolve(__dirname,'../../auth-migrations'));
   const c = await databasePool.getConnection();

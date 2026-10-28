@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Agrega motivo de cancelación y observaciones sin cambiar turnos existentes. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
+// Función migrateAppointmentDetails: concentra la lógica dentro de este módulo.
 export async function migrateAppointmentDetails() {
   const connection = await databasePool.getConnection();
   try {

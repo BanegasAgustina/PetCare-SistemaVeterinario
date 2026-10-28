@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Construye Express separado del puerto de escucha para facilitar pruebas HTTP. */
 import express from 'express';
 import cors from 'cors';
@@ -14,6 +16,7 @@ import { petPhotoUrl } from './services/pet-photo.service';
 import { clientId } from './validators/client.validator';
 import { notificationJobsRouter } from './routes/notification-jobs.routes';
 
+// Dato app: conserva un valor calculado o de configuración usado por este módulo.
 export const app = express();
 // Vercel detecta este archivo como la entrada Express cuando recibe un default export.
 export default app;
@@ -22,6 +25,7 @@ app.disable('x-powered-by');
 // Solo se habilitan la web oficial y sus previews de Vercel; el cliente nativo no necesita CORS.
 app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization','X-Payment-Reference'] }));
 app.use(helmet({strictTransportSecurity:env.nodeEnvironment==='production'?undefined:false,contentSecurityPolicy:false}));
+// Dato photoUploadLimiter: conserva un valor calculado o de configuración usado por este módulo.
 const photoUploadLimiter=createAuthRateLimiter();
 // El cuerpo de fotos se procesa solo tras autenticar; el resto conserva su límite.
 app.use(/^\/api\/client\/pets(?:\/\d+)?$/, (req,res,next)=> {

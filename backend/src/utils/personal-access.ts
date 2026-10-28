@@ -1,4 +1,7 @@
+// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
+
 /** Permisos dedicados a módulos personales; nunca se reutilizan grants laborales. */
+// Función personalPermissionsForRoute: concentra la lógica dentro de este módulo.
 export function personalPermissionsForRoute(method:string,path:string):string[]|null {
   path=path.replace(/^\/api\/client(?=\/|$)/,'')||'/';
   const verb=method.toUpperCase();
@@ -36,6 +39,7 @@ export function personalPermissionsForRoute(method:string,path:string):string[]|
   return null;
 }
 
+// Función canAccessPersonalRoute: comprueba una regla o condición dentro de este módulo.
 export function canAccessPersonalRoute(role:string,permissions:string[]|undefined,method:string,path:string):boolean {
   if(role==='CLIENT')return true;
   const required=personalPermissionsForRoute(method,path);

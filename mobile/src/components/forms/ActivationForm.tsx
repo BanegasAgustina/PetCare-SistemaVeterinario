@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 /** Pantalla pública de invitación; el secreto permanece en memoria y nunca se persiste. */
 import { useEffect,useState } from 'react';
 import { router } from 'expo-router';
@@ -12,12 +14,14 @@ import { apiRequest } from '../../services/api';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { validatePasswordForm } from '../../utils/auth-validation';
+// Función ActivationForm: concentra la lógica dentro de este módulo.
 export function ActivationForm({kind}:{kind:'account'|'veterinarian'}) {
   const [token,setToken]=useState('');const [password,setPassword]=useState('');const [confirmPassword,setConfirm]=useState('');
   const [errors,setErrors]=useState<{password?:string;confirmPassword?:string}>({});const action=useAsyncAction();const {showToast}=useFeedback();const [done,setDone]=useState(false);
   useEffect(()=>{
     let active=true;
-    const receive=(url:string|null)=>{
+    // Función receive: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const receive=(url:string|null)=>{
       if(!active)return;
       const fragment=Platform.OS==='web'&&typeof window!=='undefined'?window.location.hash:url?.split('#')[1]??'';
       const value=new URLSearchParams(fragment.replace(/^#/, '')).get('token');

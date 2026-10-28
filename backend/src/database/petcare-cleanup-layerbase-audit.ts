@@ -1,17 +1,24 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Read-only Layerbase inspection for the explicitly authorized cleanup review. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { env, isVercelRuntime } from '../config/env';
 
+// Tipo TableInfo: define la forma o las opciones válidas de los datos usados por este módulo.
 type TableInfo = RowDataPacket & { TABLE_NAME: string; ENGINE: string | null };
+// Tipo ColumnInfo: define la forma o las opciones válidas de los datos usados por este módulo.
 type ColumnInfo = RowDataPacket & { TABLE_NAME: string; COLUMN_NAME: string; COLUMN_TYPE: string; IS_NULLABLE: string };
+// Tipo ForeignKeyInfo: define la forma o las opciones válidas de los datos usados por este módulo.
 type ForeignKeyInfo = RowDataPacket & {
   TABLE_NAME: string; COLUMN_NAME: string; REFERENCED_TABLE_NAME: string;
   REFERENCED_COLUMN_NAME: string; CONSTRAINT_NAME: string; DELETE_RULE: string; UPDATE_RULE: string;
 };
 
+// Dato relatedName: conserva un valor calculado o de configuración usado por este módulo.
 const relatedName = /(appointment|slot|reservation|veterinar|professional|service|specialt|block|clinical|consult|prescription|vaccin|patient)/i;
 
+// Función main: concentra la lógica dentro de este módulo.
 async function main(): Promise<void> {
   if (env.nodeEnvironment !== 'development' || isVercelRuntime || !/layerbase/i.test(env.database.host)) {
     throw new Error('Inspección detenida: esta herramienta requiere la configuración de desarrollo de Layerbase solicitada. No se abrió ninguna conexión.');
@@ -66,7 +73,8 @@ async function main(): Promise<void> {
     }
 
     const aggregates: Record<string, unknown> = {};
-    const countByColumn = async (table: string, column: string, key: string) => {
+    // Función countByColumn: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const countByColumn = async (table: string, column: string, key: string) => {
       if (!columnsByTable.get(table)?.has(column)) return;
       const t = `\`${table}\``;
       const c = `\`${column}\``;

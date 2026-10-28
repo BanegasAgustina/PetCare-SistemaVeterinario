@@ -1,8 +1,11 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Readiness independiente: conserva el health original y no revela configuración. */
 import type { RequestHandler } from 'express';
 import { checkDatabaseConnection } from '../services/database.service';
 import type { ApiSuccess } from '../types/api';
 
+// Función createDatabaseHealthHandler: crea un registro o inicia una operación dentro de este módulo.
 export function createDatabaseHealthHandler(checkConnection = checkDatabaseConnection): RequestHandler {
   return async (_request, response, next) => {
     try {

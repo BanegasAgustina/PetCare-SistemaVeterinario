@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
+
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,12 +26,18 @@ import { AdminFormActions, AdminFormSection } from '../../components/admin/Admin
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { ApiError } from '../../services/api';
 
+// Tipo Product: define la forma o las opciones válidas de los datos usados por este módulo.
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string | null; category: string | null; priceCents: number; stock: number; physicalStock: number; reservedStock: number; stockMinimum:number; isActive: boolean };
+// Tipo Page: define la forma o las opciones válidas de los datos usados por este módulo.
 type Page = { items: Product[]; page: number; total: number; hasMore: boolean };
+// Tipo StockHistory: define la forma o las opciones válidas de los datos usados por este módulo.
 type StockHistory={product:{id:string;name:string;stock:number;stockMinimum:number;reservedStock:number};items:{id:string;quantityBefore:number;quantityAfter:number;quantityDelta:number;reason:string;createdAt:string;actorName:string}[]};
+// Tipo ProductCategories: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProductCategories={categories:{id:string;name:string}[]};
+// Configuración emptyValues: reúne valores o reglas que consume el resto del módulo.
 const emptyValues = { name: '', description: '', imageUrl: '', categoryId: '', price: '', stock: '', stockMinimum:'0',stockReason:'',isActive: true };
 
+// Función AdminProducts: concentra la lógica dentro de este módulo.
 export default function AdminProducts() {
   const routeParams=useLocalSearchParams<{stock?:string|string[]}>();const requestedStock=Array.isArray(routeParams.stock)?routeParams.stock[0]??'all':routeParams.stock??'all';
   const auth = useAuth();
@@ -56,20 +64,24 @@ export default function AdminProducts() {
   const query = useClientQuery(load);
   const loadHistory=useCallback(()=>historyProductId?request<StockHistory>(`/admin/products/${encodeURIComponent(historyProductId)}/stock-movements`,{method:'POST',body:{}}):Promise.resolve(null),[request,historyProductId]);
   const stockHistory=useClientQuery(loadHistory);
-  const updateFilter = (key: keyof typeof filters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
-  function changeField<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
+  // Función updateFilter: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const updateFilter = (key: keyof typeof filters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
+  // Función changeField: actualiza o guarda información dentro de este módulo.
+function changeField<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues(current => ({ ...current, [key]: value }));
     setErrors(current => { const next = { ...current }; delete next[key as keyof typeof errors]; return next; });
   }
 
-  function openEditor(product: Product) {
+  // Función openEditor: concentra la lógica dentro de este módulo.
+function openEditor(product: Product) {
     setDetail(null);
     setEditing(product);
     setPhoto(null);setPhotoError(null);
     setValues({ name: product.name, description: product.description ?? '', imageUrl: product.imageUrl ?? '', categoryId: product.categoryId ?? '', price: (product.priceCents / 100).toFixed(2), stock: String(product.physicalStock),stockMinimum:String(product.stockMinimum),stockReason:'', isActive: product.isActive });
     setErrors({});
   }
-  function review() {
+  // Función review: concentra la lógica dentro de este módulo.
+function review() {
     if (!editing) return;
     const next: typeof errors = {};
     const data: Record<string, unknown> = {};
@@ -94,7 +106,8 @@ export default function AdminProducts() {
     setErrors(next);
     if (!Object.keys(next).length) setBody(data);
   }
-  async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setPhotoError('Permití el acceso a la galería para elegir una imagen.');return;}}const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});if(result.canceled)return;const asset=result.assets[0];if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setPhotoError('Elegí una imagen de hasta 5 MB y 25 megapíxeles.');return;}setPhoto({uri:asset.uri,base64:asset.base64});setValues(current=>({...current,imageUrl:editing?.imageUrl??''}));}catch{setPhotoError('No pudimos abrir la imagen. Intentá elegir otra.');}}
+  // Función choosePhoto: concentra la lógica dentro de este módulo.
+async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setPhotoError('Permití el acceso a la galería para elegir una imagen.');return;}}const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});if(result.canceled)return;const asset=result.assets[0];if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setPhotoError('Elegí una imagen de hasta 5 MB y 25 megapíxeles.');return;}setPhoto({uri:asset.uri,base64:asset.base64});setValues(current=>({...current,imageUrl:editing?.imageUrl??''}));}catch{setPhotoError('No pudimos abrir la imagen. Intentá elegir otra.');}}
 
   const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.categoryId ? 1 : 0);
   const hasRestrictiveFilters = Boolean(submittedSearch) || filters.status !== 'all' || filters.stock !== 'all' || Boolean(filters.categoryId);
@@ -114,7 +127,9 @@ export default function AdminProducts() {
         <AppText variant="subtitle">Categoría</AppText><SelectionRow label="Todas" checked={!filters.categoryId} onPress={() => updateFilter('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} checked={filters.categoryId === category.id} onPress={() => updateFilter('categoryId', category.id)}/>)}
       </>}
       filterCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}/>
-    <QueryState {...catalog}/><QueryState {...query}/>
+    
+<QueryState {...catalog}/>
+<QueryState {...query}/>
     {query.data && <>
       <AppText muted>{query.data.total} productos</AppText>
       {!query.data.items.length && <PetCareEmptyState title={hasRestrictiveFilters ? 'No hay productos para estos filtros' : 'Todavía no hay productos'} message={hasRestrictiveFilters ? 'Probá con otro nombre o limpiá los filtros para revisar el inventario.' : 'Los productos que cargues aparecerán en este inventario.'} action={hasRestrictiveFilters ? () => { setSearch(''); setSubmittedSearch(''); setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); } : undefined} label={hasRestrictiveFilters ? 'Limpiar búsqueda y filtros' : undefined} />}
@@ -148,24 +163,28 @@ export default function AdminProducts() {
     </AppModal>
     <AppModal size="wide" visible={Boolean(editing)} dismissible onClose={() => setEditing(null)}>
       {editing && <><AppText variant="title">Editar producto</AppText>
-        <AdminFormSection title="Información del producto" description="Nombre, descripción e imagen que se muestran en la tienda.">
+        
+<AdminFormSection title="Información del producto" description="Nombre, descripción e imagen que se muestran en la tienda.">
         <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('name', value)}/>
         <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('description', value)}/>
         <AppText variant="caption" muted>Imagen del producto</AppText><PetImage uri={photo?.uri??(values.imageUrl||editing.imageUrl)}/><AppButton variant="secondary" label={photo?'Cambiar imagen':'Elegir imagen'} disabled={!auth.hasPermission('products.update')} onPress={()=>void choosePhoto()}/>{Boolean(photo||values.imageUrl)&&<AppButton variant="secondary" label="Quitar imagen" disabled={!auth.hasPermission('products.update')} onPress={()=>{setPhoto(null);changeField('imageUrl','');}}/>}<FormNotice error message={photoError}/><AppInput label="URL HTTPS alternativa" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value => {setPhoto(null);changeField('imageUrl', value);}}/>
         {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => changeField('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} radio checked={values.categoryId === category.id} onPress={() => changeField('categoryId', category.id)}/>)}</>}
         </AdminFormSection>
-        <AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">
+        
+<AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">
         <AppInput label="Precio de venta (ARS)" prefix="$" placeholder="0,00" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => changeField('price', value.replace(',', '.'))}/>
         <AppInput label="Stock físico" value={values.stock} error={errors.stock} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stock', value)}/>
         <AppInput label="Stock mínimo" value={values.stockMinimum} error={errors.stockMinimum} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stockMinimum', value)}/>
         {editing&&values.stock!==String(editing.physicalStock)&&<AppInput label="Motivo del ajuste de stock" value={values.stockReason} error={errors.stockReason} maxLength={250} editable={auth.hasPermission('products.update_stock')} onChangeText={stockReason=>changeField('stockReason', stockReason)}/>}
         <SelectionRow label="Producto activo" checked={values.isActive} disabled={!auth.hasPermission('products.update')} onPress={() => changeField('isActive', !values.isActive)}/>
         </AdminFormSection>
-        <AdminFormActions><AppButton label="Revisar y guardar" onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => setEditing(null)}/></AdminFormActions>
+        
+<AdminFormActions><AppButton label="Revisar y guardar" onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => setEditing(null)}/></AdminFormActions>
       </>}
     </AppModal>
     <ConfirmModal visible={body !== null} title="Guardar cambios de producto" message="Los cambios se guardarán en el inventario real de PetCare." onCancel={() => setBody(null)} onConfirm={async () => { if (!editing || !body) return; try { await request(`/admin/products/${editing.id}`, { method: 'PATCH', body }); setBody(null); setEditing(null); query.reload(); showToast('Producto actualizado', 'success'); } catch (failure) { if (failure instanceof ApiError && failure.fieldErrors.length) { const fields: Record<string, keyof typeof errors> = { name: 'name', imageUrl: 'imageUrl', priceCents: 'price', stock: 'stock', stockMinimum: 'stockMinimum', stockReason: 'stockReason' }; const next: typeof errors = {}; for (const item of failure.fieldErrors) { const field = fields[item.field]; if (field) next[field] = item.message; } if (Object.keys(next).length) { setErrors(current => ({ ...current, ...next })); setBody(null); return; } } throw failure; } }}/>
   </ScreenContainer>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ grid: { gap: 10 }, productRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 }, productInfo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 }, productText: { flex: 1, minWidth: 0, gap: 4 }, editButton: { width: 38, height: 38, borderRadius: 6, backgroundColor: '#def1ea', alignItems: 'center', justifyContent: 'center' }, cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#c6ded4', paddingTop: 8 } });

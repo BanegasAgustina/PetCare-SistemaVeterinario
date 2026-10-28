@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
+
 /** Un input numérico con seis casillas visuales: foco, avance, borrado y pegado coherentes. */
 import { useRef, useState } from 'react';
 import type { ComponentRef } from 'react';
@@ -5,6 +7,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 
+// Función VerificationCodeInput: concentra la lógica dentro de este módulo.
 export function VerificationCodeInput({ value, onChange, disabled, invalid }: { value: string; onChange: (value: string) => void; disabled?: boolean; invalid?: boolean }) {
   const { colors } = useTheme();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
@@ -22,6 +25,7 @@ export function VerificationCodeInput({ value, onChange, disabled, invalid }: { 
       style={styles.input} />
   </View>;
 }
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({
   root: { width: '100%' }, cells: { flexDirection: 'row', gap: 7 }, cell: { flex: 1, minWidth: 0, aspectRatio: 0.85, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   digit: { fontSize: 24, fontWeight: '700' }, input: { position: 'absolute', width: '100%', height: '100%', opacity: 0.01, color: 'transparent' },

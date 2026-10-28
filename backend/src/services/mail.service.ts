@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /** Envía códigos reales mediante SMTP; nunca imprime código, token ni credenciales. */
 import nodemailer from 'nodemailer';
 import { getMailConfiguration } from '../config/mail';
@@ -5,6 +7,7 @@ import { AppError } from '../utils/app-error';
 import { registerDiagnosticFailure } from '../utils/register-diagnostics';
 
 /** Envía el enlace de un uso ya preparado por el servicio; aceptación SMTP no asegura entrega en Inbox. */
+// Función sendInvitationEmail: crea un registro o inicia una operación dentro de este módulo.
 export async function sendInvitationEmail(email: string, url: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -20,6 +23,7 @@ export async function sendInvitationEmail(email: string, url: string): Promise<v
 }
 
 /** Envía un código real sin logs ni acceso a archivos/URLs externos; los límites viven en verificación. */
+// Función sendVerificationEmail: crea un registro o inicia una operación dentro de este módulo.
 export async function sendVerificationEmail(email: string, code: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -36,6 +40,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 }
 
 /** Envía enlace de recuperación; el token solo viaja en el enlace y no se registra. */
+// Función sendPasswordResetEmail: crea un registro o inicia una operación dentro de este módulo.
 export async function sendPasswordResetEmail(email: string, url: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -50,6 +55,7 @@ export async function sendPasswordResetEmail(email: string, url: string): Promis
 }
 
 /** Sends only the already-sanitized title/body persisted with a client notification. */
+// Función sendClientNotificationEmail: crea un registro o inicia una operación dentro de este módulo.
 export async function sendClientNotificationEmail(email: string, title: string, body: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,

@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** ADMIN/SUPER_ADMIN requieren grants efectivos para gestionar profesionales. */
 import { Router, type RequestHandler, type Request, type Response } from 'express';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -17,12 +19,14 @@ import { isProfilePhotoKey,removeProfilePhoto,storeProfilePhoto } from '../servi
 import { updateVetPhoto } from '../repositories/veterinarian.repository';
 import { changeOwnPassword,updateOwnProfile } from '../services/veterinarian-account.service';
 
+// Función handler: atiende una acción o evento dentro de este módulo.
 function handler(operation: (request: Request,response: Response) => Promise<unknown>,status=200): RequestHandler {
   return async (request,response,next) => {
     try { response.status(status).json({ success:true,data:await operation(request,response) }); }
     catch(error) { next(error); }
   };
 }
+// Dato veterinarianAdminRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const veterinarianAdminRouter = Router();
 veterinarianAdminRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 veterinarianAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('veterinarians.manage'));
@@ -47,9 +51,11 @@ veterinarianAdminRouter.patch('/:id/status',handler(async(req,res)=> {
   return updateVetStatus(identifier(req.params.id),body.isActive,res.locals.authenticatedUser as AuthUser);
 }));
 
+// Dato invitationRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const invitationRouter = Router();
 invitationRouter.post('/accept',createAuthRateLimiter(),handler(async req=> { await acceptInvitation(req.body);return { accepted:true }; }));
 
+// Dato specialtiesAdminRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const specialtiesAdminRouter = Router();
 specialtiesAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('specialties.manage'));
 specialtiesAdminRouter.post('/query',handler(async ()=>runDatabaseOperation(async()=>{
@@ -88,6 +94,7 @@ specialtiesAdminRouter.delete('/:id',handler(async req=>runDatabaseOperation(asy
 })));
 
 /** Un solo panel. El backend entrega módulos accesibles del catálogo según permisos efectivos. */
+// Dato veterinarianPanelRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const veterinarianPanelRouter = Router();
 veterinarianPanelRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 veterinarianPanelRouter.use(authenticate,requireRole('VETERINARIAN'));
@@ -101,6 +108,7 @@ veterinarianPanelRouter.put('/profile/photo',createAuthRateLimiter(),handler(asy
   try {const saved=await updateOwnVetPhoto(user.id,image?.url??null);if(saved.previous&&saved.previous!==image?.url)await removeProfilePhoto(saved.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del veterinario.'));return {profilePhotoUrl:image?.url??null};}
   catch(error){if(image)console.error('La actualización del perfil falló; se conservará el objeto nuevo para evitar romper una posible referencia confirmada.');throw error;}
 }));
+// Función accessibleModules: concentra la lógica dentro de este módulo.
 async function accessibleModules(user: AuthUser) {
   return runDatabaseOperation(async ()=> {
     const codes=user.permissions ?? [];

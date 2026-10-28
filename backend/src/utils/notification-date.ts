@@ -1,3 +1,7 @@
+// Este archivo se encarga de convertir las fechas de notificaciones al formato local que muestra la aplicación.
+
+// Función formatNotificationDateTime: transforma o prepara datos dentro de este módulo.
+// Función formatNotificationDateTime: transforma o prepara datos dentro de este módulo.
 export function formatNotificationDateTime(value: unknown): { date: string; time: string } {
   const input = value instanceof Date
     ? value
@@ -14,6 +18,7 @@ export function formatNotificationDateTime(value: unknown): { date: string; time
     minute: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(input);
-  const part = (type: string) => parts.find(item => item.type === type)?.value ?? '';
+  // Función part: agrupa una operación que este módulo puede ejecutar o reutilizar.
+const part = (type: string) => parts.find(item => item.type === type)?.value ?? '';
   return { date: `${part('day')}/${part('month')}/${part('year')}`, time: `${part('hour')}:${part('minute')}` };
 }

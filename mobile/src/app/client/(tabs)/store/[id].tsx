@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
+
 /** Detalle del catálogo y alta en el carrito real; el servidor vuelve a comprobar stock y precio. */
 import { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -13,6 +15,7 @@ import { AppText } from '../../../../components/ui/AppText';
 import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
 
+// Función ProductDetail: concentra la lógica dentro de este módulo.
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const api = useClient();
@@ -29,7 +32,8 @@ export default function ProductDetail() {
   const amount = Number(quantity);
   const quantityInvalid = !Number.isInteger(amount) || amount < 1 || amount > maxAdditional;
 
-  async function addToCart() {
+  // Función addToCart: crea un registro o inicia una operación dentro de este módulo.
+async function addToCart() {
     const existing = cart.data?.items.find(item => item.id === id)?.quantity ?? 0;
     if (!cart.data || !query.data || !Number.isInteger(amount) || amount < 1 || amount > 99 || amount + existing > 99 || amount + existing > query.data.stock) {
       setError('Ingresá una cantidad válida dentro del stock disponible.');
@@ -50,8 +54,10 @@ export default function ProductDetail() {
 
   return <PetCareScreen wide tabbed>
     <PetCareHeader title={query.data?.name ?? 'Producto'} back right={<Pressable accessibilityRole="button" accessibilityLabel={`Carrito, ${cartCount} artículos`} onPress={() => router.push('/client/store/cart')} style={[styles.cartButton, { backgroundColor: colors.accent }]}><Ionicons name="cart-outline" size={22} color={colors.text} />{cartCount > 0 && <View style={[styles.badge, { backgroundColor: colors.accent }]}><AppText style={[styles.badgeText, { color: colors.text }]}>{cartCount > 99 ? '99+' : cartCount}</AppText></View>}</Pressable>} />
-    <QueryState {...query} />
-    <QueryState {...cart} />
+    
+<QueryState {...query} />
+    
+<QueryState {...cart} />
     {query.data && <>
       <PetCareCard>
         <View style={[styles.productImageFrame, { backgroundColor: colors.accent }]}>
@@ -85,4 +91,5 @@ export default function ProductDetail() {
   </PetCareScreen>;
 }
 
+// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles = StyleSheet.create({ cartButton: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, badge: { position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, badgeText: { fontSize: 10, lineHeight: 13, fontWeight: '700' }, productImageFrame: { width: '100%', height: 220, borderRadius: 18, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, productImage: { width: '100%', height: '100%' },badges:{flexDirection:'row',flexWrap:'wrap',gap:7},priceBlock:{gap:2},oldPrice:{textDecorationLine:'line-through'},quantitySection:{gap:8},quantityControl:{flexDirection:'row',alignItems:'center',gap:8},quantityStep:{width:44,height:44,borderWidth:1,borderRadius:13,alignItems:'center',justifyContent:'center'},quantityInput:{flex:1,minWidth:80} });

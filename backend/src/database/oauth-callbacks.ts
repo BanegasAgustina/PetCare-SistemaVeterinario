@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Imprime únicamente URLs públicas calculadas para copiar a los proveedores; nunca secretos. */
 import 'dotenv/config';
 import { backendOrigin,providers } from '../config/oauth';

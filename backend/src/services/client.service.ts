@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 /**
  * Coordina validación y operaciones del cliente usando su identidad autenticada. Delega persistencia al repository y fotos a Cloudinary; un error de consulta nunca se reemplaza por datos de muestra.
  */
@@ -18,7 +20,9 @@ import type { AuthUser } from '../types/auth';
 import { storePaymentProof,removePaymentProof } from './pet-photo.service';
 import { storeCheckoutInput,storeTransferInput } from '../validators/store-checkout.validator';
 import { cancelClientAppointment } from '../repositories/clinic.repository';
+// Dato clinicalKinds: conserva un valor calculado o de configuración usado por este módulo.
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
+// Función clientOperation: concentra la lógica dentro de este módulo.
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>,actor?:AuthUser) {
   return runDatabaseOperation(async()=>{
     switch(operation){

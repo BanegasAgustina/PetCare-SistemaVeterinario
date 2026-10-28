@@ -1,11 +1,16 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 import { Router } from 'express';
 import { processNotificationJobs } from '../services/notifications.service';
 import { AppError } from '../utils/app-error';
 import { isCronAuthorized } from '../utils/cron-auth';
 
+// Tipo NotificationJobResult: define la forma o las opciones válidas de los datos usados por este módulo.
 type NotificationJobResult = Awaited<ReturnType<typeof processNotificationJobs>>;
+// Tipo NotificationJobProcessor: define la forma o las opciones válidas de los datos usados por este módulo.
 type NotificationJobProcessor = () => Promise<NotificationJobResult>;
 
+// Función createNotificationJobsRouter: crea un registro o inicia una operación dentro de este módulo.
 export function createNotificationJobsRouter(processJobs: NotificationJobProcessor = processNotificationJobs): Router {
   const router = Router();
   router.get('/', async (request, response, next) => {
@@ -32,4 +37,5 @@ export function createNotificationJobsRouter(processJobs: NotificationJobProcess
   return router;
 }
 
+// Dato notificationJobsRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const notificationJobsRouter = createNotificationJobsRouter();

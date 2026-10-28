@@ -1,9 +1,12 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+
 /** Serializa migraciones y seeds en la misma base, incluso entre procesos distintos. */
 import { createHash } from 'node:crypto';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { env } from '../config/env';
 import { DatabaseError } from '../utils/database-error';
 
+// Función withDatabaseLock: concentra la lógica dentro de este módulo.
 export async function withDatabaseLock<T>(connection: PoolConnection, operation: () => Promise<T>): Promise<T> {
   // MySQL limita nombres de locks a 64 caracteres; el hash evita nombres extensos.
   const lockName = `petcare:${createHash('sha256').update(env.database.database).digest('hex').slice(0, 48)}`;

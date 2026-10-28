@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
+
 import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { databasePool } from '../config/database';
@@ -9,7 +11,9 @@ import { normalizeEmail, readPassword } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 import { sendPasswordResetEmail } from './mail.service';
 
+// Función tokenHash: concentra una operación reutilizable de este módulo.
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
+// Función resetUrl: concentra una operación reutilizable de este módulo.
 const resetUrl = () => {
   const value = process.env.PASSWORD_RESET_URL?.trim();
   try {
@@ -21,6 +25,7 @@ const resetUrl = () => {
   catch { throw new AppError('PASSWORD_RESET_UNAVAILABLE', 503, 'La recuperación de contraseña no está configurada.'); }
 };
 
+// Función requestPasswordReset: concentra la lógica dentro de este módulo.
 export async function requestPasswordReset(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => key !== 'email')) throw new AppError('VALIDATION_ERROR',400,'Ingresá un correo válido.');
   const email = normalizeEmail((body as { email?: unknown }).email);
@@ -46,6 +51,7 @@ export async function requestPasswordReset(body: unknown): Promise<void> {
   await sendPasswordResetEmail(email, url.toString());
 }
 
+// Función resetPassword: concentra la lógica dentro de este módulo.
 export async function resetPassword(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['token','password'].includes(key))) throw new AppError('VALIDATION_ERROR',400,'El enlace no es válido o venció.');
   const input = body as { token?: unknown; password?: unknown };
@@ -67,6 +73,7 @@ export async function resetPassword(body: unknown): Promise<void> {
 }
 
 /** Establece la primera contraseña propia tras verificar el correo de una cuenta de empleado. */
+// Función changeInitialPassword: actualiza o guarda información dentro de este módulo.
 export async function changeInitialPassword(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['email','currentPassword','newPassword'].includes(key))) throw new AppError('VALIDATION_ERROR',400,'Revisá los datos ingresados.');
   const value=body as {email?:unknown;currentPassword?:unknown;newPassword?:unknown};

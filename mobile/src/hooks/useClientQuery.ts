@@ -1,3 +1,5 @@
+// Este archivo se encarga de lo siguiente: Hook reutilizable de React; concentra estado o comportamiento que pueden compartir varias pantallas.
+
 /**
  * Gestiona carga, error y resultado de una consulta real. Reconsulta al recibir foco e ignora respuestas antiguas; solo una consulta exitosa permite interpretar un resultado vacío.
  */
@@ -5,6 +7,7 @@ import { useCallback,useRef,useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { friendlyError } from '../services/api';
 /** Reconsulta al volver a la pantalla e ignora respuestas de una navegación anterior. */
+// Función useClientQuery: concentra la lógica dentro de este módulo.
 export function useClientQuery<T>(load:()=>Promise<T>){
   const [data,setData]=useState<T|null>(null);const [error,setError]=useState<string|null>(null);const [loading,setLoading]=useState(true);const sequence=useRef(0);
   const reload=useCallback(()=>{const attempt=++sequence.current;setLoading(true);setError(null);setData(null);

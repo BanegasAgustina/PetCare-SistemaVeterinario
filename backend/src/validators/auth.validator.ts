@@ -1,17 +1,23 @@
+// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
+
 /** Validación independiente del frontend: normaliza identidad sin alterar la contraseña. */
 import isEmail from 'validator/lib/isEmail';
 import { AppError } from '../utils/app-error';
 import type { LoginInput, RegisterInput } from '../types/auth';
 
+// Dato namePattern: conserva un valor calculado o de configuración usado por este módulo.
 const namePattern = /^[\p{L}][\p{L}\p{M}]*(?:[ '\u2019-][\p{L}][\p{L}\p{M}]*)*$/u;
+// Función invalid: concentra la lógica dentro de este módulo.
 function invalid(message: string): never { throw new AppError('VALIDATION_ERROR', 400, message); }
 
+// Función readObject: obtiene o consulta información dentro de este módulo.
 function readObject(value: unknown, allowedFields: string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) invalid('La solicitud debe contener un objeto JSON.');
   if (Object.keys(value).some((key) => !allowedFields.includes(key))) invalid('La solicitud contiene campos no permitidos.');
   return value as Record<string, unknown>;
 }
 
+// Función readName: obtiene o consulta información dentro de este módulo.
 export function readName(value: unknown, label: string): string {
   if (typeof value !== 'string') invalid(`${label} es obligatorio.`);
   const normalized = value.normalize('NFC').trim().replace(/\s+/g, ' ');
@@ -20,6 +26,7 @@ export function readName(value: unknown, label: string): string {
   return normalized;
 }
 
+// Función normalizeEmail: transforma o prepara datos dentro de este módulo.
 export function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) invalid('El email es obligatorio.');
   const normalized = value.trim().normalize('NFC').toLowerCase();
@@ -28,6 +35,7 @@ export function normalizeEmail(value: unknown): string {
   return normalized;
 }
 
+// Función readPhone: obtiene o consulta información dentro de este módulo.
 export function readPhone(value: unknown): string | null {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string') invalid('El teléfono debe ser texto para conservar sus prefijos.');
@@ -38,6 +46,7 @@ export function readPhone(value: unknown): string | null {
   return normalized;
 }
 
+// Función readPassword: obtiene o consulta información dentro de este módulo.
 export function readPassword(value: unknown, requireStrength: boolean): string {
   if (typeof value !== 'string' || value.length === 0) invalid('La contraseña es obligatoria.');
   // bcrypt solo procesa 72 bytes. Rechazar el exceso evita contraseñas distintas con el mismo prefijo efectivo.
@@ -48,11 +57,13 @@ export function readPassword(value: unknown, requireStrength: boolean): string {
   return value;
 }
 
+// Función validateRegister: comprueba una regla o condición dentro de este módulo.
 export function validateRegister(value: unknown): RegisterInput {
   const body = readObject(value, ['firstName', 'lastName', 'email', 'phone', 'password']);
   return { firstName: readName(body.firstName, 'El nombre'), lastName: readName(body.lastName, 'El apellido'), email: normalizeEmail(body.email), phone: readPhone(body.phone), password: readPassword(body.password, true) };
 }
 
+// Función validateLogin: comprueba una regla o condición dentro de este módulo.
 export function validateLogin(value: unknown): LoginInput {
   const body = readObject(value, ['email', 'password']);
   return { email: normalizeEmail(body.email), password: readPassword(body.password, false) };
