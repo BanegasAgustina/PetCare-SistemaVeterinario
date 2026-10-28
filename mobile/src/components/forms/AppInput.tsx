@@ -9,7 +9,7 @@ import { useTheme } from '../../hooks/useTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Tipo AppInputProps: define la forma o las opciones válidas de los datos usados por este módulo.
-type AppInputProps = TextInputProps & { label: string; error?: string; hint?: string; password?: boolean; compact?: boolean; icon?: 'mail-outline' | 'lock-closed-outline' | 'search-outline'; prefix?: string; required?: boolean };
+type AppInputProps = TextInputProps & { label: string; error?: string; hint?: string; password?: boolean; compact?: boolean; icon?: 'mail-outline' | 'lock-closed-outline' | 'search-outline' | 'call-outline'; prefix?: string; required?: boolean };
 // Dato AppInput: conserva un valor calculado o de configuración usado por este módulo.
 export const AppInput = forwardRef<ComponentRef<typeof TextInput>, AppInputProps>(function AppInput({ label, error, hint, password = false, compact = false, icon, prefix, required = false, style, onFocus, onBlur, ...props }, ref) {
   const { colors } = useTheme();

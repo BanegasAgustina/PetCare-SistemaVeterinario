@@ -11,7 +11,7 @@ import { firstInvalidField, type FieldErrors } from '../../utils/auth-validation
 
 // Tipo AuthField: define la forma o las opciones válidas de los datos usados por este módulo.
 export type AuthField<T> = {
-  key: keyof T; label: string; hint?: string; password?: boolean; icon?: 'mail-outline' | 'lock-closed-outline';
+  key: keyof T; label: string; hint?: string; password?: boolean; icon?: 'mail-outline' | 'lock-closed-outline' | 'call-outline';
   inputProps?: Pick<TextInputProps, 'keyboardType' | 'autoComplete' | 'textContentType' | 'autoCapitalize' | 'placeholder' | 'maxLength' | 'autoCorrect'>;
 };
 // Tipo AuthFormProps: define la forma o las opciones válidas de los datos usados por este módulo.

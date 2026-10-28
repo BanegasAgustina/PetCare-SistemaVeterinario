@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { AuthForm, type AuthField } from '../components/forms/AuthForm';
 import { LoginBrand } from '../components/layout/LoginBrand';
+import { LoginPets } from '../components/layout/LoginPets';
 
 import { LoginLayout } from '../components/layout/LoginLayout';
 import { AppText } from '../components/ui/AppText';
@@ -19,8 +20,8 @@ import type { RegistrationFormValues } from '../types/auth';
 // Configuración fields: reúne valores o reglas que consume el resto del módulo.
 const fields: AuthField<RegistrationFormValues>[] = [
   { key: 'fullName', label: 'Nombre completo', inputProps: { autoCapitalize: 'words', autoComplete: 'name', textContentType: 'name', maxLength: 201 } },
-  { key: 'email', label: 'Correo electrónico', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, maxLength: 254, placeholder: 'nombre@ejemplo.com' } },
-  { key: 'phone', label: 'Teléfono (opcional)', inputProps: { keyboardType: 'phone-pad', autoComplete: 'tel', textContentType: 'telephoneNumber', maxLength: 40, placeholder: '+54 9 11 1234-5678' } },
+  { key: 'email', label: 'Correo electrónico', icon: 'mail-outline', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, maxLength: 254, placeholder: 'nombre@ejemplo.com' } },
+  { key: 'phone', label: 'Teléfono (opcional)', icon: 'call-outline', inputProps: { keyboardType: 'phone-pad', autoComplete: 'tel', textContentType: 'telephoneNumber', maxLength: 40, placeholder: '+54 9 11 1234-5678' } },
   { key: 'password', label: 'Contraseña', password: true, hint: '8 caracteres, mayúscula, minúscula, número y símbolo.', inputProps: { autoComplete: 'new-password', textContentType: 'newPassword', autoCorrect: false } },
   { key: 'confirmPassword', label: 'Repetir contraseña', password: true, inputProps: { autoComplete: 'new-password', textContentType: 'newPassword', autoCorrect: false } },
 ];
@@ -28,12 +29,13 @@ const fields: AuthField<RegistrationFormValues>[] = [
 export default function RegisterScreen() {
   const auth = useAuth(); const { colors } = useTheme();
   const [socialLoading, setSocialLoading] = useState(false);
-  return <LoginLayout scrollable showDesktopImage petArtwork="register">
-    <LoginBrand title="Creá tu cuenta" subtitle="Cuidamos a quienes más querés" />
+  return <LoginLayout scrollable disableScrollWhenFits compactContent showDesktopImage petArtwork="none">
+    <LoginBrand title="Creá tu cuenta" subtitle="Cuidamos a quienes más querés" compactLayout />
     <AuthForm compact dense centerSubmitButton disabled={socialLoading} fields={fields} initialValues={{ fullName: '', email: '', phone: '', password: '', confirmPassword: '' }} validate={validateRegistrationForm}
       onSubmit={async values => { await auth.register(registrationPayload(values)); }} submitLabel="CREAR CUENTA" loadingLabel="Creando tu cuenta…" />
     <OAuthSignInOptions onLoadingChange={setSocialLoading} />
     <Pressable accessibilityRole="link" onPress={() => router.replace('/login')} style={styles.link}><AppText variant="caption" style={{ color: colors.primary, textAlign: 'center' }}>¿Ya tenés cuenta? Iniciar sesión</AppText></Pressable>
+    <LoginPets registration inline mobileOnly />
 
   </LoginLayout>;
 }

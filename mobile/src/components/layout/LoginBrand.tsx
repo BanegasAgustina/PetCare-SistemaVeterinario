@@ -8,12 +8,12 @@ import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 import { PetCareLogo } from './PetCareLogo';
 // Función LoginBrand: concentra la lógica dentro de este módulo.
-export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuidamos a quienes más querés' }: { title?: string; subtitle?: string }) {
+export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuidamos a quienes más querés', compactLayout = false }: { title?: string; subtitle?: string; compactLayout?: boolean }) {
   const { colors, mode, setPreference } = useTheme();
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const availableHeight = height - insets.top - insets.bottom;
-  const compact = availableHeight <= 700;
+  const compact = compactLayout || availableHeight <= 700;
   const logoWidth = Math.min(availableHeight < 640 ? 200 : compact ? 242 : 290, width - 64);
   return <View style={styles.header}>
     <View style={[styles.logoRow, { height: logoWidth / 3 }]}>
