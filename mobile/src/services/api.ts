@@ -193,7 +193,7 @@ export function buildApiEndpoint(apiBaseUrl: string, path: string): string {
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; contentType?: string; headers?:Record<string,string>;accessToken?: string } = {}): Promise<T> {
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
   const cleanPath = normalizeApiPath(path);
-  const url = `${getApiUrl()}${cleanPath}`;
+  const url = buildApiEndpoint(getApiUrl(), cleanPath);
   const method=options.method??'GET';
   const endpoint=`${new URL(url).origin}${safeEndpoint(cleanPath)}`;
   const controller = new AbortController();
