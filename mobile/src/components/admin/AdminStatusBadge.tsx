@@ -3,19 +3,7 @@
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppText } from '../ui/AppText';
-
-// Configuración stateLabel: reúne valores o reglas que consume el resto del módulo.
-const stateLabel: Record<string, string> = {
-  ACTIVE: 'Activo',
-  INACTIVE: 'Inactivo',
-  UNKNOWN: 'Estado no disponible',
-  REQUESTED: 'Solicitado',
-  CONFIRMED: 'Confirmado',
-  IN_PROGRESS: 'En atención',
-  COMPLETED: 'Finalizado',
-  CANCELLED: 'Cancelado',
-  REJECTED: 'Rechazado',
-};
+import { generalStatusLabel } from '../../utils/display-labels';
 
 // Función AdminStatusBadge: concentra la lógica dentro de este módulo.
 export function AdminStatusBadge({ status }: { status: string }) {
@@ -36,7 +24,7 @@ export function AdminStatusBadge({ status }: { status: string }) {
           ? { backgroundColor: colors.background, color: colors.muted }
           : { backgroundColor: colors.accent, color: colors.primary };
   return <View style={[styles.badge, { backgroundColor: tone.backgroundColor }]}>
-    <AppText variant="caption" style={{ color: tone.color, fontWeight: '700' }}>{stateLabel[status] ?? status}</AppText>
+    <AppText variant="caption" style={{ color: tone.color, fontWeight: '700' }}>{generalStatusLabel(status)}</AppText>
   </View>;
 }
 
