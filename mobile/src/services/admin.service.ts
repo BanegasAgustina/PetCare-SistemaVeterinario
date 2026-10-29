@@ -11,7 +11,7 @@ export function adminService(request:ClientRequest) {
     user:(id:string)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}`,{method:'POST',body:{}}),
     createUser:(body:unknown)=>request<{user:AdminUserDetail;invitationDelivery:'sent'|'failed'}>('/admin/users',{method:'POST',body}),
     updateUser:(id:string,body:unknown)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}`,{method:'PUT',body}),
-    deactivateUser:(id:string)=>request<{deactivated:true;alreadyInactive:boolean}>(`/admin/users/${encodeURIComponent(id)}`,{method:'DELETE'}),
+    deactivateUser:(id:string)=>request<{deactivated:true;alreadyInactive:boolean;alreadyDeleted:boolean}>(`/admin/users/${encodeURIComponent(id)}`,{method:'DELETE'}),
     updateUserPhoto:(id:string,body:unknown)=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}/photo`,{method:'PUT',body}),
     userPermissions:(id:string,overrides:{code:string;allowed:boolean|null}[])=>request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}/permissions`,{method:'PUT',body:{overrides}}),
     invitation:(id:string)=>request<{delivery:string}>(`/admin/users/${encodeURIComponent(id)}/invitation`,{method:'POST'}),

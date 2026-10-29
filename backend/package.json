@@ -26,6 +26,7 @@
     "db:migrate:pet-photo": "tsx src/database/pet-photo-migrate.ts",
     "db:migrate:pet-sex": "tsx src/database/pet-sex-migrate.ts",
     "db:migrate:profile-photo": "tsx src/database/profile-photo-migrate.ts",
+    "db:migrate:user-deletion": "tsx src/database/user-deletion-migrate.ts",
     "db:migrate:password-reset": "tsx src/database/password-reset-migrate.ts",
     "db:migrate:employee-password": "tsx src/database/employee-password-migrate.ts",
     "db:seed:client:reference": "tsx src/database/client-reference-seed.ts",

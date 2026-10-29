@@ -57,7 +57,7 @@ export async function vetList(query: Record<string, unknown>) {
   }
   const page = Number(pageText); const limit = 20;
   return runDatabaseOperation(async () => {
-    const filters = ["r.code='VETERINARIAN'"]; const parameters: (string | number)[] = [];
+    const filters = ["r.code='VETERINARIAN'",'u.deleted_at IS NULL']; const parameters: (string | number)[] = [];
     if (search) { filters.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR v.license_number LIKE ?)'); parameters.push(...Array<string>(4).fill(`%${search}%`)); }
     if (status !== 'all') { filters.push('u.is_active=?');parameters.push(status==='active'?1:0); }
     if (query.specialtyId) { filters.push('EXISTS (SELECT 1 FROM veterinarian_specialties vs WHERE vs.veterinarian_id=v.id AND vs.specialty_id=?)');parameters.push(query.specialtyId as string); }
@@ -124,13 +124,27 @@ export async function createVet(input: VetInput,identity:AuthUser) {
     await freshAdmin(connection,identity,'veterinarians.manage');
     const [roles] = await connection.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='VETERINARIAN'");
     if (!roles[0]) throw new AppError('AUTH_UNAVAILABLE',503,'El rol veterinario no está configurado.');
-    await connection.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,0,1)',
-      [roles[0].id,input.email,unusablePasswordHash,input.firstName,input.lastName,input.phone]);
-    const [users] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
-    const userId = users[0].id as string;
-    await connection.execute('INSERT INTO veterinarians (user_id,license_number) VALUES (?,?)',[userId,input.licenseNumber]);
-    const [profiles] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
-    const id = profiles[0].id as string;
+    const [matches]=await connection.execute<RowDataPacket[]>('SELECT id,role_id AS roleId,is_active,deleted_at AS deletedAt FROM users WHERE email=? FOR UPDATE',[input.email]);
+    let userId:string;let id:string;
+    if(matches[0]){
+      if(Boolean(matches[0].is_active)||!matches[0].deletedAt||String(matches[0].roleId)!==String(roles[0].id))throw new AppError('EMAIL_ALREADY_EXISTS',409,'Ese correo ya está asociado a una cuenta.');
+      userId=String(matches[0].id);
+      const [profiles]=await connection.execute<RowDataPacket[]>('SELECT id FROM veterinarians WHERE user_id=? FOR UPDATE',[userId]);
+      if(!profiles[0])throw new AppError('EMAIL_ALREADY_EXISTS',409,'Ese correo pertenece a una cuenta que no tiene un perfil veterinario recuperable.');
+      id=String(profiles[0].id);
+      await connection.execute(`UPDATE users SET first_name=?,last_name=?,phone=?,password_hash=?,is_active=0,must_change_password=1,
+        email_verified_at=NULL,deleted_at=NULL,session_version=session_version+1 WHERE id=?`,[input.firstName,input.lastName,input.phone,unusablePasswordHash,userId]);
+      await connection.execute('UPDATE veterinarians SET license_number=? WHERE id=?',[input.licenseNumber,id]);
+      await connection.execute('DELETE FROM email_verifications WHERE user_id=?',[userId]);
+    }else{
+      await connection.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,0,1)',
+        [roles[0].id,input.email,unusablePasswordHash,input.firstName,input.lastName,input.phone]);
+      const [users] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
+      userId = String(users[0].id);
+      await connection.execute('INSERT INTO veterinarians (user_id,license_number) VALUES (?,?)',[userId,input.licenseNumber]);
+      const [profiles] = await connection.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');
+      id = String(profiles[0].id);
+    }
     await replaceSpecialties(connection,id,input.specialtyIds);
     const invitationToken=await saveInvitation(connection,userId);
     return { id,userId,invitationToken,email:input.email };
@@ -146,9 +160,9 @@ export async function updateVet(id: string,input: VetInput,identity:AuthUser) {
     if(!user.is_active&&input.isActive&&Number(user.must_change_password)===1&&!user.email_verified_at)throw new AppError('INVITATION_REQUIRED',409,'El veterinario debe activar su cuenta desde el enlace enviado por correo.');
     if(Boolean(user.is_active)!==input.isActive&&actor.role!=='SUPER_ADMIN')throw new AppError('FORBIDDEN',403,'Solo el administrador principal puede activar o desactivar veterinarios.');
     if(String(user.id)===actor.id&&!input.isActive)throw new AppError('FORBIDDEN',403,'No podés desactivar tu propia cuenta.');
-    await connection.execute(`UPDATE users SET first_name=?,last_name=?,email=?,phone=?,is_active=?,
+    await connection.execute(`UPDATE users SET first_name=?,last_name=?,email=?,phone=?,is_active=?,deleted_at=CASE WHEN ?=1 THEN NULL ELSE deleted_at END,
       session_version=session_version+?,email_verified_at=IF(?,NULL,email_verified_at) WHERE id=?`,
-      [input.firstName,input.lastName,input.email,input.phone,input.isActive,emailChanged || Boolean(user.is_active)!==input.isActive ? 1:0,emailChanged,user.id]);
+      [input.firstName,input.lastName,input.email,input.phone,input.isActive,input.isActive,emailChanged || Boolean(user.is_active)!==input.isActive ? 1:0,emailChanged,user.id]);
     await connection.execute('UPDATE veterinarians SET license_number=? WHERE id=?',[input.licenseNumber,id]);
     await replaceSpecialties(connection,id,input.specialtyIds);
     if (emailChanged || !input.isActive) {

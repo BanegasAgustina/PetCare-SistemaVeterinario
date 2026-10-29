@@ -99,7 +99,7 @@ export async function adminCatalog(actor:AuthUser) {
 export async function adminUsers(query:Record<string,unknown>) {
   const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';const status=query.status??'all';
   if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText)||!['all','active','inactive'].includes(String(status)))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
-  const page=Number(pageText);const filters:string[]=[];const params:(string|number)[]=[];
+  const page=Number(pageText);const filters:string[]=['u.deleted_at IS NULL'];const params:(string|number)[]=[];
   if(search){filters.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)');params.push(...Array<string>(3).fill(`%${search}%`));}
   if(status!=='all'){filters.push('u.is_active=?');params.push(status==='active'?1:0);}
   const from=`FROM users u JOIN roles r ON r.id=u.role_id ${filters.length?`WHERE ${filters.join(' AND ')}`:''}`;
@@ -145,8 +145,21 @@ export async function createAdminUser(identity:AuthUser,value:unknown) {
   const saved=await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');const role=await roleGrants(c,input.roleId);
     assertRoleAssignment(actor,role.role,role.permissions);
-    await c.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,0,1)',[input.roleId,input.email,unusablePasswordHash,input.firstName,input.lastName,input.phone]);
-    const [rows]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');const id=String(rows[0].id);
+    const [matches]=await c.execute<RowDataPacket[]>('SELECT u.id,u.role_id AS roleId,u.is_active,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.email=? FOR UPDATE',[input.email]);
+    let id:string;
+    if(matches[0]){
+      if(Boolean(matches[0].is_active))throw new AppError('EMAIL_ALREADY_EXISTS',409,'Ya existe una cuenta activa con ese email.');
+      assertTarget(actor,{id:String(matches[0].id),role:String(matches[0].role)});
+      if(String(matches[0].roleId)!==input.roleId)throw new AppError('INACTIVE_ACCOUNT_ROLE_MISMATCH',409,'Ese email pertenece a una cuenta inactiva de otro rol. Usá el mismo rol para conservar su historial.');
+      // Reusar la identidad inactiva conserva sus relaciones e historial bajo el mismo usuario.
+      id=String(matches[0].id);
+      await c.execute(`UPDATE users SET first_name=?,last_name=?,phone=?,password_hash=?,is_active=0,must_change_password=1,
+        email_verified_at=NULL,deleted_at=NULL,session_version=session_version+1 WHERE id=?`,[input.firstName,input.lastName,input.phone,unusablePasswordHash,id]);
+      await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);
+    }else{
+      await c.execute('INSERT INTO users (role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,0,1)',[input.roleId,input.email,unusablePasswordHash,input.firstName,input.lastName,input.phone]);
+      const [rows]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');id=String(rows[0].id);
+    }
     const token=await saveInvitation(c,id);
     return {id,token,email:input.email};
   });
@@ -176,37 +189,36 @@ export async function updateAdminUser(identity:AuthUser,id:string,value:unknown)
     if(id===actor.id&&(roleChanged||statusChanged))forbidden('No podés cambiar tu propio rol ni desactivar tu propia cuenta.');
     if(roleChanged){if(target.role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'No se cambia el rol de un usuario con perfil veterinario.');const role=await roleGrants(c,requestedRole!);assertRoleAssignment(actor,role.role,role.permissions);}
     if(statusChanged&&!body.isActive){const [others]=await c.execute<RowDataPacket[]>("SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='SUPER_ADMIN' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND u.id<>?",[id]);assertAccountDeactivationAllowed({actorId:actor.id,targetId:id,targetRole:String(target.role),activeVerifiedSuperAdmins:Number(others[0]?.total??0)+1});}
-    await c.execute('UPDATE users SET first_name=?,last_name=?,phone=?,is_active=?,role_id=?,session_version=session_version+? WHERE id=?',[firstName,lastName,phone,body.isActive,requestedRole??target.roleId,roleChanged||statusChanged?1:0,id]);
+    await c.execute('UPDATE users SET first_name=?,last_name=?,phone=?,is_active=?,deleted_at=CASE WHEN ?=1 THEN NULL ELSE deleted_at END,role_id=?,session_version=session_version+? WHERE id=?',[firstName,lastName,phone,body.isActive,body.isActive,requestedRole??target.roleId,roleChanged||statusChanged?1:0,id]);
     if(statusChanged)await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',[actor.id,body.isActive?'USER_ACTIVATED':'USER_DEACTIVATED','USER',id,`${target.firstName} ${target.lastName}`.trim(),'SUCCESS']);
     if(roleChanged)await c.execute('DELETE FROM user_permissions WHERE user_id=?',[id]);
     if(roleChanged||!body.isActive){await c.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[id]);await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);}
   });return adminUser(id);
 }
 // Función deactivateAdminUser: aplica una baja lógica repetible conservando el historial.
-export async function deactivateAdminUser(identity:AuthUser,id:string):Promise<{deactivated:true;alreadyInactive:boolean}> {
+export async function deactivateAdminUser(identity:AuthUser,id:string):Promise<{deactivated:true;alreadyInactive:boolean;alreadyDeleted:boolean}> {
   return transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');
     if(actor.role!=='SUPER_ADMIN')forbidden('Solo el Admin Principal puede dar de baja cualquier cuenta.');
-    const [rows]=await c.execute<RowDataPacket[]>(`SELECT u.id,u.is_active,u.email_verified_at AS emailVerifiedAt,u.first_name AS firstName,u.last_name AS lastName,r.code AS role
+    const [rows]=await c.execute<RowDataPacket[]>(`SELECT u.id,u.is_active,u.deleted_at AS deletedAt,u.email_verified_at AS emailVerifiedAt,u.first_name AS firstName,u.last_name AS lastName,r.code AS role
       FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE`,[id]);
     if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
     const target=rows[0];
     if(id===actor.id)forbidden('No podés dar de baja tu propia cuenta.');
     assertTarget(actor,{id,role:String(target.role)});
     const alreadyInactive=!Boolean(target.is_active);
+    const alreadyDeleted=Boolean(target.deletedAt);
     if(!alreadyInactive&&target.role==='SUPER_ADMIN'){
       const [others]=await c.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id=u.role_id
         WHERE r.code='SUPER_ADMIN' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND u.id<>?`,[id]);
       assertAccountDeactivationAllowed({actorId:actor.id,targetId:id,targetRole:String(target.role),activeVerifiedSuperAdmins:Number(others[0]?.total??0)+(target.emailVerifiedAt?1:0)});
     }
-    if(!alreadyInactive){
-      await c.execute('UPDATE users SET is_active=0,session_version=session_version+1 WHERE id=?',[id]);
-      await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',
-        [actor.id,'USER_DEACTIVATED','USER',id,`${target.firstName} ${target.lastName}`.trim(),'SUCCESS']);
-    }
+    await c.execute('UPDATE users SET is_active=0,deleted_at=COALESCE(deleted_at,UTC_TIMESTAMP(3)),session_version=session_version+? WHERE id=?',[alreadyInactive?0:1,id]);
+    if(!alreadyDeleted)await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',
+      [actor.id,'USER_DEACTIVATED','USER',id,`${target.firstName} ${target.lastName}`.trim(),'SUCCESS']);
     await c.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[id]);
     await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);
-    return {deactivated:true,alreadyInactive};
+    return {deactivated:true,alreadyInactive,alreadyDeleted};
   });
 }
 // Función updateUserPermissions: actualiza o guarda información dentro de este módulo.

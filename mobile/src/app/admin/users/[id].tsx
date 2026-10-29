@@ -55,7 +55,7 @@ async function save(){
   }
   // Función resendInvitation: concentra la lógica dentro de este módulo.
 async function resendInvitation(){const sent=await action.run(async()=>{const result=await api.invitation(id);query.reload();showToast(result.delivery==='sent'?'Invitación reenviada.':'No se pudo enviar el correo. Podés intentar más tarde. ',result.delivery==='sent'?'success':'info');});return sent;}
-  async function deactivateUser(){const result=await api.deactivateUser(id);setConfirm(null);query.reload();showToast(result.alreadyInactive?'La cuenta ya estaba dada de baja.':'Cuenta dada de baja; se conservó el historial.','success');}
+  async function deactivateUser(){const result=await api.deactivateUser(id);setConfirm(null);query.reload();showToast(result.alreadyDeleted?'La cuenta ya estaba retirada de la lista.':'Cuenta retirada de la lista; se conservó el historial.','success');}
   return <ScreenContainer keyboardAvoiding wide><AppText variant="title">{creating?'Crear usuario':'Usuario'}</AppText>
 <QueryState {...query}/>
     {query.data&&!query.error&&!query.loading&&<>
