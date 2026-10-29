@@ -5,10 +5,12 @@ import { ApiError, apiRequest, buildApiEndpoint, developmentApiUrl, PRODUCTION_A
 const originalFetch = globalThis.fetch;
 const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
 const originalAppEnv = process.env.EXPO_PUBLIC_APP_ENV;
+const productionOrigin = PRODUCTION_API_URL.replace(/\/api\/?$/, '');
 
 beforeEach(() => {
   (globalThis as typeof globalThis & { __DEV__?: boolean }).__DEV__ = false;
-  process.env.EXPO_PUBLIC_API_URL = PRODUCTION_API_URL;
+  // Reproduce Vercel project env configured with the origin but without its API suffix.
+  process.env.EXPO_PUBLIC_API_URL = productionOrigin;
   process.env.EXPO_PUBLIC_APP_ENV = 'production';
 });
 
@@ -20,15 +22,21 @@ afterEach(() => {
   else process.env.EXPO_PUBLIC_APP_ENV = originalAppEnv;
 });
 
+test('missing /api in EXPO_PUBLIC_API_URL is normalized for a production build', () => {
+  assert.equal(resolveApiUrl(productionOrigin, 'production', false), PRODUCTION_API_URL);
+  assert.equal(buildApiEndpoint(resolveApiUrl(productionOrigin, 'production', false), '/auth/invitations/accept'),
+    'https://pet-care-sistema-veterinario.vercel.app/api/auth/invitations/accept');
+});
+
 test('API endpoint builder preserves /api and does not duplicate it', () => {
+  assert.equal(buildApiEndpoint(productionOrigin, '/auth/invitations/accept'), 'https://pet-care-sistema-veterinario.vercel.app/api/auth/invitations/accept');
   assert.equal(buildApiEndpoint(PRODUCTION_API_URL, '/auth/invitations/accept'), `${PRODUCTION_API_URL}/auth/invitations/accept`);
   assert.equal(buildApiEndpoint(PRODUCTION_API_URL, '/api/auth/invitations/accept'), `${PRODUCTION_API_URL}/auth/invitations/accept`);
 });
 
-test('development and production API configuration both resolve to an /api base', () => {
+test('development API configuration resolves to an /api base', () => {
   const localBase = developmentApiUrl('http://localhost:3000/api', undefined, undefined, true);
   assert.equal(resolveApiUrl(localBase, 'development', true), 'http://localhost:3000/api');
-  assert.equal(resolveApiUrl(PRODUCTION_API_URL, 'production', false), PRODUCTION_API_URL);
 });
 
 test('invitation acceptance POST reaches the API route and sends the token in JSON', async () => {
@@ -44,14 +52,12 @@ test('invitation acceptance POST reaches the API route and sends the token in JS
   };
 
   const token = 'a'.repeat(64);
-  await apiRequest('/auth/invitations/accept', {
-    method: 'POST',
-    body: { token, password: 'TestPass123!' },
-  });
-
-  assert.equal(capturedUrl, `${PRODUCTION_API_URL}/auth/invitations/accept`);
-  assert.deepEqual(capturedBody, { token, password: 'TestPass123!' });
-  assert.equal(new URL(capturedUrl).search, '');
+  for (const path of ['/auth/invitations/accept', '/auth/veterinarian-invitations/accept']) {
+    await apiRequest(path, { method: 'POST', body: { token, password: 'TestPass123!' } });
+    assert.equal(capturedUrl, `https://pet-care-sistema-veterinario.vercel.app/api${path}`);
+    assert.deepEqual(capturedBody, { token, password: 'TestPass123!' });
+    assert.equal(new URL(capturedUrl).search, '');
+  }
 });
 
 test('a platform HTML 404 is distinguishable from the backend JSON 404', async () => {

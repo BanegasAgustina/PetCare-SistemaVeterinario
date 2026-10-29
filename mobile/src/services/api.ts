@@ -186,7 +186,11 @@ function normalizeApiPath(path: string): string {
 
 // Función buildApiEndpoint: transforma o prepara datos dentro de este módulo.
 export function buildApiEndpoint(apiBaseUrl: string, path: string): string {
-  return `${apiBaseUrl}${normalizeApiPath(path)}`;
+  const base = new URL(apiBaseUrl);
+  if (base.username || base.password || base.search || base.hash) throw new Error('Invalid API base URL.');
+  const basePath = base.pathname.replace(/\/+$/, '');
+  if (!/\/api$/i.test(basePath)) base.pathname = `${basePath}/api`;
+  return `${base.origin}${base.pathname.replace(/\/+$/, '')}${normalizeApiPath(path)}`;
 }
 
 // Función apiRequest: concentra la lógica dentro de este módulo.
