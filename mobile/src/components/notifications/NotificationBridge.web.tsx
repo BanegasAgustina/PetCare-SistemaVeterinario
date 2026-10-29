@@ -3,12 +3,15 @@
 import { useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { publishNotificationChange } from '../../services/notification-events';
+import { canAccessNotificationCenter } from '../../utils/personal-route-access';
+import { notificationCenterPath } from '../../services/notification-path';
 
 // Función NotificationBridge: concentra la lógica dentro de este módulo.
 export function NotificationBridge() {
   const { user, request } = useAuth();
+  const enabled=canAccessNotificationCenter(user?.role??'');
   useEffect(() => {
-    if (user?.role !== 'CLIENT') return;
+    if (!enabled) return;
     let active = true;
     let interval: ReturnType<typeof setInterval> | undefined;
     let requestInProgress = false;
@@ -19,7 +22,7 @@ const poll = async () => {
       requestInProgress = true;
       try {
         const result = await request<{ items?: { id?: string; readAt?: string | null }[]; unreadCount?: number }>(
-          '/client/notifications', { method: 'POST', body: { limit: 1 } },
+          notificationCenterPath, { method: 'POST', body: { limit: 1 } },
         );
         if (!active) return;
         const latest = result.items?.[0];
@@ -55,6 +58,6 @@ const onVisibilityChange = () => {
       stopPolling();
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [request, user?.id, user?.role]);
+  }, [enabled, request, user?.id]);
   return null;
 }

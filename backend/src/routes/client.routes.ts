@@ -8,10 +8,12 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { requirePersonalAccess } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { clientHandler as handle } from '../controllers/client.controller';
+import { legacyClientNotificationRouter } from './notification.routes';
 // Dato clientRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const clientRouter=Router();
 clientRouter.use(authenticate,requirePersonalAccess);
 clientRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
+clientRouter.use('/notifications',legacyClientNotificationRouter);
 clientRouter.post('/home',handle('home'));
 clientRouter.post('/pets/catalog',handle('pet-catalog'));
 clientRouter.post('/pets/query',handle('pets'));
@@ -45,9 +47,5 @@ clientRouter.post('/orders/bank-transfer',createAuthRateLimiter(8),handle('bank-
 clientRouter.post('/orders/:id/payment-intents',createAuthRateLimiter(8),handle('payment-intent-renew',201));
 clientRouter.post('/payment-intents/:id/proof',createAuthRateLimiter(8),handle('payment-proof',201));
 clientRouter.post('/orders/:id',handle('order'));
-clientRouter.post('/notifications',handle('notifications'));
-clientRouter.patch('/notifications/read-all',handle('notification-read-all'));
-clientRouter.patch('/notifications/:id/read',handle('notification-read'));
-clientRouter.delete('/notifications/:id',handle('notification-hide'));
 clientRouter.patch('/profile',handle('profile-update'));
 clientRouter.put('/profile/password',createAuthRateLimiter(),handle('password-update'));

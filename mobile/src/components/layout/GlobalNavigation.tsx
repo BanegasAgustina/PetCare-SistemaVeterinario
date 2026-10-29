@@ -23,6 +23,8 @@ import { AppBreadcrumbs } from './AppBreadcrumbs';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { activePrimaryNavigationPath, selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
+import { canAccessNotificationCenter } from '../../utils/personal-route-access';
+import { notificationCenterPath } from '../../services/notification-path';
 
 // Tipo MenuItem: define la forma o las opciones válidas de los datos usados por este módulo.
 type MenuItem = { label: string; path: string; icon: IconName; permission?: string; group?: string };
@@ -131,6 +133,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(user.role));
   const isClient = user?.role === 'CLIENT';
   const isVeterinarian = user?.role === 'VETERINARIAN';
+  const isProfessional = isVeterinarian || user?.role === 'GROOMER';
+  const notificationsEnabled=canAccessNotificationCenter(user?.role??'');
   const [adminModulesResult, setAdminModulesResult] = useState<{ userId: string | null; modules: AdminModule[] }>({ userId: null, modules: [] });
   const adminModules = adminModulesResult.userId === user?.id ? adminModulesResult.modules : noAdminModules;
   const adminModulesLoading = isAdmin && adminModulesResult.userId !== user?.id;
@@ -146,13 +150,13 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   }, [request, user?.id, user?.role, isAdmin]);
   useEffect(() => {
     let active = true;
-    if (!isClient) return () => { active = false; };
+    if (!notificationsEnabled) return () => { active = false; };
     // Función refreshUnread: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifications',{method:'POST',body:{limit:1}}).then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
+const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCenterPath,{method:'POST',body:{limit:1}}).then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
     refreshUnread();
     const unsubscribe=subscribeToNotificationChanges(refreshUnread);
     return () => { active = false;unsubscribe(); };
-  }, [request, user?.id, isClient]);
+  }, [request, user?.id, notificationsEnabled]);
   const items = useMemo<MenuItem[]>(() => {
     if (!user) return [];
   if (user.role === 'CLIENT') return clientItems;
@@ -187,9 +191,10 @@ const refreshUnread=()=>void request<{ unreadCount?: number }>('/client/notifica
     : selectPrimaryNavigation(user?.role??'',items), [isAdmin,items,user?.role]);
   const quickAccessItems = useMemo<MenuItem[]>(() => selectSecondaryNavigation(user?.role??'',items,primaryItems), [items,primaryItems,user?.role]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
-  const desktopItems = useMemo(() => isClient
-    ? [...items, { label: unreadNotifications ? `Notificaciones (${unreadNotifications})` : 'Notificaciones', path: '/client/notifications', icon: 'notifications-outline' as const }]
-    : items, [items, isClient, unreadNotifications]);
+  const desktopItems = useMemo(() => notificationsEnabled
+    ? [...items, { label: unreadNotifications ? `Notificaciones (${unreadNotifications})` : 'Notificaciones', path: notificationCenterPath, icon: 'notifications-outline' as const }]
+    : items, [items, notificationsEnabled, unreadNotifications]);
+  const professionalSidebarItems=isProfessional?desktopItems.filter(item=>item.path!==notificationCenterPath):desktopItems;
   const desktopSelected = [...desktopItems].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const activePrimaryPath=activePrimaryNavigationPath(user?.role??'',pathname,primaryItems);
 
@@ -220,21 +225,19 @@ const navigate = (path: string) => router.navigate(path as never);
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
-  if (isVeterinarian && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
+  if (isProfessional && desktop) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
     <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot, { backgroundColor: colors.background }]}>
-      <DesktopSidebar items={desktopItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
-      <RoleQuickAccessProvider items={quickAccessItems}><DesktopPageContent role={user.role} destinations={[...desktopItems,...primaryItems]}>{children}</DesktopPageContent></RoleQuickAccessProvider>
+      <DesktopSidebar items={professionalSidebarItems} activePath={desktopSelected?.path ?? null} onNavigate={navigate} />
+      <View style={styles.professionalDesktopPage}>
+        <ProfessionalTopBar count={unreadNotifications}/>
+        <RoleQuickAccessProvider items={quickAccessItems}><DesktopPageContent role={user.role} destinations={[...desktopItems,...primaryItems]}>{children}</DesktopPageContent></RoleQuickAccessProvider>
+      </View>
     </View>
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 
-  if (isVeterinarian) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
-    {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={styles.veterinarianTopBar}>
-        <PetCareLogo style={styles.veterinarianTopLogo}/>
-        <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
-      </View>
-    </SafeAreaView>}
+  if (isProfessional) return <AdminModulesContext.Provider value={[]}><AdminModulesLoadingContext.Provider value={false}><View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ProfessionalTopBar count={unreadNotifications}/>
     <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
@@ -243,7 +246,7 @@ const navigate = (path: string) => router.navigate(path as never);
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.topBar}>
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
-        {isClient&&<Pressable accessibilityRole="button" accessibilityLabel={unreadNotifications>0?`Notificaciones, ${unreadNotifications} sin leer`:'Notificaciones'} onPress={()=>router.push('/client/notifications')} style={styles.profileButton}><Ionicons name="notifications-outline" size={23} color={colors.primary}/>{unreadNotifications>0&&<View style={[styles.notificationDot,{backgroundColor:colors.highlight,width:unreadNotifications>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:colors.onHighlight,fontSize:9,fontWeight:'700',lineHeight:12}}>{unreadNotifications>99?'99+':unreadNotifications}</Text></View>}</Pressable>}
+        {notificationsEnabled&&<NotificationCenterButton count={unreadNotifications} onPress={()=>router.push(notificationCenterPath as never)}/>}
         {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
       </View>
     </SafeAreaView>}
@@ -255,6 +258,26 @@ const navigate = (path: string) => router.navigate(path as never);
     </View>}
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
+}
+
+function NotificationCenterButton({count,onPress}:{count:number;onPress:()=>void}) {
+  const {colors}=useTheme();
+  const label=count>0?`Notificaciones, ${count} sin leer`:'Notificaciones';
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.profileButton}>
+    <Ionicons name="notifications-outline" size={23} color={colors.primary}/>
+    {count>0&&<View style={[styles.notificationDot,{backgroundColor:colors.highlight,width:count>9?22:17,height:17,minWidth:17,top:3,right:3,borderRadius:9,borderWidth:0,alignItems:'center',justifyContent:'center'}]}><Text style={{color:colors.onHighlight,fontSize:9,fontWeight:'700',lineHeight:12}}>{count>99?'99+':count}</Text></View>}
+  </Pressable>;
+}
+
+function ProfessionalTopBar({count}:{count:number}) {
+  const {colors}=useTheme();
+  return <SafeAreaView edges={Platform.OS==='web'?[]:['top']} style={[styles.professionalTopSafe,softSurfaceShadow(colors.primary),{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
+    <View style={styles.professionalTopBar}>
+      <NotificationCenterButton count={count} onPress={()=>router.push(notificationCenterPath as never)}/>
+      <View pointerEvents="none" style={styles.professionalLogoCenter}><PetCareLogo style={styles.professionalTopLogo}/></View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
+    </View>
+  </SafeAreaView>;
 }
 
 // Función DesktopPageContent: concentra la lógica dentro de este módulo.
@@ -299,7 +322,7 @@ const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="but
 const styles = StyleSheet.create({
   desktopRoot:{flex:1,minHeight:0,flexDirection:'row'},desktopPage:{flex:1,minWidth:0,minHeight:0},desktopContent:{flex:1,minWidth:0,minHeight:0},desktopSidebar:{flexShrink:0,minHeight:0,paddingHorizontal:16,paddingVertical:18,borderRightWidth:1},desktopBrand:{minHeight:54,justifyContent:'center',paddingHorizontal:2},desktopLogo:{width:132,height:36,alignSelf:'flex-start'},desktopMenu:{flex:1,minHeight:0},desktopMenuContent:{flexGrow:1,gap:5,paddingBottom:12},desktopNavItem:{minHeight:46,paddingHorizontal:11,borderRadius:13,borderLeftWidth:3,flexDirection:'row',alignItems:'center',gap:11},desktopAccount:{gap:9,paddingTop:14,marginTop:'auto',borderTopWidth:1},desktopIdentity:{minHeight:42,flexDirection:'row',alignItems:'center',gap:10},desktopAvatar:{width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},desktopUserCopy:{flex:1,minWidth:0,gap:2},desktopUserName:{fontWeight:'700'},desktopAction:{minHeight:38,paddingHorizontal:4,flexDirection:'row',alignItems:'center',gap:10},
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  veterinarianTopBar:{minHeight:64,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'},veterinarianTopLogo:{position:'absolute',left:'50%',marginLeft:-58,width:116,height:34},
+  professionalDesktopPage:{flex:1,minWidth:0,minHeight:0},professionalTopSafe:{borderBottomWidth:1},professionalTopBar:{position:'relative',minHeight:64,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},professionalLogoCenter:{position:'absolute',left:0,right:0,top:0,bottom:0,alignItems:'center',justifyContent:'center'},professionalTopLogo:{width:132,height:38},
   adminTopBar:{minHeight:60,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},adminTopLogo:{width:116,height:34},adminPage:{flex:1,minHeight:0},
   currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
   adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},

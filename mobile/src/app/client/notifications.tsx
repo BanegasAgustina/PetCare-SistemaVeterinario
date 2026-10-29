@@ -14,14 +14,16 @@ import { useEffect, useState } from 'react';
 import { Platform,Pressable,StyleSheet,View,useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { notificationPath } from '../../services/notification-path';
+import { isWorkNotification, notificationMatchesContext, notificationPath } from '../../services/notification-path';
 import { publishNotificationChange, subscribeToNotificationChanges } from '../../services/notification-events';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 import { useTheme } from '../../hooks/useTheme';
+import { useAuth } from '../../hooks/useAuth';
 
 // Función NotificationsScreen: concentra la lógica dentro de este módulo.
 export default function NotificationsScreen(){
   const api=useClient();
+  const {user}=useAuth();
   const query=useClientQuery(api.notifications);
   const action=useAsyncAction();
   const {width}=useWindowDimensions();
@@ -29,13 +31,14 @@ export default function NotificationsScreen(){
   const desktopWeb=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const [extraPages,setExtraPages]=useState<{baseId:string;items:import('../../types/client').Notification[];cursor:string|null}|null>(null);
   const [showRead,setShowRead]=useState(false);
+  const [context,setContext]=useState<'all'|'personal'|'work'>('all');
   const firstId=query.data?.items[0]?.id??'';
   const extraItems=extraPages?.baseId===firstId?extraPages.items:[];
   const pageCursor=extraPages?.baseId===firstId?extraPages.cursor:query.data?.nextCursor??null;
   const items=[...new Map([...query.data?.items??[],...extraItems].map(item=>[item.id,item])).values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id));
   const unreadItems=items.filter(item=>!item.readAt);
   const readItems=items.filter(item=>Boolean(item.readAt));
-  const visibleItems=showRead?readItems:unreadItems;
+  const visibleItems=(showRead?readItems:unreadItems).filter(item=>notificationMatchesContext(item.eventType,context));
   useEffect(()=>{
     const unsubscribe=subscribeToNotificationChanges(query.reload);
     return unsubscribe;
@@ -64,6 +67,12 @@ const loadMore=()=>void action.run(async()=>{
         </Pressable>;
       })}
     </View>
+    {['VETERINARIAN','GROOMER'].includes(user?.role??'')&&<View accessibilityRole="radiogroup" accessibilityLabel="Filtrar contexto de notificaciones" style={[styles.contextGroup,desktopWeb&&styles.desktopContextGroup]}>
+      {([{value:'all',label:'Todas'},{value:'personal',label:'Personales'},{value:'work',label:'Laborales'}] as const).map(option=>{
+        const selected=context===option.value;
+        return <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{checked:selected}} onPress={()=>setContext(option.value)} style={[styles.contextOption,{backgroundColor:selected?colors.accent:colors.surface,borderColor:selected?colors.primary:colors.border}]}><AppText variant="caption" style={{color:selected?colors.primary:colors.text,fontWeight:selected?'700':'500'}}>{option.label}</AppText></Pressable>;
+      })}
+    </View>}
     {!!query.data?.unreadCount&&<View style={desktopWeb?styles.desktopBulkAction:undefined}><AppButton compact={desktopWeb} label="Marcar todas como leídas" variant="secondary" loading={action.loading} onPress={readAll}/></View>}
     
 <QueryState {...query}/>
@@ -71,6 +80,7 @@ const loadMore=()=>void action.run(async()=>{
     {query.data&&<>
       <AppText variant="subtitle">{showRead?'Notificaciones leídas':'Notificaciones no leídas'}{!showRead&&query.data.unreadCount?` · ${query.data.unreadCount}`:''}</AppText>
       {visibleItems.length?<ResponsiveGrid minItemWidth={280} maxColumns={4}>{visibleItems.map(n=><PetCareCard key={n.id} style={desktopWeb?styles.desktopCard:undefined}>
+      {['VETERINARIAN','GROOMER'].includes(user?.role??'')&&<PetCareBadge label={isWorkNotification(n.eventType)?'Laboral':'Personal'}/>}
       <PetCareBadge label={n.readAt?'Leída':'Nueva'}/>
       <AppText variant="subtitle">{n.title}</AppText>
       <AppText numberOfLines={desktopWeb?4:undefined} style={desktopWeb?styles.desktopBody:undefined}>{n.body}</AppText>
@@ -78,15 +88,15 @@ const loadMore=()=>void action.run(async()=>{
       <View style={[styles.actions,desktopWeb&&styles.desktopActions]}><AppButton compact={desktopWeb} label="Ver detalle" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{
         if(!n.readAt)await api.readNotification(n.id);
         if(!n.readAt)publishNotificationChange();
-        router.push(notificationPath(n.referenceType,n.referenceId));
+        router.push(notificationPath(n.referenceType,n.referenceId,n.eventType,user?.role,user?.permissions) as never);
       })}/>
       {!n.readAt&&<AppButton compact={desktopWeb} label="Marcar como leída" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.readNotification(n.id);publishNotificationChange();})}/>}
       <AppButton compact={desktopWeb} label="Ocultar notificación" variant="secondary" loading={action.loading} onPress={()=>void action.run(async()=>{await api.hideNotification(n.id);setExtraPages(current=>current?{...current,items:current.items.filter(item=>item.id!==n.id)}:null);publishNotificationChange();})}/></View>
-      </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title={showRead?'Todavía no hay notificaciones leídas':'Estás al día'} message={showRead?'Las notificaciones que abras o marques como leídas aparecerán acá.':'No tenés notificaciones nuevas.'} icon={showRead?'mail-open-outline':'notifications-outline'}/>}
+      </PetCareCard>)}</ResponsiveGrid>:<PetCareEmptyState title={showRead?'Todavía no hay notificaciones leídas':context==='work'?'No hay novedades laborales':context==='personal'?'No hay novedades personales':'Estás al día'} message={showRead?'Las notificaciones que abras o marques como leídas aparecerán acá.':'No hay notificaciones en este filtro.'} icon={showRead?'mail-open-outline':'notifications-outline'}/>}
     </>}
     {!!pageCursor&&<AppButton label="Cargar más notificaciones" variant="secondary" loading={action.loading} onPress={loadMore}/>}
   </PetCareScreen>;
 }
 
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.
-const styles=StyleSheet.create({filterGroup:{flexDirection:'row',gap:8},desktopFilterGroup:{alignSelf:'flex-start',width:380,maxWidth:'100%'},filterOption:{minHeight:46,flex:1,paddingHorizontal:14,borderRadius:14,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},desktopBulkAction:{alignSelf:'flex-start'},desktopCard:{flex:1,minWidth:0},desktopBody:{flexGrow:1},actions:{gap:16},desktopActions:{gap:8,marginTop:'auto',paddingTop:8,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});
+const styles=StyleSheet.create({filterGroup:{flexDirection:'row',gap:8},desktopFilterGroup:{alignSelf:'flex-start',width:380,maxWidth:'100%'},filterOption:{minHeight:46,flex:1,paddingHorizontal:14,borderRadius:14,borderWidth:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8},contextGroup:{flexDirection:'row',flexWrap:'wrap',gap:8},desktopContextGroup:{alignSelf:'flex-start'},contextOption:{minHeight:38,paddingHorizontal:14,borderRadius:12,borderWidth:1,alignItems:'center',justifyContent:'center'},desktopBulkAction:{alignSelf:'flex-start'},desktopCard:{flex:1,minWidth:0},desktopBody:{flexGrow:1},actions:{gap:16},desktopActions:{gap:8,marginTop:'auto',paddingTop:8,flexDirection:'row',flexWrap:'wrap',alignItems:'center'}});

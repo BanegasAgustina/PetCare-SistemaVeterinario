@@ -15,9 +15,15 @@ export function personalPermissionsForPathname(pathname:string):string[]|null {
   return null;
 }
 
+/** Inbox access is available to authenticated product roles; the server still scopes every row to the session user. */
+export function canAccessNotificationCenter(role:string):boolean {
+  return ['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role);
+}
+
 // Función canEnterPersonalPath: comprueba una regla o condición dentro de este módulo.
 export function canEnterPersonalPath(role:string,permissions:string[]|undefined,pathname:string):boolean {
   if(role==='CLIENT')return true;
+  if(pathname.replace(/\/+$/,'')==='/client/notifications')return canAccessNotificationCenter(role);
   const required=personalPermissionsForPathname(pathname);
   return Boolean(required?.some(code=>permissions?.includes(code)));
 }

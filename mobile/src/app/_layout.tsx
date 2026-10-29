@@ -35,6 +35,7 @@ function ThemedNavigation() {
     <Stack.Screen name="reset-password" />
     <Stack.Screen name="change-initial-password" />
     <Stack.Protected guard={Boolean(auth.user)&&auth.user?.role!=='CLIENT'}><Stack.Screen name="account" /></Stack.Protected>
+    <Stack.Protected guard={Boolean(auth.user)}><Stack.Screen name="notifications" /></Stack.Protected>
     <Stack.Protected guard={canEnterClientRoot(auth.user)}><Stack.Screen name="client" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='VETERINARIAN'}><Stack.Screen name="vet" /></Stack.Protected>
     <Stack.Protected guard={auth.user?.role==='GROOMER'}><Stack.Screen name="professional" /></Stack.Protected>

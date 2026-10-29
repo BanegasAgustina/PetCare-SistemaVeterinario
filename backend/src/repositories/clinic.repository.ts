@@ -9,6 +9,7 @@ import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { forbidden } from '../utils/admin-authorization';
 import { assertTransition, professionalUpcomingAppointments } from '../utils/clinic-rules';
+import { adminAppointmentOrderSql, type AdminAppointmentSort } from '../utils/appointment-order';
 import { petPhotoUrl } from '../services/pet-photo.service';
 import { profilePhotoUrl } from '../services/pet-photo.service';
 import * as v from '../validators/clinic.validator';
@@ -57,6 +58,13 @@ export async function notify(
   await createClientNotification(c, {
     ownerId: String(owner), title, body: content, eventType, referenceType, referenceId, eventKey,
   });
+}
+
+async function canReceiveProfessionalAppointmentNotification(userId:string,c:PoolConnection):Promise<boolean> {
+ const [users]=await c.execute<RowDataPacket[]>(`SELECT r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.is_active=1 AND u.email_verified_at IS NOT NULL`,[userId]);
+ if(!users[0]||!['VETERINARIAN','GROOMER'].includes(String(users[0].role)))return false;
+ const permissions=(await readPermissions(userId,c)).filter(permission=>permission.effective).map(permission=>permission.code);
+ return permissions.includes('appointments.view_own')||permissions.includes('appointments.view_all');
 }
 
 // Función appendPetLifecycleHistory: concentra la lógica dentro de este módulo.
@@ -120,6 +128,7 @@ export async function requestAppointment(actor:AuthUser,petId:string,slotId:stri
   const appointment=await one(`${appointmentSelect} WHERE a.id=?`,[created.id],c);
   const {date,time}=formatNotificationDateTime(appointment.startsAt);
   await notify(c,fresh.id,'Solicitud de turno recibida',`Recibimos tu solicitud de ${appointment.service} para ${appointment.petName} el ${date} a las ${time}. Te avisaremos cuando la clínica la confirme.`,'APPOINTMENT_REQUESTED','appointment',String(created.id),`appointment:${String(created.id)}:requested`);
+  if(String(appointment.professionalId)!==fresh.id&&await canReceiveProfessionalAppointmentNotification(String(appointment.professionalId),c))await notify(c,String(appointment.professionalId),'Nuevo turno solicitado',`Se solicitó un turno de ${appointment.service} para ${appointment.petName} el ${date} a las ${time}.`,'WORK_APPOINTMENT_ASSIGNED','appointment',String(created.id),`appointment:${String(created.id)}:work:assigned:${appointment.slotId}`);
   await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[petId,slot.professionalId]);
   return {id:String(created.id),status:'REQUESTED' as const};
  });
@@ -134,8 +143,11 @@ export async function appointments(actor:AuthUser,query:Record<string,unknown>={
  if(query.search){const search=v.text(query.search,100)!;const searchOwner=actor.role==='VETERINARIAN'&&actor.permissions?.includes('users.view_basic');clauses.push(`(p.name LIKE ? OR sv.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?${searchOwner?' OR owner.first_name LIKE ? OR owner.last_name LIKE ?':''})`);params.push(...Array(searchOwner?6:4).fill(`%${search}%`));}
  if(query.date){const date=v.text(query.date,10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push("DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=?");params.push(date);}
  for(const [key,operator] of [['fromDate','>=' ],['toDate','<=']] as const)if(query[key]){const date=v.text(query[key],10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push(`DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))${operator}?`);params.push(date);}
- if(query.upcomingOnly==='true')clauses.push('s.starts_at>=UTC_TIMESTAMP()');
- const result=await rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY s.starts_at ${['VETERINARIAN','GROOMER'].includes(actor.role)?'ASC':'DESC'} LIMIT 201 OFFSET ${(v.queryPage(query)-1)*200}`,params);
+ if(query.upcomingOnly==='true'){clauses.push('s.starts_at>=UTC_TIMESTAMP()');clauses.push("a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS')");}
+ const admin=actor.role==='ADMIN'||actor.role==='SUPER_ADMIN';
+ const requestedSort=admin&&typeof query.sort==='string'&&['priority','date_asc','date_desc'].includes(query.sort)?query.sort as AdminAppointmentSort:'priority';
+ const ordering=admin?adminAppointmentOrderSql(requestedSort):`s.starts_at ${['VETERINARIAN','GROOMER'].includes(actor.role)?'ASC':'DESC'},a.id ASC`;
+ const result=await rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY ${ordering} LIMIT 201 OFFSET ${(v.queryPage(query)-1)*200}`,params);
  return await Promise.all(result.map(async appointment=>{
   const presented:Data={...appointment,petPhotoUrl:await petPhotoUrl(String(appointment.ownerId),appointment.petPhotoUrl)};
   // Las notas internas del turno nunca forman parte de la API consumida por CLIENT.
@@ -196,6 +208,13 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
     ?`appointment:${id}:cancelled`
     :`appointment:${id}:transition:${a.status}:${a.slotId}:${status}:${slotId}`;
    await notify(c,a.ownerId,title,bodyText,eventType,'appointment',id,eventKey);
+   const professionalId=String(current.professionalId);
+   if(professionalId!==fresh.id&&professionalId!==String(a.ownerId)&&await canReceiveProfessionalAppointmentNotification(professionalId,c)){
+    if(status==='CANCELLED')await notify(c,professionalId,'Turno cancelado',`El turno de ${target.service} para ${target.petName}, previsto para el ${date} a las ${time}, fue cancelado.`,'WORK_APPOINTMENT_CANCELLED','appointment',id,`appointment:${id}:work:cancelled:${a.status}:${a.slotId}:${status}:${slotId}`);
+    else if(slotChanged)await notify(c,professionalId,'Turno reprogramado',`El turno de ${current.service} para ${current.petName} fue reprogramado para el ${date} a las ${time}.`,'WORK_APPOINTMENT_RESCHEDULED','appointment',id,`appointment:${id}:work:rescheduled:${a.slotId}:${slotId}`);
+    else if(status==='CONFIRMED')await notify(c,professionalId,'Turno confirmado',`El turno de ${current.service} para ${current.petName} quedó confirmado para el ${date} a las ${time}.`,'WORK_APPOINTMENT_CONFIRMED','appointment',id,`appointment:${id}:work:confirmed:${a.status}:${status}`);
+   }
+   if(slotChanged&&String(a.professionalId)!==professionalId&&String(a.professionalId)!==fresh.id&&String(a.professionalId)!==String(a.ownerId)&&await canReceiveProfessionalAppointmentNotification(String(a.professionalId),c))await notify(c,String(a.professionalId),'Turno reasignado',`El turno de ${a.service} para ${a.petName} fue asignado a otro horario profesional.`,'WORK_APPOINTMENT_REASSIGNED','appointment',id,`appointment:${id}:work:reassigned:${a.slotId}:${slotId}`);
   }
   return {updated:true};
  });
@@ -216,7 +235,7 @@ export async function cancelClientAppointment(ownerId:string,id:string,reason:un
    throw new AppError('INVALID_TRANSITION',409,'Este turno ya pasó y no se puede cancelar.');
   await c.execute("UPDATE client_appointments SET status='CANCELLED',cancellation_reason=? WHERE id=? AND owner_id=? AND status IN ('REQUESTED','CONFIRMED')",[cancellationReason,id,ownerId]);
   const {date,time}=formatNotificationDateTime(appointment.startsAt);
-  await notify(c,String(appointment.professionalId),'Turno cancelado por el responsable',`El turno de ${appointment.service} para ${appointment.petName}, previsto para el ${date} a las ${time}, fue cancelado por su responsable. Motivo: ${cancellationReason}`,'APPOINTMENT_CANCELLED','appointment',id,`appointment:${id}:cancelled`);
+  if(String(appointment.professionalId)!==ownerId&&await canReceiveProfessionalAppointmentNotification(String(appointment.professionalId),c))await notify(c,String(appointment.professionalId),'Turno cancelado por el responsable',`El turno de ${appointment.service} para ${appointment.petName}, previsto para el ${date} a las ${time}, fue cancelado por su responsable. Motivo: ${cancellationReason}`,'WORK_APPOINTMENT_CANCELLED','appointment',id,`appointment:${id}:work:cancelled-by-owner`);
   return {updated:true,status:'CANCELLED'};
  });
 }

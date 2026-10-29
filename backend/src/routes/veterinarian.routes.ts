@@ -6,7 +6,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { authenticate } from '../middlewares/auth.middleware';
 import { requireRole,requirePermission } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
-import { vetCatalog,vetList,vetDetail,createVet,updateVet,updateVetStatus,updateOwnVetPhoto } from '../repositories/veterinarian.repository';
+import { vetCatalog,vetList,vetDetail,createVet,updateVet,updateVetStatus,updateOwnProfessionalPhoto } from '../repositories/veterinarian.repository';
 import { identifier,validateVet,objectBody,textField } from '../validators/veterinarian.validator';
 import { acceptInvitation } from '../services/invitation.service';
 import * as clinic from '../repositories/clinic.repository';
@@ -101,11 +101,14 @@ veterinarianPanelRouter.use(authenticate,requireRole('VETERINARIAN'));
 veterinarianPanelRouter.post('/profile',handler(async(_req,res)=>{const user=res.locals.authenticatedUser as AuthUser;return {user,professional:user.professional,veterinarian:user.veterinarian};}));
 veterinarianPanelRouter.patch('/profile',handler(async(req,res)=>updateOwnProfile((res.locals.authenticatedUser as AuthUser).id,req.body)));
 veterinarianPanelRouter.put('/profile/password',createAuthRateLimiter(5),handler(async(req,res)=>changeOwnPassword((res.locals.authenticatedUser as AuthUser).id,req.body)));
-veterinarianPanelRouter.put('/profile/photo',createAuthRateLimiter(),handler(async(_req,res)=>{
-  const body=_req.body&&typeof _req.body==='object'&&!Array.isArray(_req.body)?_req.body as Record<string,unknown>:{};
+// Dato professionalPhotoRouter: conserva un valor calculado o de configuración usado por este módulo.
+export const professionalPhotoRouter=Router();
+professionalPhotoRouter.use(authenticate,requireRole('VETERINARIAN','GROOMER'));
+professionalPhotoRouter.put('/',createAuthRateLimiter(),handler(async(req,res)=>{
+  const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   if(Object.keys(body).some(key=>!['photoBase64','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&body.photoBase64!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
   const image=body.removePhoto===true?null:await storeProfilePhoto(body.photoBase64);const user=res.locals.authenticatedUser as AuthUser;
-  try {const saved=await updateOwnVetPhoto(user.id,image?.url??null);if(saved.previous&&saved.previous!==image?.url)await removeProfilePhoto(saved.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del veterinario.'));return {profilePhotoUrl:image?.url??null};}
+  try {const saved=await updateOwnProfessionalPhoto(user.id,image?.url??null);if(saved.previous&&saved.previous!==image?.url)await removeProfilePhoto(saved.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del profesional.'));return {profilePhotoUrl:image?.url??null};}
   catch(error){if(image)console.error('La actualización del perfil falló; se conservará el objeto nuevo para evitar romper una posible referencia confirmada.');throw error;}
 }));
 // Función accessibleModules: concentra la lógica dentro de este módulo.

@@ -1,56 +1,33 @@
 // Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
 
 /** Inicio profesional compartido. El servidor entrega agenda y métricas dentro del alcance efectivo del usuario. */
-import { useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
-import { useFeedback } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../hooks/useTheme';
-import { ProfilePhotoInput, type PickedProfilePhoto } from '../forms/ProfilePhotoInput';
 import { PetCareScreen, PetCareHero, PetCareCard, PetCareEmptyState, PetImage, QueryState, ResponsiveGrid, statusLabel, type IconName } from '../client/PetCareUI';
 import { RoleQuickAccess } from '../layout/RoleQuickAccess';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
-import { FormNotice } from '../ui/FormNotice';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { appointmentDisplayValue, appointmentRouteId } from '../../utils/appointment-display';
-import { useAsyncAction } from '../../hooks/useAsyncAction';
 
 export function StaffHome() {
-  const { user, request, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const clinic = useClinic();
   const query = useClientQuery(clinic.home);
   const upcoming = query.data?.upcomingAppointments ?? [];
-  const [photo, setPhoto] = useState<PickedProfilePhoto | null>(null);
-  const photoAction = useAsyncAction();
-  const { showToast } = useFeedback();
   const isVeterinarian = user?.role === 'VETERINARIAN';
   const roleBase = isVeterinarian ? '/vet' : '/professional';
   const professionalName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
   const specialty = user?.veterinarian?.specialties.map(item => item.name).filter(Boolean).join(' · ');
   const subtitle = specialty || user?.professional?.name || user?.roleName;
 
-  async function savePhoto() {
-    if (!photo) return;
-    await photoAction.run(async () => {
-      await request('/vet/profile/photo', { method: 'PUT', body: { photoBase64: photo.base64 } });
-      await refreshProfile();
-      setPhoto(null);
-      showToast('Foto de perfil actualizada', 'success');
-    });
-  }
-
   return <PetCareScreen wide>
     <PetCareHero eyebrow="PETCARE · PANEL PROFESIONAL" title={professionalName ? `Hola, ${user?.firstName}` : 'Tu jornada'} subtitle={subtitle} icon={isVeterinarian ? 'medical-outline' : 'cut-outline'} />
-    {isVeterinarian && <PetCareCard><View style={{ alignItems: 'center', gap: 12 }}>
-      <ProfilePhotoInput currentUri={user?.profilePhotoUrl ?? null} photo={photo} onSelect={setPhoto} onRemove={() => setPhoto(null)} disabled={photoAction.loading} allowCamera removable={false} size={84} />
-      {photo && <AppButton label="Guardar foto" loading={photoAction.loading} disabled={photoAction.loading} onPress={() => void savePhoto()} />}
-      <FormNotice error message={photoAction.error} />
-    </View></PetCareCard>}
 
     <QueryState {...query} />
     {query.data && <StaffMetricCards items={[

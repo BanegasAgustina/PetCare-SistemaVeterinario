@@ -9,10 +9,12 @@ import { responsiveLayout } from '../../constants/responsive';
 import { AppText } from '../ui/AppText';
 import { PetCareSection,type IconName } from '../client/PetCareUI';
 import { useRoleQuickAccess } from './RoleNavigationContext';
+import type { NavigationTab } from './RoleBottomNavigation';
 
 // Función RoleQuickAccess: concentra la lógica dentro de este módulo.
-export function RoleQuickAccess(){
-  const items=useRoleQuickAccess();
+export function RoleQuickAccess({items:providedItems,title='Accesos rápidos'}:{items?:NavigationTab[];title?:string}={}){
+  const contextItems=useRoleQuickAccess();
+  const items=providedItems??contextItems;
   const {colors}=useTheme();
   const [contentWidth,setContentWidth]=useState(0);
   if(!items.length)return null;
@@ -28,7 +30,7 @@ const renderItems=(groupItems:typeof items)=><View style={styles.grid}>
       <Ionicons name="chevron-forward" size={18} color={colors.muted}/>
     </Pressable>)}
   </View>;
-  return <PetCareSection title="Accesos rápidos">
+  return <PetCareSection title={title}>
     <View onLayout={event=>setContentWidth(current=>Math.abs(current-event.nativeEvent.layout.width)<1?current:event.nativeEvent.layout.width)} style={styles.content}>
       {groups.length>1||groups[0]?.[0]?groups.map(([group,groupItems])=><View key={group} style={styles.group}>
         {group&&<AppText variant="caption" muted style={styles.groupTitle}>{group}</AppText>}{renderItems(groupItems)}

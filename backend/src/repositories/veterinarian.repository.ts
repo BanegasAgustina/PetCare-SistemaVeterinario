@@ -90,13 +90,13 @@ export async function updateVetPhoto(id:string,key:string|null,identity:AuthUser
   });
   return {previous:previous as string|null};
 }
-/** El veterinario solo puede editar la foto de la cuenta ligada a su propio JWT. */
-// Función updateOwnVetPhoto: actualiza o guarda información dentro de este módulo.
-export async function updateOwnVetPhoto(userId:string,key:string|null) {
+/** Un profesional solo puede editar la foto de la cuenta ligada a su propio JWT. */
+// Función updateOwnProfessionalPhoto: actualiza o guarda información dentro de este módulo.
+export async function updateOwnProfessionalPhoto(userId:string,key:string|null) {
   let previous:string|null=null;
   await transaction(async connection=>{
-    const [rows]=await connection.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS previous,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id JOIN veterinarians v ON v.user_id=u.id WHERE u.id=? FOR UPDATE",[userId]);
-    if(!rows[0]||rows[0].role!=='VETERINARIAN')throw new AppError('FORBIDDEN',403,'Solo el veterinario puede actualizar su foto de perfil.');
+    const [rows]=await connection.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS previous,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE",[userId]);
+    if(!rows[0]||!['VETERINARIAN','GROOMER'].includes(String(rows[0].role)))throw new AppError('FORBIDDEN',403,'Solo un profesional puede actualizar su foto de perfil.');
     previous=rows[0].previous as string|null;
     await connection.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,userId]);
   });

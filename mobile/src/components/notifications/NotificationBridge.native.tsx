@@ -4,13 +4,16 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { publishNotificationChange } from '../../services/notification-events';
+import { canAccessNotificationCenter } from '../../utils/personal-route-access';
+import { notificationCenterPath } from '../../services/notification-path';
 
 /** Polls the internal notification center while a client session is active. */
 // Función NotificationBridge: concentra la lógica dentro de este módulo.
 export function NotificationBridge() {
   const { user, request } = useAuth();
+  const enabled=canAccessNotificationCenter(user?.role??'');
   useEffect(() => {
-    if (Platform.OS === 'web' || user?.role !== 'CLIENT') return;
+    if (Platform.OS === 'web' || !enabled) return;
     let active = true;
     let interval: ReturnType<typeof setInterval> | undefined;
     let requestInProgress = false;
@@ -21,7 +24,7 @@ const poll = async () => {
       requestInProgress = true;
       try {
         const result = await request<{ items?: { id?: string; readAt?: string | null }[]; unreadCount?: number }>(
-          '/client/notifications', { method: 'POST', body: { limit: 1 } },
+          notificationCenterPath, { method: 'POST', body: { limit: 1 } },
         );
         if (!active) return;
         const latest = result.items?.[0];
@@ -55,6 +58,6 @@ const startPolling = () => {
       stopPolling();
       subscription.remove();
     };
-  }, [request, user?.id, user?.role]);
+  }, [enabled, request, user?.id]);
   return null;
 }

@@ -26,7 +26,7 @@ const knownLabels: Record<string, string> = {
   '/admin/users': 'Usuarios', '/admin/general-information': 'Información general', '/client': 'Inicio', '/client/pets': 'Mis mascotas',
   '/client/appointments': 'Turnos', '/client/store': 'Tienda', '/client/profile': 'Mi perfil', '/client/orders': 'Mis pedidos',
   '/client/medical-history': 'Historial médico', '/client/vaccines': 'Vacunas', '/client/prescriptions': 'Recetas', '/client/recommendations': 'Recomendaciones',
-  '/client/notifications': 'Notificaciones', '/vet': 'Inicio', '/vet/agenda': 'Agenda', '/vet/patients': 'Pacientes', '/vet/clients': 'Mis clientes',
+  '/client/notifications': 'Notificaciones', '/notifications': 'Notificaciones', '/vet': 'Inicio', '/vet/agenda': 'Agenda', '/vet/patients': 'Pacientes', '/vet/clients': 'Mis clientes',
   '/vet/products': 'Productos', '/professional': 'Inicio', '/professional/agenda': 'Mi agenda', '/professional/patients': 'Pacientes', '/professional/services': 'Servicios',
   '/workspace': 'Inicio', '/account': 'Mi cuenta',
 };

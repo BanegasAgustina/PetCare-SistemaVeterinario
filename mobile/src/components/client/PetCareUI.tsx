@@ -40,7 +40,7 @@ export function ResponsiveGrid({children,minItemWidth=responsiveLayout.grid.minI
 // Función PetCareBadge: concentra la lógica dentro de este módulo.
 export function PetCareBadge({label}: {label:string}){const {colors}=useTheme();return <View style={[styles.badge,{backgroundColor:colors.accent}]}><AppText variant="caption">{label}</AppText></View>;}
 // Función PetCareSection: concentra la lógica dentro de este módulo.
-export function PetCareSection({title,children}:PropsWithChildren<{title:string}>){return <View style={styles.section}><AppText variant="subtitle">{title}</AppText>{children}</View>;}
+export function PetCareSection({title,children,action}:PropsWithChildren<{title:string;action?:ReactNode}>){return <View style={styles.section}><View style={{minHeight:36,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10}}><AppText variant="subtitle">{title}</AppText>{action}</View>{children}</View>;}
 // Función PetCareIconButton: concentra la lógica dentro de este módulo.
 export function PetCareIconButton({icon,label,onPress}:{icon:IconName;label:string;onPress:()=>void}){const {colors}=useTheme();return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.iconButton,{backgroundColor:colors.accent}]}><Ionicons name={icon} size={23} color={colors.text}/></Pressable>;}
 // Función PetCareEmptyState: concentra la lógica dentro de este módulo.

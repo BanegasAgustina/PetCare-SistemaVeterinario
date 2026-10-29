@@ -39,7 +39,7 @@ app.use(/^\/api\/client\/payment-intents\/\d+\/proof$/, (req,res,next)=>{
 });
 app.use('/api/vet/profile/photo',(req,res,next)=>{
   if(req.method!=='PUT')return next();
-  authenticate(req,res,error=>{if(error)return next(error);requireRole('VETERINARIAN')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+  authenticate(req,res,error=>{if(error)return next(error);requireRole('VETERINARIAN','GROOMER')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(/^\/api\/(?:admin\/(?:products\/\d+|users\/\d+\/photo)|admin\/veterinarians\/\d+\/photo|clinic\/admin\/(?:products|services)(?:\/\d+)?)$/, (req,res,next)=> {
   if(!['POST','PATCH','PUT'].includes(req.method))return next();

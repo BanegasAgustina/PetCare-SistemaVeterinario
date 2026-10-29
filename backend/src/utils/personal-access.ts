@@ -39,9 +39,18 @@ export function personalPermissionsForRoute(method:string,path:string):string[]|
   return null;
 }
 
+/** Authenticated product roles may read only their own notification inbox. */
+export function canAccessNotificationCenter(role:string):boolean {
+  return ['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role);
+}
+
 // Función canAccessPersonalRoute: comprueba una regla o condición dentro de este módulo.
 export function canAccessPersonalRoute(role:string,permissions:string[]|undefined,method:string,path:string):boolean {
   if(role==='CLIENT')return true;
+  const normalized=path.replace(/^\/api\/client(?=\/|$)/,'')||'/';
+  const verb=method.toUpperCase();
+  const notifications=normalized==='/notifications'&&verb==='POST'||normalized==='/notifications/read-all'&&verb==='PATCH'||/^\/notifications\/[1-9]\d*\/read$/.test(normalized)&&verb==='PATCH'||/^\/notifications\/[1-9]\d*$/.test(normalized)&&verb==='DELETE';
+  if(notifications)return canAccessNotificationCenter(role);
   const required=personalPermissionsForRoute(method,path);
   return Boolean(required?.some(code=>permissions?.includes(code)));
 }

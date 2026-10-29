@@ -53,13 +53,13 @@ export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:s
 
   const aliases:Record<string,Record<string,string>>={
     CLIENT:{
-      '/client/orders':'/client/profile','/client/notifications':'/client/profile',
+      '/client/orders':'/client/profile','/client/notifications':'/client/profile','/notifications':'/client/profile',
       '/client/medical-history':'/client/pets','/client/vaccines':'/client/pets',
       '/client/prescriptions':'/client/pets','/client/recommendations':'/client/pets',
       '/client/payment-intents':'/client/store',
     },
-    VETERINARIAN:{'/vet/appointment':'/vet/agenda','/vet/patient':'/vet/patients','/vet/client':'/vet/clients','/vet/record':'/vet/patients'},
-    GROOMER:{'/professional/appointment':'/professional/agenda','/professional/patient':'/professional/patients'},
+    VETERINARIAN:{'/vet/appointment':'/vet/agenda','/vet/patient':'/vet/patients','/vet/client':'/vet/clients','/vet/record':'/vet/patients','/notifications':'/vet'},
+    GROOMER:{'/professional/appointment':'/professional/agenda','/professional/patient':'/professional/patients','/notifications':'/professional'},
   };
   let destination=Object.entries(aliases[role]??{})
     .filter(([prefix])=>pathname===prefix||pathname.startsWith(`${prefix}/`))

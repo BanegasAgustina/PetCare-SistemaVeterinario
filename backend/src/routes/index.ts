@@ -8,8 +8,9 @@ import { authRouter } from './auth.routes';
 import { clientRouter } from './client.routes';
 import { adminRouter } from './admin.routes';
 import { clinicRouter } from './clinic.routes';
-import { veterinarianAdminRouter, invitationRouter, specialtiesAdminRouter, veterinarianPanelRouter } from './veterinarian.routes';
+import { veterinarianAdminRouter, invitationRouter, specialtiesAdminRouter, veterinarianPanelRouter, professionalPhotoRouter } from './veterinarian.routes';
 import { publicSettingsRouter } from './settings.routes';
+import { notificationRouter } from './notification.routes';
 
 // Dato apiRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const apiRouter = Router();
@@ -22,6 +23,8 @@ apiRouter.use('/admin/specialties', specialtiesAdminRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/auth/veterinarian-invitations', invitationRouter);
 apiRouter.use('/auth/invitations', invitationRouter);
+apiRouter.use('/vet/profile/photo', professionalPhotoRouter);
 apiRouter.use('/vet', veterinarianPanelRouter);
+apiRouter.use('/notifications', notificationRouter);
 apiRouter.use('/client', clientRouter);
 apiRouter.use('/clinic', clinicRouter);

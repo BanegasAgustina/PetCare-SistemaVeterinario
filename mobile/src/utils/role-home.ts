@@ -5,6 +5,7 @@
  */
 import type { AuthUser } from '../types/auth';
 import { hasPersonalCapabilityModule } from './capability-modules';
+import { canAccessNotificationCenter } from './personal-route-access';
 /** El rol es el contrato de navegación; la identidad nunca se decide por email o ID. */
 // Función roleHome: concentra la lógica dentro de este módulo.
 export function roleHome(user: AuthUser | null): '/login' | '/client' | '/vet' | '/admin' | '/professional' | '/workspace' {
@@ -19,7 +20,7 @@ export function roleHome(user: AuthUser | null): '/login' | '/client' | '/vet' |
 /** Mantener el destino de entrada y los guards del árbol raíz bajo la misma regla. */
 // Función canEnterClientRoot: comprueba una regla o condición dentro de este módulo.
 export function canEnterClientRoot(user:AuthUser|null):boolean {
-  return user?.role==='CLIENT'||hasPersonalCapabilityModule(user?.permissions);
+  return user?.role==='CLIENT'||hasPersonalCapabilityModule(user?.permissions)||canAccessNotificationCenter(user?.role??'');
 }
 // Función canEnterWorkspace: comprueba una regla o condición dentro de este módulo.
 export function canEnterWorkspace(user:AuthUser|null):boolean {

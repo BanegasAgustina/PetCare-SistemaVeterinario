@@ -10,7 +10,7 @@ import { AppError } from '../utils/app-error';
 import { databasePool } from '../config/database';
 import type { RowDataPacket } from 'mysql2/promise';
 import { runDatabaseOperation } from '../utils/database-error';
-import { canAccessPersonalRoute } from '../utils/personal-access';
+import { canAccessNotificationCenter, canAccessPersonalRoute } from '../utils/personal-access';
 
 // Función requireRole: concentra la lógica dentro de este módulo.
 export function requireRole(...roles: RoleCode[]): RequestHandler {
@@ -35,6 +35,11 @@ export function requireAnyPermission(...codes:string[]):RequestHandler {
 export const requirePersonalAccess:RequestHandler=(req,res,next)=>{
   const user=res.locals.authenticatedUser as AuthUser|undefined;
   next(user&&canAccessPersonalRoute(user.role,user.permissions,req.method,req.path)?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para este módulo personal.'));
+};
+/** Notification inbox access is role-scoped and never grants other personal, clinical, or administrative capabilities. */
+export const requireNotificationAccess:RequestHandler=(_req,res,next)=>{
+  const user=res.locals.authenticatedUser as AuthUser|undefined;
+  next(user&&canAccessNotificationCenter(user.role)?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para este centro de notificaciones.'));
 };
 /** Reutilizable por futuras rutas clínicas. No confía en un veterinarianId enviado por el cliente. */
 // Función requirePatientScope: concentra la lógica dentro de este módulo.

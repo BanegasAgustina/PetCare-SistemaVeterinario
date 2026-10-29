@@ -12,6 +12,7 @@ import { useClientQuery } from '../../hooks/useClientQuery';
 import { PetCareScreen, PetCareHeader, PetCareCard, PetCareEmptyState, QueryState, statusLabel, ResponsiveGrid } from '../client/PetCareUI';
 import { AppText } from '../ui/AppText';
 import { AppInput } from '../forms/AppInput';
+import { AppSelectField } from '../forms/AppSelectField';
 import { CalendarDateField } from '../forms/CalendarDateField';
 import { SelectionRow } from '../ui/SelectionRow';
 import { FilterDisclosure } from '../ui/FilterDisclosure';
@@ -37,7 +38,9 @@ export function AgendaScreen() {
   const { user, hasPermission } = useAuth();
   const agendaConfig = agendaScreenConfig(user?.role ?? '', hasPermission);
   const { personalAgenda, canSearchOwner, basePath:base } = agendaConfig;
+  const adminAgenda=user?.role==='ADMIN'||user?.role==='SUPER_ADMIN';
   const [search, setSearch] = useState('');
+  const [appointmentSort,setAppointmentSort]=useState('priority');
   const debouncedSearch = useDebouncedValue(search.trim());
   const [filters, setFilters] = useState<Record<string, string>>(()=>requestedStatus?{status:requestedStatus}:{} as Record<string,string>);
   const [hoveredStatus,setHoveredStatus]=useState<string|null>(null);
@@ -57,12 +60,12 @@ const apiDate=(date:Date)=>date.toISOString().slice(0,10);
   const monthWeeks=Array.from({length:monthDays.length/7},(_,index)=>monthDays.slice(index*7,index*7+7));
   const weekDays=Array.from({length:7},(_,index)=>{const date=new Date(weekStart);date.setUTCDate(date.getUTCDate()+index);return apiDate(date);});
   const catalog = useClientQuery(api.catalog);
-  const query = useClientQuery(useCallback(() => {const date=new Date(`${focusDate}T12:00:00Z`);const start=period==='month'?new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),1)):period==='week'?new Date(date.getTime()-((date.getUTCDay()+6)%7)*86400000):date;const end=period==='month'?new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,0)):period==='week'?new Date(start.getTime()+6*86400000):date;return api.appointments({ ...filters, ...(personalAgenda?{fromDate:apiDate(start),toDate:apiDate(end)}:{fromDate:clinicDateFilterToApi(filters.fromDate ?? ''),toDate:clinicDateFilterToApi(filters.toDate ?? '')}), search: debouncedSearch, page: String(page) });}, [api, filters, debouncedSearch, page,personalAgenda,focusDate,period]));
+  const query = useClientQuery(useCallback(() => {const date=new Date(`${focusDate}T12:00:00Z`);const start=period==='month'?new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),1)):period==='week'?new Date(date.getTime()-((date.getUTCDay()+6)%7)*86400000):date;const end=period==='month'?new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,0)):period==='week'?new Date(start.getTime()+6*86400000):date;return api.appointments({ ...filters, ...(personalAgenda?{fromDate:apiDate(start),toDate:apiDate(end)}:{fromDate:clinicDateFilterToApi(filters.fromDate ?? ''),toDate:clinicDateFilterToApi(filters.toDate ?? '')}), ...(adminAgenda?{sort:appointmentSort}:{}), search: debouncedSearch, page: String(page) });}, [api, filters, debouncedSearch, page,personalAgenda,focusDate,period,adminAgenda,appointmentSort]));
   const visibleAppointments=period==='month'&&personalAgenda?(query.data??[]).filter(appointment=>clinicDate(String(appointment.startsAt))===focusDate):query.data??[];
   // Función updateFilter: agrupa una operación que este módulo puede ejecutar o reutilizar.
 const updateFilter = (key: string, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
   const activeCount = Object.values(filters).filter(Boolean).length;
-  const statusFilters = ['', 'REQUESTED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+  const statusFilters = ['', 'REQUESTED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'REJECTED'];
 
   return <PetCareScreen wide>
     <PetCareHeader title={agendaConfig.title} subtitle={personalAgenda?'Turnos asignados a tu agenda':'Horarios compartidos con la clínica'} back/>
@@ -101,7 +104,7 @@ const updateFilter = (key: string, value: string) => { setFilters(current => ({ 
         </View>)}
       </View>}
     </PetCareCard>}
-    <SearchFilterBar>
+    <SearchFilterBar sort={adminAgenda?<AppSelectField label="Ordenar por" value={appointmentSort} options={adminAppointmentSortOptions} onChange={value=>{setAppointmentSort(value);setPage(1);}}/>:undefined}>
       <AppInput compact={desktop} label="Buscar turnos" placeholder={user?.role==='GROOMER'?'Mascota o servicio':personalAgenda&&!canSearchOwner?'Paciente o servicio':canSearchOwner?'Paciente, propietario o servicio':'Paciente, profesional o servicio'} value={search} onChangeText={value => { setSearch(value); setPage(1); }} returnKeyType="search" onSubmitEditing={() => setPage(1)}/>
       <FilterDisclosure compact={desktop} fullWidth={!desktop} activeCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({}); setPage(1); }}>
         <AppText variant="subtitle">Fecha del turno</AppText>
@@ -155,3 +158,5 @@ const styles=StyleSheet.create({
   appointmentCard:{gap:10},mobileCardHeading:{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:10},mobileCardAction:{minHeight:40,paddingHorizontal:4,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'#c6ded4',marginTop:2},
   dayCalendar:{minHeight:58,paddingHorizontal:14,paddingVertical:8,borderWidth:1,borderRadius:12,flexDirection:'row',alignItems:'center',gap:12},dayCalendarCopy:{gap:1},dayCalendarDate:{fontWeight:'700'},weekCalendar:{width:'100%',flexDirection:'row',alignItems:'stretch',gap:4},weekCalendarDay:{flex:1,minWidth:0,minHeight:58,paddingVertical:7,borderWidth:1,borderRadius:10,alignItems:'center',justifyContent:'center',gap:2},weekCalendarWeekday:{fontSize:11},monthCalendar:{width:'100%',gap:2},monthCalendarDesktop:{flex:0},monthWeek:{width:'100%',flexDirection:'row',flexWrap:'nowrap',alignItems:'stretch'},monthWeekDesktop:{},calendarWeekday:{flex:1,minWidth:0,height:28,textAlign:'center',textAlignVertical:'center',fontWeight:'700'},calendarWeekdayDesktop:{height:22,fontSize:11},calendarDay:{flex:1,minWidth:0,height:38,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'transparent',borderRadius:12,gap:2},calendarDayDesktop:{height:34,borderRadius:8,borderWidth:1},calendarDot:{width:4,height:4,borderRadius:2},
 });
+
+const adminAppointmentSortOptions=[{id:'priority',name:'Prioridad por estado'},{id:'date_asc',name:'Fecha más cercana'},{id:'date_desc',name:'Fecha más lejana'}];

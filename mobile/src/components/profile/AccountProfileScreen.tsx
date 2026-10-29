@@ -80,6 +80,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   if (!user) return null;
   const isClient = user.role === 'CLIENT';
   const isVet = user.role === 'VETERINARIAN';
+  const isProfessional = isVet || user.role === 'GROOMER';
   const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
   const canEditProfile = isClient || isVet || isAdmin || auth.hasPermission('personal.profile.manage');
   const canEditPassword = canEditProfile;
@@ -126,7 +127,7 @@ async function saveProfile() {
 
   // Función savePhoto: actualiza o guarda información dentro de este módulo.
 async function savePhoto() {
-    if (!isVet || (!photo && !removePhoto)) return;
+    if (!isProfessional || (!photo && !removePhoto)) return;
     const saved = await photoAction.run(async () => {
       await auth.request('/vet/profile/photo', { method: 'PUT', body: photo ? { photoBase64: photo.base64 } : { removePhoto: true } });
       await auth.refreshProfile();
@@ -202,7 +203,7 @@ async function saveProfessionalDescription() {
 
     {showPersonal && 
 <PetCareSection title="Datos personales">
-      {isVet && <VetPhotoCard user={user} photo={photo} removePhoto={removePhoto} action={photoAction} onSelect={value => { setPhoto(value); setRemovePhoto(false); }} onRemove={() => { setPhoto(null); setRemovePhoto(true); }} onSave={() => void savePhoto()}/>}
+      {isProfessional && <ProfessionalPhotoCard user={user} photo={photo} removePhoto={removePhoto} action={photoAction} onSelect={value => { setPhoto(value); setRemovePhoto(false); }} onRemove={() => { setPhoto(null); setRemovePhoto(true); }} onSave={() => void savePhoto()}/>}
       <PetCareCard>
         <AdminFormGrid columns={2}>
           <AdminFormField><AppInput ref={input => { profileInputs.current.firstName = input; }} label="Nombre" required value={values.firstName} error={errors.firstName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={firstName => { setValues(current => ({ ...current, firstName })); setErrors(current => ({ ...current, firstName: undefined })); }}/></AdminFormField>
@@ -265,8 +266,8 @@ async function saveProfessionalDescription() {
   </PetCareScreen>;
 }
 
-// Función VetPhotoCard: concentra la lógica dentro de este módulo.
-function VetPhotoCard({ user, photo, removePhoto, action, onSelect, onRemove, onSave }: { user: AuthUser; photo: PickedProfilePhoto | null; removePhoto: boolean; action: ReturnType<typeof useAsyncAction>; onSelect: (value: PickedProfilePhoto) => void; onRemove: () => void; onSave: () => void }) {
+// Función ProfessionalPhotoCard: concentra la lógica dentro de este módulo.
+function ProfessionalPhotoCard({ user, photo, removePhoto, action, onSelect, onRemove, onSave }: { user: AuthUser; photo: PickedProfilePhoto | null; removePhoto: boolean; action: ReturnType<typeof useAsyncAction>; onSelect: (value: PickedProfilePhoto) => void; onRemove: () => void; onSave: () => void }) {
   return <PetCareCard>
     <AppText variant="subtitle">Foto de perfil</AppText>
     <ProfilePhotoInput currentUri={removePhoto ? null : user.profilePhotoUrl ?? null} photo={photo} onSelect={onSelect} onRemove={onRemove} disabled={action.loading}/>
