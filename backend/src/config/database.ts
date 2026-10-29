@@ -28,7 +28,7 @@ export const databasePool = mysql.createPool({
   queueLimit: env.databaseQueueLimit,
 });
 
-// UTC mantiene alineados TIMESTAMP, UTC_TIMESTAMP y los vencimientos persistidos por la aplicación.
+// UTC mantiene alineados TIMESTAMP, UTC_TIMESTAMP y los vencimientos persistidos por la aplicaciónnn
 databasePool.on('connection', connection => {
   const promiseConnection = (connection as unknown as {
     promise(): { query(sql: string): Promise<unknown> };
