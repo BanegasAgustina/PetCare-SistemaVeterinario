@@ -18,7 +18,7 @@ La API local usa `http://localhost:3000/api`. `GET /api/health` verifica proceso
 
 ## Variables de entorno
 
-Use `.env.example` como lista actual de nombres, sin copiar secretos al frontend. Las variables principales son `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`, `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CORS_ALLOWED_ORIGINS`, `SMTP_*`, `EMAIL_CODE_SECRET`, `BACKEND_URL`, `OAUTH_RETURN_URLS`, credenciales Google/Facebook/X, `CRON_SECRET` y configuración Cloudinary/S3. Producción requiere base remota, TLS y secreto JWT aleatorio de al menos 32 bytes. Las variables optativas solo se necesitan para su función.
+Use `.env.example` como lista actual de nombres, sin copiar secretos al frontend. Las variables principales son `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`, `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CORS_ALLOWED_ORIGINS`, `SMTP_*`, `EMAIL_CODE_SECRET`, `PUBLIC_FRONTEND_URL`, `BACKEND_URL`, `OAUTH_RETURN_URLS`, credenciales Google/Facebook/X, `CRON_SECRET` y configuración Cloudinary/S3. `PUBLIC_FRONTEND_URL` es el origen base del sitio web público usado por invitaciones y recuperación; `BACKEND_URL` es exclusivo para callbacks OAuth. Producción requiere base remota, TLS y secreto JWT aleatorio de al menos 32 bytes. Las variables optativas solo se necesitan para su función.
 
 Consulte el [README principal](../README.md), el [inventario de API](../docs/DOCUMENTACION_API.md) y la [auditoría general](../docs/auditoria/AUDITORIA_GENERAL.md).
 
@@ -63,7 +63,7 @@ El resto de comandos está listado en `package.json`. `test:db` y `test:clinic:d
 
 ## Vercel
 
-Para desplegar la API configure el proyecto con Root Directory `backend`, variables privadas en el entorno correcto y URL pública HTTPS en `BACKEND_URL`. El cron de `/api/cron/notifications` crea recordatorios internos de 24/4 h y procesa la cola de correo. `backend/vercel.json` lo programa cada cinco minutos (UTC), lo que requiere un plan Vercel Pro o Enterprise; Hobby solo permite cron diario y no sirve para ventanas de recordatorios de 15 minutos. El endpoint cron requiere un Bearer de `CRON_SECRET`. Las notificaciones push externas a dispositivos no están habilitadas; el centro interno lee su historial y estados desde `client_notifications`.
+Para desplegar la API configure el proyecto con Root Directory `backend`, variables privadas en el entorno correcto, `BACKEND_URL` como origen del backend OAuth y `PUBLIC_FRONTEND_URL` como origen web. En producción, `PUBLIC_FRONTEND_URL=https://petcare-sistemaveterinario-mobile.vercel.app`. El cron de `/api/cron/notifications` crea recordatorios internos de 24/4 h y procesa la cola de correo. `backend/vercel.json` lo programa cada cinco minutos (UTC), lo que requiere un plan Vercel Pro o Enterprise; Hobby solo permite cron diario y no sirve para ventanas de recordatorios de 15 minutos. El endpoint cron requiere un Bearer de `CRON_SECRET`. Las notificaciones push externas a dispositivos no están habilitadas; el centro interno lee su historial y estados desde `client_notifications`.
 
 ## Resolución de problemas
 

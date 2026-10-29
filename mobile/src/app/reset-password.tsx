@@ -1,7 +1,9 @@
 // Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
 
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect,useState } from 'react';
+import { Platform } from 'react-native';
+import * as Linking from 'expo-linking';
 import { LoginLayout } from '../components/layout/LoginLayout';
 import { LoginBrand } from '../components/layout/LoginBrand';
 import { AppInput } from '../components/forms/AppInput';
@@ -14,13 +16,26 @@ import { isValidPasswordResetToken, normalizePasswordResetToken } from '../utils
 
 // Función ResetPasswordScreen: concentra la lógica dentro de este módulo.
 export default function ResetPasswordScreen(){
-  const rawToken = useLocalSearchParams<{token?: string | string[]}>().token;
-  const token = normalizePasswordResetToken(rawToken);
+  const [token,setToken]=useState('');
   const [password,setPassword]=useState('');
   const [confirm,setConfirm]=useState('');
   const [validationError,setValidationError]=useState('');
   const [done,setDone]=useState(false);
   const action=useAsyncAction();
+  useEffect(()=>{
+    let active=true;
+    const receive=(incoming:string|null)=>{
+      if(!active)return;
+      const fragment=Platform.OS==='web'&&typeof window!=='undefined'?window.location.hash:incoming?.split('#')[1]??'';
+      const rawToken=new URLSearchParams(fragment.replace(/^#/,'')).get('token');
+      const normalized=normalizePasswordResetToken(rawToken??undefined);
+      setToken(normalized);
+      if(normalized&&Platform.OS==='web'&&typeof window!=='undefined')window.history.replaceState(window.history.state,'',window.location.pathname);
+    };
+    void Linking.getInitialURL().then(receive).catch(()=>undefined);
+    const subscription=Linking.addEventListener('url',event=>receive(event.url));
+    return ()=>{active=false;subscription.remove();};
+  },[]);
   // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
 const submit=()=>{
     if(!isValidPasswordResetToken(token)){setValidationError('El enlace no es válido. Solicitá uno nuevo desde el inicio de sesión.');return;}

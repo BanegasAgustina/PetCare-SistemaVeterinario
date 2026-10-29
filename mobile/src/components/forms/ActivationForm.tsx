@@ -11,6 +11,7 @@ import { AppInput } from '../forms/AppInput';
 import { AppButton } from '../ui/AppButton';
 import { FormNotice } from '../ui/FormNotice';
 import { apiRequest } from '../../services/api';
+import { invitationAcceptancePath } from '../../services/invitation-paths';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { validatePasswordForm } from '../../utils/auth-validation';
@@ -45,7 +46,7 @@ const receive=(url:string|null)=>{
       <FormNotice error message={action.error} />
       <AppButton label="Configurar contraseña y verificar correo" loading={action.loading} onPress={()=>{
         const validation=validatePasswordForm({password,confirmPassword});setErrors(validation);if(Object.keys(validation).length)return;
-        void action.run(async()=>{await apiRequest(kind==='account'?'/auth/invitations/accept':'/auth/veterinarian-invitations/accept',{method:'POST',body:{token,password}});setToken('');setPassword('');setConfirm('');setDone(true);showToast('Cuenta configurada. Ya podés iniciar sesión.','success');});
+        void action.run(async()=>{await apiRequest(invitationAcceptancePath[kind],{method:'POST',body:{token,password}});setToken('');setPassword('');setConfirm('');setDone(true);showToast('Cuenta configurada. Ya podés iniciar sesión.','success');});
       }} />
     </>}
     {done&&<AppText>Contraseña configurada y correo verificado.</AppText>}

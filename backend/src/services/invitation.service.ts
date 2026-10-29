@@ -8,8 +8,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { hashPassword } from './password.service';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
-import { env } from '../config/env';
 import { getMailConfiguration } from '../config/mail';
+import { publicFrontendUrl } from '../config/public-frontend';
 import { sendInvitationEmail } from './mail.service';
 import { AppError } from '../utils/app-error';
 import { runDatabaseOperation } from '../utils/database-error';
@@ -19,13 +19,7 @@ import { withDatabaseLock } from '../database/lock';
 // Función invitationUrl: concentra la lógica dentro de este módulo.
 export function invitationUrl(kind:'veterinarian'|'account'='veterinarian'): URL {
   getMailConfiguration();
-  try {
-    const url = new URL((kind==='account'?process.env.ACCOUNT_INVITATION_URL?.trim():undefined) || process.env.VETERINARIAN_INVITATION_URL || '');
-    const isLocal = ['localhost','127.0.0.1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
-    const local = env.nodeEnvironment !== 'production' && isLocal;
-    if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
-    return url;
-  } catch { throw new AppError('INVITATION_UNAVAILABLE',503,'Configurá la URL segura de activación de cuentas.'); }
+  return publicFrontendUrl(kind==='account'?'account-invitation':'veterinarian-invitation');
 }
 // Función tokenHash: concentra la lógica dentro de este módulo.
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex'); }
@@ -41,9 +35,8 @@ export async function saveInvitation(connection: PoolConnection,userId: string):
 export async function deliverInvitation(email: string,token: string,kind:'veterinarian'|'account'='veterinarian'): Promise<'sent' | 'failed'> {
   let delivery:'sent'|'failed';
   try {
-    const url = invitationUrl(kind);
-    // Fragmento: evita incluir el secreto en logs HTTP del servidor web. La pantalla lo lee en el dispositivo.
-    url.hash = `token=${token}`;
+    // El fragmento evita incluir el secreto en solicitudes o logs HTTP; la pantalla lo lee en el dispositivo.
+    const url = publicFrontendUrl(kind==='account'?'account-invitation':'veterinarian-invitation',token);
     await sendInvitationEmail(email,url.toString()); delivery='sent';
   }
   catch { delivery='failed'; }

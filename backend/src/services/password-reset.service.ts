@@ -4,32 +4,21 @@ import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { databasePool } from '../config/database';
 import { getMailConfiguration } from '../config/mail';
-import { env } from '../config/env';
 import { AppError } from '../utils/app-error';
 import { normalizePasswordResetToken } from '../utils/password-reset-token';
 import { normalizeEmail, readPassword } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 import { sendPasswordResetEmail } from './mail.service';
+import { publicFrontendUrl } from '../config/public-frontend';
 
 // Función tokenHash: concentra una operación reutilizable de este módulo.
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
-// Función resetUrl: concentra una operación reutilizable de este módulo.
-const resetUrl = () => {
-  const value = process.env.PASSWORD_RESET_URL?.trim();
-  try {
-    const url = new URL(value ?? '');
-    const isLocal = ['localhost','127.0.0.1','::1'].includes(url.hostname) || /^(192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(url.hostname);
-    if ((url.protocol !== 'https:' && !(env.nodeEnvironment !== 'production' && isLocal && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash) throw new Error();
-    return url.toString();
-  }
-  catch { throw new AppError('PASSWORD_RESET_UNAVAILABLE', 503, 'La recuperación de contraseña no está configurada.'); }
-};
-
 // Función requestPasswordReset: concentra la lógica dentro de este módulo.
 export async function requestPasswordReset(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => key !== 'email')) throw new AppError('VALIDATION_ERROR',400,'Ingresá un correo válido.');
   const email = normalizeEmail((body as { email?: unknown }).email);
-  const baseUrl = resetUrl();
+  // Validar la configuración antes de tocar la solicitud, aunque el correo no corresponda a una cuenta.
+  publicFrontendUrl('password-reset');
   getMailConfiguration();
   const connection=await databasePool.getConnection();
   let token:string|undefined;
@@ -46,8 +35,7 @@ export async function requestPasswordReset(body: unknown): Promise<void> {
   } catch(error){await connection.rollback();throw error;}
   finally{connection.release();}
   if(!token)return;
-  const url = new URL(baseUrl);
-  url.searchParams.set('token', token);
+  const url = publicFrontendUrl('password-reset',token);
   await sendPasswordResetEmail(email, url.toString());
 }
 
