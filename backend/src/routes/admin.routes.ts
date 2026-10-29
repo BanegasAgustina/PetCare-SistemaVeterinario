@@ -48,6 +48,7 @@ adminRouter.put('/account/password',requireRole('ADMIN','SUPER_ADMIN'),createAut
 adminRouter.post('/catalog',requireRole('ADMIN','SUPER_ADMIN'),requireAnyPermission('users.manage','roles.manage','permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 adminRouter.post('/users/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(async req=>repository.adminUsers(req.body)));
 adminRouter.post('/users/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(async req=>repository.adminUser(identifier(req.params.id))));
+adminRouter.delete('/users/:id',requireRole('SUPER_ADMIN'),requirePermission('users.manage'),handle(async(req,res)=>repository.deactivateAdminUser(actor(res),identifier(req.params.id))));
 adminRouter.post('/users',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage','roles.manage'),createAuthRateLimiter(),handle(async(req,res)=>repository.createAdminUser(actor(res),req.body),201));
 adminRouter.post('/users/:id/invitation',requireRole('SUPER_ADMIN'),createAuthRateLimiter(4),handle(async(req,res)=>repository.resendAdminInvitation(actor(res),identifier(req.params.id))));
 adminRouter.put('/users/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(async(req,res)=>repository.updateAdminUser(actor(res),identifier(req.params.id),req.body)));

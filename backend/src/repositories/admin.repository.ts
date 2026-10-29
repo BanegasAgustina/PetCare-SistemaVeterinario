@@ -182,6 +182,33 @@ export async function updateAdminUser(identity:AuthUser,id:string,value:unknown)
     if(roleChanged||!body.isActive){await c.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[id]);await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);}
   });return adminUser(id);
 }
+// Función deactivateAdminUser: aplica una baja lógica repetible conservando el historial.
+export async function deactivateAdminUser(identity:AuthUser,id:string):Promise<{deactivated:true;alreadyInactive:boolean}> {
+  return transaction(async c=>{
+    const actor=await freshAdmin(c,identity,'users.manage');
+    if(actor.role!=='SUPER_ADMIN')forbidden('Solo el Admin Principal puede dar de baja cualquier cuenta.');
+    const [rows]=await c.execute<RowDataPacket[]>(`SELECT u.id,u.is_active,u.email_verified_at AS emailVerifiedAt,u.first_name AS firstName,u.last_name AS lastName,r.code AS role
+      FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE`,[id]);
+    if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
+    const target=rows[0];
+    if(id===actor.id)forbidden('No podés dar de baja tu propia cuenta.');
+    assertTarget(actor,{id,role:String(target.role)});
+    const alreadyInactive=!Boolean(target.is_active);
+    if(!alreadyInactive&&target.role==='SUPER_ADMIN'){
+      const [others]=await c.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id=u.role_id
+        WHERE r.code='SUPER_ADMIN' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND u.id<>?`,[id]);
+      assertAccountDeactivationAllowed({actorId:actor.id,targetId:id,targetRole:String(target.role),activeVerifiedSuperAdmins:Number(others[0]?.total??0)+(target.emailVerifiedAt?1:0)});
+    }
+    if(!alreadyInactive){
+      await c.execute('UPDATE users SET is_active=0,session_version=session_version+1 WHERE id=?',[id]);
+      await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',
+        [actor.id,'USER_DEACTIVATED','USER',id,`${target.firstName} ${target.lastName}`.trim(),'SUCCESS']);
+    }
+    await c.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[id]);
+    await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);
+    return {deactivated:true,alreadyInactive};
+  });
+}
 // Función updateUserPermissions: actualiza o guarda información dentro de este módulo.
 export async function updateUserPermissions(identity:AuthUser,id:string,value:unknown) {
   const body=objectBody(value,['overrides']);const overrides=permissionOverrides(body.overrides);

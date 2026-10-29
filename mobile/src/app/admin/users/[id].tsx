@@ -27,6 +27,7 @@ import type { AdminUserDetail } from '../../../types/admin';
 import { roleLabel } from '../../../utils/role-label';
 import { groupPermissionsByModule } from '../../../utils/admin-permissions';
 import { invitationLabel } from '../../../utils/invitation-label';
+import { ConfirmNameModal } from '../../../components/admin/ConfirmNameModal';
 // Configuración empty: reúne valores o reglas que consume el resto del módulo.
 const empty={firstName:'',lastName:'',email:'',phone:'',roleId:'',isActive:true};
 // Función UserEditor: concentra la lógica dentro de este módulo.
@@ -35,7 +36,7 @@ export default function UserEditor() {
   const [values,setValues]=useState(empty);const [errors,setErrors]=useState<Partial<Record<keyof typeof empty,string>>>({});
   const [overrides,setOverrides]=useState<{code:string;allowed:boolean|null}[]>([]);
   const [photo,setPhoto]=useState<PickedProfilePhoto|null>(null);const [removePhoto,setRemovePhoto]=useState(false);
-  const [confirm,setConfirm]=useState<'identity'|'permissions'|null>(null);
+  const [confirm,setConfirm]=useState<'identity'|'permissions'|'deactivate'|null>(null);
   // Función fill: concentra la lógica dentro de este módulo.
 function fill(user:AdminUserDetail){setValues({firstName:user.firstName,lastName:user.lastName,email:user.email,phone:user.phone??'',roleId:user.roleId,isActive:user.isActive});setOverrides(user.permissions.filter(p=>p.override!==null).map(p=>({code:p.code,allowed:p.override})));}
   const load=useCallback(async()=>{const catalog=await api.catalog();const user=creating?null:await api.user(id);if(user)fill(user);return {catalog,user};},[api,id,creating]);const query=useClientQuery(load);
@@ -54,6 +55,7 @@ async function save(){
   }
   // Función resendInvitation: concentra la lógica dentro de este módulo.
 async function resendInvitation(){const sent=await action.run(async()=>{const result=await api.invitation(id);query.reload();showToast(result.delivery==='sent'?'Invitación reenviada.':'No se pudo enviar el correo. Podés intentar más tarde. ',result.delivery==='sent'?'success':'info');});return sent;}
+  async function deactivateUser(){const result=await api.deactivateUser(id);setConfirm(null);query.reload();showToast(result.alreadyInactive?'La cuenta ya estaba dada de baja.':'Cuenta dada de baja; se conservó el historial.','success');}
   return <ScreenContainer keyboardAvoiding wide><AppText variant="title">{creating?'Crear usuario':'Usuario'}</AppText>
 <QueryState {...query}/>
     {query.data&&!query.error&&!query.loading&&<>
@@ -70,6 +72,7 @@ async function resendInvitation(){const sent=await action.run(async()=>{const re
         {photoRole&&<ProfilePhotoInput currentUri={removePhoto?null:user?.profilePhotoUrl??null} photo={photo} disabled={blocked||action.loading} onSelect={value=>{setPhoto(value);setRemovePhoto(false);}} onRemove={()=>{setPhoto(null);setRemovePhoto(true);}}/>}
         {user?.role==='VETERINARIAN'&&<AppButton variant="secondary" label="Ir a Veterinarios" onPress={()=>router.push('/admin/veterinarians')}/>}
         {!creating&&<><View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><AppText>Cuenta activa</AppText><Switch accessibilityLabel="Cuenta activa" value={values.isActive} disabled={blocked||self||action.loading||!canChangeStatus||!user?.emailVerified&&!values.isActive} onValueChange={v=>change('isActive',v)}/></View>{!user?.emailVerified&&!values.isActive&&<AppText variant="caption" muted>La cuenta se activa cuando la persona verifica su correo desde la invitación.</AppText>}</>}
+        {!creating&&user&&auth.hasRole('SUPER_ADMIN')&&auth.hasPermission('users.manage')&&!self&&<AppButton destructive label={user.isActive?'Dar de baja cuenta':'Confirmar baja lógica'} disabled={action.loading} onPress={()=>setConfirm('deactivate')}/>}
       </PetCareCard>
       {!blocked&&(!creating||auth.hasPermission('roles.manage'))&&<AppButton label={creating?'Crear cuenta':'Revisar y guardar usuario'} disabled={action.loading} onPress={prepare}/>}
       {!creating&&!blocked&&<FormNotice error message={action.error}/>}
@@ -86,5 +89,6 @@ async function resendInvitation(){const sent=await action.run(async()=>{const re
     </>}
     <ConfirmModal visible={confirm==='identity'} title={creating?'Crear cuenta real':'Guardar cambios de usuario'} message={creating?'Se enviará una invitación al correo registrado. La persona podrá configurar su contraseña desde un enlace de un solo uso válido durante 24 horas.':!values.isActive?'La cuenta quedará inactiva y sus sesiones dejarán de ser válidas. Su información se conservará.':'Los cambios de rol cerrarán las sesiones anteriores y se aplicarán en el próximo ingreso.'} destructive={!creating&&!values.isActive} onCancel={()=>setConfirm(null)} onConfirm={save}/>
     <ConfirmModal visible={confirm==='permissions'} title="Cambiar permisos" message="Las excepciones modificarán los accesos de esta persona en su próximo ingreso. ¿Querés guardar los cambios?" onCancel={()=>setConfirm(null)} onConfirm={async()=>{await api.userPermissions(id,overrides);setConfirm(null);query.reload();showToast('Permisos actualizados','success');}}/>
+    {user&&<ConfirmNameModal visible={confirm==='deactivate'} title={user.isActive?'Dar de baja cuenta':'Confirmar baja lógica'} confirmLabel={user.isActive?'Dar de baja':'Confirmar baja'} expectedName={`${user.firstName} ${user.lastName}`} identityHint={`Cuenta ID ${user.id}. Se conservará el historial y los registros asociados.`} message={user.isActive?'Se bloqueará el acceso y se revocarán las sesiones.': 'La cuenta ya está inactiva. La baja se confirma y conserva sus datos e historial.'} onCancel={()=>setConfirm(null)} onConfirm={deactivateUser}/>}
   </ScreenContainer>;
 }
