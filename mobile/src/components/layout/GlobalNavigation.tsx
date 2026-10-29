@@ -221,6 +221,7 @@ const navigate = (path: string) => router.navigate(path as never);
         <AppText numberOfLines={1} variant="caption" muted>PetCare · Gestión de la clínica</AppText>
       </View>
     </View>}
+    {!desktop&&<AdminMobileSections items={items} activePath={desktopSelected?.path??null} onNavigate={navigate}/>}
     <View style={styles.adminPage}><RoleQuickAccessProvider items={quickAccessItems}>{children}</RoleQuickAccessProvider></View>
     <RoleBottomNavigation items={primaryItems} activePath={activePrimaryPath} onNavigate={navigate}/>
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
@@ -288,6 +289,46 @@ function DesktopPageContent({children,role,destinations}:PropsWithChildren<{role
   </View>;
 }
 
+function AdminMobileSections({items,activePath,onNavigate}:{items:MenuItem[];activePath:string|null;onNavigate:(path:string)=>void}) {
+  const {colors}=useTheme();
+  const pathname=usePathname();
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [expandedGroups,setExpandedGroups]=useState<Record<string,boolean>>({});
+  const activeGroup=items.find(item=>item.path===activePath)?.group??adminTabs.find(tab=>tab.path===pathname)?.label;
+  useEffect(()=>{if(activeGroup)setExpandedGroups(current=>current[activeGroup]?current:{...current,[activeGroup]:true});},[activeGroup,pathname]);
+  const groups=adminGroups.filter(group=>group!=='Inicio'&&items.some(item=>item.group===group));
+  return <View style={[styles.mobileSections,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
+    <Pressable accessibilityRole="button" accessibilityState={{expanded:menuOpen}} accessibilityLabel={`${menuOpen?'Contraer':'Desplegar'} secciones de administración`} onPress={()=>setMenuOpen(open=>!open)} style={styles.mobileSectionsToggle}>
+      <Ionicons name="grid-outline" size={18} color={colors.primary}/>
+      <AppText style={[styles.mobileSectionsTitle,{color:colors.text}]}>Secciones</AppText>
+      <Ionicons name={menuOpen?'chevron-up':'chevron-down'} size={18} color={colors.muted}/>
+    </Pressable>
+    {menuOpen&&<View style={styles.mobileSectionsContent}>
+      {groups.map(group=>{
+        const groupItems=items.filter(item=>item.group===group);
+        const groupPath=adminTabs.find(tab=>tab.label===group)?.path;
+        const selected=Boolean(groupPath&&(pathname===groupPath||pathname.startsWith(`${groupPath}/`)))||Boolean(activePath&&groupItems.some(item=>item.path===activePath));
+        const expanded=expandedGroups[group]??false;
+        return <View key={group} style={[styles.mobileSectionGroup,{borderColor:colors.border}]}>
+          <View style={styles.mobileSectionHeading}>
+            <Pressable accessibilityRole="button" accessibilityState={{expanded,selected}} onPress={()=>setExpandedGroups(current=>({...current,[group]:!expanded}))} style={styles.mobileSectionExpand}>
+              <AppText style={[styles.mobileSectionLabel,{color:selected?colors.primary:colors.text,fontWeight:selected?'700':'600'}]}>{group}</AppText>
+              <Ionicons name={expanded?'chevron-up':'chevron-down'} size={17} color={selected?colors.primary:colors.muted}/>
+            </Pressable>
+            {groupPath&&<Pressable accessibilityRole="button" accessibilityLabel={`Abrir panel de ${group}`} onPress={()=>onNavigate(groupPath)} style={styles.mobileSectionOpen}>
+              <AppText variant="caption" style={{color:colors.primary,fontWeight:'600'}}>Ver todo</AppText>
+            </Pressable>}
+          </View>
+          {expanded&&groupItems.map(item=><Pressable key={item.path} accessibilityRole="button" accessibilityState={{selected:item.path===activePath}} onPress={()=>onNavigate(item.path)} style={[styles.mobileSectionItem,{backgroundColor:item.path===activePath?colors.accent:'transparent'}]}>
+            <Ionicons name={item.icon} size={18} color={item.path===activePath?colors.primary:colors.muted}/>
+            <AppText numberOfLines={1} style={[styles.itemText,{color:item.path===activePath?colors.primary:colors.text,fontWeight:item.path===activePath?'700':'500'}]}>{item.label}</AppText>
+          </Pressable>)}
+        </View>;
+      })}
+    </View>}
+  </View>;
+}
+
 // Función DesktopSidebar: concentra la lógica dentro de este módulo.
 function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePath:string|null;onNavigate:(path:string)=>void}) {
   const {colors,mode,setPreference}=useTheme();
@@ -295,7 +336,10 @@ function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePa
   const pathname=usePathname();
   const {width}=useWindowDimensions();
   const [confirmLogout,setConfirmLogout]=useState(false);
+  const [expandedGroups,setExpandedGroups]=useState<Record<string,boolean>>({});
   const groups=items.some(item=>item.group);
+  const activeGroup=items.find(item=>item.path===activePath)?.group??adminTabs.find(tab=>tab.path===pathname)?.label;
+  useEffect(()=>{if(activeGroup)setExpandedGroups(current=>current[activeGroup]?current:{...current,[activeGroup]:true});},[activeGroup,pathname]);
   const initials=[user?.firstName?.[0],user?.lastName?.[0]].filter(Boolean).join('').toLocaleUpperCase();
   // Función navItem: agrupa una operación que este módulo puede ejecutar o reutilizar.
 const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="button" accessibilityState={{selected:item.path===activePath}} onPress={()=>onNavigate(item.path)} style={[styles.desktopNavItem,{backgroundColor:item.path===activePath?colors.accent:'transparent',borderColor:item.path===activePath?colors.primary:'transparent'}]}>
@@ -305,7 +349,16 @@ const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="but
   return <View style={[styles.desktopSidebar,{width:desktopSidebarWidth(width),backgroundColor:colors.surface,borderColor:colors.border}]}>
     <ScrollView nativeID="petcare-web-scroll-sidebar" style={styles.desktopMenu} contentContainerStyle={styles.desktopMenuContent} keyboardShouldPersistTaps="handled">
       <View style={styles.desktopBrand}><PetCareLogo style={styles.desktopLogo}/></View>
-      {groups?adminGroups.map(group=>{const groupItems=items.filter(item=>item.group===group);const groupPath=adminTabs.find(tab=>tab.label===group)?.path;const groupSelected=Boolean(groupPath&&(pathname===groupPath||pathname.startsWith(`${groupPath}/`)))||Boolean(activePath&&items.some(item=>item.path===activePath&&item.group===group));return groupItems.length?<View key={group}><Pressable accessibilityRole="button" accessibilityState={{selected:groupSelected}} onPress={()=>groupPath&&onNavigate(groupPath)} style={[styles.groupHeading,groupSelected&&{backgroundColor:colors.accent}]}><AppText variant="caption" style={[styles.groupLabel,{color:groupSelected?colors.primary:colors.muted,fontWeight:groupSelected?'700':'500'}]}>{group}</AppText></Pressable>{groupItems.map(navItem)}</View>:null;}):items.map(navItem)}
+      {groups?adminGroups.map(group=>{const groupItems=items.filter(item=>item.group===group);const groupPath=adminTabs.find(tab=>tab.label===group)?.path;const groupSelected=Boolean(groupPath&&(pathname===groupPath||pathname.startsWith(`${groupPath}/`)))||Boolean(activePath&&items.some(item=>item.path===activePath&&item.group===group));const expanded=expandedGroups[group]??group==='Inicio';return groupItems.length?<View key={group}>
+        {group==='Inicio'?<Pressable accessibilityRole="button" accessibilityState={{selected:groupSelected}} onPress={()=>groupPath&&onNavigate(groupPath)} style={[styles.groupHeading,groupSelected&&{backgroundColor:colors.accent}]}><AppText variant="caption" style={[styles.groupLabel,{color:groupSelected?colors.primary:colors.muted,fontWeight:groupSelected?'700':'500'}]}>{group}</AppText></Pressable>:<View style={[styles.groupHeading,groupSelected&&{backgroundColor:colors.accent}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${group}: ${expanded?'contraer':'desplegar'} secciones`} accessibilityState={{expanded,selected:groupSelected}} onPress={()=>setExpandedGroups(current=>({...current,[group]:!expanded}))} style={styles.groupToggle}>
+            <AppText variant="caption" style={[styles.groupLabel,{color:groupSelected?colors.primary:colors.muted,fontWeight:groupSelected?'700':'500'}]}>{group}</AppText>
+            <Ionicons name={expanded?'chevron-up':'chevron-down'} size={16} color={groupSelected?colors.primary:colors.muted}/>
+          </Pressable>
+          {groupPath&&<Pressable accessibilityRole="button" accessibilityLabel={`Abrir panel de ${group}`} onPress={()=>onNavigate(groupPath)} style={styles.groupOpen}><Ionicons name="arrow-forward" size={16} color={groupSelected?colors.primary:colors.muted}/></Pressable>}
+        </View>}
+        {(group==='Inicio'||expanded)&&groupItems.map(navItem)}
+      </View>:null;}):items.map(navItem)}
       {groups&&items.filter(item=>!item.group).map(navItem)}
       <View style={[styles.desktopAccount,{borderColor:colors.border}]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Abrir mi perfil" onPress={()=>onNavigate(user?.role==='CLIENT'?'/client/profile':'/account')} style={styles.desktopIdentity}><View style={[styles.desktopAvatar,{backgroundColor:colors.accent}]}><AppText style={{color:colors.primary,fontWeight:'700'}}>{initials||'•'}</AppText></View><View style={styles.desktopUserCopy}><AppText numberOfLines={1} style={styles.desktopUserName}>{[user?.firstName,user?.lastName].filter(Boolean).join(' ')||roleLabel(user!.role,user!.roleName??user!.role)}</AppText><AppText numberOfLines={1} variant="caption" muted>{user?.email}</AppText></View></Pressable>
@@ -326,6 +379,7 @@ const styles = StyleSheet.create({
   adminTopBar:{minHeight:60,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},adminTopLogo:{width:116,height:34},adminPage:{flex:1,minHeight:0},
   currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
   adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},
+  mobileSections:{paddingHorizontal:14,paddingVertical:5,borderBottomWidth:1},mobileSectionsToggle:{minHeight:42,flexDirection:'row',alignItems:'center',gap:10},mobileSectionsTitle:{flex:1,fontSize:14,fontWeight:'600'},mobileSectionsContent:{paddingBottom:6},mobileSectionGroup:{borderTopWidth:1},mobileSectionHeading:{minHeight:43,flexDirection:'row',alignItems:'center'},mobileSectionExpand:{flex:1,minHeight:43,paddingHorizontal:3,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},mobileSectionOpen:{minHeight:40,paddingHorizontal:8,alignItems:'center',justifyContent:'center'},mobileSectionLabel:{fontSize:14},mobileSectionItem:{minHeight:42,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:10,borderRadius:10},
   body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 },
-  groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8}, itemText: { flex: 1, minWidth: 0 },
+  groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupToggle:{flex:1,minHeight:38,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupOpen:{width:34,minHeight:34,alignItems:'center',justifyContent:'center'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8}, itemText: { flex: 1, minWidth: 0 },
 });
