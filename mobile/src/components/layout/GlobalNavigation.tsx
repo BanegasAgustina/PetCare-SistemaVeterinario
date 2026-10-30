@@ -127,7 +127,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const { width } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(width);
   const pathname = usePathname();
-  const { shouldShowBack } = useBackNavigation();
+  const { backPlacement } = useBackNavigation();
   const { request, hasPermission, user } = auth;
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(user.role));
@@ -214,7 +214,7 @@ const navigate = (path: string) => router.navigate(path as never);
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
     </SafeAreaView>}
-    {!desktop&&shouldShowBack&&!['/admin/agenda','/admin/appointment'].includes(pathname)&&<View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
+    {!desktop&&backPlacement==='shell'&&<View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
       <BackButton/>
       <View style={styles.adminPageHeading}>
         <AppText numberOfLines={1} style={styles.adminPageTitle}>{selected?.label??'Administración'}</AppText>
