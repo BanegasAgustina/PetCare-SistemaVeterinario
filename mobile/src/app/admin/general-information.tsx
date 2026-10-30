@@ -5,6 +5,7 @@ import { View } from "react-native";
 import { ScreenContainer } from "../../components/layout/ScreenContainer";
 import { AppText } from "../../components/ui/AppText";
 import { AppInput } from "../../components/forms/AppInput";
+import { ImageUploadField } from "../../components/forms/ImageUploadField";
 import { AppButton } from "../../components/ui/AppButton";
 import { FormNotice } from "../../components/ui/FormNotice";
 import { QueryState } from "../../components/client/PetCareUI";
@@ -170,8 +171,9 @@ async function save() {
               value={values.description ?? ""}
               onChangeText={(value) => change("description", value)}
             />
+            <ImageUploadField label="Logo de la clínica" kind="banner" aspect={[1,1]} value={values.logoUrl} onChange={value=>change("logoUrl",value)}/>
             <AppInput
-              label="URL del logo (HTTPS)"
+              label="URL externa del logo (opcional)"
               keyboardType="url"
               maxLength={2048}
               value={values.logoUrl ?? ""}

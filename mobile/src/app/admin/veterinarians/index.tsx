@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../../components/layout/ScreenContainer';
 import { AppInput } from '../../../components/forms/AppInput';
 import { AppSelectField } from '../../../components/forms/AppSelectField';
+import { SearchableMultiSelect } from '../../../components/forms/SearchableMultiSelect';
 import { AppText } from '../../../components/ui/AppText';
 import { AppButton } from '../../../components/ui/AppButton';
 import { SelectionRow } from '../../../components/ui/SelectionRow';
@@ -60,7 +61,7 @@ function openVetDetails(id:string){setSelectedVetId(id);setSelectedVet(null);set
   // Función saveVetStatus: actualiza o guarda información dentro de este módulo.
 async function saveVetStatus(){if(!selectedVet||statusTarget===null)return;const updated=await request<VetDetail>(`/admin/veterinarians/${selectedVet.id}/status`,{method:'PATCH',body:{isActive:statusTarget}});setSelectedVet(updated);setStatusTarget(null);load();showToast(statusTarget?'Veterinario activado':'Veterinario desactivado','success');}
   // Función createVeterinarian: crea un registro o inicia una operación dentro de este módulo.
-function createVeterinarian(){const identity=validateIdentityForm(createValues);const errors:Partial<Record<keyof VetValues,string>>={firstName:identity.firstName,lastName:identity.lastName,email:identity.email,phone:identity.phone};if(!createValues.licenseNumber.trim()||createValues.licenseNumber.trim().length>80)errors.licenseNumber='Ingresá una matrícula de hasta 80 caracteres.';if(!createValues.specialtyIds.length)errors.specialtyIds='Seleccioná al menos una especialidad.';setCreateErrors(errors);if(Object.values(errors).some(Boolean))return;void action.run(async()=>{const saved=await request<{veterinarian:{id:string};invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:createValues});let photoFailed=false;if(createPhoto){try{await request(`/admin/veterinarians/${saved.veterinarian.id}/photo`,{method:'PUT',body:{photoBase64:createPhoto.base64}});}catch{photoFailed=true;}}setCreateOpen(false);router.setParams({create:undefined});setCreateValues(emptyVet);setCreatePhoto(null);load();const delivery=saved.invitationDelivery==='sent'?'Invitación enviada por correo.':'El veterinario quedó creado, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';showToast(photoFailed?`${delivery} La foto puede agregarse desde su perfil.`:delivery,photoFailed?'info':saved.invitationDelivery==='sent'?'success':'info');});}
+function createVeterinarian(){const identity=validateIdentityForm(createValues);const errors:Partial<Record<keyof VetValues,string>>={firstName:identity.firstName,lastName:identity.lastName,email:identity.email,phone:identity.phone};if(!createValues.licenseNumber.trim()||createValues.licenseNumber.trim().length>80)errors.licenseNumber='Ingresá una matrícula de hasta 80 caracteres.';if(!createValues.specialtyIds.length)errors.specialtyIds='Seleccioná al menos una especialidad.';setCreateErrors(errors);if(Object.values(errors).some(Boolean))return;void action.run(async()=>{const saved=await request<{veterinarian:{id:string};invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:createValues});let photoFailed=false;if(createPhoto){try{await request(`/admin/veterinarians/${saved.veterinarian.id}/photo`,{method:'PUT',body:{photoUrl:createPhoto.url}});}catch{photoFailed=true;}}setCreateOpen(false);router.setParams({create:undefined});setCreateValues(emptyVet);setCreatePhoto(null);load();const delivery=saved.invitationDelivery==='sent'?'Invitación enviada por correo.':'El veterinario quedó creado, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';showToast(photoFailed?`${delivery} La foto puede agregarse desde su perfil.`:delivery,photoFailed?'info':saved.invitationDelivery==='sent'?'success':'info');});}
   useFocusEffect(useCallback(()=>{const timer=setTimeout(load,300);return ()=>{clearTimeout(timer);sequence.current++;};},[load]));
   return <ScreenContainer wide>
     <AdminPageHeading title="Veterinarios"/>
@@ -96,8 +97,7 @@ function createVeterinarian(){const identity=validateIdentityForm(createValues);
       </AdminFormSection>
       
 <AdminFormSection title="Especialidades" description="Seleccioná las áreas de atención del veterinario.">
-        <FormNotice error message={createErrors.specialtyIds??null}/>
-        {catalog?.specialties.map(item=><SelectionRow key={item.id} label={item.name} checked={createValues.specialtyIds.includes(item.id)} onPress={()=>changeCreate('specialtyIds',createValues.specialtyIds.includes(item.id)?createValues.specialtyIds.filter(value=>value!==item.id):[...createValues.specialtyIds,item.id])}/>)}
+        <SearchableMultiSelect label="Especialidades" required options={(catalog?.specialties??[]).map(item=>({id:item.id,name:item.name}))} value={createValues.specialtyIds} error={createErrors.specialtyIds} disabled={action.loading} onChange={value=>changeCreate('specialtyIds',value)}/>
         {!catalog?.specialties.length&&<><AppText muted>{auth.hasPermission('specialties.manage')?'Primero creá una especialidad para poder completar el alta.':'No hay especialidades disponibles. Pedile a un administrador que agregue una antes de registrar el veterinario.'}</AppText>{auth.hasPermission('specialties.manage')&&<AppButton variant="secondary" label="Crear especialidad" onPress={()=>router.push('/admin/veterinarians/specialties')}/>}</>}
       </AdminFormSection>
       <FormNotice error message={action.error}/>
@@ -125,3 +125,4 @@ function createVeterinarian(){const identity=validateIdentityForm(createValues);
     <ConfirmModal visible={statusTarget!==null} title={statusTarget?'Activar veterinario':'Desactivar veterinario'} confirmLabel={statusTarget?'Activar':'Desactivar'} destructive={statusTarget===false} message={statusTarget?'El veterinario podrá volver a iniciar sesión.':'El veterinario perderá el acceso y sus sesiones dejarán de ser válidas. Sus registros clínicos se conservarán.'} onCancel={()=>setStatusTarget(null)} onConfirm={saveVetStatus}/>
   </ScreenContainer>;
 }
+

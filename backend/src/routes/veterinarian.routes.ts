@@ -19,6 +19,14 @@ import { isProfilePhotoKey,removeProfilePhoto,storeProfilePhoto } from '../servi
 import { updateVetPhoto } from '../repositories/veterinarian.repository';
 import { changeOwnPassword,updateOwnProfile } from '../services/veterinarian-account.service';
 
+async function profilePhotoInput(body:Record<string,unknown>){
+  if(Object.keys(body).some(key=>!['photoBase64','photoUrl','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&(body.photoBase64!==undefined||body.photoUrl!==undefined)||body.photoBase64!==undefined&&body.photoUrl!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
+  if(body.removePhoto===true)return null;
+  if(body.photoUrl!==undefined){if(!isProfilePhotoKey(body.photoUrl))throw new AppError('VALIDATION_ERROR',400,'La referencia de foto no es válida.');return {url:String(body.photoUrl),remove:async()=>{}};}
+  if(body.photoBase64!==undefined)return storeProfilePhoto(body.photoBase64);
+  throw new AppError('VALIDATION_ERROR',400,'Seleccioná una foto de perfil.');
+}
+
 // Función handler: atiende una acción o evento dentro de este módulo.
 function handler(operation: (request: Request,response: Response) => Promise<unknown>,status=200): RequestHandler {
   return async (request,response,next) => {
@@ -37,8 +45,7 @@ veterinarianAdminRouter.post('/',createAuthRateLimiter(),handler(async(req,res)=
 veterinarianAdminRouter.put('/:id',handler(async(req,res)=>updateVet(identifier(req.params.id),validateVet(req.body),res.locals.authenticatedUser as AuthUser)));
 veterinarianAdminRouter.put('/:id/photo',handler(async(req,res)=>{
   const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
-  if(Object.keys(body).some(key=>!['photoBase64','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&body.photoBase64!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
-  const remove=body.removePhoto===true;const image=remove?null:await storeProfilePhoto(body.photoBase64);
+  const image=await profilePhotoInput(body);
   let result:{previous:string|null};
   try {result=await updateVetPhoto(identifier(req.params.id),image?.url??null,res.locals.authenticatedUser as AuthUser);}
   catch(error){if(image)console.error('La actualización del perfil falló; se conservará el objeto nuevo para evitar romper una posible referencia confirmada.');throw error;}
@@ -106,8 +113,7 @@ export const professionalPhotoRouter=Router();
 professionalPhotoRouter.use(authenticate,requireRole('VETERINARIAN','GROOMER'));
 professionalPhotoRouter.put('/',createAuthRateLimiter(),handler(async(req,res)=>{
   const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
-  if(Object.keys(body).some(key=>!['photoBase64','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&body.photoBase64!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
-  const image=body.removePhoto===true?null:await storeProfilePhoto(body.photoBase64);const user=res.locals.authenticatedUser as AuthUser;
+  const image=await profilePhotoInput(body);const user=res.locals.authenticatedUser as AuthUser;
   try {const saved=await updateOwnProfessionalPhoto(user.id,image?.url??null);if(saved.previous&&saved.previous!==image?.url)await removeProfilePhoto(saved.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del profesional.'));return {profilePhotoUrl:image?.url??null};}
   catch(error){if(image)console.error('La actualización del perfil falló; se conservará el objeto nuevo para evitar romper una posible referencia confirmada.');throw error;}
 }));

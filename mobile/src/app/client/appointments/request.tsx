@@ -13,6 +13,7 @@ import { PetCareCard, PetCareEmptyState, PetCareHeader, PetCareScreen, PetImage,
 import { AppButton } from '../../../components/ui/AppButton';
 import { AppText } from '../../../components/ui/AppText';
 import { FormNotice } from '../../../components/ui/FormNotice';
+import { AppSelectField } from '../../../components/forms/AppSelectField';
 import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { SlotSelectionCard } from '../../../components/client/SlotSelectionCard';
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard';
@@ -198,10 +199,8 @@ async function submitRequest() {
       />)}</View> : <PetCareEmptyState title="No hay tipos de atención disponibles" message="La clínica todavía no ofrece servicios activos para solicitar un turno." icon="calendar-outline" />}
       {Boolean(typeId)&&<>
       {specialties.length > 0 && <PetCareCard>
-        <AppText variant="subtitle">Especialidad (opcional)</AppText>
         <AppText muted>Podés elegir una para filtrar los servicios relacionados, o continuar sin filtro.</AppText>
-        <SelectionRow radio label="Ver todos los servicios" checked={!specialtyId} disabled={action.loading} onPress={() => chooseSpecialty('')} />
-        {specialties.map(specialty => <SelectionRow key={specialty.id} radio label={specialty.name} checked={specialtyId === specialty.id} disabled={action.loading} onPress={() => chooseSpecialty(specialty.id)} />)}
+        <AppSelectField label="Especialidad" optional emptyLabel="Ver todos los servicios" value={specialtyId} options={specialties.map(specialty=>({id:specialty.id,name:specialty.name}))} disabled={action.loading} onChange={chooseSpecialty}/>
       </PetCareCard>}
       {filteredServices.length ? filteredServices.map(service => <ChoiceCard
         key={service.id}

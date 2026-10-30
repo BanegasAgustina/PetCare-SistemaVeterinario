@@ -7,10 +7,10 @@ import { View,StyleSheet,Switch } from 'react-native';
 import { ScreenContainer } from '../../../components/layout/ScreenContainer';
 import { AppInput } from '../../../components/forms/AppInput';
 import { ProfilePhotoInput,type PickedProfilePhoto } from '../../../components/forms/ProfilePhotoInput';
+import { SearchableMultiSelect } from '../../../components/forms/SearchableMultiSelect';
 import { AppText } from '../../../components/ui/AppText';
 import { AppButton } from '../../../components/ui/AppButton';
 import { FormNotice } from '../../../components/ui/FormNotice';
-import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
@@ -58,13 +58,13 @@ const save=async()=>{
     if (creating) {
       const result=await auth.request<{veterinarian:VetDetail;invitationDelivery:'sent'|'failed'}>('/admin/veterinarians',{method:'POST',body:values});
       const created=result.veterinarian;let photoFailed=false;
-      if(photo){try{await auth.request<VetDetail>(`/admin/veterinarians/${created.id}/photo`,{method:'PUT',body:{photoBase64:photo.base64}});}catch{photoFailed=true;}}
+      if(photo){try{await auth.request<VetDetail>(`/admin/veterinarians/${created.id}/photo`,{method:'PUT',body:{photoUrl:photo.url}});}catch{photoFailed=true;}}
       const delivery=result.invitationDelivery==='sent'?'Invitación enviada por correo.':'El veterinario quedó creado, pero no se pudo enviar el correo; Admin Principal puede reenviar la invitación.';
       showToast(photoFailed?`${delivery} No se pudo guardar la foto.`:delivery,photoFailed?'info':result.invitationDelivery==='sent'?'success':'info');
       router.replace({pathname:'/admin/veterinarians/[id]',params:{id:created.id}});
     } else {
       let vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}`,{method:'PUT',body:values});
-      if(photo||removePhoto){try{vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}/photo`,{method:'PUT',body:photo?{photoBase64:photo.base64}:{removePhoto:true}});setPhoto(null);setRemovePhoto(false);}catch{fill(vet);setReview(false);showToast('Los datos se guardaron; no se pudo actualizar la foto. Podés reintentar desde este perfil.','error');return;}}
+      if(photo||removePhoto){try{vet=await auth.request<VetDetail>(`/admin/veterinarians/${id}/photo`,{method:'PUT',body:photo?{photoUrl:photo.url}:{removePhoto:true}});setPhoto(null);setRemovePhoto(false);}catch{fill(vet);setReview(false);showToast('Los datos se guardaron; no se pudo actualizar la foto. Podés reintentar desde este perfil.','error');return;}}
       fill(vet);setReview(false);
       showToast('Datos y permisos actualizados','success');
     }
@@ -90,10 +90,8 @@ const save=async()=>{
       </AdminFormSection>
       
 <AdminFormSection title="3. Especialidades" description="Las especialidades habilitan servicios clínicos compatibles.">
-      <FormNotice error message={errors.specialtyIds??null} />
       {!catalog.specialties.length && <View style={styles.section}><AppText muted>No hay especialidades activas. Se necesita al menos una para completar el perfil veterinario y validar los servicios clínicos que puede brindar.</AppText>{auth.hasPermission('specialties.manage')&&<AppButton compact variant="secondary" label="Administrar especialidades" onPress={()=>router.push('/admin/veterinarians/specialties')}/>}</View>}
-      {catalog.specialties.map(s=><SelectionRow key={s.id} label={s.name} checked={values.specialtyIds.includes(s.id)} disabled={!canEdit||action.loading}
-        onPress={()=>change('specialtyIds',values.specialtyIds.includes(s.id)?values.specialtyIds.filter(x=>x!==s.id):[...values.specialtyIds,s.id])} />)}
+      <SearchableMultiSelect label="Especialidades" required options={catalog.specialties.map(s=>({id:s.id,name:s.name}))} value={values.specialtyIds} error={errors.specialtyIds} disabled={!canEdit||action.loading} onChange={value=>change('specialtyIds',value)}/>
       </AdminFormSection>
       
 <AdminFormSection title="Cuenta" description="El rol se asigna automáticamente como Veterinario.">
@@ -123,3 +121,4 @@ const save=async()=>{
 }
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({section:{gap:10},state:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},review:{padding:18,borderWidth:1,borderRadius:20,gap:12}});
+

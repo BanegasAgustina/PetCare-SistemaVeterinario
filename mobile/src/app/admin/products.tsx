@@ -3,17 +3,16 @@
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
 import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
 import { AppText } from '../../components/ui/AppText';
 import { AppInput } from '../../components/forms/AppInput';
 import { AppSelectField } from '../../components/forms/AppSelectField';
+import { ImageUploadField } from '../../components/forms/ImageUploadField';
 import { AppButton } from '../../components/ui/AppButton';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { AppModal } from '../../components/ui/AppModal';
-import { FormNotice } from '../../components/ui/FormNotice';
 import { CompactPagination } from '../../components/ui/CompactPagination';
 import { AdminListToolbar } from '../../components/admin/AdminListToolbar';
 import { AdminDataTable } from '../../components/admin/AdminDataTable';
@@ -55,8 +54,6 @@ export default function AdminProducts() {
   const [values, setValues] = useState(emptyValues);
   const [errors, setErrors] = useState<{ name?: string; imageUrl?: string; price?: string; stock?: string;stockMinimum?:string;stockReason?:string }>({});
   const [body, setBody] = useState<Record<string, unknown> | null>(null);
-  const [photo,setPhoto]=useState<{uri:string;base64:string}|null>(null);
-  const [photoError,setPhotoError]=useState<string|null>(null);
   const {width}=useWindowDimensions();
   const desktopTable=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
   const desktopGrid=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);
@@ -76,7 +73,6 @@ function changeField<K extends keyof typeof values>(key: K, value: (typeof value
 function openEditor(product: Product) {
     setDetail(null);
     setEditing(product);
-    setPhoto(null);setPhotoError(null);
     setValues({ name: product.name, description: product.description ?? '', imageUrl: product.imageUrl ?? '', categoryId: product.categoryId ?? '', price: (product.priceCents / 100).toFixed(2), stock: String(product.physicalStock),stockMinimum:String(product.stockMinimum),stockReason:'', isActive: product.isActive });
     setErrors({});
   }
@@ -102,13 +98,9 @@ function review() {
       if (Number(values.stock) !== editing.physicalStock && values.stockReason.trim().length < 3) next.stockReason = 'Indicá un motivo de al menos 3 caracteres para el ajuste.';
       else if(Number(values.stock)!==editing.physicalStock)data.stockReason=values.stockReason.trim();
     }
-    if(photo)data.photoBase64=photo.base64;
     setErrors(next);
     if (!Object.keys(next).length) setBody(data);
   }
-  // Función choosePhoto: concentra la lógica dentro de este módulo.
-async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){setPhotoError('Permití el acceso a la galería para elegir una imagen.');return;}}const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8,base64:true});if(result.canceled)return;const asset=result.assets[0];if(!asset?.base64||asset.base64.length>7_000_000||(asset.fileSize??0)>5*1024*1024||asset.width*asset.height>25_000_000){setPhotoError('Elegí una imagen de hasta 5 MB y 25 megapíxeles.');return;}setPhoto({uri:asset.uri,base64:asset.base64});setValues(current=>({...current,imageUrl:editing?.imageUrl??''}));}catch{setPhotoError('No pudimos abrir la imagen. Intentá elegir otra.');}}
-
   const activeCount = (filters.status !== 'all' ? 1 : 0) + (filters.stock !== 'all' ? 1 : 0) + (filters.categoryId ? 1 : 0);
   const hasRestrictiveFilters = Boolean(submittedSearch) || filters.status !== 'all' || filters.stock !== 'all' || Boolean(filters.categoryId);
   return <ScreenContainer wide>
@@ -124,7 +116,7 @@ async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){con
         {[['all', 'Cualquier stock'], ['available', 'Disponible'], ['low','Stock bajo'], ['out', 'Sin stock']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.stock === value} onPress={() => updateFilter('stock', value)}/>)}
         <AppText variant="subtitle">Estado</AppText>
         {[['all', 'Todos'], ['active', 'Activos'], ['inactive', 'Inactivos']].map(([value, label]) => <SelectionRow radio key={value} label={label} checked={filters.status === value} onPress={() => updateFilter('status', value)}/>)}
-        <AppText variant="subtitle">Categoría</AppText><SelectionRow label="Todas" checked={!filters.categoryId} onPress={() => updateFilter('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} checked={filters.categoryId === category.id} onPress={() => updateFilter('categoryId', category.id)}/>)}
+        <AppSelectField label="Categoría" optional emptyLabel="Todas" value={filters.categoryId} options={catalog.data?.categories??[]} onChange={value=>updateFilter('categoryId',value)}/>
       </>}
       filterCount={activeCount} onApply={() => setPage(1)} onClear={() => { setFilters({ status: 'all', stock: 'all', sort: 'name', categoryId: '' }); setPage(1); }}/>
     
@@ -167,8 +159,8 @@ async function choosePhoto(){setPhotoError(null);try{if(Platform.OS!=='web'){con
 <AdminFormSection title="Información del producto" description="Nombre, descripción e imagen que se muestran en la tienda.">
         <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('name', value)}/>
         <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('description', value)}/>
-        <AppText variant="caption" muted>Imagen del producto</AppText><PetImage uri={photo?.uri??(values.imageUrl||editing.imageUrl)}/><AppButton variant="secondary" label={photo?'Cambiar imagen':'Elegir imagen'} disabled={!auth.hasPermission('products.update')} onPress={()=>void choosePhoto()}/>{Boolean(photo||values.imageUrl)&&<AppButton variant="secondary" label="Quitar imagen" disabled={!auth.hasPermission('products.update')} onPress={()=>{setPhoto(null);changeField('imageUrl','');}}/>}<FormNotice error message={photoError}/><AppInput label="URL HTTPS alternativa" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value => {setPhoto(null);changeField('imageUrl', value);}}/>
-        {auth.hasPermission('products.update') && <><AppText variant="caption" muted>Categoría</AppText><SelectionRow label="Sin categoría" radio checked={!values.categoryId} onPress={() => changeField('categoryId', '')}/>{catalog.data?.categories.map(category => <SelectionRow key={category.id} label={category.name} radio checked={values.categoryId === category.id} onPress={() => changeField('categoryId', category.id)}/>)}</>}
+        <ImageUploadField label="Imagen del producto" kind="product" aspect={[1,1]} value={values.imageUrl||null} disabled={!auth.hasPermission('products.update')} error={errors.imageUrl} onChange={value=>changeField('imageUrl',value??'')}/><AppInput label="URL HTTPS alternativa (opcional)" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value=>changeField('imageUrl', value)}/>
+        {auth.hasPermission('products.update') && <AppSelectField label="Categoría" optional value={values.categoryId} options={catalog.data?.categories??[]} onChange={value=>changeField('categoryId',value)}/>}
         </AdminFormSection>
         
 <AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">

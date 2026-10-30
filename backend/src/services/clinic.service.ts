@@ -73,6 +73,8 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'store-fulfillment':return storefront.adminFulfillment(actor);
  case 'store-fulfillment-save':return storefront.saveFulfillment(actor,value);
  case 'store-banners':return storefront.adminBanners(actor);
+ case 'store-banner-destinations':return storefront.bannerDestinationChoices(actor,query.destinationType,query.search,query.page);
+ case 'promotion-products':return storefront.promotionProductChoices(actor,query.search,query.page);
  case 'store-banners-order':return storefront.reorderBanners(actor,value);
  case 'store-banner-create':
  case 'store-banner-save':{

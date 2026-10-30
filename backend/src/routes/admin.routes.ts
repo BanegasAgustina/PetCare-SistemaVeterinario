@@ -31,8 +31,10 @@ async function updateProduct(req:Request,res:Response) {
 // Función updateUserPhoto: actualiza o guarda información dentro de este módulo.
 async function updateUserPhoto(req:Request,res:Response) {
   const identity=actor(res);const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
-  if(Object.keys(body).some(key=>!['photoBase64','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&body.photoBase64!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
-  const remove=body.removePhoto===true;const image=remove?null:await storeProfilePhoto(body.photoBase64);
+  if(Object.keys(body).some(key=>!['photoBase64','photoUrl','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&(body.photoBase64!==undefined||body.photoUrl!==undefined)||body.photoBase64!==undefined&&body.photoUrl!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
+  if(body.photoUrl!==undefined&&!isProfilePhotoKey(body.photoUrl))throw new AppError('VALIDATION_ERROR',400,'La referencia de foto no es válida.');
+  const remove=body.removePhoto===true;const image=remove?null:body.photoUrl?{url:String(body.photoUrl),remove:async()=>{}}:body.photoBase64!==undefined?await storeProfilePhoto(body.photoBase64):null;
+  if(!remove&&!image)throw new AppError('VALIDATION_ERROR',400,'Seleccioná una foto de perfil.');
   try {const result=await repository.updateAdminUserPhoto(identity,identifier(req.params.id),image?.url??null);if(isProfilePhotoKey(result.previous)&&result.previous!==image?.url)await removeProfilePhoto(result.previous).catch(()=>console.error('No se pudo limpiar la foto de perfil anterior.'));return {updated:true};}
   catch(error){if(image)await image.remove().catch(()=>console.error('No se pudo limpiar una foto de perfil sin referencia.'));throw error;}
 }

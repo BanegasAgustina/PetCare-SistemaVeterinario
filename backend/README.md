@@ -18,9 +18,7 @@ La API local usa `http://localhost:3000/api`. `GET /api/health` verifica proceso
 
 ## Variables de entorno
 
-Use `.env.example` como lista actual de nombres, sin copiar secretos al frontend. Las variables principales son `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`, `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CORS_ALLOWED_ORIGINS`, `SMTP_*`, `EMAIL_CODE_SECRET`, `PUBLIC_FRONTEND_URL`, `BACKEND_URL`, `OAUTH_RETURN_URLS`, credenciales Google/Facebook/X, `CRON_SECRET` y configuración Cloudinary/S3. `PUBLIC_FRONTEND_URL` es el origen base del sitio web público usado por invitaciones y recuperación; `BACKEND_URL` es exclusivo para callbacks OAuth. Producción requiere base remota, TLS y secreto JWT aleatorio de al menos 32 bytes. Las variables optativas solo se necesitan para su función.
-
-Consulte el [README principal](../README.md), el [inventario de API](../docs/DOCUMENTACION_API.md) y la [auditoría general](../docs/auditoria/AUDITORIA_GENERAL.md).
+Use `.env.example` como lista actual de nombres, sin copiar secretos al frontend. Las variables principales son `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`, `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_ISSUER`, `JWT_AUDIENCE`, `CORS_ALLOWED_ORIGINS`, `SMTP_*`, `EMAIL_CODE_SECRET`, `PUBLIC_FRONTEND_URL`, `BACKEND_URL`, `OAUTH_RETURN_URLS`, credenciales Google/Facebook/X, `CRON_SECRET` y configuración Cloudinary/S3. `PUBLIC_FRONTEND_URL` es el origen base del sitio web público usado por invitaciones y recuperación; `BACKEND_URL` es exclusivo para callbacks OAuth. Producción requiere base remota, TLS y secreto JWT aleatorio de al menos 32 bytes. Las variables optativas solo se necesitan para su función..
 
 ## Layerbase/MariaDB y migraciones
 
@@ -36,13 +34,13 @@ Registro requiere verificación de email. JWT tiene access TTL por defecto 900 s
 
 ## Rutas y lectura POST
 
-Prefijo global `/api`; módulos en `src/routes/`. Las lecturas internas usan POST y filtros JSON en body. Los GET vigentes son health, health DB, configuración pública, callback OAuth, cron de notificaciones y resolver de foto autorizada. No existe compatibilidad GET para las lecturas migradas. Las operaciones de escritura conservan su método definido. Vea el inventario individual en [DOCUMENTACION_API.md](../docs/DOCUMENTACION_API.md).
+Prefijo global `/api`; módulos en `src/routes/`. Las lecturas internas usan POST y filtros JSON en body. Los GET vigentes son health, health DB, configuración pública, callback OAuth, cron de notificaciones y resolver de foto autorizada. No existe compatibilidad GET para las lecturas migradas. Las operaciones de escritura conservan su método definido. Vea el inventario individual en DOCUMENTACION_API.
 
 ## Correo, notificaciones, imágenes y tienda
 
 SMTP requiere `SMTP_*`, `MAIL_FROM` y secretos de códigos; el cron requiere `CRON_SECRET` y Vercel Cron. Las notificaciones internas y los recordatorios de turnos se guardan en el centro de notificaciones; el cron procesa recordatorios y correos. Imágenes usan configuración privada Cloudinary o S3 compatible. `STORE_DEMO_MODE` está desactivado por defecto y habilita únicamente checkout de demostración no cobrable. Transferencias y revisión de comprobantes son flujos separados sujetos a configuración, esquema y decisión administrativa; no afirme que una captura de comprobante constituye pago.
 
-La gestión comercial usa Tienda, `/api/client/orders` y `/api/clinic/store-orders`. Las rutas comerciales antiguas de Reservas ya no se montan. `client_orders` e historiales son compartidos con datos históricos: no borrar filas ni ejecutar limpieza de stock sin auditar el entorno. Véase [plan de retiro y preflight](../docs/RETIRO_RESERVAS_PRODUCTOS.md). Los turnos veterinarios y de peluquería siguen en `/api/client/appointments` y `/api/clinic/appointments`.
+La gestión comercial usa Tienda, `/api/client/orders` y `/api/clinic/store-orders`. Las rutas comerciales antiguas de Reservas ya no se montan. `client_orders` e historiales son compartidos con datos históricos: no borrar filas ni ejecutar limpieza de stock sin auditar el entorno. Véase [plan de retiro y preflight]. Los turnos veterinarios y de peluquería siguen en `/api/client/appointments` y `/api/clinic/appointments`.
 
 ## Comandos disponibles
 
@@ -74,4 +72,4 @@ Para desplegar la API configure el proyecto con Root Directory `backend`, variab
 - **OAuth/email:** comprobar callback exacto, allowlist, SMTP y estado de proveedor en sus consolas.
 - **SQL/schema:** consultar logs sanitizados y comparar esquema; aplicar una migración solo tras revisión y aprobación del operador.
 
-Para revisar el estado de Layerbase, la evidencia y las limitaciones, consulte [AUDITORIA_LAYERBASE.md](../docs/auditoria/AUDITORIA_LAYERBASE.md) y [RESULTADOS_PRUEBAS.md](../docs/auditoria/RESULTADOS_PRUEBAS.md).
+

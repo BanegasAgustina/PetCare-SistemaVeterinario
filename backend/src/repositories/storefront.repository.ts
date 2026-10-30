@@ -42,17 +42,39 @@ export async function publicBanners():Promise<StoreBanner[]> {
 // Función adminBanners: concentra la lógica dentro de este módulo.
 export async function adminBanners(actor:AuthUser):Promise<{items:StoreBanner[];products:{id:string;name:string}[];categories:{id:string;name:string}[];promotions:{id:string;name:string}[]}> {
   clinic.permit(actor,'store.banners.manage');
-  const [[rows],[products],[categories],[promotions]]=await Promise.all([
-    databasePool.execute<RowDataPacket[]>(`SELECT CAST(id AS CHAR) AS id,title,subtitle,description,mobile_image_url AS mobileImageUrl,desktop_image_url AS desktopImageUrl,
+  const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT CAST(id AS CHAR) AS id,title,subtitle,description,mobile_image_url AS mobileImageUrl,desktop_image_url AS desktopImageUrl,
     background_color AS backgroundColor,text_color AS textColor,content_alignment AS contentAlignment,dark_overlay AS darkOverlay,
     destination_type AS destinationType,CAST(destination_id AS CHAR) AS destinationId,cta_text AS ctaText,sort_order AS sortOrder,is_active AS isActive,
-    starts_at AS startsAt,ends_at AS endsAt FROM client_store_banners ORDER BY sort_order,id`),
-    databasePool.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,name FROM client_products WHERE is_active=1 ORDER BY name,id LIMIT 1000'),
-    databasePool.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,name FROM client_product_categories WHERE is_active=1 ORDER BY name,id LIMIT 500'),
-    databasePool.execute<RowDataPacket[]>(`SELECT CAST(pr.id AS CHAR) AS id,CONCAT(pr.name,' · ',p.name) AS name FROM client_promotions pr JOIN client_products p ON p.id=pr.product_id WHERE p.is_active=1 ORDER BY pr.starts_at DESC,pr.id DESC LIMIT 1000`),
-  ]);
+    starts_at AS startsAt,ends_at AS endsAt FROM client_store_banners ORDER BY sort_order,id`);
   const items=rows.map(row=>({...row,id:String(row.id),destinationId:row.destinationId===null?null:String(row.destinationId),targetProductId:null,darkOverlay:Boolean(row.darkOverlay),isActive:Boolean(row.isActive),sortOrder:Number(row.sortOrder)})) as StoreBanner[];
-  return {items,products:products.map(row=>({id:String(row.id),name:String(row.name)})),categories:categories.map(row=>({id:String(row.id),name:String(row.name)})),promotions:promotions.map(row=>({id:String(row.id),name:String(row.name)}))};
+  return {items,products:[],categories:[],promotions:[]};
+}
+
+export async function bannerDestinationChoices(actor:AuthUser,rawType:unknown,rawSearch:unknown,rawPage:unknown){
+  clinic.permit(actor,'store.banners.manage');
+  const type=String(rawType);if(!['PRODUCT','CATEGORY','PROMOTION'].includes(type))throw new AppError('VALIDATION_ERROR',400,'El tipo de destino no es válido.');
+  const search=typeof rawSearch==='string'?rawSearch.trim().slice(0,200):'';const page=Number(rawPage??1);
+  if(!Number.isInteger(page)||page<1||page>10000)throw new AppError('VALIDATION_ERROR',400,'La página de destinos no es válida.');
+  const limit=40,offset=(page-1)*limit,pattern=`%${search}%`;
+  const accent='CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci';
+  const sql=type==='PRODUCT'
+    ?`SELECT CAST(id AS CHAR) AS id,name FROM client_products WHERE is_active=1 AND CONVERT(name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci LIKE ${accent} ORDER BY name,id LIMIT ? OFFSET ?`
+    :type==='CATEGORY'
+      ?`SELECT CAST(id AS CHAR) AS id,name FROM client_product_categories WHERE is_active=1 AND CONVERT(name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci LIKE ${accent} ORDER BY name,id LIMIT ? OFFSET ?`
+      :`SELECT CAST(pr.id AS CHAR) AS id,CONCAT(pr.name,' · ',p.name) AS name FROM client_promotions pr JOIN client_products p ON p.id=pr.product_id WHERE p.is_active=1 AND CONVERT(CONCAT(pr.name,' ',p.name) USING utf8mb4) COLLATE utf8mb4_0900_ai_ci LIKE ${accent} ORDER BY pr.starts_at DESC,pr.id DESC LIMIT ? OFFSET ?`;
+  const [rows]=await databasePool.execute<RowDataPacket[]>(sql,[pattern,limit+1,offset]);
+  return {items:rows.slice(0,limit).map(row=>({id:String(row.id),name:String(row.name)})),hasMore:rows.length>limit,page};
+}
+
+/** Selector paginado de productos activos para promociones; el nombre se filtra en Layerbase sin descargar el catálogo completo. */
+export async function promotionProductChoices(actor:AuthUser,rawSearch:unknown,rawPage:unknown){
+  clinic.permit(actor,'promotions.manage');
+  const search=typeof rawSearch==='string'?rawSearch.trim().slice(0,200):'';
+  const page=Number(rawPage??1);
+  if(!Number.isInteger(page)||page<1||page>10000)throw new AppError('VALIDATION_ERROR',400,'La página de productos no es válida.');
+  const limit=40,offset=(page-1)*limit;
+  const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT CAST(id AS CHAR) AS id,name FROM client_products WHERE is_active=1 AND CONVERT(name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ORDER BY name,id LIMIT ? OFFSET ?',[`%${search}%`,limit+1,offset]);
+  return {items:rows.slice(0,limit).map(row=>({id:String(row.id),name:String(row.name)})),hasMore:rows.length>limit,page};
 }
 
 // Función saveBanner: actualiza o guarda información dentro de este módulo.

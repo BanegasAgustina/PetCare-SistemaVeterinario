@@ -1,13 +1,11 @@
 // Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
 
 /**
- * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos mediante useClient, selecciona foto con ImagePicker y envía cambios al backend; los errores se muestran inline.
+ * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos reales, sube la foto directamente a almacenamiento y envía solo su referencia.
  */
 import { useCallback,useEffect,useRef,useState,type ComponentRef } from 'react';
 import { Image,Pressable,TextInput,View,StyleSheet,Platform,useWindowDimensions } from 'react-native';
 import { Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { ImageManipulator as ImageProcessor, SaveFormat } from 'expo-image-manipulator';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { useClient } from '../../hooks/useClient';
@@ -16,6 +14,7 @@ import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { PetCareScreen,PetCareHeader,PetCareCard,PetCareEmptyState,QueryState } from './PetCareUI';
 import { AppInput } from '../forms/AppInput';
+import { ImageUploadField } from '../forms/ImageUploadField';
 import { AppButton } from '../ui/AppButton';
 import { AppText } from '../ui/AppText';
 import { FormNotice } from '../ui/FormNotice';
@@ -25,23 +24,8 @@ import { validPetDate } from '../../utils/pet-date';
 import type { PetValues } from '../../types/client';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { firstInvalidField } from '../../utils/auth-validation';
-import { petPhotoResizePlan,PET_PHOTO_MAX_BASE64_LENGTH } from '../../utils/pet-photo';
 import { AdminFormActions,AdminFormField,AdminFormSection } from '../admin/AdminFormLayout';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
-// Función compressPetPhoto: concentra la lógica dentro de este módulo.
-async function compressPetPhoto(uri:string,originalWidth:number,originalHeight:number){
-  for(const {width,height,quality} of petPhotoResizePlan(originalWidth,originalHeight)){
-    const context=ImageProcessor.manipulate(uri,{maxWidth:width,maxHeight:height});
-    try {
-      const image=await context.resize({width,height}).renderAsync();
-      try {
-        const result=await image.saveAsync({format:SaveFormat.JPEG,compress:quality,base64:true});
-        if(result.base64&&result.base64.length<=PET_PHOTO_MAX_BASE64_LENGTH)return result;
-      } finally {image.release();}
-    } finally {context.release();}
-  }
-  return null;
-}
 // Configuración empty: reúne valores o reglas que consume el resto del módulo.
 const empty:PetValues={name:'',sex:'',speciesId:'',breedId:'',breedName:'',birthDate:'',microchipNumber:'',photoUrl:'',weightKg:''};
 // Función PetEditor: concentra la lógica dentro de este módulo.
@@ -51,9 +35,8 @@ export function PetEditor({id}:{id?:string}) {
   const [values,setValues]=useState<PetValues>(empty);
   const [errors,setErrors]=useState<Partial<Record<keyof PetValues,string>>>({});
   const inputRefs=useRef<Partial<Record<'name'|'breedName'|'weightKg'|'microchipNumber',ComponentRef<typeof TextInput>|null>>>({});
-  const [photo,setPhoto]=useState<{uri:string;base64:string}|null>(null);
   const [initialValues,setInitialValues]=useState(JSON.stringify(empty));
-  const [picking,setPicking]=useState(false);const pickerBusy=useRef(false);
+  const [picking,setPicking]=useState(false);
   const [pendingPetId,setPendingPetId]=useState('');const navigationStarted=useRef(false);
   const load=useCallback(async()=>{
     const catalog=await api.petCatalog();const pet=id?await api.pet(id):null;
@@ -65,31 +48,7 @@ function change(key:keyof PetValues,value:string) {
     setValues(v=>({...v,[key]:value,...(key==='speciesId'||key==='breedName'?{breedId:''}:{})}));
     setErrors(e=>({...e,[key]:undefined}));
   }
-  // Función choosePhoto: concentra la lógica dentro de este módulo.
-async function choosePhoto(source:'gallery'|'camera') {
-    if(pickerBusy.current||action.loading)return;pickerBusy.current=true;setPicking(true);setErrors(e=>({...e,photoUrl:undefined}));
-    try {
-      if(source==='camera'&&Platform.OS==='web'){setErrors(e=>({...e,photoUrl:'La cámara está disponible desde la app móvil.'}));return;}
-      if(source==='camera') {
-        const permission=await ImagePicker.requestCameraPermissionsAsync();
-        if(!permission.granted){setErrors(e=>({...e,photoUrl:'Permití el acceso a la cámara desde los ajustes del teléfono.'}));return;}
-      } else if(Platform.OS!=='web') {
-        const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if(!permission.granted){setErrors(e=>({...e,photoUrl:'Permití el acceso a la galería desde los ajustes del teléfono para elegir una foto.'}));return;}
-      }
-      // Evita la pantalla nativa de recorte de Android: la app hace el recorte visual al mostrar la foto y prepara el archivo aquí.
-      const options={mediaTypes:['images' as const],allowsEditing:false,quality:1};
-      const result=source==='camera'?await ImagePicker.launchCameraAsync(options):await ImagePicker.launchImageLibraryAsync(options);
-      if(result.canceled)return;
-      const asset=result.assets[0];
-      if(!asset?.uri||!Number.isFinite(asset.width)||!Number.isFinite(asset.height)||asset.width<=0||asset.height<=0){setErrors(e=>({...e,photoUrl:'No pudimos leer esta foto. Intentá con otra imagen.'}));return;}
-      const compressed=await compressPetPhoto(asset.uri,asset.width,asset.height);
-      if(!compressed?.base64){setErrors(e=>({...e,photoUrl:'No pudimos preparar esta foto. Intentá elegir otra imagen.'}));return;}
-      setPhoto({uri:compressed.uri,base64:compressed.base64});
-    }catch {setErrors(e=>({...e,photoUrl:'No pudimos abrir la foto. Intentá elegir otra imagen.'}));}
-    finally {pickerBusy.current=false;setPicking(false);}
-  }
-  const hasUnsavedChanges=JSON.stringify(values)!==initialValues||Boolean(photo);
+  const hasUnsavedChanges=JSON.stringify(values)!==initialValues;
   const {confirmation:unsavedChangesPrompt,allowNavigation}=useUnsavedChangesGuard(hasUnsavedChanges);
   useEffect(()=>{
     if(!pendingPetId||navigationStarted.current)return;
@@ -111,7 +70,7 @@ async function save() {
     setErrors(next);if(Object.keys(next).length){const firstInvalid=firstInvalidField(['name','speciesId','sex','breedName','birthDate','weightKg','microchipNumber'] as const,next);if(firstInvalid==='name'||firstInvalid==='breedName'||firstInvalid==='weightKg'||firstInvalid==='microchipNumber')setTimeout(()=>inputRefs.current[firstInvalid]?.focus(),0);return;}
     let savedPetId='';
     const saved=await action.run(async()=>{
-      const result=await api.savePet({...values,name:values.name.trim(),breedName:values.breedName?.trim(),microchipNumber:values.microchipNumber.trim(),...(photo?{photoBase64:photo.base64}:{})},id);
+      const result=await api.savePet({...values,name:values.name.trim(),breedName:values.breedName?.trim(),microchipNumber:values.microchipNumber.trim()},id);
       savedPetId=result.id;
     });
     if(!saved||!savedPetId)return;
@@ -119,7 +78,7 @@ async function save() {
     // Así no se reubican los hijos del botón mientras react-native-screens anima la salida.
     setPendingPetId(savedPetId);
   }
-  const preview=photo?.uri||values.photoUrl;
+  const preview=values.photoUrl;
   return <PetCareScreen wide><PetCareHeader title={id?'Editar mascota':'Agregar mascota'} back/>
 <QueryState {...query}/>{query.data&&!query.loading&&!query.error&&<>
     {!query.data.catalog.species.length?<PetCareEmptyState title="No hay especies disponibles" message="El catálogo debe ser configurado por la clínica antes de registrar una mascota."/>:<>
@@ -128,9 +87,7 @@ async function save() {
         {preview?<Image source={{uri:preview}} style={styles.photo} accessibilityLabel="Foto de la mascota" onError={()=>setErrors(e=>({...e,photoUrl:'No pudimos mostrar la foto. Podés elegir otra imagen.'}))}/>:<Ionicons name="paw-outline" size={54} color={colors.primary} accessible={false}/>}
       </View></View>
       
-<AdminFormActions><AppButton compact={desktop} variant="secondary" label={preview?(desktop?'Cambiar foto':'Cambiar foto desde la galería'):(desktop?'Elegir foto':'Elegir de la galería')} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('gallery')}/>
-      {Platform.OS!=='web'&&<AppButton compact={desktop} variant="secondary" label={desktop?'Tomar foto':'Tomar foto con la cámara'} loading={picking} disabled={action.loading} onPress={()=>void choosePhoto('camera')}/>}
-      {Boolean(preview)&&<AppButton compact={desktop} variant="secondary" label="Quitar foto" disabled={disabled} onPress={()=>{setPhoto(null);change('photoUrl','');}}/>}</AdminFormActions><FormNotice error message={errors.photoUrl??null}/></PetCareCard></View>
+      <ImageUploadField label="Elegir foto desde la galería o archivos" kind="pet" aspect={[1,1]} value={values.photoUrl||null} disabled={action.loading} error={errors.photoUrl} onUploadingChange={setPicking} onChange={value=>change('photoUrl',value??'')}/><FormNotice error message={errors.photoUrl??null}/></PetCareCard></View>
       <View style={desktop?styles.fieldsPanel:undefined}><PetCareCard>
 <AdminFormSection title="Datos de la mascota" columns={2}>
       <AdminFormField fullWidth><AppInput ref={input=>{inputRefs.current.name=input;}} label="Nombre" required value={values.name} error={errors.name} maxLength={100} editable={!disabled} onChangeText={v=>change('name',v)}/></AdminFormField>

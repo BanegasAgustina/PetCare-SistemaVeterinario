@@ -129,7 +129,7 @@ async function saveProfile() {
 async function savePhoto() {
     if (!isProfessional || (!photo && !removePhoto)) return;
     const saved = await photoAction.run(async () => {
-      await auth.request('/vet/profile/photo', { method: 'PUT', body: photo ? { photoBase64: photo.base64 } : { removePhoto: true } });
+      await auth.request('/vet/profile/photo', { method: 'PUT', body: photo ? { photoUrl: photo.url } : { removePhoto: true } });
       await auth.refreshProfile();
       setPhoto(null);
       setRemovePhoto(false);
@@ -313,3 +313,5 @@ const styles = StyleSheet.create({
   identityCopy: { flex: 1, minWidth: 0, gap: responsiveLayout.form.gap / 3 },
   logout: { minHeight: 50, width: '100%', paddingHorizontal: 18, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });
+
+

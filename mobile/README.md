@@ -27,13 +27,13 @@ Comandos: `npm start`, `npm run web`, `npm run android`, `npm run typecheck`, `n
 - `src/components/`: componentes UI, perfil y notificaciones.
 - `src/utils/`: autorización de navegación, pestañas y validaciones.
 
-Cliente: Inicio, Mascotas, Turnos, Tienda y Perfil en barra inferior. Veterinario: Inicio, Agenda, Pacientes, Productos y Perfil sujeto a permisos. `GROOMER` (Peluquero/a): Inicio, Agenda, Pacientes, Servicios y Cuenta según permisos. Secretaría ya no es un rol ni tiene rutas propias; las funciones de clientes y administración se encuentran en los módulos de Admin habilitados por permisos. Las cuentas históricas se reasignarán a `ADMIN` solo al aplicar la migración manual preparada; no se ejecutó durante este cambio. Administradores ven Inicio, Clínica, Tienda y Administración; destinos adicionales aparecen según permisos. Las compras se realizan desde Tienda y el seguimiento se consulta en Pedidos. Consulte la [matriz de requisitos](../docs/auditoria/MATRIZ_REQUISITOS.md).
+Cliente: Inicio, Mascotas, Turnos, Tienda y Perfil en barra inferior. Veterinario: Inicio, Agenda, Pacientes, Productos y Perfil sujeto a permisos. `GROOMER` (Peluquero/a): Inicio, Agenda, Pacientes, Servicios y Cuenta según permisos. Secretaría ya no es un rol ni tiene rutas propias; las funciones de clientes y administración se encuentran en los módulos de Admin habilitados por permisos. Las cuentas históricas se reasignarán a `ADMIN` solo al aplicar la migración manual preparada; no se ejecutó durante este cambio. Administradores ven Inicio, Clínica, Tienda y Administración; destinos adicionales aparecen según permisos. Las compras se realizan desde Tienda y el seguimiento se consulta en Pedidos..
 
 `Mi Perfil`/Cuenta comparte capacidades de edición de datos, apariencia o seguridad según rol y rutas habilitadas. Formularios validan localmente para mejorar experiencia, pero el backend vuelve a validar. Registro no envía `role` y la confirmación de contraseña no se transmite.
 
 ## Autenticación y API
 
-El token de acceso se guarda en SecureStore en nativo y `sessionStorage` en web. El cliente consulta `POST /api/auth/me` para restablecer sesión; token vencido requiere flujo de refresh/login. Google, Facebook y X usan redirección a backend y esquema `petcare://oauth` en build nativo; secretos OAuth son solo backend. La referencia de endpoints está en [Documentación API](../docs/DOCUMENTACION_API.md).
+El token de acceso se guarda en SecureStore en nativo y `sessionStorage` en web. El cliente consulta `POST /api/auth/me` para restablecer sesión; token vencido requiere flujo de refresh/login. Google, Facebook y X usan redirección a backend y esquema `petcare://oauth` en build nativo; secretos OAuth son solo backend. 
 
 ## Web, Android, Expo Go y Development Build
 
@@ -67,4 +67,4 @@ Development Build se conecta a `npx expo start --dev-client`; preview/production
 - **APK apunta a API anterior:** actualice `EXPO_PUBLIC_API_URL` del entorno EAS y genere build nuevo.
 - **Validación falla:** lea error por campo; confirme enums/IDs actuales y conexión API.
 
-Para API y configuración del sistema consulte el [README principal](../README.md), la [documentación de API](../docs/DOCUMENTACION_API.md) y [resultados de pruebas](../docs/auditoria/RESULTADOS_PRUEBAS.md).
+

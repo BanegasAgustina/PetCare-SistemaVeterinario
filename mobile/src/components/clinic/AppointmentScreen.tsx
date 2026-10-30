@@ -14,6 +14,7 @@ import { SlotSelectionCard } from '../client/SlotSelectionCard';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
+import { AppSelectField } from '../forms/AppSelectField';
 import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { FormNotice } from '../ui/FormNotice';
@@ -135,7 +136,7 @@ async function cancelAppointment() {
           <AppText variant="caption" muted>Seleccioná un profesional y un horario disponible para este servicio.</AppText>
           
 <QueryState {...catalog} />
-          <View style={[styles.professionalChoices,desktop&&styles.professionalChoicesDesktop]}>{catalog.data?.professionals.filter(person => catalog.data?.assignments.some(item => item.professionalId === person.id && item.serviceId === query.data?.serviceId)).map(person => <SelectionRow key={person.id} label={String(person.name)} checked={professional === person.id} onPress={() => { setProfessional(person.id); setSlot(''); }} />)}</View>
+          <AppSelectField label="Profesional" required value={professional} options={(catalog.data?.professionals.filter(person=>catalog.data?.assignments.some(item=>item.professionalId===person.id&&item.serviceId===query.data?.serviceId))??[]).map(person=>({id:String(person.id),name:String(person.name)}))} disabled={slots.loading} onChange={value=>{setProfessional(value);setSlot('');}}/>
           
 <QueryState {...slots} />
           {slots.data && <SlotSelectionCard emptyMessage="No hay horarios disponibles para reasignar en este momento.">{slots.data.map(item => <SelectionRow key={item.id} label={clinicDateTime(item.startsAt)} hint={item.veterinarian} checked={slot === item.id} onPress={() => setSlot(item.id)} />)}</SlotSelectionCard>}

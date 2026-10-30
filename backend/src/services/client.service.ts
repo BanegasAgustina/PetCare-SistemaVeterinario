@@ -9,7 +9,7 @@ import { findUserById } from '../repositories/user.repository';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { env } from '../config/env';
-import { storePetPhoto,removePetPhoto,presentServiceImages } from './pet-photo.service';
+import { storePetPhoto,removePetPhoto,presentServiceImages,isPetPhotoKey } from './pet-photo.service';
 import { readName,readPhone,readPassword } from '../validators/auth.validator';
 import { clientBody,clientId,petInput,cartQuantity,text,invalid } from '../validators/client.validator';
 import * as storefront from '../repositories/storefront.repository';
@@ -43,10 +43,11 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
         const input=petInput(body);
         const values=body as Record<string,unknown>;
         const photo=values.photoBase64===undefined?undefined:await storePetPhoto(owner,values.photoBase64);
+        if(values.photoUrl!==undefined&&values.photoUrl!==null&&values.photoUrl!==''&&!isPetPhotoKey(values.photoUrl,owner))invalid('La referencia de la foto no es válida. Volvé a seleccionarla.');
         if(photo)input.photoUrl=photo.url;
         // Una URL de visualización enviada por el cliente solo significa conservar.
         // La referencia real se lee bajo lock; nunca se persiste una URL temporal.
-        if(!petId&&!photo&&input.photoUrl)invalid('Seleccioná una foto de la galería.');
+        if(!petId&&!photo&&input.photoUrl&&!isPetPhotoKey(input.photoUrl,owner))invalid('Seleccioná una foto válida desde la galería.');
         let saved:Awaited<ReturnType<typeof repository.savePet>>;
         try {saved=await repository.savePet(owner,input,petId,!photo&&(values.photoUrl===undefined||Boolean(input.photoUrl)));}
         catch(error){if(photo)console.error('Falló el guardado de la mascota; se conserva el objeto nuevo porque el resultado del commit puede ser incierto.');throw error;}

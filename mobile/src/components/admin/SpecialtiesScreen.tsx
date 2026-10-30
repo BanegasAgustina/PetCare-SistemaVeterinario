@@ -7,6 +7,7 @@ import { ScreenContainer } from '../layout/ScreenContainer';
 import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../forms/AppInput';
+import { AppSelectField } from '../forms/AppSelectField';
 import { FormNotice } from '../ui/FormNotice';
 import { useAuth } from '../../hooks/useAuth';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -14,7 +15,6 @@ import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
-import { SelectionRow } from '../ui/SelectionRow';
 import { AppModal } from '../ui/AppModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { PetCareEmptyState, ResponsiveGrid } from '../client/PetCareUI';
@@ -195,10 +195,7 @@ function renderRow({ kind, row }: ListedRow) {
         </View>
         <View style={styles.formSection}>
           <AppInput label="Nombre" required value={name} maxLength={100} editable={!action.loading} onChangeText={value => { setName(value); setError(null); }} />
-          {editing.kind === 'type' && !editing.row && <>
-            <AppText variant="caption" muted>Rol profesional</AppText>
-            {(roles.data?.roles ?? []).filter(role => ['VETERINARIAN', 'GROOMER'].includes(role.code)).map(role => <SelectionRow radio key={role.id} label={role.name} checked={roleId === role.id} onPress={() => { setRoleId(role.id); setError(null); }} />)}
-          </>}
+          {editing.kind === 'type' && !editing.row && <AppSelectField label="Rol profesional" required value={roleId} options={(roles.data?.roles ?? []).filter(role=>['VETERINARIAN','GROOMER'].includes(role.code)).map(role=>({id:role.id,name:role.name}))} onChange={value=>{setRoleId(value);setError(null);}}/>}
         </View>
         <FormNotice error message={error ?? action.error} />
         <View style={styles.formActions}>

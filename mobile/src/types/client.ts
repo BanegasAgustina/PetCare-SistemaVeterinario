@@ -12,7 +12,7 @@ export type PetLifecycleEvent={id:string;previousIsActive:boolean;isActive:boole
 // Tipo Pet: define la forma o las opciones válidas de los datos usados por este módulo.
 export type Pet={id:string;name:string;sex:PetSex|null;speciesId:string;species:string;breedId:string|null;breed:string|null;birthDate:string|null;microchipNumber:string|null;photoUrl:string|null;weightKg:string|null;isActive?:boolean|number|string|null;deactivationReason?:string|null;deactivatedAt?:string|null;lifecycleHistory?:PetLifecycleEvent[]};
 // Tipo PetValues: define la forma o las opciones válidas de los datos usados por este módulo.
-export type PetValues={name:string;sex:PetSex|'';speciesId:string;breedId:string;breedName?:string;birthDate:string;microchipNumber:string;photoUrl:string;weightKg:string;photoBase64?:string};
+export type PetValues={name:string;sex:PetSex|'';speciesId:string;breedId:string;breedName?:string;birthDate:string;microchipNumber:string;photoUrl:string;weightKg:string};
 // Tipo PetCatalog: define la forma o las opciones válidas de los datos usados por este módulo.
 export type PetCatalog={species:CatalogItem[];breeds:(CatalogItem&{speciesId:string})[]};
 // Tipo Appointment: define la forma o las opciones válidas de los datos usados por este módulo.

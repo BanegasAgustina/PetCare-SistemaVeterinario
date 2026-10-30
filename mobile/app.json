@@ -19,7 +19,7 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.petcare",
-      "versionCode": 10
+      "versionCode": 11
     },
     "icon": "./src/assets/petcare-icon.png",
     "plugins": [

@@ -11,12 +11,14 @@ import { clinicRouter } from './clinic.routes';
 import { veterinarianAdminRouter, invitationRouter, specialtiesAdminRouter, veterinarianPanelRouter, professionalPhotoRouter } from './veterinarian.routes';
 import { publicSettingsRouter } from './settings.routes';
 import { notificationRouter } from './notification.routes';
+import { mediaRouter } from './media.routes';
 
 // Dato apiRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const apiRouter = Router();
 apiRouter.get('/health', getHealth);
 apiRouter.get('/health/database', createDatabaseHealthHandler());
 apiRouter.use('/settings', publicSettingsRouter);
+apiRouter.use('/media',mediaRouter);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/admin/veterinarians', veterinarianAdminRouter);
 apiRouter.use('/admin/specialties', specialtiesAdminRouter);
