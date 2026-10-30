@@ -19,6 +19,7 @@ import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { PetCareCard, PetCareEmptyState, PetImage, QueryState, money, ResponsiveGrid } from '../../components/client/PetCareUI';
 import { SelectionRow } from '../../components/ui/SelectionRow';
 import { useAuth } from '../../hooks/useAuth';
+import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { AdminFormActions, AdminFormSection } from '../../components/admin/AdminFormLayout';
@@ -34,12 +35,13 @@ type StockHistory={product:{id:string;name:string;stock:number;stockMinimum:numb
 // Tipo ProductCategories: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProductCategories={categories:{id:string;name:string}[]};
 // Configuración emptyValues: reúne valores o reglas que consume el resto del módulo.
-const emptyValues = { name: '', description: '', imageUrl: '', categoryId: '', price: '', stock: '', stockMinimum:'0',stockReason:'',isActive: true };
+const emptyValues = { name: '', description: '', imageUrl: '', categoryId: '', productType: 'MEDICINE', requiresPrescription: false, price: '', stock: '', stockMinimum:'0',stockReason:'',isActive: true };
 
 // Función AdminProducts: concentra la lógica dentro de este módulo.
 export default function AdminProducts() {
   const routeParams=useLocalSearchParams<{stock?:string|string[]}>();const requestedStock=Array.isArray(routeParams.stock)?routeParams.stock[0]??'all':routeParams.stock??'all';
   const auth = useAuth();
+  const clinic = useClinic();
   const { request } = auth;
   const { showToast } = useFeedback();
   const loadCategories=useCallback(()=>request<ProductCategories>('/admin/products/catalog',{method:'POST',body:{}}),[request]);
@@ -51,6 +53,7 @@ export default function AdminProducts() {
   const [detail, setDetail] = useState<Product | null>(null);
   const [historyProductId,setHistoryProductId]=useState<string|null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [creating, setCreating] = useState(false);
   const [values, setValues] = useState(emptyValues);
   const [errors, setErrors] = useState<{ name?: string; imageUrl?: string; price?: string; stock?: string;stockMinimum?:string;stockReason?:string }>({});
   const [body, setBody] = useState<Record<string, unknown> | null>(null);
@@ -72,16 +75,39 @@ function changeField<K extends keyof typeof values>(key: K, value: (typeof value
   // Función openEditor: concentra la lógica dentro de este módulo.
 function openEditor(product: Product) {
     setDetail(null);
+    setCreating(false);
     setEditing(product);
-    setValues({ name: product.name, description: product.description ?? '', imageUrl: product.imageUrl ?? '', categoryId: product.categoryId ?? '', price: (product.priceCents / 100).toFixed(2), stock: String(product.physicalStock),stockMinimum:String(product.stockMinimum),stockReason:'', isActive: product.isActive });
+    setValues({ name: product.name, description: product.description ?? '', imageUrl: product.imageUrl ?? '', categoryId: product.categoryId ?? '', productType: emptyValues.productType, requiresPrescription: false, price: (product.priceCents / 100).toFixed(2), stock: String(product.physicalStock),stockMinimum:String(product.stockMinimum),stockReason:'', isActive: product.isActive });
+    setErrors({});
+  }
+  function openCreateForm() {
+    setDetail(null);
+    setEditing(null);
+    setCreating(true);
+    setValues(emptyValues);
     setErrors({});
   }
   // Función review: concentra la lógica dentro de este módulo.
 function review() {
-    if (!editing) return;
+    if (!editing && !creating) return;
     const next: typeof errors = {};
     const data: Record<string, unknown> = {};
-    if (auth.hasPermission('products.update')) {
+    if (creating) {
+      if (!values.name.trim() || values.name.trim().length > 200) next.name = 'Ingresá un nombre de hasta 200 caracteres.';
+      if (values.imageUrl.trim() && !/^https:\/\//i.test(values.imageUrl.trim())) next.imageUrl = 'La imagen requiere una URL HTTPS.';
+      if (!/^\d+(\.\d{1,2})?$/.test(values.price) || Number(values.price) > 1000000) next.price = 'Ingresá un precio válido con hasta dos decimales.';
+      if (!/^\d+$/.test(values.stock) || Number(values.stock) > 4294967295) next.stock = 'Ingresá un stock entero válido, mayor o igual a cero.';
+      data.name = values.name.trim();
+      data.description = values.description.trim() || null;
+      data.imageUrl = values.imageUrl.trim() || null;
+      data.categoryId = values.categoryId || null;
+      data.productType = values.productType;
+      data.requiresPrescription = values.productType === 'MEDICINE' && values.requiresPrescription;
+      data.isActive = values.isActive;
+      data.priceCents = Math.round(Number(values.price) * 100);
+      data.stock = Number(values.stock);
+    }
+    if (editing && auth.hasPermission('products.update')) {
       if (!values.name.trim() || values.name.trim().length > 200) next.name = 'Ingresá un nombre de hasta 200 caracteres.';
       if (values.imageUrl!==editing.imageUrl&&values.imageUrl.trim() && !/^https:\/\//i.test(values.imageUrl.trim())) next.imageUrl = 'La imagen requiere una URL HTTPS.';
       data.name = values.name.trim(); data.description = values.description.trim() || null;if(values.imageUrl!==editing.imageUrl)data.imageUrl = values.imageUrl.trim() || null; data.categoryId = values.categoryId || null; data.isActive = values.isActive;
@@ -93,10 +119,12 @@ function review() {
     if (auth.hasPermission('products.update_stock')) {
       if (!/^\d+$/.test(values.stock) || Number(values.stock) > 4294967295) next.stock = 'Ingresá un stock entero válido, mayor o igual a cero.';
       else data.stock = Number(values.stock);
-      if (!/^\d+$/.test(values.stockMinimum) || Number(values.stockMinimum) > 4294967295) next.stockMinimum = 'Ingresá un mínimo entero válido.';
-      else data.stockMinimum = Number(values.stockMinimum);
-      if (Number(values.stock) !== editing.physicalStock && values.stockReason.trim().length < 3) next.stockReason = 'Indicá un motivo de al menos 3 caracteres para el ajuste.';
-      else if(Number(values.stock)!==editing.physicalStock)data.stockReason=values.stockReason.trim();
+      if (editing) {
+        if (!/^\d+$/.test(values.stockMinimum) || Number(values.stockMinimum) > 4294967295) next.stockMinimum = 'Ingresá un mínimo entero válido.';
+        else data.stockMinimum = Number(values.stockMinimum);
+      }
+      if (editing && Number(values.stock) !== editing.physicalStock && values.stockReason.trim().length < 3) next.stockReason = 'Indicá un motivo de al menos 3 caracteres para el ajuste.';
+      else if(editing&&Number(values.stock)!==editing.physicalStock)data.stockReason=values.stockReason.trim();
     }
     setErrors(next);
     if (!Object.keys(next).length) setBody(data);
@@ -106,7 +134,7 @@ function review() {
   return <ScreenContainer wide>
     <AdminPageHeading title="Productos y stock"/>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      {auth.hasPermission('products.update') && auth.hasPermission('products.create') && auth.hasPermission('products.update_price') && auth.hasPermission('products.update_stock') && <AppButton compact label="Crear producto" onPress={() => router.push('/admin/catalog/products')}/>}
+      {auth.hasPermission('products.update') && auth.hasPermission('products.create') && auth.hasPermission('products.update_price') && auth.hasPermission('products.update_stock') && <AppButton compact label="Crear producto" onPress={openCreateForm}/>}
       {auth.hasPermission('categories.manage') && <AppButton compact variant="secondary" label="Gestionar categorías" onPress={() => router.push('/admin/catalog/categories')}/>}
     </View>
     <AdminListToolbar search={<AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>}
@@ -153,28 +181,30 @@ function review() {
     <AppModal visible={Boolean(detail)} dismissible onClose={() => setDetail(null)}>
       {detail && <><PetImage uri={detail.imageUrl}/><AppText variant="title">{detail.name}</AppText><AppText muted>{detail.category ?? 'Sin categoría'}</AppText><AppText variant="subtitle">{money(detail.priceCents)}</AppText><AppText>{detail.description || 'Sin descripción.'}</AppText><AppText>{detail.stock > 0 ? `${detail.stock} unidades disponibles` : 'Sin stock disponible'}</AppText>{detail.reservedStock > 0 && <AppText muted>{detail.reservedStock} unidades reservadas</AppText>}<AppText variant="caption" muted>Stock mínimo: {detail.stockMinimum}</AppText>{auth.hasPermission('products.update_stock')&&<><AppButton variant="secondary" label="Ver movimientos de stock" onPress={()=>setHistoryProductId(detail.id)}/>{historyProductId===detail.id&&<><QueryState {...stockHistory}/>{stockHistory.data?.items.map(movement=><AppText key={movement.id} variant="caption" muted>{movement.quantityDelta>0?'+':''}{movement.quantityDelta} · {movement.quantityBefore} → {movement.quantityAfter} · {movement.reason} · {movement.actorName} · {String(movement.createdAt)}</AppText>)}</>}</>}<AppText muted>{detail.isActive ? 'Producto activo' : 'Producto inactivo'}</AppText>{auth.hasPermission('products.update') || auth.hasPermission('products.update_price') || auth.hasPermission('products.update_stock') ? <AppButton label="Editar producto" onPress={() => openEditor(detail)}/> : null}</>}
     </AppModal>
-    <AppModal size="wide" visible={Boolean(editing)} dismissible onClose={() => setEditing(null)}>
-      {editing && <><AppText variant="title">Editar producto</AppText>
+    <AppModal size="wide" visible={Boolean(editing)||creating} dismissible onClose={() => { setEditing(null); setCreating(false); }}>
+      {(editing||creating) && <><AppText variant="title">{creating?'Crear producto':'Editar producto'}</AppText>
         
 <AdminFormSection title="Información del producto" description="Nombre, descripción e imagen que se muestran en la tienda.">
         <AppInput label="Nombre" required value={values.name} error={errors.name} maxLength={200} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('name', value)}/>
         <AppInput label="Descripción" value={values.description} multiline maxLength={10000} editable={auth.hasPermission('products.update')} onChangeText={value => changeField('description', value)}/>
-        <ImageUploadField label="Imagen del producto" kind="product" aspect={[1,1]} value={values.imageUrl||null} disabled={!auth.hasPermission('products.update')} error={errors.imageUrl} onChange={value=>changeField('imageUrl',value??'')}/><AppInput label="URL HTTPS alternativa (opcional)" value={values.imageUrl!==editing.imageUrl?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value=>changeField('imageUrl', value)}/>
+        <ImageUploadField label="Imagen del producto" kind="product" aspect={[1,1]} value={values.imageUrl||null} disabled={!auth.hasPermission('products.update')} error={errors.imageUrl} onChange={value=>changeField('imageUrl',value??'')}/><AppInput label="URL HTTPS alternativa (opcional)" value={values.imageUrl!==(editing?.imageUrl??'')?values.imageUrl:''} error={errors.imageUrl} editable={auth.hasPermission('products.update')} onChangeText={value=>changeField('imageUrl', value)}/>
         {auth.hasPermission('products.update') && <AppSelectField label="Categoría" optional value={values.categoryId} options={catalog.data?.categories??[]} onChange={value=>changeField('categoryId',value)}/>}
+        {creating && <AppSelectField label="Tipo de producto" value={values.productType} options={[{id:'MEDICINE',name:'Medicamento'},{id:'ACCESSORY',name:'Accesorio'}]} onChange={value=>changeField('productType',value)}/>}
+        {creating && values.productType==='MEDICINE' && <SelectionRow label="Requiere receta vigente" checked={values.requiresPrescription} onPress={()=>changeField('requiresPrescription',!values.requiresPrescription)}/>}
         </AdminFormSection>
         
 <AdminFormSection title="Precio y disponibilidad" description="El precio se ingresa en pesos argentinos. El stock físico incluye las unidades reservadas.">
         <AppInput label="Precio de venta (ARS)" prefix="$" placeholder="0,00" value={values.price} error={errors.price} keyboardType="decimal-pad" editable={auth.hasPermission('products.update_price')} onChangeText={value => changeField('price', value.replace(',', '.'))}/>
         <AppInput label="Stock físico" value={values.stock} error={errors.stock} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stock', value)}/>
-        <AppInput label="Stock mínimo" value={values.stockMinimum} error={errors.stockMinimum} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stockMinimum', value)}/>
+        {!creating && <AppInput label="Stock mínimo" value={values.stockMinimum} error={errors.stockMinimum} keyboardType="number-pad" editable={auth.hasPermission('products.update_stock')} onChangeText={value => changeField('stockMinimum', value)}/>}
         {editing&&values.stock!==String(editing.physicalStock)&&<AppInput label="Motivo del ajuste de stock" value={values.stockReason} error={errors.stockReason} maxLength={250} editable={auth.hasPermission('products.update_stock')} onChangeText={stockReason=>changeField('stockReason', stockReason)}/>}
         <SelectionRow label="Producto activo" checked={values.isActive} disabled={!auth.hasPermission('products.update')} onPress={() => changeField('isActive', !values.isActive)}/>
         </AdminFormSection>
         
-<AdminFormActions><AppButton label="Revisar y guardar" onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => setEditing(null)}/></AdminFormActions>
+<AdminFormActions><AppButton label={creating?'Revisar y crear':'Revisar y guardar'} onPress={review}/><AppButton variant="secondary" label="Cancelar" onPress={() => { setEditing(null); setCreating(false); }}/></AdminFormActions>
       </>}
     </AppModal>
-    <ConfirmModal visible={body !== null} title="Guardar cambios de producto" message="Los cambios se guardarán en el inventario real de PetCare." onCancel={() => setBody(null)} onConfirm={async () => { if (!editing || !body) return; try { await request(`/admin/products/${editing.id}`, { method: 'PATCH', body }); setBody(null); setEditing(null); query.reload(); showToast('Producto actualizado', 'success'); } catch (failure) { if (failure instanceof ApiError && failure.fieldErrors.length) { const fields: Record<string, keyof typeof errors> = { name: 'name', imageUrl: 'imageUrl', priceCents: 'price', stock: 'stock', stockMinimum: 'stockMinimum', stockReason: 'stockReason' }; const next: typeof errors = {}; for (const item of failure.fieldErrors) { const field = fields[item.field]; if (field) next[field] = item.message; } if (Object.keys(next).length) { setErrors(current => ({ ...current, ...next })); setBody(null); return; } } throw failure; } }}/>
+    <ConfirmModal visible={body !== null} title={creating?'Crear producto':'Guardar cambios de producto'} message={creating?'El producto se agregará al inventario real de PetCare.':'Los cambios se guardarán en el inventario real de PetCare.'} confirmLabel={creating?'Crear producto':'Guardar cambios'} onCancel={() => setBody(null)} onConfirm={async () => { if (!body) return; try { if(creating) await clinic.adminSave('products',undefined,body); else if(editing) await request(`/admin/products/${editing.id}`, { method: 'PATCH', body }); else return; setBody(null); setEditing(null); setCreating(false); query.reload(); catalog.reload(); showToast(creating?'Producto creado':'Producto actualizado', 'success'); } catch (failure) { if (failure instanceof ApiError && failure.fieldErrors.length) { const fields: Record<string, keyof typeof errors> = { name: 'name', imageUrl: 'imageUrl', priceCents: 'price', stock: 'stock', stockMinimum: 'stockMinimum', stockReason: 'stockReason' }; const next: typeof errors = {}; for (const item of failure.fieldErrors) { const field = fields[item.field]; if (field) next[field] = item.message; } if (Object.keys(next).length) { setErrors(current => ({ ...current, ...next })); setBody(null); return; } } throw failure; } }}/>
   </ScreenContainer>;
 }
 
