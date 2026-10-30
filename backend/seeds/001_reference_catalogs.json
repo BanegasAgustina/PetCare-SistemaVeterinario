@@ -1,0 +1,14 @@
+{
+  "roles": [
+    { "code": "CLIENT", "name": "Cliente" },
+    { "code": "VETERINARIAN", "name": "Veterinario" },
+    { "code": "GROOMER", "name": "Peluquería" },
+    { "code": "ADMIN", "name": "Administrador" },
+    { "code": "SUPER_ADMIN", "name": "Admin Principal" },
+    { "code": "SECRETARY", "name": "Secretaría" }
+  ],
+  "species": [
+    { "code": "DOG", "name": "Perro" },
+    { "code": "CAT", "name": "Gato" }
+  ]
+}

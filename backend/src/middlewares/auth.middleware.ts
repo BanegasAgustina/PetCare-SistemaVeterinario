@@ -23,6 +23,8 @@ export const authenticate: RequestHandler = async (request, response, next) => {
     response.locals.authenticatedFamily=family;
     if (!user.emailVerifiedAt) throw new AppError('EMAIL_NOT_VERIFIED', 403, 'Tu correo todavía no está verificado.');
     if (user.mustChangePassword) throw new AppError('PASSWORD_CHANGE_REQUIRED',403,'Tenés que cambiar la contraseña inicial para continuar.');
+    response.locals.authenticatedRoleId=user.roleId??null;
+    response.locals.authenticatedAccountActive=user.isActive;
     response.locals.authenticatedUser = { ...publicUser(user), ...await authorizationData(user.id,user.role) };
     next();
   } catch (error) { next(error); }

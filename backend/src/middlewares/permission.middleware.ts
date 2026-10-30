@@ -30,6 +30,21 @@ export function requirePermission(...codes: string[]): RequestHandler {
 export function requireAnyPermission(...codes:string[]):RequestHandler {
   return (_req,res,next)=>{const user=res.locals.authenticatedUser as AuthUser|undefined;next(user&&codes.some(code=>user.permissions?.includes(code))?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para esta acción.'));};
 }
+/** Logs only non-PII authorization facts for a denied patient-list request; never logs request data or credentials. */
+export function patientQueryAuthorizationGuard(stage:'role'|'permission'|'repository',guard:RequestHandler):RequestHandler {
+  return (request,response,next)=>guard(request,response,error=>{
+    if(error instanceof AppError&&error.status===403){
+      const user=response.locals.authenticatedUser as AuthUser|undefined;
+      console.warn(JSON.stringify({event:'clinic.patient_query.authorization_denied',guard:stage,
+        roleId:response.locals.authenticatedRoleId??null,roleCode:user?.role??null,
+        accountActive:response.locals.authenticatedAccountActive===true,
+        effectivePermissions:{petsViewAll:user?.permissions?.includes('pets.view_all')??false,
+          petsViewInformation:user?.permissions?.includes('pets.view_information')??false,
+          appointmentsViewOwn:user?.permissions?.includes('appointments.view_own')??false}}));
+    }
+    next(error);
+  });
+}
 /** CLIENT conserva su acceso personal; los demás roles requieren grants personales explícitos y actuales. */
 // Función requirePersonalAccess: concentra una operación reutilizable de este módulo.
 export const requirePersonalAccess:RequestHandler=(req,res,next)=>{

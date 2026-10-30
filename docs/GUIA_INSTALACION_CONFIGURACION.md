@@ -211,7 +211,7 @@ Antes de un cambio de datos: identificar con el operador el entorno, confirmar b
 - `/api/auth/me` recupera la identidad autenticada. La app usa SecureStore en Android y `sessionStorage` en web.
 - Invitaciones administrativas/profesionales se envían por email y se aceptan en endpoint público con token; el usuario establece su contraseña inicial con flujo separado.
 - Verificación de email y recuperación de contraseña usan códigos/tokens con caducidad y rate limits.
-- Roles usados en código incluyen `CLIENT`, `VETERINARIAN`, `GROOMER`, `ADMIN`, `SUPER_ADMIN`. Las capacidades concretas dependen de permisos efectivos almacenados y leídos por backend.
+- Los roles operativos incluyen `CLIENT`, `VETERINARIAN`, `GROOMER`, `ADMIN` y `SUPER_ADMIN`. La base inspeccionada también conserva `SECRETARY` como rol reservado heredado; no se ofrece para asignación o eliminación desde el panel. Las capacidades concretas dependen de permisos efectivos almacenados y leídos por backend.
 - OAuth es opcional; no declarar funcional un proveedor sin credenciales, callbacks y URL de retorno correctamente autorizados.
 - Revocar sesión/cambiar credenciales invalida sesiones mediante controles de versión/rotación. No reutilice tokens filtrados.
 

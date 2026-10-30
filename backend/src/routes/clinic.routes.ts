@@ -5,7 +5,7 @@
  */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
-import { requireRole,requireAnyPermission,requirePermission } from '../middlewares/permission.middleware';
+import { requireRole,requireAnyPermission,requirePermission,patientQueryAuthorizationGuard } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { clinicHandler as h } from '../controllers/clinic.controller';
 // Dato clinicRouter: conserva un valor calculado o de configuración usado por este módulo.
@@ -19,8 +19,8 @@ clinicRouter.post('/appointments',requireRole('VETERINARIAN','GROOMER','ADMIN','
 clinicRouter.patch('/appointments/:id',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requireAnyPermission('appointments.update_own','appointments.manage'),h('appointment-update'));
 clinicRouter.post('/grooming/appointments/:id/record/query',requireRole('GROOMER'),requirePermission('appointments.view_own'),h('grooming-record'));
 clinicRouter.put('/grooming/appointments/:id/record',requireRole('GROOMER'),requirePermission('appointments.update_own'),h('grooming-record-save'));
-clinicRouter.post('/patients/query',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requireAnyPermission('pets.view_information','appointments.view_own'),h('patients'));
-clinicRouter.post('/patients/:id',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requireAnyPermission('pets.view_information','appointments.view_own'),h('patient'));
+clinicRouter.post('/patients/query',patientQueryAuthorizationGuard('role',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN')),patientQueryAuthorizationGuard('permission',requireAnyPermission('pets.view_information','pets.view_all','appointments.view_own')),patientQueryAuthorizationGuard('repository',h('patients')));
+clinicRouter.post('/patients/:id',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requireAnyPermission('pets.view_information','pets.view_all','appointments.view_own'),h('patient'));
 clinicRouter.patch('/patients/:id',requireRole('VETERINARIAN','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-update'));
 clinicRouter.patch('/patients/:id/deactivate',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-deactivate'));
 clinicRouter.patch('/patients/:id/reactivate',requireRole('VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'),requirePermission('pets.update'),h('patient-reactivate'));

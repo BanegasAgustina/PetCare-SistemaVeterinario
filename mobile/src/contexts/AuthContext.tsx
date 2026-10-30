@@ -10,6 +10,7 @@ import type { AuthUser, LoginValues, RegisterValues, StoredSession, Verification
 import { readVerification } from '../services/verification.service';
 import { hasRole,hasPermission } from '../utils/authorization';
 import { beginOAuth,completeOAuth,exchangeWebOAuthReturn,oauthDiagnostic,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
+import { createSingleFlight } from '../utils/single-flight';
 
 // Tipo AuthContextValue: define la forma o las opciones válidas de los datos usados por este módulo.
 type AuthContextValue = {
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const session = useRef<StoredSession | null>(null);
   const [oauthPending,setOAuthPending]=useState<OAuthPending|null>(null);
   const renewing=useRef<Promise<StoredSession>|null>(null);
+  const refreshingProfile=useRef(createSingleFlight<void>());
   // Cambiar la generación invalida respuestas de solicitudes anteriores al cierre de sesión.
   const generation = useRef(0);
 
@@ -196,7 +198,7 @@ const renew=()=>{const stored=session.current;if(stored)void renewSession(stored
     if(sessionRevocationFailed)setNotice('Se cerró la sesión en este dispositivo, pero no pudimos completar el cierre en tus otros dispositivos. Conectate e intentá nuevamente.');
   }, []);
 
-  const refreshProfile = useCallback(async () => {
+  const refreshProfile = useCallback(() => refreshingProfile.current(async()=>{
     let stored = session.current;
     if (!stored) throw new ApiError('AUTH_REQUIRED', 'Iniciá sesión para continuar.', 401);
     const attempt = generation.current;
@@ -208,7 +210,7 @@ const renew=()=>{const stored=session.current;if(stored)void renewSession(stored
       if (attempt === generation.current && error instanceof ApiError && (error.status === 401 || error.code === 'EMAIL_NOT_VERIFIED')) expireSession(error.message);
       throw error;
     }
-  }, [expireSession,renewSession]);
+  }), [expireSession,renewSession]);
 
   // Función openVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
 const openVerification = () => setVerificationOpen(true);

@@ -34,6 +34,7 @@ const moduleNames: Record<string, string> = {
 // Configuración roleNames: reúne valores o reglas que consume el resto del módulo.
 const roleNames: Record<string, string> = {
   GROOMER: 'Peluquería',
+  SECRETARY: 'Secretaría',
 };
 
 // Correcciones exactas para filas dañadas ya persistidas; no se recodifica texto arbitrario.

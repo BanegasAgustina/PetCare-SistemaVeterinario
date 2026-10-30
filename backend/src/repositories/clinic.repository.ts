@@ -272,7 +272,7 @@ export async function patients(actor:AuthUser,search='',sort='recent',speciesId?
    ORDER BY COALESCE(lastServiceAt,'1000-01-01') DESC,p.name LIMIT 200`,[actor.id,actor.id,`%${search}%`,actor.id]);
   return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,isActive:requirePetActiveFlag(pet.isActive),photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
  }
- permit(actor,'pets.view_information');const all=actor.permissions?.includes('pets.view_all');if(!all)permit(actor,'pets.view_assigned');if(actor.role!=='VETERINARIAN'&&!['ADMIN','SUPER_ADMIN'].includes(actor.role))forbidden();
+ const all=actor.permissions?.includes('pets.view_all');const administrator=['ADMIN','SUPER_ADMIN'].includes(actor.role);if(!(administrator&&all))permit(actor,'pets.view_information');if(!all)permit(actor,'pets.view_assigned');if(actor.role!=='VETERINARIAN'&&!administrator)forbidden();
  if(!['recent','oldest','az','za','weight_high','weight_low','birth_recent','birth_oldest'].includes(sort))v.invalid('Criterio de orden no válido.');
  const owner=actor.permissions?.includes('users.view_basic');const params:unknown[]=[`%${search}%`];if(owner)params.push(`%${search}%`);if(speciesId)params.push(v.id(speciesId));if(!all)params.push(actor.id);
  const ordering=patientListOrdering;
@@ -368,7 +368,7 @@ export async function home(actor:AuthUser) {
 }
 
 // Función patient: concentra la lógica dentro de este módulo.
-export async function patient(actor:AuthUser,id:string) {if(actor.role==='GROOMER')return groomerPatient(actor,id);permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
+export async function patient(actor:AuthUser,id:string) {if(actor.role==='GROOMER')return groomerPatient(actor,id);if(!(['ADMIN','SUPER_ADMIN'].includes(actor.role)&&actor.permissions?.includes('pets.view_all')))permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
  const owner=actor.permissions?.includes('users.view_basic');const result=await one(`SELECT p.id,p.name,p.sex,p.species_id AS speciesId,p.breed_id AS breedId,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg,${patientLifecycleFields},
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
  (SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt ${owner?",u.id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS ownerName,u.email AS ownerEmail,u.phone AS ownerPhone":''} FROM pets p JOIN species s ON s.id=p.species_id JOIN users u ON u.id=p.owner_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);

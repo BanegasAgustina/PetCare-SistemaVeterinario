@@ -10,11 +10,12 @@ import { useAdmin } from '../../hooks/useAdmin';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { AppText } from '../ui/AppText';
 import { PetCareCard, PetCareHeader, PetCareScreen, QueryState, money, type IconName } from '../client/PetCareUI';
+import { canAccessAdminPath } from '../../utils/admin-route-access';
 
 // Tipo AdminSection: define la forma o las opciones válidas de los datos usados por este módulo.
 export type AdminSection = 'clinic' | 'store' | 'administration';
 // Tipo CardSpec: define la forma o las opciones válidas de los datos usados por este módulo.
-type CardSpec = { title: string; description: string; path: string; icon: IconName; permissions: string[] };
+type CardSpec = { title: string; description: string; path: string; icon: IconName };
 // Tipo StoreIndicatorSpec: define la forma o las opciones válidas de los datos usados por este módulo.
 type StoreIndicatorSpec = { title: string; value: string | number; icon: IconName; path: string; params?: Record<string, string> };
 
@@ -31,27 +32,27 @@ function StoreIndicator({ title, value, icon, path, params }: StoreIndicatorSpec
 // Configuración sections: reúne valores o reglas que consume el resto del módulo.
 const sections: Record<AdminSection, { title: string; subtitle: string; cards: CardSpec[] }> = {
   clinic: { title: 'Clínica', subtitle: 'Servicios, pacientes, turnos y disponibilidad', cards: [
-    { title: 'Servicios', description: 'Precios, duración, disponibilidad y profesionales habilitados.', path: '/admin/catalog/services', icon: 'medkit-outline', permissions: ['services.manage'] },
-    { title: 'Pacientes', description: 'Mascotas, información clínica y turnos asociados.', path: '/admin/patients', icon: 'paw-outline', permissions: ['pets.view_information', 'pets.view_all'] },
-    { title: 'Turnos', description: 'Revisá solicitudes, agenda y estados operativos.', path: '/admin/agenda', icon: 'calendar-outline', permissions: ['appointments.view_all'] },
-    { title: 'Horarios', description: 'Administrá franjas y disponibilidad de atención.', path: '/admin/availability', icon: 'time-outline', permissions: ['schedule.manage'] },
+    { title: 'Servicios', description: 'Precios, duración, disponibilidad y profesionales habilitados.', path: '/admin/catalog/services', icon: 'medkit-outline' },
+    { title: 'Pacientes', description: 'Mascotas, información clínica y turnos asociados.', path: '/admin/patients', icon: 'paw-outline' },
+    { title: 'Turnos', description: 'Revisá solicitudes, agenda y estados operativos.', path: '/admin/agenda', icon: 'calendar-outline' },
+    { title: 'Horarios', description: 'Administrá franjas y disponibilidad de atención.', path: '/admin/availability', icon: 'time-outline' },
   ] },
   store: { title: 'Tienda', subtitle: 'Catálogo, promociones, entregas y pedidos', cards: [
-    { title: 'Productos y stock', description: 'Catálogo, precios, existencias y movimientos de stock.', path: '/admin/products', icon: 'pricetags-outline', permissions: ['products.update', 'products.update_stock', 'products.update_price'] },
-    { title: 'Categorías', description: 'Organizá y mantené las categorías de la tienda.', path: '/admin/catalog/categories', icon: 'albums-outline', permissions: ['categories.manage'] },
-    { title: 'Promociones', description: 'Descuentos, vigencia y productos alcanzados.', path: '/admin/catalog/promotions', icon: 'pricetag-outline', permissions: ['promotions.manage'] },
-    { title: 'Envíos y entregas', description: 'Modalidades de retiro y envío configuradas para el checkout.', path: '/admin/store-settings', icon: 'bicycle-outline', permissions: ['store.settings.view', 'store.settings.manage'] },
-    { title: 'Pedidos', description: 'Pagos, comprobantes, preparación, retiro y entrega.', path: '/admin/store-orders', icon: 'receipt-outline', permissions: ['orders.view_all'] },
-    { title: 'Banners y slider', description: 'Imágenes, vigencia, orden y vista previa de la tienda.', path: '/admin/store-banners', icon: 'images-outline', permissions: ['store.banners.manage'] },
+    { title: 'Productos y stock', description: 'Catálogo, precios, existencias y movimientos de stock.', path: '/admin/products', icon: 'pricetags-outline' },
+    { title: 'Categorías', description: 'Organizá y mantené las categorías de la tienda.', path: '/admin/catalog/categories', icon: 'albums-outline' },
+    { title: 'Promociones', description: 'Descuentos, vigencia y productos alcanzados.', path: '/admin/catalog/promotions', icon: 'pricetag-outline' },
+    { title: 'Envíos y entregas', description: 'Modalidades de retiro y envío configuradas para el checkout.', path: '/admin/store-settings', icon: 'bicycle-outline' },
+    { title: 'Pedidos', description: 'Pagos, comprobantes, preparación, retiro y entrega.', path: '/admin/store-orders', icon: 'receipt-outline' },
+    { title: 'Banners y slider', description: 'Imágenes, vigencia, orden y vista previa de la tienda.', path: '/admin/store-banners', icon: 'images-outline' },
   ] },
   administration: { title: 'Administración', subtitle: 'Personas, perfiles de acceso y permisos', cards: [
-    { title: 'Información de PetCare', description: 'Nombre, contacto, ubicación, horarios y presencia pública.', path: '/admin/general-information', icon: 'business-outline', permissions: ['settings.general.manage'] },
-    { title: 'Profesionales', description: 'Cuentas, estado, servicios y datos profesionales.', path: '/admin/professionals', icon: 'people-outline', permissions: ['professionals.manage'] },
-    { title: 'Veterinarios', description: 'Datos profesionales, especialidades y asignaciones.', path: '/admin/veterinarians', icon: 'medkit-outline', permissions: ['veterinarians.manage'] },
-    { title: 'Usuarios', description: 'Cuentas, estado y permisos individuales.', path: '/admin/users', icon: 'person-outline', permissions: ['users.manage'] },
-    { title: 'Roles', description: 'Roles disponibles y permisos delegables.', path: '/admin/roles', icon: 'shield-outline', permissions: ['roles.manage'] },
-    { title: 'Permisos', description: 'Permisos por módulo con controles de delegación.', path: '/admin/permissions', icon: 'key-outline', permissions: ['permissions.manage'] },
-    { title: 'Especialidades', description: 'Especialidades y tipos profesionales existentes.', path: '/admin/specialties', icon: 'list-outline', permissions: ['specialties.manage', 'professional_types.manage'] },
+    { title: 'Información de PetCare', description: 'Nombre, contacto, ubicación, horarios y presencia pública.', path: '/admin/general-information', icon: 'business-outline' },
+    { title: 'Profesionales', description: 'Cuentas, estado, servicios y datos profesionales.', path: '/admin/professionals', icon: 'people-outline' },
+    { title: 'Veterinarios', description: 'Datos profesionales, especialidades y asignaciones.', path: '/admin/veterinarians', icon: 'medkit-outline' },
+    { title: 'Usuarios', description: 'Cuentas, estado y permisos individuales.', path: '/admin/users', icon: 'person-outline' },
+    { title: 'Roles', description: 'Roles disponibles y permisos delegables.', path: '/admin/roles', icon: 'shield-outline' },
+    { title: 'Permisos', description: 'Permisos por módulo con controles de delegación.', path: '/admin/permissions', icon: 'key-outline' },
+    { title: 'Especialidades', description: 'Especialidades y tipos profesionales existentes.', path: '/admin/specialties', icon: 'list-outline' },
   ] },
 };
 
@@ -66,7 +67,7 @@ export function AdminSectionHub({ section }: { section: AdminSection }) {
   const loadStoreStats = useCallback(() => canLoadStoreStats ? admin.home() : Promise.resolve(null), [admin, canLoadStoreStats]);
   const storeStatsQuery = useClientQuery(loadStoreStats);
   const config = sections[section];
-  const cards = config.cards.filter(card => card.permissions.some(permission => auth.hasPermission(permission)));
+  const cards = config.cards.filter(card => canAccessAdminPath(card.path, auth.hasPermission));
   const storeStats = storeStatsQuery.data?.storeStats;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const indicators: StoreIndicatorSpec[] = [];

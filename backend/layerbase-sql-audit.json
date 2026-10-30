@@ -1,6 +1,6 @@
 {
   "auditType": "read-only schema metadata; no business rows queried",
-  "generatedAt": "2026-10-21T16:45:10.557Z",
+  "generatedAt": "2026-10-30T21:49:59.112Z",
   "auditComplete": true,
   "connection": {
     "status": "ok",
@@ -8,6 +8,12 @@
     "serverVersion": "11.8.9-MariaDB"
   },
   "tables": [
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_unicode_ci"
+    },
     {
       "tableName": "auth_schema_migrations",
       "tableType": "BASE TABLE",
@@ -51,6 +57,18 @@
       "tableCollation": "utf8mb4_uca1400_ai_ci"
     },
     {
+      "tableName": "client_general_information",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_uca1400_ai_ci"
+    },
+    {
       "tableName": "client_notifications",
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
@@ -61,6 +79,12 @@
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
       "tableCollation": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_uca1400_ai_ci"
     },
     {
       "tableName": "client_notification_push_deliveries",
@@ -111,6 +135,12 @@
       "tableCollation": "utf8mb4_0900_ai_ci"
     },
     {
+      "tableName": "client_product_stock_movements",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_uca1400_ai_ci"
+    },
+    {
       "tableName": "client_promotions",
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
@@ -135,6 +165,12 @@
       "tableCollation": "utf8mb4_0900_ai_ci"
     },
     {
+      "tableName": "client_store_banners",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_uca1400_ai_ci"
+    },
+    {
       "tableName": "client_store_delivery_zones",
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
@@ -142,6 +178,12 @@
     },
     {
       "tableName": "client_store_fulfillment_settings",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
       "tableCollation": "utf8mb4_uca1400_ai_ci"
@@ -183,6 +225,12 @@
       "tableCollation": "utf8mb4_0900_as_ci"
     },
     {
+      "tableName": "password_reset_schema_migrations",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_unicode_ci"
+    },
+    {
       "tableName": "permissions",
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
@@ -199,6 +247,12 @@
       "tableType": "BASE TABLE",
       "engine": "InnoDB",
       "tableCollation": "utf8mb4_0900_ai_ci"
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "tableType": "BASE TABLE",
+      "engine": "InnoDB",
+      "tableCollation": "utf8mb4_unicode_ci"
     },
     {
       "tableName": "professional_blocks",
@@ -286,6 +340,110 @@
     }
   ],
   "columns": [
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "auto_increment",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "actor_user_id",
+      "ordinalPosition": "2",
+      "columnType": "varchar(64)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "action_code",
+      "ordinalPosition": "3",
+      "columnType": "varchar(40)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "entity_type",
+      "ordinalPosition": "4",
+      "columnType": "varchar(20)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "entity_id",
+      "ordinalPosition": "5",
+      "columnType": "varchar(64)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "entity_label",
+      "ordinalPosition": "6",
+      "columnType": "varchar(255)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "result_code",
+      "ordinalPosition": "7",
+      "columnType": "varchar(20)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "columnName": "occurred_at",
+      "ordinalPosition": "8",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
     {
       "tableName": "auth_schema_migrations",
       "columnName": "version",
@@ -420,7 +578,7 @@
       "tableName": "client_appointments",
       "columnName": "status",
       "ordinalPosition": "5",
-      "columnType": "enum('REQUESTED','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED')",
+      "columnType": "enum('REQUESTED','CONFIRMED','REJECTED','IN_PROGRESS','COMPLETED','CANCELLED')",
       "dataType": "enum",
       "isNullable": "NO",
       "columnDefault": "'REQUESTED'",
@@ -1093,6 +1251,396 @@
       "collationName": null
     },
     {
+      "tableName": "client_general_information",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "tinyint(3) unsigned",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "clinic_name",
+      "ordinalPosition": "2",
+      "columnType": "varchar(120)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "description",
+      "ordinalPosition": "3",
+      "columnType": "text",
+      "dataType": "text",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "logo_url",
+      "ordinalPosition": "4",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "welcome_message",
+      "ordinalPosition": "5",
+      "columnType": "varchar(500)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "public_phone",
+      "ordinalPosition": "6",
+      "columnType": "varchar(40)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "whatsapp",
+      "ordinalPosition": "7",
+      "columnType": "varchar(40)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "public_email",
+      "ordinalPosition": "8",
+      "columnType": "varchar(254)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "street_address",
+      "ordinalPosition": "9",
+      "columnType": "varchar(200)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "city",
+      "ordinalPosition": "10",
+      "columnType": "varchar(100)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "province",
+      "ordinalPosition": "11",
+      "columnType": "varchar(100)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "map_url",
+      "ordinalPosition": "12",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "opening_hours_json",
+      "ordinalPosition": "13",
+      "columnType": "longtext",
+      "dataType": "longtext",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "instagram_url",
+      "ordinalPosition": "14",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "facebook_url",
+      "ordinalPosition": "15",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "x_url",
+      "ordinalPosition": "16",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "website_url",
+      "ordinalPosition": "17",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "updated_by",
+      "ordinalPosition": "18",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_general_information",
+      "columnName": "updated_at",
+      "ordinalPosition": "19",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "on update current_timestamp(3)",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "auto_increment",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "appointment_id",
+      "ordinalPosition": "2",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "pet_id",
+      "ordinalPosition": "3",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "professional_user_id",
+      "ordinalPosition": "4",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "created_by_user_id",
+      "ordinalPosition": "5",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "updated_by_user_id",
+      "ordinalPosition": "6",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "coat_notes",
+      "ordinalPosition": "7",
+      "columnType": "text",
+      "dataType": "text",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "behavior_notes",
+      "ordinalPosition": "8",
+      "columnType": "text",
+      "dataType": "text",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "care_instructions",
+      "ordinalPosition": "9",
+      "columnType": "text",
+      "dataType": "text",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "created_at",
+      "ordinalPosition": "10",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "columnName": "updated_at",
+      "ordinalPosition": "11",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "on update current_timestamp(3)",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
       "tableName": "client_notifications",
       "columnName": "id",
       "ordinalPosition": "1",
@@ -1223,6 +1771,19 @@
       "collationName": "ascii_bin"
     },
     {
+      "tableName": "client_notifications",
+      "columnName": "hidden_at",
+      "ordinalPosition": "11",
+      "columnType": "datetime(3)",
+      "dataType": "datetime",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
       "tableName": "client_notification_email_deliveries",
       "columnName": "id",
       "ordinalPosition": "1",
@@ -1330,6 +1891,71 @@
       "tableName": "client_notification_email_deliveries",
       "columnName": "updated_at",
       "ordinalPosition": "9",
+      "columnType": "datetime(3)",
+      "dataType": "datetime",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "on update current_timestamp(3)",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "columnName": "user_id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "columnName": "push_enabled",
+      "ordinalPosition": "2",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": "1",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "columnName": "appointment_reminders_enabled",
+      "ordinalPosition": "3",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": "1",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "columnName": "order_updates_enabled",
+      "ordinalPosition": "4",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": "1",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "columnName": "updated_at",
+      "ordinalPosition": "5",
       "columnType": "datetime(3)",
       "dataType": "datetime",
       "isNullable": "NO",
@@ -1590,8 +2216,8 @@
       "tableName": "client_orders",
       "columnName": "order_type",
       "ordinalPosition": "8",
-      "columnType": "enum('RESERVATION','DEMO_PURCHASE')",
-      "dataType": "enum",
+      "columnType": "varchar(32)",
+      "dataType": "varchar",
       "isNullable": "NO",
       "columnDefault": "'RESERVATION'",
       "extra": "",
@@ -1603,8 +2229,8 @@
       "tableName": "client_orders",
       "columnName": "payment_status",
       "ordinalPosition": "9",
-      "columnType": "enum('NOT_APPLICABLE','DEMO_NOT_PAID','PAID')",
-      "dataType": "enum",
+      "columnType": "varchar(24)",
+      "dataType": "varchar",
       "isNullable": "NO",
       "columnDefault": "'NOT_APPLICABLE'",
       "extra": "",
@@ -1825,6 +2451,19 @@
       "columnName": "delivery_reference",
       "ordinalPosition": "26",
       "columnType": "varchar(500)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_0900_ai_ci"
+    },
+    {
+      "tableName": "client_orders",
+      "columnName": "payment_reference",
+      "ordinalPosition": "27",
+      "columnType": "varchar(120)",
       "dataType": "varchar",
       "isNullable": "YES",
       "columnDefault": "NULL",
@@ -2276,6 +2915,19 @@
       "collationName": null
     },
     {
+      "tableName": "client_products",
+      "columnName": "stock_minimum",
+      "ordinalPosition": "16",
+      "columnType": "int(10) unsigned",
+      "dataType": "int",
+      "isNullable": "NO",
+      "columnDefault": "0",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
       "tableName": "client_product_categories",
       "columnName": "id",
       "ordinalPosition": "1",
@@ -2387,6 +3039,110 @@
       "dataType": "timestamp",
       "isNullable": "NO",
       "columnDefault": "current_timestamp(3)",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "auto_increment",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "product_id",
+      "ordinalPosition": "2",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "actor_user_id",
+      "ordinalPosition": "3",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "quantity_before",
+      "ordinalPosition": "4",
+      "columnType": "int(10) unsigned",
+      "dataType": "int",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "quantity_after",
+      "ordinalPosition": "5",
+      "columnType": "int(10) unsigned",
+      "dataType": "int",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "quantity_delta",
+      "ordinalPosition": "6",
+      "columnType": "bigint(20)",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "reason",
+      "ordinalPosition": "7",
+      "columnType": "varchar(250)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "columnName": "created_at",
+      "ordinalPosition": "8",
+      "columnType": "timestamp",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp()",
       "extra": "",
       "generationExpression": null,
       "characterSetName": null,
@@ -2783,6 +3539,253 @@
       "collationName": "utf8mb4_0900_ai_ci"
     },
     {
+      "tableName": "client_store_banners",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "auto_increment",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "title",
+      "ordinalPosition": "2",
+      "columnType": "varchar(160)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "subtitle",
+      "ordinalPosition": "3",
+      "columnType": "varchar(250)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "description",
+      "ordinalPosition": "4",
+      "columnType": "text",
+      "dataType": "text",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "mobile_image_url",
+      "ordinalPosition": "5",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "desktop_image_url",
+      "ordinalPosition": "6",
+      "columnType": "varchar(2048)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "background_color",
+      "ordinalPosition": "7",
+      "columnType": "char(7)",
+      "dataType": "char",
+      "isNullable": "NO",
+      "columnDefault": "'#176B52'",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "text_color",
+      "ordinalPosition": "8",
+      "columnType": "char(7)",
+      "dataType": "char",
+      "isNullable": "NO",
+      "columnDefault": "'#FFFFFF'",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "content_alignment",
+      "ordinalPosition": "9",
+      "columnType": "enum('LEFT','CENTER','RIGHT')",
+      "dataType": "enum",
+      "isNullable": "NO",
+      "columnDefault": "'LEFT'",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "dark_overlay",
+      "ordinalPosition": "10",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": "0",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "destination_type",
+      "ordinalPosition": "11",
+      "columnType": "enum('PRODUCT','CATEGORY','PROMOTION','PRODUCT_LIST','INFO')",
+      "dataType": "enum",
+      "isNullable": "NO",
+      "columnDefault": "'INFO'",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "destination_id",
+      "ordinalPosition": "12",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "cta_text",
+      "ordinalPosition": "13",
+      "columnType": "varchar(40)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "sort_order",
+      "ordinalPosition": "14",
+      "columnType": "int(11)",
+      "dataType": "int",
+      "isNullable": "NO",
+      "columnDefault": "0",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "is_active",
+      "ordinalPosition": "15",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": "0",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "starts_at",
+      "ordinalPosition": "16",
+      "columnType": "datetime",
+      "dataType": "datetime",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "ends_at",
+      "ordinalPosition": "17",
+      "columnType": "datetime",
+      "dataType": "datetime",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "created_at",
+      "ordinalPosition": "18",
+      "columnType": "timestamp",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp()",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_banners",
+      "columnName": "updated_at",
+      "ordinalPosition": "19",
+      "columnType": "timestamp",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp()",
+      "extra": "on update current_timestamp()",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
       "tableName": "client_store_delivery_zones",
       "columnName": "id",
       "ordinalPosition": "1",
@@ -3085,6 +4088,292 @@
       "tableName": "client_store_fulfillment_settings",
       "columnName": "updated_at",
       "ordinalPosition": "13",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "on update current_timestamp(3)",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_fulfillment_settings",
+      "columnName": "bank_name",
+      "ordinalPosition": "14",
+      "columnType": "varchar(120)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_fulfillment_settings",
+      "columnName": "bank_account_holder",
+      "ordinalPosition": "15",
+      "columnType": "varchar(160)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_fulfillment_settings",
+      "columnName": "bank_cbu_cvu",
+      "ordinalPosition": "16",
+      "columnType": "varchar(32)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_fulfillment_settings",
+      "columnName": "bank_alias",
+      "ordinalPosition": "17",
+      "columnType": "varchar(80)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "auto_increment",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "order_id",
+      "ordinalPosition": "2",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "owner_id",
+      "ordinalPosition": "3",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "buyer_name",
+      "ordinalPosition": "4",
+      "columnType": "varchar(160)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "buyer_email",
+      "ordinalPosition": "5",
+      "columnType": "varchar(254)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "transfer_reference",
+      "ordinalPosition": "6",
+      "columnType": "varchar(120)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "expires_at",
+      "ordinalPosition": "7",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "intent_status",
+      "ordinalPosition": "8",
+      "columnType": "enum('ACTIVE','EXPIRED')",
+      "dataType": "enum",
+      "isNullable": "NO",
+      "columnDefault": "'ACTIVE'",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "proof_object_key",
+      "ordinalPosition": "9",
+      "columnType": "varchar(240)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "proof_content_type",
+      "ordinalPosition": "10",
+      "columnType": "varchar(80)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "proof_size_bytes",
+      "ordinalPosition": "11",
+      "columnType": "int(10) unsigned",
+      "dataType": "int",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "proof_submitted_at",
+      "ordinalPosition": "12",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "review_status",
+      "ordinalPosition": "13",
+      "columnType": "enum('NOT_SUBMITTED','SUBMITTED','APPROVED','REJECTED')",
+      "dataType": "enum",
+      "isNullable": "NO",
+      "columnDefault": "'NOT_SUBMITTED'",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "review_reason",
+      "ordinalPosition": "14",
+      "columnType": "varchar(500)",
+      "dataType": "varchar",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_uca1400_ai_ci"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "verified_by",
+      "ordinalPosition": "15",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "verified_at",
+      "ordinalPosition": "16",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "created_at",
+      "ordinalPosition": "17",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "columnName": "updated_at",
+      "ordinalPosition": "18",
       "columnType": "timestamp(3)",
       "dataType": "timestamp",
       "isNullable": "NO",
@@ -3628,6 +4917,58 @@
       "collationName": null
     },
     {
+      "tableName": "password_reset_schema_migrations",
+      "columnName": "version",
+      "ordinalPosition": "1",
+      "columnType": "varchar(150)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "ascii",
+      "collationName": "ascii_bin"
+    },
+    {
+      "tableName": "password_reset_schema_migrations",
+      "columnName": "checksum",
+      "ordinalPosition": "2",
+      "columnType": "char(64)",
+      "dataType": "char",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "ascii",
+      "collationName": "ascii_bin"
+    },
+    {
+      "tableName": "password_reset_schema_migrations",
+      "columnName": "state",
+      "ordinalPosition": "3",
+      "columnType": "enum('running','applied')",
+      "dataType": "enum",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "password_reset_schema_migrations",
+      "columnName": "applied_at",
+      "ordinalPosition": "4",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
       "tableName": "permissions",
       "columnName": "id",
       "ordinalPosition": "1",
@@ -3909,6 +5250,110 @@
       "isNullable": "NO",
       "columnDefault": "current_timestamp(3)",
       "extra": "on update current_timestamp(3)",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "auto_increment",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "pet_id",
+      "ordinalPosition": "2",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "previous_is_active",
+      "ordinalPosition": "3",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "new_is_active",
+      "ordinalPosition": "4",
+      "columnType": "tinyint(1)",
+      "dataType": "tinyint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "actor_user_id",
+      "ordinalPosition": "5",
+      "columnType": "bigint(20) unsigned",
+      "dataType": "bigint",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "actor_role",
+      "ordinalPosition": "6",
+      "columnType": "varchar(32)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "ascii",
+      "collationName": "ascii_bin"
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "reason",
+      "ordinalPosition": "7",
+      "columnType": "varchar(500)",
+      "dataType": "varchar",
+      "isNullable": "NO",
+      "columnDefault": null,
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": "utf8mb4",
+      "collationName": "utf8mb4_unicode_ci"
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "columnName": "created_at",
+      "ordinalPosition": "8",
+      "columnType": "timestamp(3)",
+      "dataType": "timestamp",
+      "isNullable": "NO",
+      "columnDefault": "current_timestamp(3)",
+      "extra": "",
       "generationExpression": null,
       "characterSetName": null,
       "collationName": null
@@ -4435,8 +5880,21 @@
     },
     {
       "tableName": "users",
-      "columnName": "created_at",
+      "columnName": "deleted_at",
       "ordinalPosition": "10",
+      "columnType": "datetime(3)",
+      "dataType": "datetime",
+      "isNullable": "YES",
+      "columnDefault": "NULL",
+      "extra": "",
+      "generationExpression": null,
+      "characterSetName": null,
+      "collationName": null
+    },
+    {
+      "tableName": "users",
+      "columnName": "created_at",
+      "ordinalPosition": "11",
       "columnType": "timestamp(3)",
       "dataType": "timestamp",
       "isNullable": "NO",
@@ -4449,7 +5907,7 @@
     {
       "tableName": "users",
       "columnName": "updated_at",
-      "ordinalPosition": "11",
+      "ordinalPosition": "12",
       "columnType": "timestamp(3)",
       "dataType": "timestamp",
       "isNullable": "NO",
@@ -4462,7 +5920,7 @@
     {
       "tableName": "users",
       "columnName": "email_verified_at",
-      "ordinalPosition": "12",
+      "ordinalPosition": "13",
       "columnType": "datetime(3)",
       "dataType": "datetime",
       "isNullable": "YES",
@@ -4475,7 +5933,7 @@
     {
       "tableName": "users",
       "columnName": "session_version",
-      "ordinalPosition": "13",
+      "ordinalPosition": "14",
       "columnType": "int(10) unsigned",
       "dataType": "int",
       "isNullable": "NO",
@@ -4488,7 +5946,7 @@
     {
       "tableName": "users",
       "columnName": "professional_type_id",
-      "ordinalPosition": "14",
+      "ordinalPosition": "15",
       "columnType": "int(10) unsigned",
       "dataType": "int",
       "isNullable": "YES",
@@ -4501,7 +5959,7 @@
     {
       "tableName": "users",
       "columnName": "must_change_password",
-      "ordinalPosition": "15",
+      "ordinalPosition": "16",
       "columnType": "tinyint(1)",
       "dataType": "tinyint",
       "isNullable": "NO",
@@ -4734,6 +6192,17 @@
     }
   ],
   "constraints": [
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
     {
       "tableName": "auth_schema_migrations",
       "constraintName": "PRIMARY",
@@ -5098,6 +6567,116 @@
       "deleteRule": null
     },
     {
+      "tableName": "client_general_information",
+      "constraintName": "chk_client_general_information_singleton",
+      "constraintType": "CHECK",
+      "columnName": null,
+      "ordinalPosition": null,
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_general_information",
+      "constraintName": "fk_client_general_information_updated_by",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "updated_by",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "SET NULL"
+    },
+    {
+      "tableName": "client_general_information",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "appointment_id",
+      "constraintType": "UNIQUE",
+      "columnName": "appointment_id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "fk_grooming_record_appointment",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "appointment_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "client_appointments",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "fk_grooming_record_created_by",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "created_by_user_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "fk_grooming_record_pet",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "pet_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "pets",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "fk_grooming_record_professional",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "professional_user_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "fk_grooming_record_updated_by",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "updated_by_user_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_grooming_records",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
       "tableName": "client_notifications",
       "constraintName": "client_notifications_ibfk_1",
       "constraintType": "FOREIGN KEY",
@@ -5157,6 +6736,28 @@
       "constraintName": "uq_notification_email_delivery",
       "constraintType": "UNIQUE",
       "columnName": "notification_id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "constraintName": "fk_client_notification_preferences_user",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "user_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "CASCADE"
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "user_id",
       "ordinalPosition": "1",
       "referencedTableName": null,
       "referencedColumnName": null,
@@ -5527,6 +7128,39 @@
       "deleteRule": null
     },
     {
+      "tableName": "client_product_stock_movements",
+      "constraintName": "fk_product_stock_movement_actor",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "actor_user_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "constraintName": "fk_product_stock_movement_product",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "product_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "client_products",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
       "tableName": "client_promotions",
       "constraintName": "client_promotions_chk_1",
       "constraintType": "CHECK",
@@ -5649,6 +7283,17 @@
     },
     {
       "tableName": "client_services",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_store_banners",
       "constraintName": "PRIMARY",
       "constraintType": "PRIMARY KEY",
       "columnName": "id",
@@ -5784,6 +7429,61 @@
       "constraintName": "PRIMARY",
       "constraintType": "PRIMARY KEY",
       "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "constraintName": "fk_client_store_payment_intent_order",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "order_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "client_orders",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "CASCADE"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "constraintName": "fk_client_store_payment_intent_owner",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "owner_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "CASCADE"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "constraintName": "fk_client_store_payment_intent_verifier",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "verified_by",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "SET NULL"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "constraintName": "uq_client_store_payment_intent_order",
+      "constraintType": "UNIQUE",
+      "columnName": "order_id",
       "ordinalPosition": "1",
       "referencedTableName": null,
       "referencedColumnName": null,
@@ -6000,6 +7700,17 @@
       "deleteRule": null
     },
     {
+      "tableName": "password_reset_schema_migrations",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "version",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
       "tableName": "permissions",
       "constraintName": "chk_permission_critical",
       "constraintType": "CHECK",
@@ -6125,6 +7836,39 @@
       "constraintName": "uq_pets_microchip",
       "constraintType": "UNIQUE",
       "columnName": "microchip_number",
+      "ordinalPosition": "1",
+      "referencedTableName": null,
+      "referencedColumnName": null,
+      "updateRule": null,
+      "deleteRule": null
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "constraintName": "fk_pet_lifecycle_history_actor",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "actor_user_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "users",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "constraintName": "fk_pet_lifecycle_history_pet",
+      "constraintType": "FOREIGN KEY",
+      "columnName": "pet_id",
+      "ordinalPosition": "1",
+      "referencedTableName": "pets",
+      "referencedColumnName": "id",
+      "updateRule": "RESTRICT",
+      "deleteRule": "RESTRICT"
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "constraintName": "PRIMARY",
+      "constraintType": "PRIMARY KEY",
+      "columnName": "id",
       "ordinalPosition": "1",
       "referencedTableName": null,
       "referencedColumnName": null,
@@ -6743,6 +8487,11 @@
       "checkClause": "`quantity` between 1 and 99"
     },
     {
+      "tableName": "client_general_information",
+      "constraintName": "chk_client_general_information_singleton",
+      "checkClause": "`id` = 1"
+    },
+    {
       "tableName": "client_products",
       "constraintName": "chk_client_products_reserved_stock",
       "checkClause": "`reserved_stock` <= `stock`"
@@ -6879,6 +8628,72 @@
     }
   ],
   "indexes": [
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "indexName": "idx_admin_sensitive_audit_actor_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "actor_user_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "indexName": "idx_admin_sensitive_audit_actor_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "occurred_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "indexName": "idx_admin_sensitive_audit_entity_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "entity_type",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "indexName": "idx_admin_sensitive_audit_entity_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "entity_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "indexName": "idx_admin_sensitive_audit_entity_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 3,
+      "columnName": "occurred_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "admin_sensitive_action_audit",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
     {
       "tableName": "auth_schema_migrations",
       "indexName": "PRIMARY",
@@ -7221,6 +9036,116 @@
       "nullable": ""
     },
     {
+      "tableName": "client_general_information",
+      "indexName": "fk_client_general_information_updated_by",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "updated_by",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": "YES"
+    },
+    {
+      "tableName": "client_general_information",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "appointment_id",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "appointment_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "fk_grooming_record_created_by",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "created_by_user_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "fk_grooming_record_updated_by",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "updated_by_user_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "idx_grooming_records_pet_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "pet_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "idx_grooming_records_pet_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "created_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "idx_grooming_records_professional_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "professional_user_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "idx_grooming_records_professional_time",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "created_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_grooming_records",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
       "tableName": "client_notifications",
       "indexName": "owner_notifications",
       "nonUnique": "1",
@@ -7314,6 +9239,17 @@
       "nonUnique": "0",
       "sequenceInIndex": 1,
       "columnName": "notification_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_notification_preferences",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "user_id",
       "collation": "A",
       "subPart": null,
       "indexType": "BTREE",
@@ -7749,6 +9685,61 @@
       "nullable": ""
     },
     {
+      "tableName": "client_product_stock_movements",
+      "indexName": "fk_product_stock_movement_actor",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "actor_user_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "indexName": "idx_product_stock_history",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "product_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "indexName": "idx_product_stock_history",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "created_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "indexName": "idx_product_stock_history",
+      "nonUnique": "1",
+      "sequenceInIndex": 3,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_product_stock_movements",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
       "tableName": "client_promotions",
       "indexName": "PRIMARY",
       "nonUnique": "0",
@@ -7859,6 +9850,72 @@
       "nullable": "YES"
     },
     {
+      "tableName": "client_store_banners",
+      "indexName": "idx_store_banners_publication",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "is_active",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_banners",
+      "indexName": "idx_store_banners_publication",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "starts_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": "YES"
+    },
+    {
+      "tableName": "client_store_banners",
+      "indexName": "idx_store_banners_publication",
+      "nonUnique": "1",
+      "sequenceInIndex": 3,
+      "columnName": "ends_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": "YES"
+    },
+    {
+      "tableName": "client_store_banners",
+      "indexName": "idx_store_banners_publication",
+      "nonUnique": "1",
+      "sequenceInIndex": 4,
+      "columnName": "sort_order",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_banners",
+      "indexName": "idx_store_banners_publication",
+      "nonUnique": "1",
+      "sequenceInIndex": 5,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_banners",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
       "tableName": "client_store_delivery_zones",
       "indexName": "fk_store_delivery_zone_created_by",
       "nonUnique": "1",
@@ -7952,6 +10009,83 @@
       "nonUnique": "0",
       "sequenceInIndex": 1,
       "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "fk_client_store_payment_intent_verifier",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "verified_by",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": "YES"
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "idx_client_store_payment_intent_owner",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "owner_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "idx_client_store_payment_intent_owner",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "created_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "idx_client_store_payment_intent_review",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "review_status",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "idx_client_store_payment_intent_review",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "expires_at",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "client_store_payment_intents",
+      "indexName": "uq_client_store_payment_intent_order",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "order_id",
       "collation": "A",
       "subPart": null,
       "indexType": "BTREE",
@@ -8123,6 +10257,17 @@
       "nullable": ""
     },
     {
+      "tableName": "password_reset_schema_migrations",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "version",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
       "tableName": "permissions",
       "indexName": "fk_permission_module",
       "nonUnique": "1",
@@ -8231,6 +10376,61 @@
       "subPart": null,
       "indexType": "BTREE",
       "nullable": "YES"
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "indexName": "idx_pet_lifecycle_history_actor",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "actor_user_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "indexName": "idx_pet_lifecycle_history_actor",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "indexName": "idx_pet_lifecycle_history_pet",
+      "nonUnique": "1",
+      "sequenceInIndex": 1,
+      "columnName": "pet_id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "indexName": "idx_pet_lifecycle_history_pet",
+      "nonUnique": "1",
+      "sequenceInIndex": 2,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
+    },
+    {
+      "tableName": "pet_lifecycle_history",
+      "indexName": "PRIMARY",
+      "nonUnique": "0",
+      "sequenceInIndex": 1,
+      "columnName": "id",
+      "collation": "A",
+      "subPart": null,
+      "indexType": "BTREE",
+      "nullable": ""
     },
     {
       "tableName": "professional_blocks",
@@ -8797,6 +10997,51 @@
           "version": "007_notification_push_schema.sql",
           "checksum": "3348a736125bb6c695727a8764313a8f2979f9a7b269ba9bce355462f70b4f32",
           "state": "applied"
+        },
+        {
+          "version": "008_store_bank_transfer_settings.sql",
+          "checksum": "273a57ab23b35ebaabe2d99e4375d8800138a456cb30ea7e8f48ff80421ba021",
+          "state": "applied"
+        },
+        {
+          "version": "009_store_banners.sql",
+          "checksum": "60f1886473aa1a059b6db3efe03ffcb9a8a1486c4c6a4403702e0dbbb3b13327",
+          "state": "applied"
+        },
+        {
+          "version": "010_inventory_stock_history.sql",
+          "checksum": "3a2bd33864a2613ee186cc141686510e5a41bd21df38113d65e95388ee4025ad",
+          "state": "applied"
+        },
+        {
+          "version": "011_optional_store_banner_title.sql",
+          "checksum": "8021f84114ec24a4a58134f15325fd12315ee0fd10700f8cf55462d82c56fa3d",
+          "state": "applied"
+        },
+        {
+          "version": "012_grooming_records.sql",
+          "checksum": "5c8986b8842e92afe6bebf6078bada982be2445126f77e95fee10c51ede158b4",
+          "state": "applied"
+        },
+        {
+          "version": "013_store_transfer_intents.sql",
+          "checksum": "59be625df669865dd53efcaa3e362fa5c2118d38ec29fc24d4bc0374ee1f07ec",
+          "state": "applied"
+        },
+        {
+          "version": "014_general_information.sql",
+          "checksum": "c095c439f68c16d2df29332249d1c7412aece22822dff9e27005da1038c1a9d9",
+          "state": "applied"
+        },
+        {
+          "version": "015_notification_preferences_and_visibility.sql",
+          "checksum": "d72f709d443cd33145ac33c3fc2d8a910688fabb430b34e37e23c26e5c338190",
+          "state": "applied"
+        },
+        {
+          "version": "016_notification_email_deliveries.sql",
+          "checksum": "765a56a072c29011ca36a7c506eea3319e8fd1915cc61f1151d41b06fcd264d2",
+          "state": "applied"
         }
       ]
     },
@@ -8833,6 +11078,23 @@
           "applied_at": "2026-10-15 15:22:30.393"
         }
       ]
+    },
+    {
+      "tableName": "password_reset_schema_migrations",
+      "columns": [
+        "version",
+        "checksum",
+        "state",
+        "applied_at"
+      ],
+      "rows": [
+        {
+          "version": "001_password_resets.sql",
+          "checksum": "e211e1320c99e6c47ea0103289ce38f5127cb60c599c2fb5dcd6910d0e3e9ff4",
+          "state": "applied",
+          "applied_at": "2026-10-22 12:33:15.987"
+        }
+      ]
     }
   ],
   "sections": {
@@ -8842,39 +11104,40 @@
     },
     "tables": {
       "status": "ok",
-      "rowCount": 46
+      "rowCount": 55
     },
     "columns": {
       "status": "ok",
-      "rowCount": 342
+      "rowCount": 450
     },
     "constraints": {
       "status": "ok",
-      "rowCount": 181
+      "rowCount": 207
     },
     "checkConstraints": {
       "status": "ok",
-      "rowCount": 30
+      "rowCount": 31
     },
     "indexes": {
       "status": "ok",
-      "rowCount": 169
+      "rowCount": 210
     },
     "migrationHistory": {
       "status": "ok",
-      "rowCount": 4
+      "rowCount": 5
     },
     "backendSqlReferenceInventory": {
       "status": "ok",
-      "rowCount": 109
+      "rowCount": 131
     }
   },
   "errors": [],
   "warnings": [],
   "backendSqlReferenceInventory": {
     "method": "TypeScript string/template literal heuristic; dynamic SQL and non-literal fragments need manual review",
-    "filesScanned": 109,
+    "filesScanned": 131,
     "allTables": [
+      "admin_sensitive_action_audit",
       "auth_schema_migrations",
       "bootstrap_schema_migrations",
       "breeds",
@@ -8883,8 +11146,9 @@
       "client_cart_items",
       "client_clinical_records",
       "client_delivery_addresses",
+      "client_general_information",
+      "client_grooming_records",
       "client_notification_email_deliveries",
-      "client_notification_push_deliveries",
       "client_notifications",
       "client_order_items",
       "client_order_status_history",
@@ -8892,13 +11156,16 @@
       "client_pet_details",
       "client_product_categories",
       "client_product_change_history",
+      "client_product_stock_movements",
       "client_products",
       "client_promotions",
-      "client_push_tokens",
       "client_schema_migrations",
       "client_services",
+      "client_store_banners",
       "client_store_delivery_zones",
       "client_store_fulfillment_settings",
+      "client_store_payment_intents",
+      "clinic_name",
       "clinic_schema_migrations",
       "email_verifications",
       "employee_password_schema_migrations",
@@ -8917,6 +11184,7 @@
       "password_resets",
       "permission_modules",
       "permissions",
+      "pet_lifecycle_history",
       "pets",
       "pickup_enabled",
       "professional_blocks",
@@ -8931,8 +11199,9 @@
       "SKIP",
       "specialties",
       "species",
+      "SQL",
       "token_hash",
-      "user_id",
+      "updated_by_user_id",
       "user_permissions",
       "users",
       "veterinarian_invitations",
@@ -8949,6 +11218,10 @@
       ],
       "src/database/auth-migrate.ts": [
         "auth_schema_migrations"
+      ],
+      "src/database/availability-archive-migrate.ts": [
+        "information_schema.COLUMNS",
+        "information_schema.TABLES"
       ],
       "src/database/bootstrap.ts": [
         "bootstrap_schema_migrations",
@@ -8976,6 +11249,20 @@
         "employee_password_schema_migrations",
         "information_schema.COLUMNS",
         "information_schema.TABLES"
+      ],
+      "src/database/migration-preflight-readonly.ts": [
+        "client_appointments",
+        "client_schema_migrations",
+        "information_schema.COLUMNS",
+        "information_schema.KEY_COLUMN_USAGE",
+        "information_schema.REFERENTIAL_CONSTRAINTS",
+        "information_schema.STATISTICS",
+        "information_schema.TABLE_CONSTRAINTS",
+        "information_schema.TABLES",
+        "permissions",
+        "role_permissions",
+        "roles",
+        "SQL"
       ],
       "src/database/migration-runner.ts": [
         "schema_migrations"
@@ -9062,6 +11349,10 @@
         "information_schema.TABLE_CONSTRAINTS",
         "information_schema.TABLES"
       ],
+      "src/database/user-deletion-migrate.ts": [
+        "information_schema.COLUMNS",
+        "information_schema.TABLES"
+      ],
       "src/database/veterinarian-clinical-migrate.ts": [
         "client_appointments",
         "information_schema.COLUMNS",
@@ -9075,9 +11366,15 @@
         "veterinarians"
       ],
       "src/repositories/admin.repository.ts": [
+        "admin_sensitive_action_audit",
+        "client_order_status_history",
+        "client_orders",
         "client_product_categories",
         "client_product_change_history",
+        "client_product_stock_movements",
         "client_products",
+        "client_promotions",
+        "client_store_banners",
         "email_verifications",
         "permission_modules",
         "permissions",
@@ -9112,12 +11409,13 @@
         "client_product_categories",
         "client_products",
         "client_promotions",
-        "client_push_tokens",
+        "client_store_payment_intents",
+        "pet_lifecycle_history",
         "pets",
         "quantity",
         "species",
-        "user_id",
         "users",
+        "veterinarian_patients",
         "veterinarians",
         "weight_kg"
       ],
@@ -9141,11 +11439,12 @@
         "client_appointment_slots",
         "client_appointments",
         "client_clinical_records",
-        "client_orders",
+        "client_grooming_records",
         "client_pet_details",
         "client_product_categories",
         "client_products",
         "client_services",
+        "pet_lifecycle_history",
         "pets",
         "professional_blocks",
         "professional_services",
@@ -9153,6 +11452,7 @@
         "roles",
         "specialties",
         "species",
+        "updated_by_user_id",
         "users",
         "veterinarian_patients",
         "veterinarian_specialties",
@@ -9162,42 +11462,63 @@
       "src/repositories/delivery-address.repository.ts": [
         "client_delivery_addresses"
       ],
+      "src/repositories/general-information.repository.ts": [
+        "client_general_information",
+        "clinic_name"
+      ],
       "src/repositories/notification.repository.ts": [
         "client_notification_email_deliveries",
-        "client_notification_push_deliveries",
         "client_notifications",
-        "client_push_tokens",
         "users"
       ],
       "src/repositories/oauth.repository.ts": [
         "oauth_attempts"
       ],
       "src/repositories/reservation.repository.ts": [
-        "client_clinical_records",
+        "client_order_items",
+        "client_order_status_history",
+        "client_orders",
+        "client_products",
+        "SKIP"
+      ],
+      "src/repositories/session.repository.ts": [
+        "refresh_tokens",
+        "users"
+      ],
+      "src/repositories/store-checkout.repository.ts": [
+        "client_cart_items",
         "client_order_items",
         "client_order_status_history",
         "client_orders",
         "client_product_categories",
         "client_products",
         "client_promotions",
-        "pets",
-        "SKIP",
-        "users"
-      ],
-      "src/repositories/session.repository.ts": [
-        "refresh_tokens",
+        "client_store_delivery_zones",
+        "client_store_fulfillment_settings",
+        "client_store_payment_intents",
         "users"
       ],
       "src/repositories/store-orders.repository.ts": [
         "client_order_items",
         "client_order_status_history",
         "client_orders",
+        "client_store_payment_intents",
+        "users"
+      ],
+      "src/repositories/store-payment.repository.ts": [
+        "client_order_items",
+        "client_order_status_history",
+        "client_orders",
+        "client_product_stock_movements",
+        "client_products",
+        "client_store_payment_intents",
         "users"
       ],
       "src/repositories/storefront.repository.ts": [
         "client_product_categories",
         "client_products",
         "client_promotions",
+        "client_store_banners",
         "client_store_delivery_zones",
         "client_store_fulfillment_settings",
         "pickup_enabled"
@@ -9221,9 +11542,15 @@
         "veterinarians"
       ],
       "src/routes/veterinarian.routes.ts": [
+        "client_services",
         "permission_modules",
         "permissions",
-        "specialties"
+        "specialties",
+        "veterinarian_specialties"
+      ],
+      "src/services/admin-account.service.ts": [
+        "roles",
+        "users"
       ],
       "src/services/bootstrap-super-admin.service.ts": [
         "roles",
@@ -9241,9 +11568,7 @@
         "client_appointment_slots",
         "client_appointments",
         "client_notification_email_deliveries",
-        "client_notification_push_deliveries",
         "client_notifications",
-        "client_push_tokens",
         "client_services",
         "pets",
         "SKIP",
@@ -9273,6 +11598,7 @@
     },
     "possibleMissingTables": [
       "bootstrap_schema_migrations",
+      "clinic_name",
       "information_schema.CHECK_CONSTRAINTS",
       "information_schema.COLLATION_CHARACTER_SET_APPLICABILITY",
       "information_schema.columns",
@@ -9282,14 +11608,14 @@
       "information_schema.STATISTICS",
       "information_schema.TABLE_CONSTRAINTS",
       "information_schema.TABLES",
-      "password_reset_schema_migrations",
       "pickup_enabled",
       "quantity",
       "RESTRICT",
       "schema_migrations",
       "SKIP",
+      "SQL",
       "token_hash",
-      "user_id",
+      "updated_by_user_id",
       "weight_kg",
       "y"
     ]

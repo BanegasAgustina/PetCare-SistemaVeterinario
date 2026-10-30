@@ -12,7 +12,7 @@ export type AuthUser = {
   roleName?: string;professional?: {typeId:string;name:string;isClinical:boolean;serviceIds:string[]}|null;
 };
 // Tipo StoredUser: define la forma o las opciones válidas de datos usados por este módulo.
-export type StoredUser = AuthUser & { passwordHash: string; isActive: boolean; emailVerifiedAt: string | null; sessionVersion: number; mustChangePassword: boolean };
+export type StoredUser = AuthUser & { roleId?:string; passwordHash: string; isActive: boolean; emailVerifiedAt: string | null; sessionVersion: number; mustChangePassword: boolean };
 // Tipo RegisterInput: define la forma o las opciones válidas de datos usados por este módulo.
 export type RegisterInput = { firstName: string; lastName: string; email: string; phone: string | null; password: string };
 // Tipo LoginInput: define la forma o las opciones válidas de datos usados por este módulo.
