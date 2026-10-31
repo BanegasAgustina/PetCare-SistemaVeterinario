@@ -32,12 +32,12 @@ export async function saveInvitation(connection: PoolConnection,userId: string):
   return token;
 }
 // Función deliverInvitation: concentra la lógica dentro de este módulo.
-export async function deliverInvitation(email: string,token: string,kind:'veterinarian'|'account'='veterinarian'): Promise<'sent' | 'failed'> {
+export async function deliverInvitation(email: string,token: string,kind:'veterinarian'|'account'='veterinarian',context?:{firstName:string;petName?:string}): Promise<'sent' | 'failed'> {
   let delivery:'sent'|'failed';
   try {
     // El fragmento evita incluir el secreto en solicitudes o logs HTTP; la pantalla lo lee en el dispositivo.
     const url = publicFrontendUrl(kind==='account'?'account-invitation':'veterinarian-invitation',token);
-    await sendInvitationEmail(email,url.toString()); delivery='sent';
+    await sendInvitationEmail(email,url.toString(),context); delivery='sent';
   }
   catch { delivery='failed'; }
   // Un envío lento de un token viejo no puede cambiar el estado de una invitación rotada.
@@ -66,7 +66,7 @@ async function renew(id:string,veterinarian:boolean,authorize?:(c:PoolConnection
       await authorize?.(connection,{id:String(targetRows[0].id),role:targetRows[0].role});
       const [users] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.email,u.is_active,u.email_verified_at,u.must_change_password,r.code AS role ${targetQuery} FOR UPDATE`,[id]);
       if (!users[0]||String(users[0].id)!==String(targetRows[0].id)||users[0].role!==targetRows[0].role) throw new AppError('INVITATION_NOT_AVAILABLE',409,'Esta cuenta ya fue activada o no admite invitaciones.');
-      if (users[0].role==='CLIENT'||Number(users[0].must_change_password)!==1||users[0].email_verified_at) {
+      if ((users[0].role==='CLIENT'&&Number(users[0].is_active)===1)||Number(users[0].must_change_password)!==1||users[0].email_verified_at) {
         throw new AppError('INVITATION_NOT_AVAILABLE',409,'Esta cuenta ya fue activada o no admite invitaciones.');
       }
       const [rows] = await connection.execute<RowDataPacket[]>('SELECT sent_at > TIMESTAMPADD(SECOND,-60,UTC_TIMESTAMP(3)) AS cooldown FROM veterinarian_invitations WHERE user_id=? FOR UPDATE',[users[0].id]);
@@ -95,7 +95,7 @@ const invalid = () => new AppError('INVALID_INVITATION',400,'La invitación no e
         WHERE u.id=? AND (r.code<>'VETERINARIAN' OR EXISTS(SELECT 1 FROM veterinarians v WHERE v.user_id=u.id)) FOR UPDATE`,[lookup[0].user_id]);
       if (!users[0]) throw invalid();
       const isVet=users[0].role==='VETERINARIAN';
-      if (users[0].role==='CLIENT'||Number(users[0].must_change_password)!==1||!isVet&&users[0].is_active) throw invalid();
+      if (Number(users[0].must_change_password)!==1||!isVet&&users[0].is_active) throw invalid();
       const [rows] = await connection.execute<RowDataPacket[]>(`SELECT user_id FROM veterinarian_invitations
         WHERE user_id=? AND token_hash=? AND consumed_at IS NULL AND expires_at>UTC_TIMESTAMP(3) FOR UPDATE`,[users[0].id,tokenHash(input.token)]);
       if (!rows[0]) throw invalid();

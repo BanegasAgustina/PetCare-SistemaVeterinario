@@ -37,6 +37,7 @@
     "db:migrate:veterinarian-clinical": "tsx src/database/veterinarian-clinical-migrate.ts",
     "db:migrate:order-history-reason": "tsx src/database/reservation-reason-migrate.ts",
     "db:migrate:clinic-schema": "tsx src/database/clinic-schema-migrate.ts",
+    "db:migrate:patient-invitations": "tsx src/database/patient-invitation-migrate.ts",
     "db:migrate:product-origin": "tsx src/database/product-origin-migrate.ts",
     "db:reconcile:clinic": "tsx src/database/clinic-reconcile.ts",
     "test:clinic:db": "tsx --test tests/integration/clinic.test.ts",

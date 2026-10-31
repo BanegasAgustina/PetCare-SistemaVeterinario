@@ -25,6 +25,9 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
  case 'grooming-record':return clinic.groomingRecord(actor,v.id(id));
  case 'grooming-record-save':return clinic.saveGroomingRecord(actor,v.id(id),value);
  case 'patient':return clinic.patient(actor,v.id(id));
+ case 'patient-create':{const body=v.body(value,['name','sex','speciesId','breedId','birthDate','microchipNumber','weightKg','ownerId','owner','requestKey']);const requestKey=v.text(body.requestKey,36)!;return clinic.createPatient(actor,Object.fromEntries(Object.entries(body).filter(([key])=>key!=='requestKey')),requestKey);}
+ case 'patient-owner-search':return clinic.searchPatientOwners(actor,v.text(query.search,100,true)??'');
+ case 'patient-invitation-resend':return clinic.resendPatientInvitation(actor,v.id(id));
  case 'patient-update':return clinic.updatePatient(actor,v.id(id),value);
  case 'patient-deactivate':{const values=v.body(value,['reason']);return clinic.deactivatePatient(actor,v.id(id),values.reason);}
  case 'patient-reactivate':v.body(value,[]);return clinic.reactivatePatient(actor,v.id(id));

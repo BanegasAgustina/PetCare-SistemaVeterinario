@@ -18,6 +18,10 @@ import { clientClinicalRecord } from '../utils/clinical-presentation';
 import { formatNotificationDateTime } from '../utils/notification-date';
 import { createClientNotification } from './notification.repository';
 import { requiredCancellationReason } from '../utils/appointment-cancellation';
+import { randomBytes,createHash } from 'node:crypto';
+import { readName,readPhone,normalizeEmail } from '../validators/auth.validator';
+import { saveInvitation,deliverInvitation } from '../services/invitation.service';
+import { hashPassword } from '../services/password.service';
 import { assertCanManagePetLifecycle, assertNoFuturePatientAppointments, assertPetLifecycleTransition, petDeactivationNotification, petReactivationNotification, requirePetActiveFlag, requiredPetDeactivationReason } from '../utils/pet-lifecycle';
 // Tipo Connection: define la forma o las opciones válidas de los datos usados por este módulo.
 export type Connection=Pick<PoolConnection,'execute'>;
@@ -277,9 +281,67 @@ export async function patients(actor:AuthUser,search='',sort='recent',speciesId?
  const owner=actor.permissions?.includes('users.view_basic');const params:unknown[]=[`%${search}%`];if(owner)params.push(`%${search}%`);if(speciesId)params.push(v.id(speciesId));if(!all)params.push(actor.id);
  const ordering=patientListOrdering;
  const result=await rows(`SELECT p.id,p.owner_id AS ownerId,p.photo_url AS photoUrl,p.name,p.sex,p.created_at AS createdAt,p.birth_date AS birthDate,p.species_id AS speciesId,p.breed_id AS breedId,COALESCE(d.breed_name,b.name) AS breed,s.name AS species,d.weight_kg AS weightKg,${patientLifecycleFields},
+ (SELECT CASE WHEN u.is_active=1 AND u.email_verified_at IS NOT NULL THEN 'registered' WHEN i.user_id IS NULL THEN 'pending' WHEN i.expires_at<=UTC_TIMESTAMP(3) THEN 'expired' WHEN i.delivery='sent' THEN 'sent' WHEN i.delivery='failed' THEN 'failed' ELSE 'pending' END FROM (SELECT 1) marker LEFT JOIN veterinarian_invitations i ON i.user_id=u.id) AS ownerRegistrationState,
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
- ${patientNextAppointmentExpression} ${owner?",CONCAT(u.first_name,' ',u.last_name) AS ownerName":''} FROM pets p JOIN users u ON u.id=p.owner_id JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE ${activeFilter}(p.name LIKE ? ${owner?"OR CONCAT(u.first_name,' ',u.last_name) LIKE ?":''}) ${speciesId?'AND p.species_id=?':''} ${all?'':'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)'} ORDER BY ${ordering[sort]},p.id LIMIT 200`,params);
+ ${patientNextAppointmentExpression} ${owner?`,CONCAT(u.first_name,' ',u.last_name) AS ownerName,(SELECT CASE WHEN u.is_active=1 AND u.email_verified_at IS NOT NULL THEN 'registered' WHEN i.user_id IS NULL THEN 'pending' WHEN i.expires_at<=UTC_TIMESTAMP(3) THEN 'expired' WHEN i.delivery='sent' THEN 'sent' WHEN i.delivery='failed' THEN 'failed' ELSE 'pending' END FROM (SELECT 1) marker LEFT JOIN veterinarian_invitations i ON i.user_id=u.id) AS ownerInvitationStatus`:''} FROM pets p JOIN users u ON u.id=p.owner_id JOIN species s ON s.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE ${activeFilter}(p.name LIKE ? ${owner?"OR CONCAT(u.first_name,' ',u.last_name) LIKE ?":''}) ${speciesId?'AND p.species_id=?':''} ${all?'':'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)'} ORDER BY ${ordering[sort]},p.id LIMIT 200`,params);
  return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,isActive:requirePetActiveFlag(pet.isActive),photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
+}
+
+/** Crea una mascota para un cliente existente o una cuenta cliente pendiente; el owner_id nunca proviene libremente del cliente web. */
+export async function createPatient(actor:AuthUser,value:unknown,requestKey:string) {
+ const body=v.body(value,['name','sex','speciesId','breedId','breedName','birthDate','microchipNumber','weightKg','ownerId','owner']);
+ const name=v.text(body.name,100)!,sex=v.text(body.sex,10)!;if(!['FEMALE','MALE','UNKNOWN'].includes(sex))v.invalid('Seleccioná el sexo de la mascota.');
+ const speciesId=v.id(body.speciesId),breedId=body.breedId?v.id(body.breedId):null,breedName=v.text(body.breedName,100,true),birthDate=body.birthDate?v.text(body.birthDate,10):null,microchip=v.text(body.microchipNumber,32,true),weight=body.weightKg===null||body.weightKg===undefined||body.weightKg===''?null:Number(body.weightKg);
+ if(birthDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)||!Number.isFinite(Date.parse(birthDate))||new Date(birthDate).toISOString().slice(0,10)!==birthDate||birthDate>new Date().toISOString().slice(0,10)))v.invalid('Revisá la fecha de nacimiento.');
+ if(weight!==null&&(!Number.isFinite(weight)||weight<=0||weight>9999.99||Math.abs(weight*100-Math.round(weight*100))>0.000001))v.invalid('Revisá el peso.');
+ if(!/^[a-f0-9-]{36}$/i.test(requestKey))v.invalid('La solicitud no tiene una clave válida.');
+ const ownerId=body.ownerId?v.id(body.ownerId):null;
+ const owner=body.owner&&typeof body.owner==='object'&&!Array.isArray(body.owner)?body.owner as Record<string,unknown>:null;
+ if(Boolean(ownerId)===Boolean(owner))v.invalid('Seleccioná un cliente o completá los datos para invitarlo.');
+ const firstName=owner?readName(owner.firstName,'El nombre'):null,lastName=owner?readName(owner.lastName,'El apellido'):null,email=owner?normalizeEmail(owner.email):null,phone=owner?readPhone(owner.phone):null;
+ let invitationPasswordHash:string|null=null;
+ const digest=createHash('sha256').update(JSON.stringify([name,sex,speciesId,breedId,breedName,birthDate,microchip,weight,ownerId,email])).digest('hex');
+ const result=await transaction(actor,async(c,fresh)=>{
+  permit(fresh,'pets.update');
+  const [species]=await c.execute<RowDataPacket[]>('SELECT id FROM species WHERE id=?',[speciesId]);if(!species.length)v.invalid('La especie no existe.');
+  if(breedId){const [breed]=await c.execute<RowDataPacket[]>('SELECT id FROM breeds WHERE id=? AND species_id=?',[breedId,speciesId]);if(!breed.length)v.invalid('La raza no pertenece a la especie.');}
+  const [prior]=await c.execute<RowDataPacket[]>('SELECT pet_id,payload_hash FROM clinic_patient_create_requests WHERE actor_user_id=? AND request_key=? FOR UPDATE',[fresh.id,requestKey]);
+  if(prior[0]){if(String(prior[0].payload_hash)!==digest)throw new AppError('IDEMPOTENCY_CONFLICT',409,'Esta solicitud ya se usó con otros datos. Iniciá una nueva.');return {petId:String(prior[0].pet_id),delivery:null as 'sent'|'failed'|null,email:null as string|null,firstName:null as string|null,petName:name,token:null as string|null,created:false};}
+  let clientId:string,token:string|null=null,delivery:'sent'|'failed'|null=null;
+  if(ownerId){const clientRow=await one("SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND r.code='CLIENT' AND u.is_active=1 AND u.email_verified_at IS NOT NULL",[ownerId],c);clientId=String(clientRow.id);}
+  else {
+   const [matches]=await c.execute<RowDataPacket[]>("SELECT u.id,u.first_name,u.is_active,u.must_change_password,u.email_verified_at,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE LOWER(u.email)=? FOR UPDATE",[email]);
+   let created=false;
+   if(matches[0]){if(matches[0].role!=='CLIENT')throw new AppError('EMAIL_ALREADY_EXISTS',409,'Ese correo ya pertenece a otra cuenta.');if(Number(matches[0].is_active)===1&&matches[0].email_verified_at){clientId=String(matches[0].id);}else if(Number(matches[0].is_active)===1)throw new AppError('EMAIL_ALREADY_EXISTS',409,'Ese correo todavía no está verificado. El cliente debe completar su registro.');else {const [pending]=await c.execute<RowDataPacket[]>('SELECT user_id FROM veterinarian_invitations WHERE user_id=? AND consumed_at IS NULL',[matches[0].id]);if(!pending[0]||Number(matches[0].must_change_password)!==1)throw new AppError('EMAIL_ALREADY_EXISTS',409,'Ese correo ya tiene un registro en curso. Pedile al cliente que complete su registro.');clientId=String(matches[0].id);created=false;}}
+   else {const [roles]=await c.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='CLIENT'");if(!roles[0])throw new AppError('AUTH_UNAVAILABLE',503,'El registro no está disponible. Intentá más tarde.');invitationPasswordHash=await hashPassword(randomBytes(48).toString('hex'));await c.execute('INSERT INTO users(role_id,email,password_hash,first_name,last_name,phone,is_active,must_change_password) VALUES (?,?,?,?,?,?,0,1)',[roles[0].id,email,invitationPasswordHash,firstName,lastName,phone]);const [ids]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');clientId=String(ids[0].id);created=true;}
+   if(created){token=await saveInvitation(c as PoolConnection,clientId);delivery='pending' as 'sent'|'failed';}
+  }
+  await c.execute('INSERT INTO pets(owner_id,name,sex,species_id,breed_id,birth_date,microchip_number) VALUES (?,?,?,?,?,?,?)',[clientId,name,sex,speciesId,breedId,birthDate,microchip]);
+  const [ids]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');const petId=String(ids[0].id);
+  if(weight!==null)await c.execute('INSERT INTO client_pet_details(pet_id,weight_kg,breed_name) VALUES (?,?,?)',[petId,weight,breedName]);
+  await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[petId,fresh.id]);
+  await c.execute('INSERT INTO clinic_patient_create_requests(actor_user_id,request_key,payload_hash,pet_id) VALUES (?,?,?,?)',[fresh.id,requestKey,digest,petId]);
+  return {petId,delivery,email:token?email:null,firstName:token?firstName:null,petName:name,token,created:true};
+ });
+ if(result.token&&result.email){const status=await deliverInvitation(result.email,result.token,'account',{firstName:result.firstName!,petName:result.petName});return {petId:result.petId,created:result.created,ownerInvitation:status};}
+ return {petId:result.petId,created:result.created,ownerInvitation:result.delivery};
+}
+
+export async function searchPatientOwners(actor:AuthUser,search:string) {
+ permit(actor,'pets.update');if(search.trim().length<2)return [];
+ return rows("SELECT CAST(u.id AS CHAR) AS id,u.first_name AS firstName,u.last_name AS lastName,u.email,u.phone FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='CLIENT' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?) ORDER BY u.last_name,u.first_name LIMIT 30",[`%${search}%`,`%${search}%`,`%${search}%`]);
+}
+
+export async function resendPatientInvitation(actor:AuthUser,petId:string) {
+ const prepared=await transaction(actor,async(c,fresh)=>{permit(fresh,'pets.update');const pet=await one(`SELECT p.owner_id AS ownerId,p.name AS petName,u.email,u.first_name AS firstName,u.is_active,u.must_change_password,r.code AS role FROM pets p JOIN users u ON u.id=p.owner_id JOIN roles r ON r.id=u.role_id WHERE p.id=?`,[petId],c);
+  if(fresh.role==='VETERINARIAN'&&!fresh.permissions?.includes('pets.view_all')){const [scope]=await c.execute<RowDataPacket[]>('SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=? AND vt.user_id=?',[petId,fresh.id]);if(!scope[0])forbidden();}
+  if(pet.role!=='CLIENT'||Number(pet.is_active)===1||Number(pet.must_change_password)!==1)throw new AppError('INVITATION_NOT_AVAILABLE',409,'El propietario ya activó su cuenta.');
+  const [existing]=await c.execute<RowDataPacket[]>('SELECT sent_at,delivery,expires_at FROM veterinarian_invitations WHERE user_id=? FOR UPDATE',[pet.ownerId]);if(!existing[0])throw new AppError('INVITATION_NOT_AVAILABLE',409,'No hay una invitación para reenviar.');
+  const failed=existing[0].delivery==='failed',expired=String(existing[0].expires_at)<=new Date().toISOString().replace('T',' ').slice(0,23);if(!failed&&!expired)throw new AppError('INVITATION_NOT_AVAILABLE',409,'La invitación todavía está vigente.');
+  if(String(existing[0].sent_at)>new Date(Date.now()-60_000).toISOString().replace('T',' ').slice(0,23))throw new AppError('INVITATION_COOLDOWN',429,'Esperá un minuto antes de reenviar.');
+  const token=await saveInvitation(c as PoolConnection,String(pet.ownerId));return {token,email:String(pet.email),firstName:String(pet.firstName),petName:String(pet.petName)};
+ });
+ return {delivery:await deliverInvitation(prepared.email,prepared.token,'account',{firstName:prepared.firstName,petName:prepared.petName})};
 }
 // Función clinical: concentra la lógica dentro de este módulo.
 export async function clinical(actor:AuthUser,petId:string,kind:string,page?:number) {
@@ -314,7 +376,7 @@ export async function saveClinical(actor:AuthUser,petId:string,kind:string,value
    if(existing[0])return {created:false,recordId:String(existing[0].id)};
   }
   const vet=await one('SELECT id FROM veterinarians WHERE user_id=?',[fresh.id],c);
-  const weight=body.weightKg===undefined||body.weightKg===null?null:Number(body.weightKg);if(weight!==null&&(!Number.isFinite(weight)||weight<=0||weight>9999.99))v.invalid();
+  const weight=body.weightKg===undefined||body.weightKg===null?null:Number(body.weightKg);if(weight!==null&&(!Number.isFinite(weight)||weight<=0||weight>9999.99||Math.abs(weight*100-Math.round(weight*100))>0.000001))v.invalid();
   const internalNotes=v.text(body.internalNotes,20000,true);
   const dose=v.text(body.dose,255,true),frequency=v.text(body.frequency,255,true),duration=v.text(body.duration,255,true);
   if(kind!=='prescriptions'&&(dose||frequency||duration))v.invalid('Los datos de dosis solo corresponden a una receta.');
