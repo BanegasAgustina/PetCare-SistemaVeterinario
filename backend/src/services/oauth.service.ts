@@ -26,14 +26,15 @@ export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:st
 }
 /** Reclama state una sola vez y devuelve un ticket breve; nunca redirige access/refresh tokens. */
 // Función callbackOAuth: concentra la lógica dentro de este módulo.
-export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:unknown,error:unknown):Promise<string>{
-  console.info(JSON.stringify({event:'oauth.callback_received',provider}));
+export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:unknown,error:unknown,correlationId?:string):Promise<string>{
+  const diagnostic={provider,...(correlationId?{correlationId}:{})};
+  console.info(JSON.stringify({event:'oauth.callback_received',...diagnostic}));
   const a=await repo.claimCallback(provider,state),destination=new URL(a.return_url);
-  console.info(JSON.stringify({event:'oauth.state_validated',provider}));
-  if(error){console.warn(JSON.stringify({event:'oauth.provider_denied',provider}));destination.searchParams.set('error','OAUTH_PROVIDER_DENIED');return destination.toString();}
-  if(typeof code!=='string'||!code||code.length>4096){console.warn(JSON.stringify({event:'oauth.callback_code_missing',provider}));destination.searchParams.set('error','OAUTH_CODE_MISSING');return destination.toString();}
-  try{console.info(JSON.stringify({event:'oauth.provider_exchange_started',provider}));const identity=await providerIdentity(provider,code,a.provider_verifier);console.info(JSON.stringify({event:'oauth.identity_received',provider}));destination.searchParams.set('ticket',await repo.saveCallback(state as string,identity));console.info(JSON.stringify({event:'oauth.ticket_persisted',provider}));}
-  catch(cause){const stage=cause instanceof AppError&&cause.code==='OAUTH_PROVIDER_ERROR'?'provider_exchange_or_profile':'callback_persistence';console.error(JSON.stringify({event:'oauth.callback_failed',provider,stage,code:cause instanceof AppError?cause.code:'INTERNAL_ERROR'}));destination.searchParams.set('error',stage==='callback_persistence'?'OAUTH_CALLBACK_FAILED':'OAUTH_PROVIDER_ERROR');}
+  console.info(JSON.stringify({event:'oauth.state_validated',...diagnostic}));
+  if(error){console.warn(JSON.stringify({event:'oauth.provider_denied',...diagnostic,code:'OAUTH_PROVIDER_DENIED'}));destination.searchParams.set('error','OAUTH_PROVIDER_DENIED');return destination.toString();}
+  if(typeof code!=='string'||!code||code.length>4096){console.warn(JSON.stringify({event:'oauth.callback_code_missing',...diagnostic,code:'OAUTH_CODE_MISSING'}));destination.searchParams.set('error','OAUTH_CODE_MISSING');return destination.toString();}
+  try{console.info(JSON.stringify({event:'oauth.provider_exchange_started',...diagnostic,stage:'token_exchange'}));const identity=await providerIdentity(provider,code,a.provider_verifier,correlationId);console.info(JSON.stringify({event:'oauth.identity_received',...diagnostic}));destination.searchParams.set('ticket',await repo.saveCallback(state as string,identity));console.info(JSON.stringify({event:'oauth.ticket_persisted',...diagnostic}));}
+  catch(cause){const stage=cause instanceof AppError&&cause.code==='OAUTH_PROVIDER_ERROR'?'provider_exchange_or_profile':'callback_persistence';console.error(JSON.stringify({event:'oauth.callback_failed',...diagnostic,stage,code:cause instanceof AppError?cause.code:'INTERNAL_ERROR'}));destination.searchParams.set('error',stage==='callback_persistence'?'OAUTH_CALLBACK_FAILED':'OAUTH_PROVIDER_ERROR');}
   return destination.toString();
 }
 /** Exige prueba del dispositivo para vincular o iniciar sesión; una identidad nueva solicita completar el alta. */

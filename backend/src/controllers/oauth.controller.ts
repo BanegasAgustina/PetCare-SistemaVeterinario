@@ -9,6 +9,7 @@ import { revokeRefresh } from '../repositories/session.repository';
 import { AppError } from '../utils/app-error';
 // Función refreshValue: concentra la lógica dentro de este módulo.
 function refreshValue(body:unknown):unknown{if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>k!=='refreshToken'))throw new AppError('VALIDATION_ERROR',400,'La solicitud no es válida.');return (body as Record<string,unknown>).refreshToken;}
+function correlationId(req:Parameters<RequestHandler>[0]):string|undefined{const value=req.get('x-vercel-id')||req.get('x-request-id');return value&&/^[A-Za-z0-9_.:-]{1,128}$/.test(value)?value:undefined;}
 // Función start: concentra una operación reutilizable de este módulo.
 export const start:RequestHandler=async(req,res,next)=>{try{res.json({success:true,data:await oauth.startOAuth(oauthProvider(req.params.provider),req.body)});}catch(e){next(e);}};
 /** Publica únicamente disponibilidad booleana para el redirect solicitado; nunca devuelve credenciales. */
@@ -16,7 +17,7 @@ export const providerAvailability:RequestHandler=(req,res,next)=>{try{const retu
 // Función link: concentra una operación reutilizable de este módulo.
 export const link:RequestHandler=async(req,res,next)=>{try{res.json({success:true,data:await oauth.startOAuth(oauthProvider(req.params.provider),req.body,res.locals.authenticatedUser.id,res.locals.authenticatedFamily)});}catch(e){next(e);}};
 // Función callback: concentra una operación reutilizable de este módulo.
-export const callback:RequestHandler=async(req,res,next)=>{const provider=req.params.provider;try{res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cross-Origin-Opener-Policy','same-origin-allow-popups');res.redirect(303,await oauth.callbackOAuth(oauthProvider(provider),req.query.state,req.query.code,req.query.error));}catch(e){console.warn(JSON.stringify({event:'oauth.callback_rejected',provider,code:e instanceof AppError?e.code:'INTERNAL_ERROR'}));next(e);}};
+export const callback:RequestHandler=async(req,res,next)=>{const provider=req.params.provider,requestId=correlationId(req);try{res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cross-Origin-Opener-Policy','same-origin-allow-popups');res.redirect(303,await oauth.callbackOAuth(oauthProvider(provider),req.query.state,req.query.code,req.query.error,requestId));}catch(e){console.warn(JSON.stringify({event:'oauth.callback_rejected',provider,...(requestId?{correlationId:requestId}:{}),code:e instanceof AppError?e.code:'INTERNAL_ERROR'}));next(e);}};
 // Función exchange: concentra una operación reutilizable de este módulo.
 export const exchange:RequestHandler=async(req,res,next)=>{try{res.json({success:true,data:await oauth.exchangeOAuth(req.body)});}catch(e){next(e);}};
 // Función registerOAuth: concentra una operación reutilizable de este módulo.
