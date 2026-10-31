@@ -37,7 +37,11 @@ export async function providerIdentity(provider:OAuthProvider,code:string,verifi
   const c=oauthConfig(provider);
   if(provider==='facebook'){
     const root=`https://graph.facebook.com/${c.facebookVersion}`;
-    const token=await json(`${root}/oauth/access_token`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:c.clientId,client_secret:c.clientSecret,redirect_uri:c.callback,code})},provider,'token_exchange');
+    // Meta's authorization-code exchange for Facebook Login is a GET request.
+    // Keep its app secret server-side and never emit this URL in diagnostics.
+    const tokenUrl=new URL(`${root}/oauth/access_token`);
+    tokenUrl.search=new URLSearchParams({client_id:c.clientId,client_secret:c.clientSecret,redirect_uri:c.callback,code}).toString();
+    const token=await json(tokenUrl.toString(),{},provider,'token_exchange');
     if(typeof token.access_token!=='string')throw new AppError('OAUTH_PROVIDER_ERROR',502,'No se recibió una autorización válida.');
     // appsecret_proof vincula Graph al cliente confidencial de PetCare.
     const proof=createHmac('sha256',c.clientSecret).update(token.access_token).digest('hex');
@@ -49,8 +53,12 @@ export async function providerIdentity(provider:OAuthProvider,code:string,verifi
     fields.set('client_id',c.clientId);
     fields.set('client_secret',c.clientSecret);
   } else {
-    fields.set('client_id',c.clientId);
-    headers.Authorization=`Basic ${Buffer.from(`${c.clientId}:${c.clientSecret}`).toString('base64')}`;
+    // X is configured as a confidential Web App. Its client authentication is
+    // the Basic header alone; sending client_id in both the header and body is
+    // rejected by OAuth servers as multiple client-authentication methods.
+    // RFC 6749 requires form-encoding each credential before constructing it.
+    const formEncode=(value:string)=>new URLSearchParams({value}).toString().slice('value='.length);
+    headers.Authorization=`Basic ${Buffer.from(`${formEncode(c.clientId)}:${formEncode(c.clientSecret)}`).toString('base64')}`;
   }
   const token=await json(provider==='google'?'https://oauth2.googleapis.com/token':'https://api.x.com/2/oauth2/token',{method:'POST',headers,body:fields},provider,'token_exchange');
   if(typeof token.access_token!=='string')throw new AppError('OAUTH_PROVIDER_ERROR',502,'No se recibió una autorización válida.');
