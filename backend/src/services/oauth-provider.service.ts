@@ -8,6 +8,22 @@ import { AppError } from '../utils/app-error';
 export type ProviderIdentity = { subject: string; email: string | null; name: string | null };
 type ProviderDiagnosticContext={correlationId?:string};
 const safeProviderError=(value:unknown):string|undefined=>typeof value==='string'&&/^[A-Za-z0-9_.-]{1,80}$/.test(value)?value:undefined;
+function safeProviderText(value:unknown):string|undefined{
+  if(typeof value!=='string')return undefined;
+  const safe=value.replace(/[\u0000-\u001f\u007f]/g,' ')
+    .replace(/\b(access_token|refresh_token|bearer_token|client_id|client_secret|app_secret|api_key|api_secret|authorization_code|code_verifier|oauth_token|state|code|token|secret)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,&;]+)/gi,'$1=[REDACTED]')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi,'Bearer [REDACTED]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,'[REDACTED_EMAIL]')
+    .replace(/\b[A-Za-z0-9_-]{48,}\b/g,'[REDACTED]')
+    .trim().slice(0,240);
+  return safe||undefined;
+}
+function providerHttpDiagnostics(details:Record<string,unknown>):Record<string,unknown>{
+  const reason=safeProviderText(details.reason),type=safeProviderText(details.type),title=safeProviderText(details.title),detail=safeProviderText(details.detail);
+  const all=[reason,type,title,detail].filter(Boolean).join(' ').toLowerCase();
+  const providerError=/client[-_ ]not[-_ ]enrolled/.test(all)?'client-not-enrolled':safeProviderError(details.error);
+  return {...(providerError?{providerError}:{}),...(reason?{reason}:{}),...(type?{type}:{}),...(title?{title}:{}),...(detail?{detail}:{})};
+}
 function logProviderFailure(context:ProviderDiagnosticContext,details:Record<string,unknown>):void{console.warn(JSON.stringify({event:'oauth.provider_failure',...context,...details}));}
 /** Limita esperas y registra fase/status sin incluir URL, cabeceras ni respuestas completas. */
 // Función json: concentra la lógica dentro de este módulo.
@@ -18,7 +34,7 @@ async function json(url:string,options:RequestInit={},provider?:OAuthProvider,st
   let body:unknown;
   try{body=await response.json();}
   catch{logProviderFailure(context,{provider,stage,kind:'INVALID_JSON',status:response.status,code:'OAUTH_PROVIDER_ERROR'});throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
-  if(!response.ok){const details=body&&typeof body==='object'&&!Array.isArray(body)?body as Record<string,unknown>:{};logProviderFailure(context,{provider,stage,kind:'HTTP_ERROR',status:response.status,providerError:safeProviderError(details.error),code:'OAUTH_PROVIDER_ERROR'});throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
+  if(!response.ok){const details=body&&typeof body==='object'&&!Array.isArray(body)?body as Record<string,unknown>:{};logProviderFailure(context,{provider,stage,kind:'HTTP_ERROR',status:response.status,...(provider==='x'?providerHttpDiagnostics(details):{providerError:safeProviderError(details.error)}),code:'OAUTH_PROVIDER_ERROR'});throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
   if(!body||typeof body!=='object'||Array.isArray(body)){logProviderFailure(context,{provider,stage,kind:'INVALID_RESPONSE',status:response.status,code:'OAUTH_PROVIDER_ERROR'});throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
   return body as Record<string,unknown>;
 }
@@ -31,7 +47,7 @@ function identity(subject:unknown,email:unknown,name:unknown,emailVerified=false
 // Función authorizationUrl: concentra la lógica dentro de este módulo.
 export function authorizationUrl(provider:OAuthProvider,state:string,challenge:string):string {
   const c=oauthConfig(provider);const url=new URL(provider==='google'?'https://accounts.google.com/o/oauth2/v2/auth':provider==='facebook'?`https://www.facebook.com/${c.facebookVersion}/dialog/oauth`:'https://x.com/i/oauth2/authorize');
-  url.search=new URLSearchParams({client_id:c.clientId,redirect_uri:c.callback,response_type:'code',state,scope:provider==='google'?'openid email profile':provider==='facebook'?'email,public_profile':'users.read'}).toString();
+  url.search=new URLSearchParams({client_id:c.clientId,redirect_uri:c.callback,response_type:'code',state,scope:provider==='google'?'openid email profile':provider==='facebook'?'email,public_profile':'tweet.read users.read'}).toString();
   // Facebook usa cliente confidencial y state; Google/X también usan PKCE S256.
   if(provider!=='facebook'){url.searchParams.set('code_challenge',challenge);url.searchParams.set('code_challenge_method','S256');}return url.toString();
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createHmac } from 'node:crypto';
-import { providerIdentity } from '../src/services/oauth-provider.service';
+import { authorizationUrl, providerIdentity } from '../src/services/oauth-provider.service';
 
 const originalFetch = globalThis.fetch;
 
@@ -98,6 +98,16 @@ test('X uses a single correctly form-encoded Basic client authentication method'
   assert.equal((requests[1].init.headers as Record<string, string>).Authorization, 'Bearer provider-token');
 });
 
+test('X authorization requests both tweet.read and users.read', () => {
+  const url = new URL(authorizationUrl('x', 'test-state', 'test-challenge'));
+
+  assert.equal(url.origin + url.pathname, 'https://x.com/i/oauth2/authorize');
+  assert.deepEqual(url.searchParams.get('scope')?.split(' ').sort(), ['tweet.read', 'users.read']);
+  assert.equal(url.searchParams.get('state'), 'test-state');
+  assert.equal(url.searchParams.get('code_challenge'), 'test-challenge');
+  assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+});
+
 test('X provider failures log only safe diagnostics with the correlation ID', async () => {
   const warnings: string[] = [];
   const originalWarn = console.warn;
@@ -121,4 +131,43 @@ test('X provider failures log only safe diagnostics with the correlation ID', as
   assert.equal(warnings.join('\n').includes('never log this description'), false);
   assert.equal(warnings.join('\n').includes('one-time-code'), false);
   assert.equal(warnings.join('\n').includes('pkce-secret'), false);
+});
+
+test('X profile HTTP 403 logs sanitized problem fields and identifies client enrollment errors', async () => {
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  let requestCount = 0;
+  globalThis.fetch = (async () => {
+    requestCount += 1;
+    if (requestCount === 1) return Response.json({ access_token: 'provider-token' });
+    return Response.json({
+      reason: 'client-not-enrolled',
+      type: 'https://api.x.com/2/problems/client-not-enrolled',
+      title: 'Client not enrolled',
+      detail: 'Enrollment failed for code=real-code state=real-state Bearer real-token',
+    }, { status: 403 });
+  }) as typeof fetch;
+  console.warn = ((message?: unknown) => { warnings.push(String(message)); }) as typeof console.warn;
+
+  try {
+    await assert.rejects(providerIdentity('x', 'one-time-code', 'pkce-secret', 'vercel-request-id'), (error: unknown) =>
+      error instanceof Error && 'code' in error && error.code === 'OAUTH_PROVIDER_ERROR');
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  const event = warnings.map((line) => JSON.parse(line) as Record<string, unknown>).find((item) => item.event === 'oauth.provider_failure');
+  assert.equal(event?.provider, 'x');
+  assert.equal(event?.stage, 'profile');
+  assert.equal(event?.kind, 'HTTP_ERROR');
+  assert.equal(event?.status, 403);
+  assert.equal(event?.providerError, 'client-not-enrolled');
+  assert.equal(event?.reason, 'client-not-enrolled');
+  assert.equal(event?.type, 'https://api.x.com/2/problems/client-not-enrolled');
+  assert.equal(event?.title, 'Client not enrolled');
+  assert.equal(event?.detail, 'Enrollment failed for code=[REDACTED] state=[REDACTED] Bearer [REDACTED]');
+  assert.equal(warnings.join('\n').includes('real-code'), false);
+  assert.equal(warnings.join('\n').includes('real-state'), false);
+  assert.equal(warnings.join('\n').includes('real-token'), false);
+  assert.equal(event?.correlationId, 'vercel-request-id');
 });
