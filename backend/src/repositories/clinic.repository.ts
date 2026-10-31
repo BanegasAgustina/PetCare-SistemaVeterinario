@@ -328,13 +328,13 @@ export async function createPatient(actor:AuthUser,value:unknown,requestKey:stri
 }
 
 export async function searchPatientOwners(actor:AuthUser,search:string) {
- permit(actor,'pets.update');if(search.trim().length<2)return [];
+ permit(actor,'pets.update','users.view_basic');if(search.trim().length<2)return [];
  return rows("SELECT CAST(u.id AS CHAR) AS id,u.first_name AS firstName,u.last_name AS lastName,u.email,u.phone FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='CLIENT' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?) ORDER BY u.last_name,u.first_name LIMIT 30",[`%${search}%`,`%${search}%`,`%${search}%`]);
 }
 
 export async function resendPatientInvitation(actor:AuthUser,petId:string) {
  const prepared=await transaction(actor,async(c,fresh)=>{permit(fresh,'pets.update');const pet=await one(`SELECT p.owner_id AS ownerId,p.name AS petName,u.email,u.first_name AS firstName,u.is_active,u.must_change_password,r.code AS role FROM pets p JOIN users u ON u.id=p.owner_id JOIN roles r ON r.id=u.role_id WHERE p.id=?`,[petId],c);
-  if(fresh.role==='VETERINARIAN'&&!fresh.permissions?.includes('pets.view_all')){const [scope]=await c.execute<RowDataPacket[]>('SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=? AND vt.user_id=?',[petId,fresh.id]);if(!scope[0])forbidden();}
+  if(!fresh.permissions?.includes('pets.view_all')){const scopes:string[]=[];if(fresh.permissions?.includes('pets.view_assigned'))scopes.push('EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)');if(fresh.permissions?.includes('appointments.view_own'))scopes.push('EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE a.pet_id=p.id AND s.professional_user_id=?)');if(!scopes.length)forbidden();const [scope]=await c.execute<RowDataPacket[]>(`SELECT 1 FROM pets p WHERE p.id=? AND (${scopes.join(' OR ')})`,[petId,...scopes.map(()=>fresh.id)]);if(!scope[0])forbidden();}
   if(pet.role!=='CLIENT'||Number(pet.is_active)===1||Number(pet.must_change_password)!==1)throw new AppError('INVITATION_NOT_AVAILABLE',409,'El propietario ya activó su cuenta.');
   const [existing]=await c.execute<RowDataPacket[]>('SELECT sent_at,delivery,expires_at FROM veterinarian_invitations WHERE user_id=? FOR UPDATE',[pet.ownerId]);if(!existing[0])throw new AppError('INVITATION_NOT_AVAILABLE',409,'No hay una invitación para reenviar.');
   const failed=existing[0].delivery==='failed',expired=String(existing[0].expires_at)<=new Date().toISOString().replace('T',' ').slice(0,23);if(!failed&&!expired)throw new AppError('INVITATION_NOT_AVAILABLE',409,'La invitación todavía está vigente.');
