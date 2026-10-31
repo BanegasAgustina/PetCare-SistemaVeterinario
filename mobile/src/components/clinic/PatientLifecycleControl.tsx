@@ -1,11 +1,13 @@
 // Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
 
 import { useState } from 'react';
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useClinic } from '../../hooks/useClinic';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { router } from 'expo-router';
 import { AppButton } from '../ui/AppButton';
@@ -22,6 +24,7 @@ export function PatientLifecycleControl({ patientId, isActive, canManage, onComp
   const action = useAsyncAction();
   const { showToast } = useFeedback();
   const { user } = useAuth();
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const desktop = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.desktop);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -61,10 +64,20 @@ async function reactivate() {
   }
 
   return <>
-    <AppButton compact={desktop} label={isActive ? 'Desactivar paciente' : 'Reactivar paciente'} destructive={isActive} variant={isActive ? 'primary' : 'secondary'} loading={action.loading} onPress={() => {
-      action.clearError(); setReasonError('');
-      if (isActive) { setReason(''); setDeactivateOpen(true); } else setReactivateOpen(true);
-    }} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={isActive ? 'Desactivar paciente' : 'Reactivar paciente'}
+      accessibilityState={{ disabled: action.loading, busy: action.loading }}
+      disabled={action.loading}
+      onPress={() => {
+        action.clearError(); setReasonError('');
+        if (isActive) { setReason(''); setDeactivateOpen(true); } else setReactivateOpen(true);
+      }}
+      style={[styles.lifecycleAction, desktop ? styles.desktopLifecycleAction : styles.mobileLifecycleAction, { borderColor: isActive ? colors.danger : colors.primary, backgroundColor: colors.surface, opacity: action.loading ? 0.55 : 1 }]}
+    >
+      <Ionicons name={isActive ? 'pause-circle-outline' : 'checkmark-circle-outline'} size={17} color={isActive ? colors.danger : colors.primary} />
+      <AppText variant="caption" style={{ color: isActive ? colors.danger : colors.primary, fontWeight: '700' }}>{isActive ? desktop ? 'Desactivar' : 'Desactivar paciente' : desktop ? 'Reactivar' : 'Reactivar paciente'}</AppText>
+    </Pressable>
     <AppModal visible={deactivateOpen} dismissible={!action.loading} onClose={() => setDeactivateOpen(false)}>
       <AppText variant="subtitle">Desactivar paciente</AppText>
       <AppText muted>El motivo será visible para el propietario. Los turnos futuros no se cancelan; si hay turnos pendientes, la operación será rechazada.</AppText>
@@ -81,4 +94,4 @@ async function reactivate() {
 }
 
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.
-const styles = StyleSheet.create({ actions: { gap: 9 }, desktopActions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10 } });
+const styles = StyleSheet.create({ actions: { gap: 9 }, desktopActions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10 }, lifecycleAction: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1 }, desktopLifecycleAction: { minHeight: 36, alignSelf: 'flex-start', borderRadius: 11, paddingHorizontal: 10, paddingVertical: 6 }, mobileLifecycleAction: { width: '100%', minHeight: 46, justifyContent: 'center', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 } });

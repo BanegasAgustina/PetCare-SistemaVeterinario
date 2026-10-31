@@ -5,6 +5,7 @@
 const permissionNames: Record<string, string> = {
   'medical_records.view': 'Ver historial médico',
   'medical_records.diagnose': 'Registrar diagnóstico',
+  'pets.update': 'Crear y actualizar pacientes',
   'pets.view_information': 'Ver información de mascotas',
   'users.update_client': 'Editar información del cliente',
   'categories.manage': 'Gestionar categorías',
@@ -14,6 +15,7 @@ const permissionNames: Record<string, string> = {
 const permissionDescriptions: Record<string, string> = {
   'products.view': 'Catálogo de productos',
   'products.update': 'Edición de productos',
+  'pets.update': 'Crear pacientes, editar su información y cambiar su estado clínico',
   'products.update_price': 'Edición de precios',
   'products.update_stock': 'Edición de stock',
   'users.manage': 'Administración crítica',

@@ -11,12 +11,20 @@ async function main() {
     await withDatabaseLock(connection, async () => {
       await connection.beginTransaction();
       try {
+        const [basePermissions] = await connection.execute<RowDataPacket[]>(
+          "SELECT module_code AS moduleCode FROM permissions WHERE code='pets.view_information' FOR UPDATE",
+        );
+        if (basePermissions.length !== 1) {
+          throw new Error('No se encontró pets.view_information para ubicar pets.update en el catálogo; no se asignó ningún acceso.');
+        }
+        await connection.execute(
+          "INSERT IGNORE INTO permissions(code,name,description,module_code,is_critical,opens_module) VALUES ('pets.update','Crear y actualizar pacientes','Crear pacientes, editar su información y cambiar su estado clínico',?,0,0)",
+          [basePermissions[0].moduleCode],
+        );
         const [permissions] = await connection.execute<(RowDataPacket & { id: string })[]>(
           "SELECT CAST(id AS CHAR) AS id FROM permissions WHERE code='pets.update' FOR UPDATE",
         );
-        if (permissions.length !== 1) {
-          throw new Error('No se encontró el permiso existente pets.update; no se asignó ningún acceso.');
-        }
+        if (permissions.length !== 1) throw new Error('No se pudo registrar pets.update; no se asignó ningún acceso.');
 
         const [roles] = await connection.execute<(RowDataPacket & { id: string; code: string })[]>(
           'SELECT CAST(id AS CHAR) AS id,code FROM roles WHERE code IN (?,?,?,?) FOR UPDATE',
@@ -52,7 +60,7 @@ async function main() {
 void main().catch(error => {
   const code = typeof error === 'object' && error !== null && 'code' in error
     && typeof error.code === 'string' ? error.code : undefined;
-  if (error instanceof Error && /^(No se encontró el permiso|No se asignó pets\.update)/.test(error.message)) {
+  if (error instanceof Error && /^(No se encontró pets\.view_information|No se pudo registrar pets\.update|No se asignó pets\.update)/.test(error.message)) {
     console.error(error.message);
   } else if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
     console.error(`No se pudo resolver DB_HOST por DNS (${code}). Revisá que backend/.env tenga el host vigente y que la red/VPN pueda resolverlo. La base no se modificó.`);
