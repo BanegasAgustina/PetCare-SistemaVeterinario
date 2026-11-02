@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: index.tsx
  * UBICACIÓN: mobile/src/app/client/orders/index.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de index.
+ * FUNCIÓN: Historial de pedidos de la cuenta cliente.
+ * RESPONSABILIDAD: Consulta pedidos propios y presenta estados, fecha e importes con filtros/etiquetas de display.
  * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/admin/AdminDataTable.tsx, mobile/src/constants/responsive.ts, mobile/src/utils/display-labels.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useClient/useClientQuery → pedidos del cliente; cada tarjeta abre el detalle.
+ * IMPORTANCIA: Facilita seguimiento de compras sin permitir acceso cruzado a pedidos.
  */
 /** Historial consultado desde pedidos reales del cliente autenticado. */
 import { useClient } from '../../../hooks/useClient';
@@ -19,7 +19,7 @@ import { AdminDataTable } from '../../../components/admin/AdminDataTable';
 import { isWebAtLeast,responsiveLayout } from '../../../constants/responsive';
 import { deliveryStatusLabel, orderStatusLabel, paymentStatusLabel, reservationStatusLabel } from '../../../utils/display-labels';
 
-// Función ClientOrders: concentra la lógica dentro de este módulo.
+/** Carga y presenta pedidos asociados a la sesión del cliente. */
 export default function ClientOrders() {
   const api = useClient();
   const {width}=useWindowDimensions();

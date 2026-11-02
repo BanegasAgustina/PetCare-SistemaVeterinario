@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: [id].tsx
  * UBICACIÓN: mobile/src/app/client/orders/[id].tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de [id].
+ * FUNCIÓN: Detalle de un pedido del cliente autenticado.
+ * RESPONSABILIDAD: Lee ID dinámico, consulta el pedido y presenta productos, importes y fulfillment.
  * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/utils/display-labels.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Expo Router → client service/order API → backend restringe por owner_id.
+ * IMPORTANCIA: Muestra seguimiento del pedido sin confiar en el ID para autorizar.
  */
 /** Detalle del pedido propio; el backend verifica el propietario a partir de la sesión. */
 import { useCallback } from 'react';
@@ -17,7 +17,7 @@ import { AppText } from '../../../components/ui/AppText';
 import { AppButton } from '../../../components/ui/AppButton';
 import { deliveryStatusLabel, orderStatusLabel, paymentStatusLabel, reservationStatusLabel } from '../../../utils/display-labels';
 
-// Función ClientOrderDetail: concentra la lógica dentro de este módulo.
+/** Carga por ID de ruta y presenta el pedido solo si la API lo devuelve para la sesión. */
 export default function ClientOrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const api = useClient();

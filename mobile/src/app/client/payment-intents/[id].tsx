@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: [id].tsx
  * UBICACIÓN: mobile/src/app/client/payment-intents/[id].tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de [id].
+ * FUNCIÓN: Pantalla de instrucciones y comprobante de transferencia de un pedido propio.
+ * RESPONSABILIDAD: Consulta pedido y configuración bancaria, controla vencimiento, copia alias y permite subir comprobante o renovar intención.
  * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useTheme.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/FormNotice.tsx Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Payment intent API, DocumentPicker y fotos/documentos → backend verifica propiedad, plazo y evidencia.
+ * IMPORTANCIA: Permite completar pago por transferencia sin manejar datos de tarjeta.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -23,7 +23,7 @@ import { AppButton } from '../../../components/ui/AppButton';
 import { AppInput } from '../../../components/forms/AppInput';
 import { FormNotice } from '../../../components/ui/FormNotice';
 
-// Función PaymentIntentScreen: concentra la lógica dentro de este módulo.
+/** Carga estado del pago y presenta acciones de transferencia ligadas al pedido autenticado. */
 export default function PaymentIntentScreen(){
  const params=useLocalSearchParams<{id:string|string[]}>();const id=Array.isArray(params.id)?params.id[0]:params.id;const api=useClient();const {colors}=useTheme();
  const loadOrder=useCallback(()=>id?api.order(id):Promise.reject(new Error('No encontramos el pedido.')),[api,id]);const orderQuery=useClientQuery(loadOrder);const loadBank=useCallback(()=>api.fulfillment(),[api]);const bankQuery=useClientQuery(loadBank);
