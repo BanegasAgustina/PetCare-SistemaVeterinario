@@ -209,6 +209,7 @@ async function submitRequest() {
         <AppText muted>Podés elegir una para filtrar los servicios relacionados, o continuar sin filtro.</AppText>
         <AppSelectField label="Especialidad" optional emptyLabel="Ver todos los servicios" value={specialtyId} options={specialties.map(specialty=>({id:specialty.id,name:specialty.name}))} disabled={action.loading} onChange={chooseSpecialty}/>
       </PetCareCard>}
+      <StepHelp text={serviceId ? null : 'Elegí un servicio para continuar.'} variant="subtitle" />
       {filteredServices.length ? filteredServices.map(service => <ChoiceCard
         key={service.id}
         title={service.name}
@@ -218,7 +219,6 @@ async function submitRequest() {
         onPress={() => chooseService(service.id)}
         detail={[service.durationMinutes ? `${service.durationMinutes} min` : null, service.priceCents !== null && service.priceCents !== undefined ? money(Number(service.priceCents)) : null].filter(Boolean).join(' · ') || undefined}
       />) : <PetCareEmptyState title="No hay servicios disponibles" message="No encontramos servicios activos para esta opción. Volvé atrás para elegir otro tipo de atención." icon="medkit-outline" />}
-      <StepHelp text={serviceId ? null : 'Elegí un servicio para continuar.'} />
       </>}
     </>}
 
@@ -391,9 +391,9 @@ function SummaryLine({ label, value }: { label: string; value?: string }) {
 }
 
 /** Renderiza texto auxiliar solo cuando existe para el paso activo. */
-function StepHelp({ text }: { text: string | null }) {
+function StepHelp({ text, variant = 'caption' }: { text: string | null; variant?: 'caption' | 'subtitle' }) {
   if (!text) return null;
-  return <AppText variant="caption" muted>{text}</AppText>;
+  return <AppText variant={variant} muted>{text}</AppText>;
 }
 
 /** Estilos de componentes, calendario, opciones y botones del asistente; no contienen reglas de reserva. */
