@@ -16,7 +16,7 @@ import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useTheme } from '../../hooks/useTheme';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { ApiError } from '../../services/api';
-import { firstInvalidField, validateIdentityForm, validatePasswordForm } from '../../utils/auth-validation';
+import { firstInvalidField, normalizePhoneNumber, validateIdentityForm, validatePasswordForm } from '../../utils/auth-validation';
 import type { AuthUser } from '../../types/auth';
 import { roleHome } from '../../utils/role-home';
 import { roleLabel } from '../../utils/role-label';
@@ -57,6 +57,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   const photoAction = useAsyncAction();
   const [values, setValues] = useState<ProfileValues>({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '' });
   const [errors, setErrors] = useState<ProfileErrors>({});
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [password, setPassword] = useState<PasswordValues>({ currentPassword: '', password: '', confirmPassword: '' });
   const [passwordErrors, setPasswordErrors] = useState<PasswordErrors>({});
   const profileInputs = useRef<Partial<Record<keyof ProfileValues, ComponentRef<typeof TextInput> | null>>>({});
@@ -67,6 +68,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [initialProfile, setInitialProfile] = useState(JSON.stringify({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '' }));
   const [initialDescription, setInitialDescription] = useState(user?.veterinarian?.professionalDescription ?? '');
+  const phoneValidation = normalizePhoneNumber(values.phone);
   const initialPassword = JSON.stringify({ currentPassword: '', password: '', confirmPassword: '' });
 
   useEffect(() => {
@@ -100,12 +102,13 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
 
   /** Valida identidad, guarda cambios del perfil y sincroniza la sesión local con la respuesta. */
   async function saveProfile() {
+    setPhoneTouched(true);
     setErrors({});
     const validation = validateIdentityForm({ ...values, email: user?.email ?? '' });
     const nextErrors: ProfileErrors = {
       ...(validation.firstName ? { firstName: validation.firstName } : {}),
       ...(validation.lastName ? { lastName: validation.lastName } : {}),
-      ...(validation.phone ? { phone: validation.phone } : {}),
+      ...(phoneValidation.error ? { phone: phoneValidation.error } : {}),
     };
     setErrors(nextErrors);
     const firstInvalid = firstInvalidField(['firstName', 'lastName', 'phone'] as const, nextErrors);
@@ -115,11 +118,11 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     }
 
     const saved = await profileAction.run(async () => {
-      const identity = { firstName: values.firstName.normalize('NFC').trim().replace(/\s+/g, ' '), lastName: values.lastName.normalize('NFC').trim().replace(/\s+/g, ' '), phone: values.phone.trim() };
+      const identity = { firstName: values.firstName.normalize('NFC').trim().replace(/\s+/g, ' '), lastName: values.lastName.normalize('NFC').trim().replace(/\s+/g, ' '), phone: phoneValidation.phone! };
       if (isAdmin) {
-        await auth.request('/admin/account', { method: 'PUT', body: { ...identity, phone: identity.phone || null } });
+        await auth.request('/admin/account', { method: 'PUT', body: identity });
       } else if (isVet) {
-        await auth.request('/vet/profile', { method: 'PATCH', body: { ...identity, phone: identity.phone || null, professionalDescription: professionalDescription.trim() } });
+        await auth.request('/vet/profile', { method: 'PATCH', body: { ...identity, professionalDescription: professionalDescription.trim() } });
       } else {
         await client.updateProfile(identity);
       }
@@ -128,7 +131,7 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
     if (saved) {
       setInitialProfile(JSON.stringify(values));
       setInitialDescription(professionalDescription);
-      showToast('Datos actualizados', 'success');
+      showToast(user?.phone !== phoneValidation.phone ? 'Número de teléfono actualizado' : 'Datos actualizados', 'success');
     }
   }
 
@@ -183,8 +186,10 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   /** Guarda descripción profesional para veterinarios y vuelve a consultar el perfil. */
   async function saveProfessionalDescription() {
     if (!isVet) return;
+    const phone = normalizePhoneNumber(values.phone);
+    if (phone.error) { setPhoneTouched(true); setErrors(current => ({ ...current, phone: phone.error })); profileInputs.current.phone?.focus(); return; }
     const saved = await profileAction.run(async () => {
-      await auth.request('/vet/profile', { method: 'PATCH', body: { firstName: values.firstName.trim(), lastName: values.lastName.trim(), phone: values.phone.trim() || null, professionalDescription: professionalDescription.trim() } });
+      await auth.request('/vet/profile', { method: 'PATCH', body: { firstName: values.firstName.trim(), lastName: values.lastName.trim(), phone: phone.phone, professionalDescription: professionalDescription.trim() } });
       await auth.refreshProfile();
     });
     if (saved) {
@@ -215,14 +220,14 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
         <AdminFormGrid columns={2}>
           <AdminFormField><AppInput ref={input => { profileInputs.current.firstName = input; }} label="Nombre" required value={values.firstName} error={errors.firstName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={firstName => { setValues(current => ({ ...current, firstName })); setErrors(current => ({ ...current, firstName: undefined })); }}/></AdminFormField>
           <AdminFormField><AppInput ref={input => { profileInputs.current.lastName = input; }} label="Apellido" required value={values.lastName} error={errors.lastName} editable={canEditProfile && !profileAction.loading} autoCapitalize="words" maxLength={100} onChangeText={lastName => { setValues(current => ({ ...current, lastName })); setErrors(current => ({ ...current, lastName: undefined })); }}/></AdminFormField>
-          <AdminFormField><AppInput ref={input => { profileInputs.current.phone = input; }} label="Teléfono" value={values.phone} error={errors.phone} editable={canEditProfile && !profileAction.loading} keyboardType="phone-pad" maxLength={40} onChangeText={phone => { setValues(current => ({ ...current, phone })); setErrors(current => ({ ...current, phone: undefined })); }}/></AdminFormField>
+          <AdminFormField><AppInput ref={input => { profileInputs.current.phone = input; }} label="Teléfono" value={values.phone} error={phoneTouched ? errors.phone : undefined} editable={canEditProfile && !profileAction.loading} keyboardType="phone-pad" maxLength={40} onBlur={() => { setPhoneTouched(true); setErrors(current => ({ ...current, phone: normalizePhoneNumber(values.phone).error })); }} onChangeText={phone => { setValues(current => ({ ...current, phone })); setErrors(current => ({ ...current, phone: phoneTouched ? normalizePhoneNumber(phone).error : undefined })); }}/><AppText variant="caption" muted>Ejemplo: +54 9 223 123 4567. Ingresá código de país, área y número, sin el 0 ni el 15.</AppText></AdminFormField>
           <AdminFormField><AppInput label="Correo electrónico" value={user.email} editable={false} autoCapitalize="none" keyboardType="email-address"/></AdminFormField>
           <AdminFormField fullWidth><AppText variant="caption" muted>El correo electrónico identifica tu cuenta y no puede modificarse desde el perfil.</AppText></AdminFormField>
           {!canEditProfile && <AdminFormField fullWidth><AppText muted>No tenés permiso para editar los datos de tu perfil.</AppText></AdminFormField>}
           <AdminFormField fullWidth><FormNotice error message={profileAction.error}/></AdminFormField>
         </AdminFormGrid>
         {canEditProfile && 
-<AdminFormActions><AppButton label="Guardar datos" loading={profileAction.loading} disabled={profileAction.loading} onPress={() => void saveProfile()}/></AdminFormActions>}
+<AdminFormActions><AppButton label="Guardar cambios" loading={profileAction.loading} disabled={profileAction.loading || !phoneValidation.phone} onPress={() => void saveProfile()}/></AdminFormActions>}
       </PetCareCard>
     </PetCareSection>}
 

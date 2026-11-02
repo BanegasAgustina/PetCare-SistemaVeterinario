@@ -12,7 +12,7 @@ import bcrypt from 'bcrypt';
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
-import { readName, readPassword, readPhone } from '../validators/auth.validator';
+import { readName, readPassword, readRequiredPhone } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 
 /** Rechaza cuerpos que no sean objetos o incluyan claves fuera de la lista permitida. */
@@ -28,7 +28,7 @@ export async function updateOwnProfile(userId: string, value: unknown) {
   const body = bodyObject(value, ['firstName', 'lastName', 'phone']);
   const firstName = readName(body.firstName, 'El nombre');
   const lastName = readName(body.lastName, 'El apellido');
-  const phone = readPhone(body.phone);
+  const phone = readRequiredPhone(body.phone);
   const [existing] = await databasePool.execute<RowDataPacket[]>('SELECT id FROM users WHERE id=? AND is_active=1', [userId]);
   if (!existing.length) throw new AppError('NOT_FOUND', 404, 'No encontramos una cuenta activa para actualizar.');
   await databasePool.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=? AND is_active=1', [firstName, lastName, phone, userId]);

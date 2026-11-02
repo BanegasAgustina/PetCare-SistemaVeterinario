@@ -9,6 +9,7 @@
  */
 /** Validación educativa de formularios; el servidor repite todas las reglas importantes. */
 import isEmail from 'validator/lib/isEmail';
+import isMobilePhone from 'validator/lib/isMobilePhone';
 import type { LoginValues, RegisterValues, RegistrationFormValues } from '../types/auth';
 
 // Tipo FieldErrors: define la forma o las opciones válidas de los datos usados por este módulo.
@@ -19,6 +20,17 @@ export function firstInvalidField<T extends PropertyKey>(order: readonly T[], er
 }
 /** Recorta, normaliza Unicode NFC y pasa el email a minúsculas para alinear formulario y servicio. */
 export const normalizeEmail = (email: string) => email.trim().normalize('NFC').toLowerCase();
+/** Acepta solo teléfonos internacionales completos y devuelve su forma E.164 normalizada. */
+export function normalizePhoneNumber(value: string): { phone?: string; error?: string } {
+  const trimmed = value.trim();
+  if (!trimmed) return { error: 'Ingresá tu número de teléfono.' };
+  if (trimmed.length > 40 || !/^\+[0-9 ]+$/.test(trimmed)) return { error: 'Usá el prefijo internacional + y solo números separados por espacios.' };
+  const normalized = trimmed.replace(/ /g, '');
+  const digits = normalized.slice(1);
+  if (digits.length < 8 || digits.length > 15 || /^0+$/.test(digits) || !isMobilePhone(normalized, 'any', { strictMode: true })) return { error: 'Ingresá un número internacional válido y completo.' };
+  if (normalized.startsWith('+54') && !/^\+549\d{10}$/.test(normalized)) return { error: 'Para Argentina, ingresá un celular con +54 9, sin el 0 ni el 15.' };
+  return { phone: normalized };
+}
 // Dato namePattern: conserva un valor calculado o de configuración usado por este módulo.
 const namePattern = /^[\p{L}][\p{L}\p{M}]*(?:[ '\u2019-][\p{L}][\p{L}\p{M}]*)*$/u;
 
@@ -55,8 +67,10 @@ export function validateIdentityForm(values: Pick<RegisterValues,'firstName'|'la
   }
   const emailMessage = emailError(values.email);
   if (emailMessage) errors.email = emailMessage;
-  const phone = values.phone.trim();
-  if (phone && (phone.length > 40 || !/^\+?[0-9 ()-]+$/.test(phone) || !/^\+?\d{7,15}$/.test(phone.replace(/[ ()-]/g, '')))) errors.phone = 'Ingresá de 7 a 15 dígitos; podés incluir +.';
+  if (values.phone.trim()) {
+    const phone = normalizePhoneNumber(values.phone);
+    if (phone.error) errors.phone = phone.error;
+  }
   return errors;
 }
 /** Comprueba política de contraseña, límite UTF-8 y coincidencia de confirmación para el registro. */

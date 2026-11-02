@@ -9,6 +9,7 @@
  */
 /** Validación independiente del frontend: normaliza identidad sin alterar la contraseña. */
 import isEmail from 'validator/lib/isEmail';
+import isMobilePhone from 'validator/lib/isMobilePhone';
 import { AppError } from '../utils/app-error';
 import type { LoginInput, RegisterInput } from '../types/auth';
 
@@ -48,9 +49,19 @@ export function readPhone(value: unknown): string | null {
   if (typeof value !== 'string') invalid('El teléfono debe ser texto para conservar sus prefijos.');
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const normalized = trimmed.replace(/[ ()-]/g, '');
-  if (trimmed.length > 40 || !/^\+?[0-9 ()-]+$/.test(trimmed) || !/^\+?\d{7,15}$/.test(normalized)) invalid('Ingresá un teléfono de 7 a 15 dígitos; podés incluir el prefijo +.');
+  if (trimmed.length > 40 || !/^\+[0-9 ]+$/.test(trimmed)) invalid('Ingresá el prefijo internacional + y usá solo números separados por espacios.');
+  const normalized = trimmed.replace(/ /g, '');
+  const digits = normalized.slice(1);
+  if (digits.length < 8 || digits.length > 15 || /^0+$/.test(digits) || !isMobilePhone(normalized, 'any', { strictMode: true })) invalid('Ingresá un número internacional válido y completo.');
+  if (normalized.startsWith('+54') && !/^\+549\d{10}$/.test(normalized)) invalid('Para Argentina, ingresá un celular con +54 9, sin el 0 ni el 15.');
   return normalized;
+}
+
+/** Exige y normaliza un número internacional completo para editar el teléfono de una cuenta. */
+export function readRequiredPhone(value: unknown): string {
+  const phone = readPhone(value);
+  if (!phone) invalid('Ingresá tu número de teléfono.');
+  return phone;
 }
 
 /** Valida longitud y, cuando se solicita, fuerza de contraseña. */
