@@ -14,17 +14,25 @@ import { requireNotificationAccess } from '../middlewares/permission.middleware'
 import { clientHandler } from '../controllers/client.controller';
 
 function registerOperations(router:Router) {
+  // router.post('/'): Lista notificaciones del usuario
   router.post('/',clientHandler('notifications'));
+  // router.patch('/read-all'): Marca todas las notificaciones como leídas
   router.patch('/read-all',clientHandler('notification-read-all'));
+  // router.patch('/:id/read'): Marca una notificación como leída
   router.patch('/:id/read',clientHandler('notification-read'));
+  // router.delete('/:id'): Oculta una notificación
   router.delete('/:id',clientHandler('notification-hide'));
 }
 
 export const notificationRouter=Router();
+// notificationRouter.use: Evita que se almacenen en caché las respuestas de este router.
 notificationRouter.use(authenticate,requireNotificationAccess,(_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
+// Registra en este router los cuatro endpoints compartidos de consulta, lectura y ocultamiento.
 registerOperations(notificationRouter);
 
 /** Mounted inside clientRouter so its personal-access guard sees /notifications before the prefix is trimmed. */
 export const legacyClientNotificationRouter=Router();
+// legacyClientNotificationRouter.use: Evita que se almacenen en caché las respuestas de este router.
 legacyClientNotificationRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
+// Registra en este router los cuatro endpoints compartidos de consulta, lectura y ocultamiento.
 registerOperations(legacyClientNotificationRouter);

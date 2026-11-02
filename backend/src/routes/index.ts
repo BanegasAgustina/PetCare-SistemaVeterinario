@@ -23,18 +23,33 @@ import { mediaRouter } from './media.routes';
 
 // Dato apiRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const apiRouter = Router();
+// apiRouter.get('/health'): Deriva la solicitud al controlador definido en la ruta.
 apiRouter.get('/health', getHealth);
+// apiRouter.get('/health/database'): Deriva la solicitud al controlador definido en la ruta.
 apiRouter.get('/health/database', createDatabaseHealthHandler());
+// apiRouter.use('/settings'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/settings', publicSettingsRouter);
+// apiRouter.use('/media'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/media',mediaRouter);
+// apiRouter.use('/auth'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/auth', authRouter);
+// apiRouter.use('/admin/veterinarians'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/admin/veterinarians', veterinarianAdminRouter);
+// apiRouter.use('/admin/specialties'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/admin/specialties', specialtiesAdminRouter);
+// apiRouter.use('/admin'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/admin', adminRouter);
+// apiRouter.use('/auth/veterinarian-invitations'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/auth/veterinarian-invitations', invitationRouter);
+// apiRouter.use('/auth/invitations'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/auth/invitations', invitationRouter);
+// apiRouter.use('/vet/profile/photo'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/vet/profile/photo', professionalPhotoRouter);
+// apiRouter.use('/vet'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/vet', veterinarianPanelRouter);
+// apiRouter.use('/notifications'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/notifications', notificationRouter);
+// apiRouter.use('/client'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/client', clientRouter);
+// apiRouter.use('/clinic'): Aplica los controles compartidos a las rutas siguientes.
 apiRouter.use('/clinic', clinicRouter);

@@ -12,6 +12,7 @@ import { publicGeneralInformation } from '../repositories/general-information.re
 
 // Dato publicSettingsRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const publicSettingsRouter=Router();
+// publicSettingsRouter.get('/general-information'): Deriva la solicitud al controlador definido en la ruta.
 publicSettingsRouter.get('/general-information',async(_req,res,next)=>{
   try{res.setHeader('Cache-Control','public, max-age=300');res.json({success:true,data:await publicGeneralInformation()});}
   catch(error){next(error);}

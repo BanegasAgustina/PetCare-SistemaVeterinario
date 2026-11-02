@@ -43,13 +43,21 @@ function handler(operation: (request: Request,response: Response) => Promise<unk
 }
 // Dato veterinarianAdminRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const veterinarianAdminRouter = Router();
+// veterinarianAdminRouter.use: Evita que se almacenen en caché las respuestas de este router.
 veterinarianAdminRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
+// veterinarianAdminRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: ADMIN, SUPER_ADMIN; permisos: veterinarians.manage.
 veterinarianAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('veterinarians.manage'));
+// veterinarianAdminRouter.post('/catalog'): Consulta el catálogo de profesionales
 veterinarianAdminRouter.post('/catalog',handler(async ()=>vetCatalog()));
+// veterinarianAdminRouter.post('/query'): Lista veterinarios
 veterinarianAdminRouter.post('/query',handler(async req=>vetList(req.body)));
+// veterinarianAdminRouter.post('/:id'): Consulta un veterinario
 veterinarianAdminRouter.post('/:id',handler(async req=>vetDetail(identifier(req.params.id))));
+// veterinarianAdminRouter.post('/'): Crea un veterinario Controles: límite de solicitudes.
 veterinarianAdminRouter.post('/',createAuthRateLimiter(),handler(async(req,res)=>createVet(validateVet(req.body),res.locals.authenticatedUser as AuthUser),201));
+// veterinarianAdminRouter.put('/:id'): Consulta un veterinario
 veterinarianAdminRouter.put('/:id',handler(async(req,res)=>updateVet(identifier(req.params.id),validateVet(req.body),res.locals.authenticatedUser as AuthUser)));
+// veterinarianAdminRouter.put('/:id/photo'): Actualiza la foto del veterinario
 veterinarianAdminRouter.put('/:id/photo',handler(async(req,res)=>{
   const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   const image=await profilePhotoInput(body);
@@ -59,6 +67,7 @@ veterinarianAdminRouter.put('/:id/photo',handler(async(req,res)=>{
   if(isProfilePhotoKey(result.previous)&&result.previous!==image?.url)await removeProfilePhoto(result.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del veterinario.'));
   return vetDetail(identifier(req.params.id));
 }));
+// veterinarianAdminRouter.patch('/:id/status'): Actualiza el estado del veterinario
 veterinarianAdminRouter.patch('/:id/status',handler(async(req,res)=> {
   const body=objectBody(req.body,['isActive']);
   if (typeof body.isActive!=='boolean') throw new AppError('VALIDATION_ERROR',400,'Indicá el estado de la cuenta.');
@@ -67,19 +76,24 @@ veterinarianAdminRouter.patch('/:id/status',handler(async(req,res)=> {
 
 // Dato invitationRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const invitationRouter = Router();
+// invitationRouter.post('/accept'): Acepta la invitación del profesional Controles: límite de solicitudes.
 invitationRouter.post('/accept',createAuthRateLimiter(),handler(async req=> { await acceptInvitation(req.body);return { accepted:true }; }));
 
 // Dato specialtiesAdminRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const specialtiesAdminRouter = Router();
+// specialtiesAdminRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: ADMIN, SUPER_ADMIN; permisos: specialties.manage.
 specialtiesAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('specialties.manage'));
+// specialtiesAdminRouter.post('/query'): Lista especialidades
 specialtiesAdminRouter.post('/query',handler(async ()=>runDatabaseOperation(async()=>{
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties ORDER BY name');
   return rows.map(row=>({id:String(row.id),name:String(row.name),isActive:Boolean(row.isActive)}));
 })));
+// specialtiesAdminRouter.post('/'): Crea una especialidad
 specialtiesAdminRouter.post('/',handler(async req=>runDatabaseOperation(async ()=> {
   const body=objectBody(req.body,['name']); const name=textField(body.name,'La especialidad',100);
   await databasePool.execute('INSERT INTO specialties (name) VALUES (?)',[name]);return { name };
 }),201));
+// specialtiesAdminRouter.put('/:id'): Actualiza una especialidad
 specialtiesAdminRouter.put('/:id',handler(async req=>runDatabaseOperation(async ()=> {
   const body=objectBody(req.body,['name','isActive']);
   if(body.name===undefined&&body.isActive===undefined)throw new AppError('VALIDATION_ERROR',400,'Indicá qué dato querés actualizar.');
@@ -93,6 +107,7 @@ specialtiesAdminRouter.put('/:id',handler(async req=>runDatabaseOperation(async 
   const [updated]=await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties WHERE id=?',[id]);
   return {id:String(updated[0].id),name:String(updated[0].name),isActive:Boolean(updated[0].isActive)};
 })));
+// specialtiesAdminRouter.delete('/:id'): Actualiza una especialidad
 specialtiesAdminRouter.delete('/:id',handler(async req=>runDatabaseOperation(async()=>{
   const id=identifier(req.params.id);const connection=await databasePool.getConnection();
   try {
@@ -110,14 +125,21 @@ specialtiesAdminRouter.delete('/:id',handler(async req=>runDatabaseOperation(asy
 /** Un solo panel. El backend entrega módulos accesibles del catálogo según permisos efectivos. */
 // Dato veterinarianPanelRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const veterinarianPanelRouter = Router();
+// veterinarianPanelRouter.use: Evita que se almacenen en caché las respuestas de este router.
 veterinarianPanelRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
+// veterinarianPanelRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: VETERINARIAN.
 veterinarianPanelRouter.use(authenticate,requireRole('VETERINARIAN'));
+// veterinarianPanelRouter.post('/profile'): Consulta el perfil profesional autenticado
 veterinarianPanelRouter.post('/profile',handler(async(_req,res)=>{const user=res.locals.authenticatedUser as AuthUser;return {user,professional:user.professional,veterinarian:user.veterinarian};}));
+// veterinarianPanelRouter.patch('/profile'): Consulta el perfil profesional autenticado
 veterinarianPanelRouter.patch('/profile',handler(async(req,res)=>updateOwnProfile((res.locals.authenticatedUser as AuthUser).id,req.body)));
+// veterinarianPanelRouter.put('/profile/password'): Cambia la contraseña del profesional autenticado Controles: límite de solicitudes.
 veterinarianPanelRouter.put('/profile/password',createAuthRateLimiter(5),handler(async(req,res)=>changeOwnPassword((res.locals.authenticatedUser as AuthUser).id,req.body)));
 // Dato professionalPhotoRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const professionalPhotoRouter=Router();
+// professionalPhotoRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: VETERINARIAN, GROOMER.
 professionalPhotoRouter.use(authenticate,requireRole('VETERINARIAN','GROOMER'));
+// professionalPhotoRouter.put('/'): Actualiza la foto del profesional autenticado Controles: límite de solicitudes.
 professionalPhotoRouter.put('/',createAuthRateLimiter(),handler(async(req,res)=>{
   const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   const image=await profilePhotoInput(body);const user=res.locals.authenticatedUser as AuthUser;
@@ -134,12 +156,14 @@ async function accessibleModules(user: AuthUser) {
     return rows.map(row=>({ code:row.code as string,name:permissionModuleName(row.code as string,row.name as string) }));
   });
 }
+// veterinarianPanelRouter.post('/home'): Devuelve el inicio del profesional y sus módulos permitidos
 veterinarianPanelRouter.post('/home',handler(async (_req,res)=> {
   const user=res.locals.authenticatedUser as AuthUser;
   // Compatibilidad del panel existente sobre la clínica compartida.
   return { veterinarian:user.veterinarian,modules:await accessibleModules(user),
     clinicalAvailable:true,...await clinic.home(user) };
 }));
+// veterinarianPanelRouter.post('/modules/:module'): Comprueba y devuelve un módulo permitido
 veterinarianPanelRouter.post('/modules/:module',handler(async (req,res)=> {
   const modules=await accessibleModules(res.locals.authenticatedUser as AuthUser);
   const module=modules.find(item=>item.code===req.params.module);

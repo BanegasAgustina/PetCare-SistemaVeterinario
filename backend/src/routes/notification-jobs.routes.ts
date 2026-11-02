@@ -20,6 +20,7 @@ type NotificationJobProcessor = () => Promise<NotificationJobResult>;
 /** Crea un router inyectable para procesar lotes de notificaciones programados. */
 export function createNotificationJobsRouter(processJobs: NotificationJobProcessor = processNotificationJobs): Router {
   const router = Router();
+  // router.get('/'): Lista notificaciones del usuario
   router.get('/', async (request, response, next) => {
     const secret = process.env.CRON_SECRET?.trim() ?? '';
     const authorization = request.get('authorization') ?? '';
