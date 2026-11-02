@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: back-navigation.ts
+ * UBICACIÓN: mobile/src/utils/back-navigation.ts
+ * FUNCIÓN: Regla auxiliar de la interfaz.
+ * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de back-navigation.
+ * CONEXIONES: Importa: mobile/src/types/auth.ts, mobile/src/utils/role-home.ts Se utiliza desde: mobile/src/hooks/useBackNavigation.ts
+ * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 import type { AuthUser } from '../types/auth';
 import { roleHome } from './role-home';
 
@@ -9,6 +18,7 @@ const primaryRoutesByRole: Record<string, Set<string>> = {
   SUPER_ADMIN: new Set(['/admin', '/admin/clinic', '/admin/store', '/admin/administration']),
 };
 
+/** Oculta el botón en rutas principales del rol y workspace; las rutas secundarias permiten volver. */
 export function shouldShowRouteBack(pathname: string, role?: string) {
   if (pathname === '/workspace') return false;
   return !(primaryRoutesByRole[role ?? '']?.has(pathname) ?? false);
@@ -16,7 +26,7 @@ export function shouldShowRouteBack(pathname: string, role?: string) {
 
 export type BackControlPlacement = 'none' | 'shell' | 'screen';
 
-/** Gives each secondary route exactly one owner for its responsive back control. */
+/** Asigna el botón de volver a la navegación global o a la pantalla según ruta, sin duplicar controles. */
 export function backControlPlacement(pathname: string, role?: string): BackControlPlacement {
   if (!shouldShowRouteBack(pathname, role)) return 'none';
   const admin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -26,7 +36,7 @@ export function backControlPlacement(pathname: string, role?: string): BackContr
 
 export type BackNavigationAction = { type:'back' } | { type:'replace'; path:ReturnType<typeof roleHome> } | { type:'stay' };
 
-/** A direct link falls back to the authenticated role home; an existing route stack is preserved. */
+/** Conserva el historial si existe; en enlace directo reemplaza por inicio del rol o permanece si ya está allí. */
 export function backNavigationAction(canGoBack: boolean, pathname: string, user: AuthUser | null): BackNavigationAction {
   if (canGoBack) return { type:'back' };
   const fallback=roleHome(user);

@@ -1,17 +1,24 @@
-// Este archivo se encarga de lo siguiente: Tipos de TypeScript que describen datos usados por la aplicación.
-
+/**
+ * ARCHIVO: authorization.ts
+ * UBICACIÓN: backend/src/types/authorization.ts
+ * FUNCIÓN: Contratos de permisos y perfiles profesionales más reglas de permiso efectivo.
+ * RESPONSABILIDAD: Representar permisos heredados/override y datos profesionales para autorización.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/repositories/authorization.repository.ts, backend/src/repositories/authorization.repository.ts, backend/src/types/auth.ts
+ * FUNCIONAMIENTO: Declara tipos Permission/Specialty/VetProfile y calcula effective según override y rol crítico.
+ * IMPORTANCIA: Permite que UI y servicios interpreten permisos con una semántica única.
+ */
 /** Catálogos de MySQL y resolución explícita de herencia. */
-// Tipo Permission: define la forma o las opciones válidas de datos usados por este módulo.
+/** Permiso con herencia, override y resultado efectivo. */
 export type Permission = { code: string; name: string; description: string; module: string; inherited: boolean; override: boolean | null; effective: boolean };
-// Tipo Specialty: define la forma o las opciones válidas de datos usados por este módulo.
+/** Especialidad profesional disponible para asignación. */
 export type Specialty = { id: string; name: string };
-// Tipo VetProfile: define la forma o las opciones válidas de datos usados por este módulo.
+/** Perfil veterinario con matrícula, descripción y especialidades. */
 export type VetProfile = { id: string; licenseNumber: string; professionalDescription:string|null; specialties: Specialty[] };
-// Función effectivePermission: concentra la lógica dentro de este módulo.
+/** Override null hereda; true/false sustituye el permiso heredado. */
 export function effectivePermission(inherited: boolean, override: boolean | null): boolean {
   return override === null ? inherited : override;
 }
-// Función effectiveRolePermission: concentra la lógica dentro de este módulo.
+/** Aplica restricciones críticas de rol y la regla heredada/override. */
 export function effectiveRolePermission(role:string,critical:boolean,inherited:boolean,override:boolean|null):boolean {
   return (!critical||['ADMIN','SUPER_ADMIN'].includes(role))&&effectivePermission(inherited,override);
 }

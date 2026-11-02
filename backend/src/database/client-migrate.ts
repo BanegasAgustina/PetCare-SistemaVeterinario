@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: client-migrate.ts
+ * UBICACIÓN: backend/src/database/client-migrate.ts
+ * FUNCIÓN: Ejecuta migraciones versionadas del esquema del dominio cliente.
+ * RESPONSABILIDAD: Compara archivos SQL con historial y checksums, detecta recuperaciones o archivos archivados y ejecuta solo cambios pendientes.
+ * CONEXIONES: Importa: backend/src/database/migration-files.ts, backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Bootstrap/CLI → migración cliente → migration-files y MySQL.
+ * IMPORTANCIA: Controla evolución incremental de mascotas, turnos, tienda y notificaciones del cliente.
+ */
 /** Migración aditiva independiente: el checkout no contiene las migraciones originales aplicadas. */
 import { readMigrationFiles, verifyMigrationHistory, type MigrationFile, type MigrationRecord } from './migration-files';
 import { resolve } from 'node:path';
@@ -19,10 +26,10 @@ const archivedAppliedClientMigrations: MigrationFile[] = [{
 // 007 contains only additive/idempotent DDL. MariaDB may leave its ledger row
 // as `running` if a later CREATE TABLE fails after earlier DDL has committed.
 // Allow that exact migration to resume after its SQL has been corrected.
-// Dato resumableMigration: conserva un valor calculado o de configuración usado por este módulo.
+/** Versiones SQL que pueden reanudarse con seguridad después de una ejecución parcial. */
 const resumableMigration = '007_notification_push_schema.sql';
 
-// Función migrate: concentra la lógica dentro de este módulo.
+/** Compara historial y checksum y aplica migraciones cliente pendientes, incluyendo el tratamiento de archivos heredados. */
 async function migrate() {
   const files = await readMigrationFiles(resolve(__dirname, '../../client-migrations'));
   const connection = await databasePool.getConnection();

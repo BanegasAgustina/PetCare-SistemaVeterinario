@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: AppInput.tsx
+ * UBICACIÓN: mobile/src/components/forms/AppInput.tsx
+ * FUNCIÓN: Campo de texto reutilizable con etiqueta, ayuda, error, prefijo e iconos opcionales.
+ * RESPONSABILIDAD: Asegurar una presentación común y accesible de entradas de texto, correo, teléfono y contraseña.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/store-settings.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx y 29 más
+ * FUNCIONAMIENTO: Extiende TextInput, enlaza etiqueta y errores, detecta foco y permite alternar la visibilidad de contraseña.
+ * IMPORTANCIA: Centraliza reglas visuales y accesibles de entrada usadas en pantallas y formularios.
+ */
 /** Campo accesible con error, foco, autocompletado y opción para mostrar contraseña. */
 import { forwardRef, useState } from 'react';
 import type { ComponentRef } from 'react';

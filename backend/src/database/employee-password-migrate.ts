@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: employee-password-migrate.ts
+ * UBICACIÓN: backend/src/database/employee-password-migrate.ts
+ * FUNCIÓN: Migra contraseñas iniciales de cuentas de empleados al esquema actual.
+ * RESPONSABILIDAD: Aplica SQL versionado y control de checksum/transacción para establecer el estado esperado.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI/bootstrap → migración de credenciales de empleados → MySQL.
+ * IMPORTANCIA: Alinea cuentas preexistentes sin permitir que la migración se ejecute por una ruta de usuario.
+ */
 /** Agrega el indicador para exigir una contraseña propia solo a cuentas de empleado nuevas. */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -8,9 +15,9 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Dato version: conserva un valor calculado o de configuración usado por este módulo.
+/** Identificador de versión que impide aplicar dos veces la misma transformación. */
 const version='001_must_change_password.sql';
-// Función migrateEmployeePassword: concentra la lógica dentro de este módulo.
+/** Registra y aplica el SQL de password inicial bajo bloqueo/versión. */
 export async function migrateEmployeePassword(){
   const sql=await readFile(resolve(__dirname,'../../employee-password-migrations',version),'utf8');
   const checksum=createHash('sha256').update(sql).digest('hex');

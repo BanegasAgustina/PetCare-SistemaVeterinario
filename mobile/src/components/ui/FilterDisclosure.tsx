@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: FilterDisclosure.tsx
+ * UBICACIÓN: mobile/src/components/ui/FilterDisclosure.tsx
+ * FUNCIÓN: Panel desplegable de filtros con conteo activo y acciones aplicar/limpiar.
+ * RESPONSABILIDAD: Presentar filtros de listados en un patrón adaptable reutilizable.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppModal.tsx, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/components/admin/AdminListToolbar.tsx, mobile/src/components/clinic/AgendaScreen.tsx, mobile/src/components/clinic/ClinicProductsScreen.tsx, mobile/src/components/ui/SearchFilterBar.tsx
+ * FUNCIONAMIENTO: Mantiene apertura local, llama onOpen al abrir, onCancel al cerrar y delega aplicar/limpiar al consumidor; puede renderizar en modal.
+ * IMPORTANCIA: Hace visible el estado de filtros sin acoplar el componente a una consulta concreta.
+ */
 import { useState, type PropsWithChildren } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +16,7 @@ import { AppButton } from './AppButton';
 import { AppModal } from './AppModal';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
-// Función FilterDisclosure: concentra la lógica dentro de este módulo.
+/** Administra la apertura del panel y deja el valor real de filtros en el componente consumidor. */
 export function FilterDisclosure({ children, activeCount = 0, onApply, onClear, onOpen, onCancel, fullWidth = false, compact = false }: PropsWithChildren<{ activeCount?: number; onApply: () => void; onClear: () => void; onOpen?: () => void; onCancel?: () => void; fullWidth?: boolean; compact?: boolean }>) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -18,10 +25,10 @@ export function FilterDisclosure({ children, activeCount = 0, onApply, onClear, 
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
-  // Función dismiss: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const dismiss = () => { onCancel?.(); setOpen(false); };
-  // Función toggle: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const toggle = () => { if (open) dismiss(); else { onOpen?.(); setOpen(true); } };
+  /** Cancela la edición temporal y oculta el panel. */
+  const dismiss = () => { onCancel?.(); setOpen(false); };
+  /** Al abrir permite al consumidor preparar filtros; al cerrar usa la ruta de cancelación. */
+  const toggle = () => { if (open) dismiss(); else { onOpen?.(); setOpen(true); } };
   return <View style={styles.wrap}>
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} onHoverIn={()=>setHovered(true)} onHoverOut={()=>setHovered(false)} onPress={toggle} style={[styles.trigger, desktop&&styles.desktopTrigger, fullWidth&&styles.fullTrigger, { backgroundColor: open||desktop&&hovered?colors.accent:colors.surface, borderColor: open||desktop&&focused?colors.primary:colors.border }]}>
       <Ionicons name="options-outline" size={18} color={colors.primary}/><AppText>Filtros</AppText>

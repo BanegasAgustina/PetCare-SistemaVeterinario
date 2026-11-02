@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: LoadingIndicator.tsx
+ * UBICACIÓN: mobile/src/components/ui/LoadingIndicator.tsx
+ * FUNCIÓN: Indicador visual centrado con etiqueta accesible de carga.
+ * RESPONSABILIDAD: Comunicar esperas mientras la app restaura sesión o carga una vista.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/components/client/PetCareUI.tsx
+ * FUNCIONAMIENTO: Recibe una etiqueta opcional, anuncia el estado de progreso y combina indicador nativo con texto del sistema visual.
+ * IMPORTANCIA: Permite distinguir una espera real de una pantalla vacía.
+ */
 /** Indicador de carga reutilizado en la restauración de sesión. */
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText } from './AppText';

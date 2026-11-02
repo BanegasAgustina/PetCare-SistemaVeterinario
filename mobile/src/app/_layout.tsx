@@ -1,4 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
+/**
+ * ARCHIVO: _layout.tsx
+ * UBICACIÓN: mobile/src/app/_layout.tsx
+ * PROPÓSITO: Inicializa tema, sesión, feedback y navegación de todas las rutas Expo.
+ * RESPONSABILIDAD: Mount global de proveedores y guardas; ThemedNavigation toma la decisión de rutas según usuario, permisos y estado de verificación.
+ * RELACIONES: Expo Router lo utiliza como layout raíz para las rutas de mobile/src/app. Se apoya en AuthContext, ThemeContext, FeedbackContext, hooks, componentes globales y utilidades de permisos.
+ * FLUJO: Expo Router consume este layout; AuthContext/ThemeContext/FeedbackContext y componentes globales alimentan el árbol visual.
+ * IMPORTANCIA: Mantiene un único punto de composición para pantallas, navegación, avisos, OAuth y notificaciones.
+ */
 
 /** Raíz de Expo Router: ofrece tema y áreas seguras a todas las pantallas. */
 import { Stack } from 'expo-router';
@@ -22,7 +30,7 @@ import { canEnterClientRoot, canEnterWorkspace } from '../utils/role-home';
 // Completa el retorno de Expo solo en ventanas emergentes; el login web principal usa redirección completa.
 if(Platform.OS==='web'&&(window.opener||window.parent!==window))WebBrowser.maybeCompleteAuthSession();
 
-// Función ThemedNavigation: concentra la lógica dentro de este módulo.
+/** Decide qué rutas se muestran según la sesión, el rol y las capacidades cargadas. */
 function ThemedNavigation() {
   const { mode, colors } = useTheme();
   const auth = useAuth();
@@ -48,7 +56,7 @@ function ThemedNavigation() {
     <NotificationBridge />
   </>;
 }
-// Función RootLayout: concentra la lógica dentro de este módulo.
+/** Monta los proveedores raíz en el orden requerido por la navegación y sus pantallas. */
 export default function RootLayout() {
   return <SafeAreaProvider><ThemeProvider><FeedbackProvider><AuthProvider><ThemedNavigation /></AuthProvider></FeedbackProvider></ThemeProvider></SafeAreaProvider>;
 }

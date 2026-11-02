@@ -1,18 +1,25 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: store-checkout.repository.ts
+ * UBICACIÓN: backend/src/repositories/store-checkout.repository.ts
+ * FUNCIÓN: Creación transaccional de pedidos de tienda y reserva de inventario.
+ * RESPONSABILIDAD: Vuelve a leer carrito, stock y configuración, valida destino/modalidad/pago, calcula importes y crea pedido, items y notificación en transacción.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/app-error.ts, backend/src/validators/store-checkout.validator.ts, backend/src/repositories/notification.repository.ts Se utiliza desde: backend/src/services/client.service.ts
+ * FUNCIONAMIENTO: client.service checkout → este repository → validators, notification.repository y tablas de tienda/pedidos.
+ * IMPORTANCIA: El servidor calcula el total y reserva stock de forma atómica; no confía en precios enviados por el cliente.
+ */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import type { CheckoutAddress, CheckoutPayment } from '../validators/store-checkout.validator';
 import { createClientNotification } from './notification.repository';
 
-// Tipo Fulfillment: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Configuración de retiro/envío y datos de pago leída para el checkout. */
 type Fulfillment = RowDataPacket & { pickupEnabled:number;pickupAddress:string|null;deliveryEnabled:number;deliveryBaseFeeCents:number;freeDeliveryThresholdCents:number|null;bankName:string|null;bankAccountHolder:string|null;bankCbuCvu:string|null;bankAlias:string|null };
-// Función normalize: concentra una operación reutilizable de este módulo.
+/** Normaliza texto para comparar nombres/direcciones sin diferencias de acentos o mayúsculas. */
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es');
 
 /** Crea un pedido de tienda idempotente. Valida nuevamente catálogo, precio, envío y configuración bajo transacción. */
-// Función create: crea un registro o inicia una operación dentro de este módulo.
+/** Valida carrito/configuración/stock dentro de transacción, calcula importes del servidor, reserva inventario y crea pedido. */
 export async function create(owner:string,key:string,paymentMethod:CheckoutPayment,method:'PICKUP'|'DELIVERY',address:CheckoutAddress|null,paymentReference:string,transferBuyer?:{name:string;email:string}){
   const connection=await databasePool.getConnection();let orderId='';
   try{

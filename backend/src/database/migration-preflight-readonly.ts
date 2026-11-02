@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: migration-preflight-readonly.ts
+ * UBICACIÓN: backend/src/database/migration-preflight-readonly.ts
+ * FUNCIÓN: Inspección de solo lectura previa a una migración de esquema.
+ * RESPONSABILIDAD: Conecta a la base, identifica tablas/columnas/índices relevantes y produce diagnóstico sin ejecutar DDL/DML.
+ * CONEXIONES: Importa: backend/src/database/migration-files.ts, backend/src/config/env.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI de preflight → este script → INFORMATION_SCHEMA y fuentes/archivos de migración.
+ * IMPORTANCIA: Permite revisar el estado de destino antes de ejecutar una migración.
+ */
 /**
  * Read-only preflight for client migrations 013–016.
  * Usage from backend/: npx tsx src/database/migration-preflight-readonly.ts
@@ -13,7 +20,7 @@ import { resolve } from 'node:path';
 import { readMigrationFiles } from './migration-files';
 import { env } from '../config/env';
 
-// Tipo DbRow: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Forma de las filas genéricas consultadas a metadatos SQL. */
 type DbRow = RowDataPacket & Record<string, unknown>;
 
 // Configuración targetTables: reúne valores o reglas que consume el resto del módulo.
@@ -40,7 +47,7 @@ const targetTables = [
   'role_permissions',
 ];
 
-// Función safeErrorCode: concentra la lógica dentro de este módulo.
+/** Extrae solo código controlado de error para salida de diagnóstico. */
 function safeErrorCode(error: unknown): string {
   const code = typeof error === 'object' && error !== null && 'code' in error
     ? String(error.code)
@@ -48,7 +55,7 @@ function safeErrorCode(error: unknown): string {
   return /^[A-Z0-9_]+$/.test(code) ? code : 'UNKNOWN';
 }
 
-// Función main: concentra la lógica dentro de este módulo.
+/** Inspecciona objetivo, tablas, columnas, índices y constraints sin ejecutar cambios. */
 async function main(): Promise<void> {
   const connection = await mysql.createConnection({
     ...env.database,

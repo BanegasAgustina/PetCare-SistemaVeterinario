@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: LoginBrand.tsx
+ * UBICACIÓN: mobile/src/components/layout/LoginBrand.tsx
+ * FUNCIÓN: Bloque de marca para el acceso con logotipo y texto de bienvenida.
+ * RESPONSABILIDAD: Identificar PetCare y presentar el contexto de entrada a la app.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts, mobile/src/components/layout/PetCareLogo.tsx Se utiliza desde: mobile/src/app/login.tsx, mobile/src/app/register.tsx, mobile/src/app/reset-password.tsx
+ * FUNCIONAMIENTO: Compone PetCareLogo y textos con variantes de alineación configurables.
+ * IMPORTANCIA: Reutiliza la identidad visual en login y registro.
+ */
 /** Logo transparente sin panel; conserva colores y mejora su contorno en oscuro. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';

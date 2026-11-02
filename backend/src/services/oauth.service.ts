@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: oauth.service.ts
+ * UBICACIÓN: backend/src/services/oauth.service.ts
+ * FUNCIÓN: Inicio, callback, intercambio, registro y vinculación de cuentas mediante OAuth.
+ * RESPONSABILIDAD: Valida state y códigos de un solo uso, consulta al proveedor, aplica políticas de identidad y registro, vincula cuentas o emite sesión PetCare.
+ * CONEXIONES: Importa: backend/src/config/oauth.ts, backend/src/repositories/oauth.repository.ts, backend/src/services/oauth-provider.service.ts, backend/src/repositories/user.repository.ts, backend/src/services/session.service.ts, backend/src/services/oauth-policy.ts, backend/src/validators/auth.validator.ts, backend/src/services/password.service.ts y 3 más Se utiliza desde: backend/src/controllers/oauth.controller.ts
+ * FUNCIONAMIENTO: oauth.controller.ts → este servicio → oauth.repository, oauth-provider, oauth-policy, verification y session services.
+ * IMPORTANCIA: Integra proveedores externos sin delegarles roles ni permisos internos de PetCare.
+ */
 /** Coordina OAuth, vínculo explícito y alta con email verificado. MySQL decide el rol. */
 import { createHash,randomBytes } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -14,10 +21,10 @@ import { hashPassword } from './password.service';
 import { createVerificationProof,resendVerification,hashVerificationToken } from './verification.service';
 import { getMailConfiguration,getVerificationSecret } from '../config/mail';
 import { AppError } from '../utils/app-error';
-// Función object: concentra la lógica dentro de este módulo.
+/** Exige un objeto JSON antes de procesar datos del flujo OAuth. */
 function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'La solicitud debe ser JSON.');return value as Record<string,unknown>;}
 /** Guarda state aleatorio, PKCE del proveedor y prueba del dispositivo en un intento limitado a diez minutos. */
-// Función startOAuth: concentra la lógica dentro de este módulo.
+/** Genera state y material PKCE, guarda el flujo pendiente y devuelve la URL del proveedor. */
 export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:string,linkFamily?:string){
   const body=object(value);if(!oauthConfigured(provider,body.returnUrl)){const reason=oauthConfigurationIssue(provider,body.returnUrl);console.warn(JSON.stringify({event:'oauth.start_unavailable',provider,reason}));return {configured:false as const,reason};}oauthConfig(provider);if(typeof body.challenge!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(body.challenge))throw new AppError('VALIDATION_ERROR',400,'La prueba OAuth no es válida.');
   const returnUrl=oauthReturnUrl(body.returnUrl),user=linkId?await findUserById(linkId):null;
@@ -25,7 +32,7 @@ export async function startOAuth(provider:OAuthProvider,value:unknown,linkId?:st
   const a=await repo.createAttempt(provider,body.challenge,returnUrl,user?{id:user.id,version:user.sessionVersion,family:linkFamily!}:undefined);return {configured:true as const,url:authorizationUrl(provider,a.state,createHash('sha256').update(a.verifier).digest('base64url'))};
 }
 /** Reclama state una sola vez y devuelve un ticket breve; nunca redirige access/refresh tokens. */
-// Función callbackOAuth: concentra la lógica dentro de este módulo.
+/** Valida callback, state y error del proveedor, canjea el código y registra de forma temporal la identidad verificada. */
 export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:unknown,error:unknown,correlationId?:string):Promise<string>{
   const diagnostic={provider,...(correlationId?{correlationId}:{})};
   console.info(JSON.stringify({event:'oauth.callback_received',...diagnostic}));
@@ -38,7 +45,7 @@ export async function callbackOAuth(provider:OAuthProvider,state:unknown,code:un
   return destination.toString();
 }
 /** Exige prueba del dispositivo para vincular o iniciar sesión; una identidad nueva solicita completar el alta. */
-// Función exchangeOAuth: concentra la lógica dentro de este módulo.
+/** Consume el intercambio pendiente, aplica política de cuenta/vinculación y devuelve el resultado autorizado. */
 export async function exchangeOAuth(value:unknown){
   const body=object(value);let provider:OAuthProvider|undefined;let stage='ticket_validation';console.info(JSON.stringify({event:'oauth.exchange_started'}));let result;
   try{result=await repo.withTicket(body.ticket,body.proof,async(c,a)=>{
@@ -63,7 +70,7 @@ export async function exchangeOAuth(value:unknown){
   if(!user.emailVerifiedAt){stage='email_verification';throw new AppError('EMAIL_NOT_VERIFIED',403,'Verificá tu correo para continuar.',await createVerificationProof(user.id));}stage='session_creation';const session=await sessionForUser(user);console.info(JSON.stringify({event:'oauth.session_created',provider}));return {session};
 }
 /** No fusionar por email. El alta exige contraseña propia y código SMTP, también para X. */
-// Función registerOAuth: crea un registro o inicia una operación dentro de este módulo.
+/** Completa el registro OAuth pendiente, valida datos propios de PetCare y crea/verifica la cuenta según el flujo. */
 export async function registerOAuth(value:unknown){
   const body=object(value),input=validateRegister(body.profile);getMailConfiguration();getVerificationSecret();
   assertOAuthRegistrationEmailAvailable(Boolean(await findUserByEmail(input.email)));

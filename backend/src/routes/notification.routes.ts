@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: notification.routes.ts
+ * UBICACIÓN: backend/src/routes/notification.routes.ts
+ * FUNCIÓN: Declara rutas de notificaciones asociadas a una sesión.
+ * RESPONSABILIDAD: Proteger consulta, lectura y ocultamiento de notificaciones y conservar ruta cliente heredada.
+ * CONEXIONES: Importa: backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/permission.middleware.ts, backend/src/controllers/client.controller.ts Se utiliza desde: backend/src/routes/client.routes.ts, backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Aplica authenticate y el controller de cliente a endpoints remotos de notificaciones.
+ * IMPORTANCIA: Conecta la bandeja frontend con notificaciones persistidas para el usuario autenticado.
+ */
 /** Shared authenticated notification routes. The existing client paths remain aliases. */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';

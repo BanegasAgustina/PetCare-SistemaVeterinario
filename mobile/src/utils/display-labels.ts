@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: display-labels.ts
+ * UBICACIÓN: mobile/src/utils/display-labels.ts
+ * FUNCIÓN: Regla auxiliar de la interfaz.
+ * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de display-labels.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/admin/store-orders.tsx, mobile/src/app/client/orders/[id].tsx, mobile/src/app/client/orders/index.tsx, mobile/src/components/admin/AdminStatusBadge.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/RecordCards.tsx
+ * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Etiquetas de presentación para estados internos. Nunca modifica códigos de API. */
 const appointmentStatuses: Record<string, string> = {
   REQUESTED: 'Solicitado',
@@ -80,18 +89,28 @@ const historyTypes: Record<string, string> = {
   DELIVERY: 'Entrega',
 };
 
+/** Busca etiqueta por código normalizado y usa fallback para un estado nuevo/desconocido. */
 function labelFrom(map: Record<string, string>, value: string, fallback: string): string {
   return map[value.toUpperCase()] ?? fallback;
 }
 
+/** Traduce estados de turno a etiquetas en español sin cambiar el código original de la API. */
 export const appointmentStatusLabel = (value: string): string => labelFrom(appointmentStatuses, value, 'Estado del turno no disponible');
+/** Traduce estados de pedido para la pantalla de seguimiento. */
 export const orderStatusLabel = (value: string): string => labelFrom(orderStatuses, value, 'Estado del pedido no disponible');
+/** Traduce los estados de reserva que siguen apareciendo en datos/historiales compatibles. */
 export const reservationStatusLabel = (value: string): string => labelFrom(reservationStatuses, value, 'Estado de la reserva no disponible');
+/** Traduce estados de pago; los códigos se conservan para lógica y persistencia. */
 export const paymentStatusLabel = (value: string): string => labelFrom(paymentStatuses, value, 'Estado del pago no disponible');
+/** Traduce estados de entrega con fallback legible. */
 export const deliveryStatusLabel = (value: string): string => labelFrom(deliveryStatuses, value, 'Estado de entrega no disponible');
+/** Traduce estados generales usados por insignias y tarjetas. */
 export const generalStatusLabel = (value: string): string => labelFrom(generalStatuses, value, 'Estado no disponible');
+/** Presenta el método de pago o comunica que el registro no tiene método asociado. */
 export const paymentMethodLabel = (value: string | null): string => value ? paymentMethods[value.toUpperCase()] ?? 'Método de pago no disponible' : 'Sin método';
+/** Traduce el tipo de movimiento del historial; usa “Movimiento” si recibe un código desconocido. */
 export const historyTypeLabel = (value: string): string => labelFrom(historyTypes, value, 'Movimiento');
+/** Elige el mapa de estado correcto según si la fila del historial representa pago, entrega u pedido. */
 export const historyStatusLabel = (type: string, value: string | null): string => {
   if (value === null) return '—';
   switch (type.toUpperCase()) {

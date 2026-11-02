@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: AdminListToolbar.tsx
+ * UBICACIÓN: mobile/src/components/admin/AdminListToolbar.tsx
+ * FUNCIÓN: Barra de búsqueda, orden, filtros y acciones para listados.
+ * RESPONSABILIDAD: Componer controles de listado en administración, tienda y clínica.
+ * CONEXIONES: Importa: mobile/src/constants/responsive.ts, mobile/src/components/ui/FilterDisclosure.tsx Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/app/client/(tabs)/store/index.tsx, mobile/src/components/clinic/CatalogScreen.tsx, mobile/src/components/clinic/PatientsScreen.tsx, mobile/src/components/clinic/ProfessionalsScreen.tsx y 1 más
+ * FUNCIONAMIENTO: Recibe controles del dominio y los organiza con FilterDisclosure; aplicar/limpiar y cambios se delegan al padre.
+ * IMPORTANCIA: Uniforma las herramientas visibles sin controlar consultas ni filtros de negocio.
+ */
 import type { ReactNode } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
@@ -19,7 +26,7 @@ type Props = {
 };
 
 /** Compact list controls with a single responsive arrangement for search, sorting, filters, and actions. */
-// Función AdminListToolbar: concentra la lógica dentro de este módulo.
+/** Ensambla búsqueda, ordenamiento, filtros y acciones recibidos por props. */
 export function AdminListToolbar({ search, sort, filters, filterCount = 0, onApply = () => undefined, onClear = () => undefined, onFilterOpen, onFilterCancel, actions }: Props) {
   const { width } = useWindowDimensions();
   const tablet = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.tablet);

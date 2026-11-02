@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: AdminDataTable.tsx
+ * UBICACIÓN: mobile/src/components/admin/AdminDataTable.tsx
+ * FUNCIÓN: Tabla adaptable y genérica para filas administrativas o clínicas.
+ * RESPONSABILIDAD: Renderizar columnas configurables con estilos y acciones definidos por cada listado.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppText.tsx, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/app/client/orders/index.tsx, mobile/src/components/clinic/AgendaScreen.tsx, mobile/src/components/clinic/AvailabilityScreen.tsx, mobile/src/components/clinic/PatientDetailScreen.tsx y 2 más
+ * FUNCIONAMIENTO: Recibe filas, columnas y clave; calcula estilo de columna y crea celdas usando renderizadores opcionales y tema.
+ * IMPORTANCIA: Permite compartir tablas sin acoplarlas a entidades concretas.
+ */
 import type { ReactNode } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -16,7 +23,7 @@ export type AdminDataTableColumn<Row> = {
   render: (row: Row) => ReactNode;
 };
 
-// Función AdminDataTable: concentra la lógica dentro de este módulo.
+/** Renderiza las filas y sus columnas con contenido adaptable a pantalla. */
 export function AdminDataTable<Row>({
   columns,
   rows,
@@ -55,7 +62,7 @@ export function AdminDataTable<Row>({
   );
 }
 
-// Función columnStyle: concentra la lógica dentro de este módulo.
+// Devuelve la alineación y el ancho que cada columna declara.
 function columnStyle<Row>(column: AdminDataTableColumn<Row>) {
   return { flex: column.flex ?? 1, minWidth: column.minWidth ?? 0 };
 }

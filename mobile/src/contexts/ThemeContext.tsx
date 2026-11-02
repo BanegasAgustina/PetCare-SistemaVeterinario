@@ -1,23 +1,30 @@
-// Este archivo se encarga de lo siguiente: Contexto compartido de React; conserva estado y acciones que usan varias pantallas.
-
+/**
+ * ARCHIVO: ThemeContext.tsx
+ * UBICACIÓN: mobile/src/contexts/ThemeContext.tsx
+ * FUNCIÓN: Proveedor de estado compartido.
+ * RESPONSABILIDAD: Proveedor de estado compartido dentro de PetCare; agrupa las declaraciones de ThemeContext.
+ * CONEXIONES: Importa: mobile/src/constants/theme.ts Se utiliza desde: mobile/src/app/_layout.tsx, mobile/src/hooks/useTheme.ts
+ * FUNCIONAMIENTO: Mantiene estado compartido y lo expone a los componentes descendientes mediante Context.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Comparte el tema del sistema y una preferencia temporal mediante Context API. */
 import { createContext, useMemo, useState, type PropsWithChildren } from 'react';
 import { useColorScheme } from 'react-native';
 import { themes } from '../constants/theme';
 
-// Tipo ThemePreference: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Elige seguimiento del sistema o una paleta forzada. */
 type ThemePreference = 'system' | 'light' | 'dark';
-// Tipo ThemeContextValue: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Datos y acción que el provider comparte con sus consumidores. */
 type ThemeContextValue = {
   colors: typeof themes.light;
   mode: 'light' | 'dark';
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => void;
 };
-// Dato ThemeContext: conserva un valor calculado o de configuración usado por este módulo.
+// Contexto privado del estado y colores del tema.
 export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-// Función ThemeProvider: concentra la lógica dentro de este módulo.
+/** Selecciona tema claro/oscuro por preferencia o esquema del sistema y comparte colores mediante Context. */
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
   const [preference, setPreference] = useState<ThemePreference>('system');

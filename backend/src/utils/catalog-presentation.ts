@@ -1,7 +1,14 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: catalog-presentation.ts
+ * UBICACIÓN: backend/src/utils/catalog-presentation.ts
+ * FUNCIÓN: Traduce códigos y etiquetas de permisos, roles y catálogos a nombres legibles.
+ * RESPONSABILIDAD: Presentar textos estables aunque la base contenga códigos o nombres heredados.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/repositories/admin.repository.ts, backend/src/repositories/authorization.repository.ts, backend/src/repositories/clinic-admin.repository.ts, backend/src/repositories/clinic.repository.ts, backend/src/repositories/user.repository.ts, backend/src/repositories/veterinarian.repository.ts, backend/src/routes/veterinarian.routes.ts
+ * FUNCIONAMIENTO: Usa mapas de etiquetas y fallback al valor almacenado cuando no existe traducción conocida.
+ * IMPORTANCIA: Hace más comprensible el catálogo que consume administración y clínica.
+ */
 /** Presentación en español de etiquetas de permisos heredadas del catálogo persistido. */
-// Configuración permissionNames: reúne valores o reglas que consume el resto del módulo.
+// Nombres en español para códigos de permiso conocidos.
 const permissionNames: Record<string, string> = {
   'medical_records.view': 'Ver historial médico',
   'medical_records.diagnose': 'Registrar diagnóstico',
@@ -11,7 +18,7 @@ const permissionNames: Record<string, string> = {
   'categories.manage': 'Gestionar categorías',
 };
 
-// Configuración permissionDescriptions: reúne valores o reglas que consume el resto del módulo.
+// Descripciones breves para permisos que ve el administrador.
 const permissionDescriptions: Record<string, string> = {
   'products.view': 'Catálogo de productos',
   'products.update': 'Edición de productos',
@@ -25,7 +32,7 @@ const permissionDescriptions: Record<string, string> = {
   'categories.manage': 'Administrar categorías de tienda',
 };
 
-// Configuración moduleNames: reúne valores o reglas que consume el resto del módulo.
+// Etiquetas traducidas para módulos del panel.
 const moduleNames: Record<string, string> = {
   medical_records: 'Historial clínico',
   clinic: 'Operación de la clínica',
@@ -33,14 +40,14 @@ const moduleNames: Record<string, string> = {
   personal: 'Funciones personales',
 };
 
-// Configuración roleNames: reúne valores o reglas que consume el resto del módulo.
+// Nombres visibles de roles estándar.
 const roleNames: Record<string, string> = {
   GROOMER: 'Peluquería',
   SECRETARY: 'Secretaría',
 };
 
 // Correcciones exactas para filas dañadas ya persistidas; no se recodifica texto arbitrario.
-// Configuración legacyCatalogNames: reúne valores o reglas que consume el resto del módulo.
+// Compatibilidad de nombres guardados en catálogos antiguos.
 const legacyCatalogNames: Record<string, string> = {
   'Peluquer\u00c3\u0192\u00c2\u00ada': 'Peluquería',
   'Dermatolog\u00c3\u0192\u00c2\u00ada': 'Dermatología',
@@ -49,27 +56,27 @@ const legacyCatalogNames: Record<string, string> = {
   'Cirug\u00c3\u0192\u00c2\u00ada': 'Cirugía',
 };
 
-// Función permissionName: concentra la lógica dentro de este módulo.
+// Resuelve etiqueta legible para el código de permiso.
 export function permissionName(code: string, storedName: string): string {
   return permissionNames[code] ?? storedName;
 }
 
-// Función permissionDescription: concentra la lógica dentro de este módulo.
+// Usa descripción conocida y deja fallback al texto guardado.
 export function permissionDescription(code: string, storedDescription: string): string {
   return permissionDescriptions[code] ?? storedDescription;
 }
 
-// Función permissionModuleName: concentra la lógica dentro de este módulo.
+// Presenta el grupo funcional del permiso.
 export function permissionModuleName(code: string, storedName: string): string {
   return moduleNames[code] ?? storedName;
 }
 
-// Función roleName: concentra la lógica dentro de este módulo.
+// Traduce códigos de rol y conserva nombres personalizados.
 export function roleName(code: string, storedName: string): string {
   return roleNames[code] ?? (code === 'SUPER_ADMIN' ? 'Admin Principal' : storedName);
 }
 
-// Función catalogName: concentra la lógica dentro de este módulo.
+// Normaliza nombres heredados de catálogo para presentarlos en UI.
 export function catalogName(storedName: string): string {
   return legacyCatalogNames[storedName] ?? storedName;
 }

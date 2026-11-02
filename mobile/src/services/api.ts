@@ -1,13 +1,20 @@
-// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: api.ts
+ * UBICACIÓN: mobile/src/services/api.ts
+ * FUNCIÓN: Implementa el transporte HTTP común para las aplicaciones móvil y web.
+ * RESPONSABILIDAD: Resolver la URL segura, enviar JSON o archivos, aplicar timeout, interpretar errores y registrar diagnósticos sin credenciales.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/store-settings.tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/app/change-initial-password.tsx, mobile/src/app/client/(tabs)/store/checkout.tsx, mobile/src/app/client/pets/[id]/index.tsx y 15 más
+ * FUNCIONAMIENTO: apiRequest construye la URL, añade encabezados, cancela tras 12 segundos, valida el sobre success/data y transforma fallos a ApiError.
+ * IMPORTANCIA: Todas las pantallas y servicios comparten reglas de conexión y mensajes de error en un solo punto.
+ */
 /** Cliente HTTP con timeout y errores públicos: nunca imprime credenciales ni tokens. */
-// Clase ApiError: agrupa estado y operaciones que trabajan como una unidad.
+/** Error de dominio HTTP con código estable, estado, verificación opcional y errores por campo. */
 export class ApiError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown, public readonly fieldErrors: readonly ApiFieldError[] = []) { super(message); this.name = 'ApiError'; }
 }
-// Tipo ApiFieldError: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Error de validación público asociado a un campo del formulario. */
 export type ApiFieldError={field:string;message:string};
-// Configuración messages: reúne valores o reglas que consume el resto del módulo.
+/** Mensajes seguros y comprensibles para códigos de error conocidos del backend. */
 const messages: Record<string, string> = {
   OAUTH_UNAVAILABLE:'Este proveedor todavía no está configurado.',
   OAUTH_INVALID_STATE:'La solicitud OAuth venció o ya fue usada. Iniciá el proceso nuevamente.',
@@ -76,9 +83,9 @@ const messages: Record<string, string> = {
   VERIFICATION_SEND_LIMIT: 'Alcanzaste el límite de envíos. Intentá más tarde.',
 };
 
-// Dato internalMessagePattern: conserva un valor calculado o de configuración usado por este módulo.
+/** Detecta detalles internos que no deben mostrarse directamente en la interfaz. */
 const internalMessagePattern = /\b(?:mysql|mariadb|layerbase|backend|server|endpoint|route|sql|sqlstate|http|servidor|base de datos|database|tabla|columnas?|schema|migraci[oó]n|persistencia|persistido|stack trace|exception)\b|\b(?:ER_[A-Z_]+|ECONN[A-Z_]+|ENOTFOUND)\b|\b(?:error|c[oó]digo)\s*[45]\d{2}\b/i;
-// Función publicMessage: concentra la lógica dentro de este módulo.
+/** Acepta un texto de servidor solo si no parece revelar infraestructura; limita su longitud. */
 function publicMessage(message: string): string | null {
   const clean = message.trim();
   return clean && !internalMessagePattern.test(clean) ? clean.slice(0, 500) : null;
@@ -88,24 +95,24 @@ function publicMessage(message: string): string | null {
 export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.app/api';
 
 /** Registra solo código y estado; nunca URL, encabezados, tokens ni cuerpo de la respuesta. */
-// Función safeEndpoint: concentra la lógica dentro de este módulo.
+/** Redacta IDs de rutas antes de registrar diagnósticos en la consola de desarrollo. */
 function safeEndpoint(path: string): string {
   const pathname = path.split('?')[0].replace(/^\/api(?=\/|$)/i, '');
   return pathname.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140) || '/';
 }
 
-// Función reportApiFailure: concentra la lógica dentro de este módulo.
+/** Registra código, método, ruta saneada y estado solamente en builds de desarrollo. */
 function reportApiFailure(code: string, status: number, method: string, endpoint: string, cause?: string): void {
   if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status, ...(cause?{cause:cause.slice(0,180)}:{}) }));
 }
 
-// Función reportApiSuccess: concentra la lógica dentro de este módulo.
+/** Registra éxitos sin incluir URL completa, encabezados ni datos de respuesta. */
 function reportApiSuccess(method:string,endpoint:string,status:number):void {
   if(__DEV__)console.info('[PetCare API]',JSON.stringify({method,endpoint:safeEndpoint(endpoint),status,success:true}));
 }
 
 /** En desarrollo, deriva el host del teléfono/emulador desde el host LAN que Expo usa para Metro. */
-// Función developmentApiUrl: concentra la lógica dentro de este módulo.
+/** Resuelve URL de desarrollo desde configuración explícita o el host LAN de Expo. */
 export function developmentApiUrl(configuredValue: string | undefined, hostUri: string | undefined, portValue: string | undefined, isDev: boolean, explicitDevelopmentUrl?: string): string | undefined {
   const explicit=explicitDevelopmentUrl?.trim();
   if (isDev && explicit) return explicit;
@@ -122,7 +129,7 @@ export function developmentApiUrl(configuredValue: string | undefined, hostUri: 
   } catch { return configured || undefined; }
 }
 
-// Función isProductionApiUrl: comprueba una regla o condición dentro de este módulo.
+/** Comprueba si una URL coincide con el origen y la ruta del backend publicado. */
 function isProductionApiUrl(value: string): boolean {
   try {
     const candidate=new URL(value), production=new URL(PRODUCTION_API_URL);
@@ -130,7 +137,7 @@ function isProductionApiUrl(value: string): boolean {
   } catch { return false; }
 }
 
-// Función resolveApiUrl: concentra la lógica dentro de este módulo.
+/** Valida URL y entorno; bloquea producción en entornos no productivos y HTTP en builds release. */
 export function resolveApiUrl(configuredValue: string | undefined, appEnvironment: string | undefined, isDev: boolean, explicitDevelopmentUrl = false): string {
   try {
     // Un build release sin API explícita debe fallar cerrado; nunca asumir producción.
@@ -163,7 +170,7 @@ export function resolveApiUrl(configuredValue: string | undefined, appEnvironmen
   } catch { throw new Error('Invalid or unsafe API configuration.'); }
 }
 
-// Función getApiUrl: obtiene o consulta información dentro de este módulo.
+/** Lee configuración Expo al ejecutar y la valida con reglas de entorno antes de usarla. */
 export function getApiUrl(): string {
   try {
     // Solo se consulta al ejecutar la app: evita cargar React Native al importar utilidades puras en pruebas Node.
@@ -178,13 +185,13 @@ export function getApiUrl(): string {
   }
 }
 
-// Función normalizeApiPath: transforma o prepara datos dentro de este módulo.
+/** Normaliza barras iniciales y quita un prefijo /api para evitar duplicarlo. */
 function normalizeApiPath(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return normalizedPath.replace(/^\/api(?=\/|$)/i, '');
 }
 
-// Función buildApiEndpoint: transforma o prepara datos dentro de este módulo.
+/** Une una base validada con una ruta y rechaza credenciales, query o fragmento en la base. */
 export function buildApiEndpoint(apiBaseUrl: string, path: string): string {
   const base = new URL(apiBaseUrl);
   if (base.username || base.password || base.search || base.hash) throw new Error('Invalid API base URL.');
@@ -193,7 +200,7 @@ export function buildApiEndpoint(apiBaseUrl: string, path: string): string {
   return `${base.origin}${base.pathname.replace(/\/+$/, '')}${normalizeApiPath(path)}`;
 }
 
-// Función apiRequest: concentra la lógica dentro de este módulo.
+/** Ejecuta una solicitud, serializa JSON o binarios, procesa el sobre de respuesta y propaga ApiError. */
 export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; contentType?: string; headers?:Record<string,string>;accessToken?: string } = {}): Promise<T> {
   // Asegura formato de ruta sin duplicar /api (ej. evita /api/api/...)
   const cleanPath = normalizeApiPath(path);
@@ -250,7 +257,7 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   } finally { clearTimeout(timeout); }
 }
 
-// Función friendlyError: concentra la lógica dentro de este módulo.
+/** Devuelve el mensaje público de ApiError o un mensaje genérico para fallos desconocidos. */
 export function friendlyError(error: unknown): string {
   return error instanceof ApiError ? error.message : 'No pudimos completar la operación. Intentá nuevamente.';
 }

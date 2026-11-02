@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: auth.routes.ts
+ * UBICACIÓN: backend/src/routes/auth.routes.ts
+ * FUNCIÓN: Registra endpoints de autenticación local, verificación, OAuth y contraseñas.
+ * RESPONSABILIDAD: Asociar rutas públicas/protegidas con controladores y límites de intentos.
+ * CONEXIONES: Importa: backend/src/controllers/auth.controller.ts, backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/auth-rate-limit.middleware.ts, backend/src/controllers/verification.controller.ts, backend/src/controllers/oauth.controller.ts Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Compone handlers de auth, OAuth y verificación con auth middleware y rate limit según el flujo.
+ * IMPORTANCIA: Es la puerta HTTP de ingreso, renovación y recuperación de sesiones.
+ */
 /** Rutas de autenticación tradicional; ninguna ruta pública acepta privilegios. */
 import { Router } from 'express';
 import { getCurrentUser, login, register, requestPasswordReset, resetPassword, changeInitialPassword } from '../controllers/auth.controller';

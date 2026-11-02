@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: CompactPagination.tsx
+ * UBICACIÓN: mobile/src/components/ui/CompactPagination.tsx
+ * FUNCIÓN: Controles compactos anterior/siguiente con resumen de página opcional.
+ * RESPONSABILIDAD: Dar navegación accesible a listados paginados en admin y clínica.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppText.tsx Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/components/clinic/AgendaScreen.tsx, mobile/src/components/clinic/CatalogScreen.tsx, mobile/src/components/clinic/ProfessionalsScreen.tsx
+ * FUNCIONAMIENTO: Recibe capacidades de avanzar/retroceder y callbacks del dueño de los datos; deshabilita los controles cuando no hay página disponible.
+ * IMPORTANCIA: Separa la presentación de paginación de la consulta que obtiene cada página.
+ */
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';

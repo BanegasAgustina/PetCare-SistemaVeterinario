@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: ClinicProductsScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/ClinicProductsScreen.tsx
+ * FUNCIÓN: Listado de productos disponibles para operaciones clínicas.
+ * RESPONSABILIDAD: Buscar productos y gestionar selección según permiso de consulta o receta.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/SearchFilterBar.tsx, mobile/src/components/ui/FilterDisclosure.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/components/ui/AppModal.tsx y 4 más Se utiliza desde: mobile/src/app/vet/products.tsx
+ * FUNCIONAMIENTO: Debouncea términos, carga catálogo y presenta tarjetas con acciones de selección/detalle.
+ * IMPORTANCIA: Conecta el catálogo interno con prescripciones y atención.
+ */
 /** Shared read-only clinic product catalog for roles allowed by the route and backend grant. */
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
@@ -17,7 +24,7 @@ import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import type { Product } from '../../types/client';
 
-// Función ClinicProductsScreen: concentra la lógica dentro de este módulo.
+/** Consulta el catálogo de productos y aplica búsqueda para uso clínico. */
 export function ClinicProductsScreen() {
   const clinic = useClinic();
   const { hasPermission, user } = useAuth();
@@ -69,7 +76,7 @@ export function ClinicProductsScreen() {
   </PetCareScreen>;
 }
 
-// Función PressableProduct: concentra la lógica dentro de este módulo.
+/** Vuelve seleccionable una fila de producto y expone su estado visual. */
 function PressableProduct({ product }: { product: Product }) {
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
     <PetImage uri={product.imageUrl} size={64} />

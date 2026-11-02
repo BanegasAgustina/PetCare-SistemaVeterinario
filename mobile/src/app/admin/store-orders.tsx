@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
-
+/**
+ * ARCHIVO: store-orders.tsx
+ * UBICACIÓN: mobile/src/app/admin/store-orders.tsx
+ * FUNCIÓN: Pantalla o ruta de la aplicación.
+ * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de store-orders.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx y 11 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 import { useCallback, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';

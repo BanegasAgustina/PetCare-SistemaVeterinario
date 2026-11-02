@@ -1,31 +1,38 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
-
+/**
+ * ARCHIVO: client.validator.ts
+ * UBICACIÓN: backend/src/validators/client.validator.ts
+ * FUNCIÓN: Valida IDs, cuerpos cliente, datos de mascota, imágenes, cantidad y claves de solicitud.
+ * RESPONSABILIDAD: Rechazar campos no permitidos y restringir rangos/formatos de las operaciones cliente.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts Se utiliza desde: backend/src/app.ts, backend/src/repositories/client.repository.ts, backend/src/repositories/delivery-address.repository.ts, backend/src/repositories/store-orders.repository.ts, backend/src/repositories/store-payment.repository.ts, backend/src/services/client.service.ts, backend/src/services/pet-photo.service.ts, backend/src/validators/clinic.validator.ts y 1 más
+ * FUNCIONAMIENTO: Conjunto de parsers desde unknown que normalizan datos y reportan errores de campo con AppError.
+ * IMPORTANCIA: Se usa antes de operaciones de mascota, carrito y checkout.
+ */
 /**
  * Valida formularios, IDs y filtros del cliente antes de consultar MySQL. Restringe campos y tamaños; la validación frontend es ayuda de UX y no sustituye estos controles.
  */
 import { AppError } from '../utils/app-error';
-// Función invalid: concentra la lógica dentro de este módulo.
+// Arroja validación 400 y opcionalmente adjunta un error asociado a campo.
 export function invalid(message='Revisá los datos ingresados.',field?:string): never { throw new AppError('VALIDATION_ERROR',400,message,undefined,field?[{field,message}]:undefined); }
-// Función clientId: concentra la lógica dentro de este módulo.
+/** Valida ID decimal positivo dentro del rango BIGINT sin perder precisión. */
 export function clientId(value:unknown):string { if(typeof value!=='string'||!/^[1-9]\d{0,19}$/.test(value)||BigInt(value)>18446744073709551615n)invalid();return value; }
-// Función clientBody: concentra la lógica dentro de este módulo.
+/** Valida objeto y limita sus claves a la allowlist entregada. */
 export function clientBody(value:unknown,keys:string[]):Record<string,unknown> {
   if(!value||typeof value!=='object'||Array.isArray(value))invalid();
   const extra=Object.keys(value).filter(key=>!keys.includes(key));
   if(extra.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los datos ingresados.',undefined,extra.map(field=>({field,message:'Este campo no está permitido.'})));
   return value as Record<string,unknown>;
 }
-// Función text: concentra la lógica dentro de este módulo.
+/** Recorta texto y valida ausencia opcional y límite de longitud. */
 export function text(value:unknown,max:number,optional=false):string|null {
   if(optional&&(value===null||value===undefined||value===''))return null;
   if(typeof value!=='string'||!value.trim()||value.trim().length>max)invalid();return value.trim();
 }
-// Función imageUrl: concentra la lógica dentro de este módulo.
+/** Acepta solo referencias de imagen con esquema de URL permitido. */
 export function imageUrl(value:unknown):string|null {
   const result=text(value,2048,true);if(!result)return null;
   try { const url=new URL(result);if(url.protocol!=='https:'||url.username||url.password)invalid('La foto requiere una URL HTTPS pública.'); } catch {invalid('La foto requiere una URL HTTPS pública.');}return result;
 }
-// Función petInput: concentra la lógica dentro de este módulo.
+/** Valida y normaliza campos editables de mascota. */
 export function petInput(value:unknown) {
   const body=clientBody(value,['name','sex','speciesId','breedId','breedName','birthDate','microchipNumber','photoUrl','photoBase64','weightKg']);
   const sex=text(body.sex,10)!;
@@ -38,7 +45,7 @@ export function petInput(value:unknown) {
     breedName:text(typeof body.breedName==='string'?body.breedName.trim():body.breedName,100,true),
     microchipNumber:text(typeof body.microchipNumber==='string'?body.microchipNumber.trim():body.microchipNumber,32,true),photoUrl:imageUrl(body.photoUrl),weightKg};
 }
-// Función cartQuantity: concentra la lógica dentro de este módulo.
+/** Limita la cantidad del carrito a entero entre 0 y 99. */
 export function cartQuantity(value:unknown):number { if(typeof value!=='number'||!Number.isInteger(value)||value<0||value>99)invalid('La cantidad debe estar entre 0 y 99.');return value; }
-// Función requestKey: concentra la lógica dentro de este módulo.
+/** Valida UUID versión 4 usado como clave idempotente de checkout. */
 export function requestKey(value:unknown):string { if(typeof value!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))invalid();return value; }

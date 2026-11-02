@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: product-origin-migrate.ts
+ * UBICACIÓN: backend/src/database/product-origin-migrate.ts
+ * FUNCIÓN: Inspecciona y migra el origen/propiedad de productos de tienda.
+ * RESPONSABILIDAD: Lee el esquema real, genera un plan compatible con el estado detectado y aplica pasos controlados.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts, backend/src/database/product-origin-schema.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI/bootstrap → plan product-origin → MySQL y product-origin-schema.ts.
+ * IMPORTANCIA: Evita imponer estructura asumida cuando la base ya presenta variaciones.
+ */
 /** Ejecuta de forma reanudable la ampliación aditiva de metadatos de productos y su auditoría. */
 import type { RowDataPacket } from 'mysql2/promise'; // El tipo modela filas devueltas por las consultas de metadatos.
 import { databasePool } from '../config/database'; // El pool conserva la conexión MySQL ya configurada por PetCare.
@@ -7,7 +14,7 @@ import { withDatabaseLock } from './lock'; // El lock evita que dos migradores t
 import { planProductOriginMigration, type ProductOriginSchema, type SchemaColumn, type SchemaForeignKey, type SchemaIndex } from './product-origin-schema'; // El planificador valida el esquema sin ejecutar DDL.
 
 /** Lee el esquema actual necesario para decidir una sola operación compatible. */
-// Función readProductOriginSchema: obtiene o consulta información dentro de este módulo.
+/** Lee INFORMATION_SCHEMA y construye snapshot real del esquema de productos. */
 async function readProductOriginSchema(connection: Awaited<ReturnType<typeof databasePool.getConnection>>): Promise<ProductOriginSchema> { // La conexión recibida pertenece al pool y se reutiliza durante la ejecución.
   /** La consulta obtiene tablas padre e historiales sin leer ni modificar filas de negocio. */
   const [tableRows] = await connection.execute<(RowDataPacket & { TABLE_NAME: string; ENGINE: string | null; TABLE_COLLATION: string | null; CHARACTER_SET_NAME: string | null })[]>("SELECT t.TABLE_NAME, t.ENGINE, t.TABLE_COLLATION, c.CHARACTER_SET_NAME FROM information_schema.TABLES AS t LEFT JOIN information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS c ON c.COLLATION_NAME = t.TABLE_COLLATION WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME IN ('client_products', 'client_orders', 'users', 'client_product_change_history', 'client_order_status_history')");
@@ -62,7 +69,7 @@ async function readProductOriginSchema(connection: Awaited<ReturnType<typeof dat
 }
 
 /** Aplica y vuelve a comprobar un único DDL aditivo por iteración para poder reanudarlo con seguridad. */
-// Función migrateProductOrigins: concentra la lógica dentro de este módulo.
+/** Calcula pasos según el esquema observado y aplica únicamente las transformaciones necesarias. */
 export async function migrateProductOrigins(): Promise<void> { // La función no crea registros ni modifica datos de negocio.
   /** La conexión se adquiere solo al ejecutar explícitamente el comando del migrador. */
   const connection = await databasePool.getConnection();

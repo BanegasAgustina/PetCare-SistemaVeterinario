@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: clinic.routes.ts
+ * UBICACIÓN: backend/src/routes/clinic.routes.ts
+ * FUNCIÓN: Declara endpoints de consulta y edición clínica y administrativa de la clínica.
+ * RESPONSABILIDAD: Requerir sesión y despachar cada operación mediante handlers de clínica.
+ * CONEXIONES: Importa: backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/permission.middleware.ts, backend/src/middlewares/auth-rate-limit.middleware.ts, backend/src/controllers/clinic.controller.ts Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Aplica autenticación y no-cache, organiza subrutas de pacientes, agenda, catálogo, disponibilidad y pedidos.
+ * IMPORTANCIA: Expone la API clínica que usan pantallas de admin y profesionales.
+ */
 /**
  * Expone /api/clinic con filtros de rol y permisos efectivos. Los repositories repiten controles dentro de las transacciones para evitar operar con privilegios desactualizados.
  */

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: CalendarDateField.tsx
+ * UBICACIÓN: mobile/src/components/forms/CalendarDateField.tsx
+ * FUNCIÓN: Selector de fecha nativo con calendario y navegación por días, meses y años.
+ * RESPONSABILIDAD: Editar fechas de mascotas, agenda, catálogos y pedidos en plataformas nativas.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppModal.tsx, mobile/src/hooks/useTheme.ts, mobile/src/utils/pet-date.ts Se utiliza desde: mobile/src/app/admin/store-orders.tsx, mobile/src/components/client/PetBirthDate.tsx, mobile/src/components/client/PetBirthDate.web.tsx, mobile/src/components/clinic/AgendaScreen.tsx, mobile/src/components/clinic/CatalogScreen.tsx, mobile/src/components/clinic/PatientsScreen.tsx, mobile/src/components/forms/ClinicDateTimeField.tsx
+ * FUNCIONAMIENTO: Calcula días y desplazamiento del mes, respeta minDate/maxDate y entrega fecha ISO por onChange.
+ * IMPORTANCIA: Proporciona una selección de fecha consistente y limitada al rango permitido.
+ */
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { AppButton } from '../ui/AppButton';
@@ -14,7 +21,7 @@ type Props = { label: string; value: string; onChange: (value: string) => void; 
 const monthNames = Array.from({ length: 12 }, (_, month) => new Date(2020, month, 1).toLocaleDateString('es-AR', { month: 'long' }));
 
 /** Selector de fecha civil multiplataforma; el valor intercambiado con formularios es YYYY-MM-DD. */
-// Función CalendarDateField: concentra la lógica dentro de este módulo.
+/** Mantiene mes/vista del calendario y emite una fecha normalizada dentro del rango permitido. */
 export function CalendarDateField({ label, value, onChange, disabled = false, optional = false, minDate, maxDate }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'days' | 'months' | 'years'>('days');
@@ -26,9 +33,9 @@ export function CalendarDateField({ label, value, onChange, disabled = false, op
   const lowerYear = minDate ? dateFromApi(minDate).getFullYear() : 1900;
   const upperYear = maxDate ? dateFromApi(maxDate).getFullYear() : new Date().getFullYear() + 10;
   const years = Array.from({ length: Math.max(0, upperYear - lowerYear + 1) }, (_, index) => upperYear - index);
-  // Función close: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Cierra el calendario y restablece la vista diaria inicial. */
 const close = () => { setOpen(false); setView('days'); };
-  // Función selectDate: concentra la lógica dentro de este módulo.
+  /** Ignora fechas fuera de límites y comunica la fecha elegida al formulario. */
 function selectDate(date: string) { if ((minDate && date < minDate) || (maxDate && date > maxDate)) return; onChange(date); close(); }
   return <>
     <AppText>{label}{optional ? ' (opcional)' : ''}</AppText>

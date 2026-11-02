@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área profesional; reúne las tareas clínicas disponibles para el personal veterinario.
-
+/**
+ * ARCHIVO: services.tsx
+ * UBICACIÓN: mobile/src/app/professional/services.tsx
+ * FUNCIÓN: Pantalla o ruta de la aplicación.
+ * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de services.
+ * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useClientQuery.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 import { useCallback } from 'react';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
 import { AppText } from '../../components/ui/AppText';

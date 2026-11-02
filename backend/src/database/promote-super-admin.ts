@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: promote-super-admin.ts
+ * UBICACIÓN: backend/src/database/promote-super-admin.ts
+ * FUNCIÓN: Herramienta local de promoción explícita de cuenta a SUPER_ADMIN.
+ * RESPONSABILIDAD: Valida ID objetivo y ejecuta transacción/control de roles, preservando controles de bootstrap.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/validators/veterinarian.validator.ts, backend/src/utils/database-error.ts, backend/src/utils/app-error.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Invocación operativa local → MySQL y lock; no se monta en Express.
+ * IMPORTANCIA: Restringe una acción de privilegio máximo a un procedimiento de operador.
+ */
 /** Operación de bootstrap exclusivamente por consola de un operador con acceso DB.
  * Nunca se expone por HTTP ni promueve usuarios automáticamente. Requiere ID explícito.
  */
@@ -8,7 +15,7 @@ import {identifier} from '../validators/veterinarian.validator';
 import {runDatabaseOperation} from '../utils/database-error';
 import {AppError} from '../utils/app-error';
 import type {RowDataPacket} from 'mysql2/promise';
-// Función promote: concentra la lógica dentro de este módulo.
+/** Promueve una cuenta identificada a SUPER_ADMIN mediante controles de lock y persistencia. */
 async function promote() {
   const userId=identifier(process.argv[2]);
   await runDatabaseOperation(async()=>{

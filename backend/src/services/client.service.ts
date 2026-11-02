@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: client.service.ts
+ * UBICACIÓN: backend/src/services/client.service.ts
+ * FUNCIÓN: Casos de uso del área cliente: perfil, mascotas, turnos e información clínica propia.
+ * RESPONSABILIDAD: Interpreta la operación solicitada, valida sus datos y propiedad, coordina repositories y gestiona imágenes asociadas con compensación ante fallos.
+ * CONEXIONES: Importa: backend/src/repositories/client.repository.ts, backend/src/repositories/user.repository.ts, backend/src/utils/database-error.ts, backend/src/utils/app-error.ts, backend/src/config/env.ts, backend/src/services/pet-photo.service.ts, backend/src/validators/auth.validator.ts, backend/src/validators/client.validator.ts y 8 más Se utiliza desde: backend/src/controllers/client.controller.ts
+ * FUNCIONAMIENTO: client.controller.ts → clientOperation → client/user repositories, validators y pet-photo.service; los resultados vuelven al controlador para serializar la respuesta.
+ * IMPORTANCIA: Centraliza reglas de propiedad y transición para que una cuenta cliente no actúe sobre recursos ajenos.
+ */
 /**
  * Coordina validación y operaciones del cliente usando su identidad autenticada. Delega persistencia al repository y fotos a Cloudinary; un error de consulta nunca se reemplaza por datos de muestra.
  */
@@ -20,9 +27,9 @@ import type { AuthUser } from '../types/auth';
 import { storePaymentProof,removePaymentProof } from './pet-photo.service';
 import { storeCheckoutInput,storeTransferInput } from '../validators/store-checkout.validator';
 import { cancelClientAppointment } from '../repositories/clinic.repository';
-// Dato clinicalKinds: conserva un valor calculado o de configuración usado por este módulo.
+/** Enumera los módulos clínicos que el servicio reconoce al procesar datos del cliente. */
 export const clinicalKinds=['medical-history','vaccines','prescriptions','recommendations'] as const;
-// Función clientOperation: concentra la lógica dentro de este módulo.
+/** Despacha la operación del cliente, validando identidad propietaria, campos y transiciones antes de delegar lecturas o escrituras a repositories. */
 export async function clientOperation(owner:string,operation:string,id:unknown,body:unknown,query:Record<string,unknown>,actor?:AuthUser) {
   return runDatabaseOperation(async()=>{
     switch(operation){

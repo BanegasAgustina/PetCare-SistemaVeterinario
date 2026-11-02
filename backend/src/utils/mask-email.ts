@@ -1,7 +1,14 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: mask-email.ts
+ * UBICACIÓN: backend/src/utils/mask-email.ts
+ * FUNCIÓN: Enmascara la parte local de una dirección de correo.
+ * RESPONSABILIDAD: Mostrar destino de verificación sin revelar el email completo.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/services/verification.service.ts
+ * FUNCIONAMIENTO: Conserva una porción limitada del usuario y el dominio, con fallback para formatos inusuales.
+ * IMPORTANCIA: Reduce exposición de datos personales en pantallas y diagnósticos.
+ */
 /** Enmascara la presentación sin cambiar el destinatario real. */
-// Función maskEmail: transforma o prepara datos dentro de este módulo.
+/** Conserva dominio y expone solo parte del nombre local del correo. */
 export function maskEmail(email: string): string {
   const at = email.lastIndexOf('@');
   if (at < 1) return '***';

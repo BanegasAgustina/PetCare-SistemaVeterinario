@@ -1,29 +1,39 @@
-// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: clinic.service.ts
+ * UBICACIÓN: mobile/src/services/clinic.service.ts
+ * FUNCIÓN: Provee llamadas de frontend para la clínica y para la gestión administrativa de su operación.
+ * RESPONSABILIDAD: Agrupar turnos, pacientes, profesionales, disponibilidad, catálogo clínico y pedidos de tienda.
+ * CONEXIONES: Recibe ClientRequest de mobile/src/services/client.service.ts; usa tipos de mobile/src/types/client.ts y clinic.ts; lo consumen useClinic y pantallas admin. Las reglas y permisos viven en el backend.
+ * FUNCIONAMIENTO: read convierte lecturas en POST bajo /clinic; send conserva el método de escritura requerido. Las rutas reciben filtros serializados y los IDs se codifican.
+ * IMPORTANCIA: Da una interfaz central a las pantallas clínicas y administrativas sin duplicar transporte HTTP ni lógica de autorización.
+ */
 /**
  * Centraliza los endpoints /clinic y recibe request autenticado como dependencia. Serializa filtros y cambios; no contiene catálogos ni respuestas de negocio locales.
  */
 import type { Product,Slot,FulfillmentSettings } from '../types/client';
 import type { ClientRequest } from './client.service';
 import type { ClinicRow,ClinicCatalog } from '../types/clinic';
-// Tipo StoreOrder: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Resumen de pedido que la clínica necesita para revisar pago, entrega y totales. */
 export type StoreOrder={id:string;ownerId:string;clientName:string;clientEmail:string;clientPhone:string|null;orderStatus:string;paymentStatus:string;paymentMethod:string|null;paymentReference:string|null;fulfillmentMethod:string|null;deliveryStatus:string;subtotalCents:number;deliveryFeeCents:number;totalCents:number;createdAt:string;recipientName:string|null;recipientPhone:string|null;deliveryStreet:string|null;deliveryNumber:string|null;deliveryUnit:string|null;deliveryCity:string|null;deliveryProvince:string|null;deliveryPostalCode:string|null;deliveryReference:string|null};
-// Tipo StoreOrderDetail: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Detalle ampliado con pago, artículos e historial de cambios del pedido. */
 export type StoreOrderDetail=StoreOrder&{orderType:string;allowedOrderStatuses:string[];buyerName:string|null;buyerEmail:string|null;transferReference:string|null;paymentExpiresAt:string|null;paymentIntentStatus:'ACTIVE'|'EXPIRED'|null;proofSubmittedAt:string|null;paymentProofLate:boolean;paymentReviewStatus:string|null;paymentReviewReason:string|null;paymentVerifiedAt:string|null;verifiedBy:string|null;items:{productId:string;name:string;quantity:number;priceCents:number;subtotalCents:number}[];history:{stateType:string;previousStatus:string|null;newStatus:string;occurredAt:string;reason:string|null;actorName:string|null}[]};
-// Función clinicService: concentra la lógica dentro de este módulo.
+/** Construye las operaciones de clínica a partir del transporte autenticado inyectado. */
 export function clinicService(request:ClientRequest){const read=<T>(path:string,body:Record<string,string>={})=>request<T>(`/clinic${path}`,{method:'POST',body});const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/clinic${path}`,{method,body});return {
- // Consulta productos manuales con un término opcional, que el backend filtra bajo products.view o prescriptions.create.
+ // Catálogos de productos, turnos y promociones consultados con permisos aplicados por el servidor.
  products:(search='',categoryId='')=>read<Product[]>('/products/query',{search,...(categoryId?{categoryId}:{})}),slots:(serviceId:string,professionalId?:string)=>read<Slot[]>('/slots',{serviceId,...(professionalId?{professionalId}:{})}),
  promotionProducts:(search='',page=1)=>read<{items:{id:string;name:string}[];hasMore:boolean;page:number}>('/promotion-products/query',{search,page:String(page)}),
+ // Resumen operativo y catálogo general de la clínica.
  home:()=>read<{nextAppointment:ClinicRow|null;todayAppointments?:ClinicRow[];upcomingAppointments?:ClinicRow[];todayCount:number|null;pendingCount:number|null;attentionCount:number|null;confirmedTodayCount?:number|null;cancelledTodayCount?:number|null;completedTodayCount:number|null}>('/home'),catalog:()=>read<ClinicCatalog>('/catalog'),
  appointments:(q:Record<string,string>={})=>read<ClinicRow[]>('/appointments',q),appointment:(id:string)=>read<ClinicRow>(`/appointments/${encodeURIComponent(id)}`),changeAppointment:(id:string,body:unknown)=>send(`/appointments/${encodeURIComponent(id)}`,'PATCH',body),
  groomingRecord:(id:string)=>read<ClinicRow|null>(`/grooming/appointments/${encodeURIComponent(id)}/record/query`),saveGroomingRecord:(id:string,body:unknown)=>send(`/grooming/appointments/${encodeURIComponent(id)}/record`,'PUT',body),
+ // Fichas, propietarios, altas/bajas e historial paginado de pacientes.
  patient:(id:string)=>read<ClinicRow>(`/patients/${encodeURIComponent(id)}`),patients:(search='',sort='recent',speciesId='',status='active')=>read<ClinicRow[]>('/patients/query',{search,sort,status,...(speciesId?{speciesId}:{})}),patientOwners:(search='' )=>read<ClinicRow[]>(`/patients/owners/query`,{search}),createPatient:(body:unknown)=>send<{petId:string;created:boolean;ownerInvitation:'sent'|'failed'|null}>(`/patients`,'POST',body),resendPatientInvitation:(id:string)=>send<{delivery:'sent'|'failed'}>(`/patients/${encodeURIComponent(id)}/invitation`,'POST',{}),updatePatient:(id:string,body:unknown)=>send(`/patients/${encodeURIComponent(id)}`,'PATCH',body),deactivatePatient:(id:string,reason:string)=>send(`/patients/${encodeURIComponent(id)}/deactivate`,'PATCH',{reason}),reactivatePatient:(id:string)=>send(`/patients/${encodeURIComponent(id)}/reactivate`,'PATCH',{}),records:(id:string,kind:string)=>read<ClinicRow[]>(`/patients/${encodeURIComponent(id)}/records/${encodeURIComponent(kind)}/query`),recordsPage:(id:string,kind:string,page=1)=>read<{items:ClinicRow[];nextPage:number|null}>(`/patients/${encodeURIComponent(id)}/records/${encodeURIComponent(kind)}/page`,{page:String(page)}),saveRecord:(id:string,kind:string,body:unknown)=>send<{created:boolean;recordId:string}>(`/patients/${encodeURIComponent(id)}/records/${encodeURIComponent(kind)}`,'POST',body),
  clients:(search='')=>read<ClinicRow[]>('/clients/query',{search}),client:(id:string)=>read<{client:ClinicRow;pets:ClinicRow[];appointments:ClinicRow[]}>(`/clients/${encodeURIComponent(id)}`),
  assignType:(id:string,typeId:string)=>send(`/professionals/${encodeURIComponent(id)}/type`,'PUT',{typeId}),professionals:()=>read<ClinicRow[]>('/professionals'),assignServices:(id:string,serviceIds:string[])=>send(`/professionals/${encodeURIComponent(id)}/services`,'PUT',{serviceIds}),
  adminList:(kind:string,q:Record<string,string>={})=>read<ClinicRow[]>(`/admin/${kind}/query`,q),adminSave:(kind:string,id:string|undefined,body:unknown)=>send(`/admin/${kind}${id?'/'+encodeURIComponent(id):''}`,id?'PATCH':'POST',body),
  adminDeleteService:(id:string)=>request<{deleted:boolean;archived?:boolean}>(`/clinic/admin/services/${encodeURIComponent(id)}`,{method:'DELETE'}),
  availability:(professionalId:string)=>read<{slots:ClinicRow[];blocks:ClinicRow[]}>('/availability/query',{professionalId}),saveAvailability:(body:unknown)=>send('/availability','POST',body),setAvailabilityActive:(kind:string,id:string,isActive:boolean)=>send(`/availability/${kind}/${encodeURIComponent(id)}`,'PATCH',{isActive}),disableAvailability:(kind:string,id:string)=>send(`/availability/${kind}/${encodeURIComponent(id)}`,'PATCH',{isActive:false}),archiveAvailability:(id:string)=>request<{archived:boolean}>(`/clinic/availability/slot/${encodeURIComponent(id)}`,{method:'DELETE'}),
+ // Configuración de retiro, envío, zonas y datos de transferencia; se serializan campos explícitos.
  storeFulfillment:()=>read<FulfillmentSettings>('/store-fulfillment'),saveStoreFulfillment:(settings:FulfillmentSettings)=>send('/store-fulfillment','PUT',{
   pickupEnabled:settings.pickupEnabled,pickupAddress:settings.pickupAddress,pickupHours:settings.pickupHours,pickupInstructions:settings.pickupInstructions,
   deliveryEnabled:settings.deliveryEnabled,deliveryBaseFeeCents:settings.deliveryBaseFeeCents,freeDeliveryThresholdCents:settings.freeDeliveryThresholdCents,
@@ -31,5 +41,6 @@ export function clinicService(request:ClientRequest){const read=<T>(path:string,
   bankName:settings.bankName,bankAccountHolder:settings.bankAccountHolder,bankCbuCvu:settings.bankCbuCvu,bankAlias:settings.bankAlias,
   zones:settings.zones.map(zone=>({id:zone.id,name:zone.name,province:zone.province,city:zone.city,postalCodePrefix:zone.postalCodePrefix,feeCents:zone.feeCents,isActive:zone.isActive})),
  }),
+ // Pedidos de tienda: listado, comprobante, revisión del pago y actualización de estado.
  storeOrders:(q:Record<string,string>={})=>read<StoreOrder[]>('/store-orders',q),storeOrder:(id:string)=>read<StoreOrderDetail>(`/store-orders/${encodeURIComponent(id)}`),storeOrderProof:(id:string)=>read<{url:string;buyerName:string;buyerEmail:string;submittedAt:string;expiresAt:string;transferReference:string|null;reviewStatus:string;reviewReason:string|null}>(`/store-orders/${encodeURIComponent(id)}/proof`),reviewStorePayment:(id:string,body:{paymentStatus:'PAID'|'FAILED';reason:string})=>send(`/store-orders/${encodeURIComponent(id)}/payment-review`,'POST',body),updateStoreOrder:(id:string,body:{orderStatus?:string;paymentStatus?:string})=>send(`/store-orders/${encodeURIComponent(id)}`,'PATCH',body),
 };}

@@ -1,24 +1,31 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: petcare-cleanup-layerbase-audit.ts
+ * UBICACIÓN: backend/src/database/petcare-cleanup-layerbase-audit.ts
+ * FUNCIÓN: Auditoría de solo lectura de tablas, columnas y relaciones asociadas a Layerbase.
+ * RESPONSABILIDAD: Consulta metadatos y conteos para enumerar objetos candidatos; no ejecuta eliminación ni cambios de esquema.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/config/env.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Invocación manual de auditoría → INFORMATION_SCHEMA y consultas de conteo.
+ * IMPORTANCIA: Aporta evidencia antes de planear limpieza de datos heredados.
+ */
 /** Read-only Layerbase inspection for the explicitly authorized cleanup review. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { env, isVercelRuntime } from '../config/env';
 
-// Tipo TableInfo: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Metadatos de tabla detectada en INFORMATION_SCHEMA. */
 type TableInfo = RowDataPacket & { TABLE_NAME: string; ENGINE: string | null };
-// Tipo ColumnInfo: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Metadatos de columna de una tabla revisada. */
 type ColumnInfo = RowDataPacket & { TABLE_NAME: string; COLUMN_NAME: string; COLUMN_TYPE: string; IS_NULLABLE: string };
-// Tipo ForeignKeyInfo: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Relación entrante/saliente que puede afectar la limpieza. */
 type ForeignKeyInfo = RowDataPacket & {
   TABLE_NAME: string; COLUMN_NAME: string; REFERENCED_TABLE_NAME: string;
   REFERENCED_COLUMN_NAME: string; CONSTRAINT_NAME: string; DELETE_RULE: string; UPDATE_RULE: string;
 };
 
-// Dato relatedName: conserva un valor calculado o de configuración usado por este módulo.
+/** Reconoce nombres relacionados con tablas heredadas de Layerbase. */
 const relatedName = /(appointment|slot|reservation|veterinar|professional|service|specialt|block|clinical|consult|prescription|vaccin|patient)/i;
 
-// Función main: concentra la lógica dentro de este módulo.
+/** Recopila columnas, relaciones y conteos de solo lectura para revisar posibles restos heredados. */
 async function main(): Promise<void> {
   if (env.nodeEnvironment !== 'development' || isVercelRuntime || !/layerbase/i.test(env.database.host)) {
     throw new Error('Inspección detenida: esta herramienta requiere la configuración de desarrollo de Layerbase solicitada. No se abrió ninguna conexión.');

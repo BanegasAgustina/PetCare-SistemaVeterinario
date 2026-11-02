@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: SpecialtiesScreen.tsx
+ * UBICACIÓN: mobile/src/components/admin/SpecialtiesScreen.tsx
+ * FUNCIÓN: Pantalla administrativa de tipos profesionales y especialidades.
+ * RESPONSABILIDAD: Consultar, crear, editar y desactivar elementos asociados a veterinarios y profesionales.
+ * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/AppSelectField.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useAdmin.ts y 11 más Se utiliza desde: mobile/src/app/admin/specialties.tsx, mobile/src/app/admin/veterinarians/specialties.tsx
+ * FUNCIONAMIENTO: Carga catálogos con useAdmin/useClinic, mantiene filtro/paginación y edita en formulario modal con validación y guardado.
+ * IMPORTANCIA: Los catálogos alimentan perfiles y asignación de servicios en clínica.
+ */
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +38,7 @@ type EditItem = { kind: 'type'; row: ClinicRow | null } | { kind: 'specialty'; r
 type ListedRow = { kind: 'type'; row: ClinicRow } | { kind: 'specialty'; row: Specialty };
 
 /** Catálogos separados, con permisos y recorridos existentes. */
-// Función SpecialtiesScreen: concentra la lógica dentro de este módulo.
+/** Coordina carga, filtro, edición y desactivación de tipos y especialidades. */
 export default function SpecialtiesScreen() {
   const auth = useAuth();
   const admin = useAdmin();
@@ -69,7 +76,7 @@ export default function SpecialtiesScreen() {
   const listError = tab === 'types' ? types.error ?? roles.error : specialties.error;
   const currentCount = tab === 'types' ? types.data?.length ?? 0 : specialties.data?.length ?? 0;
 
-  // Función begin: concentra la lógica dentro de este módulo.
+  // Abre el editor en modo nuevo o con los valores de la fila seleccionada.
 function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
     setEditing(kind === 'type' ? { kind, row: row as ClinicRow | null } : { kind, row: row as Specialty | null });
     setName(row?.name == null ? '' : String(row.name));
@@ -79,7 +86,7 @@ function begin(kind: EditItem['kind'], row: EditItem['row'] = null) {
     action.clearError();
   }
 
-  // Función close: concentra la lógica dentro de este módulo.
+  // Cierra el editor y reinicia el borrador y errores locales.
 function close() {
     if (action.loading) return;
     setEditing(null);
@@ -89,7 +96,7 @@ function close() {
     action.clearError();
   }
 
-  // Función save: actualiza o guarda información dentro de este módulo.
+  // Valida y persiste el elemento con la operación de administración correspondiente.
 async function save() {
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 100) {
@@ -117,7 +124,7 @@ async function save() {
     if (saved) close();
   }
 
-  // Función renderRow: concentra la lógica dentro de este módulo.
+  // Renderiza la fila y sus acciones según se trate de tipo o especialidad.
 function renderRow({ kind, row }: ListedRow) {
     const permitted = kind === 'type' ? canEditTypes : canEditSpecialties;
     const role = kind === 'type' ? roles.data?.roles.find(item => item.id === String(row.roleId)) : null;

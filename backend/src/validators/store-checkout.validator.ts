@@ -1,12 +1,19 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
-
+/**
+ * ARCHIVO: store-checkout.validator.ts
+ * UBICACIÓN: backend/src/validators/store-checkout.validator.ts
+ * FUNCIÓN: Valida entradas de checkout de tarjeta demo y transferencia bancaria.
+ * RESPONSABILIDAD: Exigir campos permitidos y dirección completa según modalidad de entrega y pago.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts, backend/src/validators/client.validator.ts Se utiliza desde: backend/src/repositories/store-checkout.repository.ts, backend/src/services/client.service.ts
+ * FUNCIONAMIENTO: Rechaza propiedades extra, valida clave idempotente, texto, dirección y cuerpo distinto por flujo.
+ * IMPORTANCIA: Protege creación de pedidos antes de reservar stock o generar intención de transferencia.
+ */
 import { AppError } from '../utils/app-error';
 import { clientBody, requestKey, text, invalid } from './client.validator';
-// Tipo CheckoutAddress: define la forma o las opciones válidas de datos usados por este módulo.
+/** Dirección de entrega normalizada que acepta checkout. */
 export type CheckoutAddress={recipientName:string;phone:string;street:string;streetNumber:string;unit:string;city:string;province:string;postalCode:string;reference:string};
-// Tipo CheckoutPayment: define la forma o las opciones válidas de datos usados por este módulo.
+/** Métodos de pago que están habilitados por el flujo de checkout actual. */
 export type CheckoutPayment='BANK_TRANSFER'|'CARD_DEMO';
-// Función storeCheckoutInput: concentra la lógica dentro de este módulo.
+/** Valida solicitud de checkout con tarjeta demo. */
 export function storeCheckoutInput(value:unknown){
   const body=clientBody(value,['requestKey','paymentMethod','paymentReference','fulfillmentMethod','address']);
   const key=requestKey(body.requestKey);
@@ -23,7 +30,7 @@ export function storeCheckoutInput(value:unknown){
   return {key,paymentMethod:body.paymentMethod as CheckoutPayment,paymentReference,fulfillmentMethod:body.fulfillmentMethod as 'PICKUP'|'DELIVERY',address};
 }
 /** DNI se valida en memoria y se descarta antes de persistir la intención. */
-// Función storeTransferInput: concentra la lógica dentro de este módulo.
+/** Valida comprador y dirección para checkout por transferencia. */
 export function storeTransferInput(value:unknown){
   const body=clientBody(value,['requestKey','fulfillmentMethod','address','buyerName','buyerEmail','buyerDni']);
   const checkout=storeCheckoutInput({requestKey:body.requestKey,paymentMethod:'BANK_TRANSFER',fulfillmentMethod:body.fulfillmentMethod,address:body.address});
@@ -36,7 +43,7 @@ export function storeTransferInput(value:unknown){
   return {...checkout,buyer:{name:buyerName.trim(),email:buyerEmail.trim().toLowerCase()}};
 }
 
-// Función checkoutText: comprueba una regla o condición dentro de este módulo.
+// Valida texto requerido, recortado y con longitud máxima.
 function checkoutText(value:unknown,field:string,label:string,max:number,optional=false):string|null {
   if(optional&&(value===null||value===undefined||value===''))return null;
   if(typeof value!=='string')fieldInvalid(field,`Ingresá ${label.toLocaleLowerCase('es')}.`);
@@ -46,7 +53,7 @@ function checkoutText(value:unknown,field:string,label:string,max:number,optiona
   return normalized||null;
 }
 
-// Función fieldInvalid: concentra la lógica dentro de este módulo.
+// Arroja error de validación asociado al campo correspondiente.
 function fieldInvalid(field:string,message:string):never {
   throw new AppError('VALIDATION_ERROR',400,message,undefined,[{field,message}]);
 }

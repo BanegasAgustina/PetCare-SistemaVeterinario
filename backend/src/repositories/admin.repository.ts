@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: admin.repository.ts
+ * UBICACIÓN: backend/src/repositories/admin.repository.ts
+ * FUNCIÓN: Consultas y mutaciones administrativas para usuarios, roles, permisos, productos y panel.
+ * RESPONSABILIDAD: Aplica permisos administrativos, bloqueos y transacciones antes de modificar cuentas, roles, overrides o catálogo; transforma resultados SQL al contrato del frontend.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts, backend/src/repositories/authorization.repository.ts, backend/src/utils/database-error.ts, backend/src/utils/app-error.ts, backend/src/utils/admin-authorization.ts, backend/src/validators/veterinarian.validator.ts, backend/src/validators/auth.validator.ts y 8 más Se utiliza desde: backend/src/repositories/veterinarian.repository.ts, backend/src/routes/admin.routes.ts
+ * FUNCIONAMIENTO: Rutas y servicios administrativos/veterinarios → este módulo → databasePool, authorization.repository, validadores y reglas de autorización.
+ * IMPORTANCIA: Concentra la persistencia privilegiada y protege roles de sistema, estado de la cuenta y cambios sensibles.
+ */
 /** Consultas administrativas sobre tablas existentes. Nunca se devuelve password_hash. */
 import type { PoolConnection,RowDataPacket } from 'mysql2/promise';
 import { randomBytes } from 'node:crypto';
@@ -20,7 +27,7 @@ import { deliverInvitation,renewUserInvitation,saveInvitation } from '../service
 import { hashPassword } from '../services/password.service';
 import { assertAccountDeactivationAllowed,assertCustomRoleDeletable } from '../utils/admin-destructive-actions';
 
-// Función freshAdmin: concentra la lógica dentro de este módulo.
+/** Vuelve a leer al actor bajo bloqueo y exige uno de los roles indicados antes de una mutación administrativa. */
 export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
   const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
   if(!rows[0]?.is_active||!rows[0].email_verified_at)forbidden();
@@ -28,7 +35,7 @@ export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:str
   const actor={...identity,role:rows[0].role as RoleCode,permissions:permissions.filter(p=>p.effective).map(p=>p.code)};
   assertAdminPermission(actor,...codes);return actor;
 }
-// Función freshPermissionActor: concentra la lógica dentro de este módulo.
+/** Vuelve a consultar permisos delegables del actor en la transacción para evitar autorizar con un estado anterior. */
 async function freshPermissionActor(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
   const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
   if(!rows[0]?.is_active||!rows[0].email_verified_at)forbidden();
@@ -37,17 +44,17 @@ async function freshPermissionActor(c:PoolConnection,identity:AuthUser,...codes:
   for(const code of codes)if(!actor.permissions.includes(code))forbidden();
   return actor;
 }
-// Función transaction: concentra la lógica dentro de este módulo.
+/** Obtiene una conexión, inicia transacción, confirma o revierte y siempre la libera. */
 async function transaction<T>(operation:(c:PoolConnection)=>Promise<T>) {
   return runDatabaseOperation(async()=>{const c=await databasePool.getConnection();
     try{return await withDatabaseLock(c,async()=>{await c.beginTransaction();try{const result=await operation(c);await c.commit();return result;}catch(error){await c.rollback();throw error;}});}finally{c.release();}
   });
 }
-// Dato userColumns: conserva un valor calculado o de configuración usado por este módulo.
+/** Centraliza las columnas de cuenta que alimentan la vista administrativa. */
 const userColumns='u.id,u.first_name AS firstName,u.last_name AS lastName,u.email,u.phone,u.profile_photo_url AS profilePhotoUrl,u.role_id AS roleId,r.code AS role,r.name AS roleName,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified';
-// Función mapUser: concentra una operación reutilizable de este módulo.
+/** Convierte una fila SQL a identidad administrativa con IDs y banderas normalizados. */
 const mapUser=(row:RowDataPacket)=>({...row,id:String(row.id),roleId:String(row.roleId),roleName:roleName(row.role,row.roleName),isActive:Boolean(row.isActive),emailVerified:Boolean(row.emailVerified)});
-// Función adminHome: concentra la lógica dentro de este módulo.
+/** Construye contadores y accesos del inicio administrativo usando módulos permitidos y datos actuales. */
 export async function adminHome(actor:AuthUser) {
   // Este mapa describe rutas implementadas, no otorga permisos ni contiene datos de negocio.
   const paths:Record<string,string>={'pets.view_all':'/admin/patients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders','store.banners.manage':'/admin/store-banners','settings.general.manage':'/admin/general-information'};
@@ -85,7 +92,7 @@ export async function adminHome(actor:AuthUser) {
   }
   return result;
 }
-// Función adminCatalog: concentra la lógica dentro de este módulo.
+/** Devuelve catálogos necesarios para formularios, filtrando opciones según permisos del actor. */
 export async function adminCatalog(actor:AuthUser) {
   const [roles]=await databasePool.execute<RowDataPacket[]>('SELECT r.id,r.code,r.name,(SELECT COUNT(*) FROM users u WHERE u.role_id=r.id) AS assignedUsers FROM roles r ORDER BY r.name');
   const [permissions]=await databasePool.execute<RowDataPacket[]>('SELECT p.id,p.code,p.name,p.description,p.module_code AS module,m.name AS moduleName,p.is_critical AS critical FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
@@ -95,7 +102,7 @@ export async function adminCatalog(actor:AuthUser) {
       canAssign:r.code!=='VETERINARIAN'&&r.code!=='SECRETARY'&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&permissions.every(code=>actor.permissions?.includes(code))};}),
     permissions:permissions.map(p=>({...p,id:String(p.id),name:permissionName(p.code,p.name),description:permissionDescription(p.code,p.description),moduleName:permissionModuleName(p.module,p.moduleName),critical:Boolean(p.critical),canDelegate:actor.permissions?.includes(p.code)??false}))};
 }
-// Función adminUsers: concentra la lógica dentro de este módulo.
+/** Lista usuarios con búsqueda, estado y paginación; transforma IDs y datos públicos. */
 export async function adminUsers(query:Record<string,unknown>) {
   const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';const status=query.status??'all';
   if(search.length>150||typeof pageText!=='string'||!/^[1-9]\d{0,5}$/.test(pageText)||!['all','active','inactive'].includes(String(status)))throw new AppError('VALIDATION_ERROR',400,'Revisá los filtros.');
@@ -107,7 +114,7 @@ export async function adminUsers(query:Record<string,unknown>) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns} ${from} ORDER BY u.last_name,u.first_name,u.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
   return {items:await Promise.all(rows.map(async row=>({...mapUser(row),profilePhotoUrl:await profilePhotoUrl(row.profilePhotoUrl)}))),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
 }
-// Función adminUser: concentra la lógica dentro de este módulo.
+/** Carga detalle administrativo de una cuenta y el estado de su invitación. */
 export async function adminUser(id:string) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${userColumns},i.delivery AS invitationDelivery,i.expires_at AS invitationExpiresAt,i.consumed_at AS invitationConsumedAt
     FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN veterinarian_invitations i ON i.user_id=u.id WHERE u.id=?`,[id]);
@@ -116,7 +123,7 @@ export async function adminUser(id:string) {
   const invitationStatus=rows[0].invitationConsumedAt?'accepted':rows[0].invitationExpiresAt&&new Date(rows[0].invitationExpiresAt).getTime()<=Date.now()?'expired':rows[0].invitationDelivery??null;
   return {...user,profilePhotoUrl:await profilePhotoUrl(rows[0].profilePhotoUrl),invitationStatus,invitationExpiresAt:rows[0].invitationExpiresAt??null,permissions:await readPermissions(id)};
 }
-// Función updateAdminUserPhoto: actualiza o guarda información dentro de este módulo.
+/** Actualiza referencia de foto de usuario después de comprobar permisos y destino. */
 export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:string|null) {
   let previous:unknown=null;
   await transaction(async c=>{
@@ -131,13 +138,13 @@ export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:strin
   });
   return {previous};
 }
-// Función roleGrants: concentra la lógica dentro de este módulo.
+/** Lee los permisos efectivos/delegables del rol dentro de la conexión y bloqueo actuales. */
 async function roleGrants(c:PoolConnection,id:string) {
   const [roles]=await c.execute<RowDataPacket[]>('SELECT id,code FROM roles WHERE id=?',[id]);if(!roles[0])throw new AppError('VALIDATION_ERROR',400,'El rol no existe.');
   const [permissions]=await c.execute<RowDataPacket[]>('SELECT p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?',[id]);
   return {role:roles[0].code as string,permissions:permissions.map(p=>p.code as string)};
 }
-// Función createAdminUser: crea un registro o inicia una operación dentro de este módulo.
+/** Valida datos y rol, crea cuenta con credencial no utilizable, genera invitación y devuelve el resultado de entrega. */
 export async function createAdminUser(identity:AuthUser,value:unknown) {
   const body=objectBody(value,['firstName','lastName','email','phone','roleId']);
   const input={firstName:readName(body.firstName,'El nombre'),lastName:readName(body.lastName,'El apellido'),email:normalizeEmail(body.email),phone:readPhone(body.phone),roleId:identifier(body.roleId)};
@@ -166,7 +173,7 @@ export async function createAdminUser(identity:AuthUser,value:unknown) {
   const invitationDelivery=await deliverInvitation(saved.email,saved.token,'account');
   return {user:await adminUser(saved.id),invitationDelivery};
 }
-// Función resendAdminInvitation: concentra la lógica dentro de este módulo.
+/** Comprueba acceso y renueva el enlace de invitación de la cuenta seleccionada. */
 export async function resendAdminInvitation(identity:AuthUser,id:string) {
   return renewUserInvitation(id,async(c,target)=>{
     const actor=await freshAdmin(c,identity,target.role==='VETERINARIAN'?'veterinarians.manage':'users.manage');
@@ -174,7 +181,7 @@ export async function resendAdminInvitation(identity:AuthUser,id:string) {
     assertTarget(actor,target);
   });
 }
-// Función updateAdminUser: actualiza o guarda información dentro de este módulo.
+/** Cambia datos de una cuenta con validación de actor, destino y transiciones de estado/rol. */
 export async function updateAdminUser(identity:AuthUser,id:string,value:unknown) {
   const body=objectBody(value,['firstName','lastName','phone','roleId','isActive']);
   const firstName=readName(body.firstName,'El nombre');const lastName=readName(body.lastName,'El apellido');const phone=readPhone(body.phone);
@@ -195,7 +202,7 @@ export async function updateAdminUser(identity:AuthUser,id:string,value:unknown)
     if(roleChanged||!body.isActive){await c.execute('DELETE FROM veterinarian_invitations WHERE user_id=?',[id]);await c.execute('DELETE FROM email_verifications WHERE user_id=?',[id]);}
   });return adminUser(id);
 }
-// Función deactivateAdminUser: aplica una baja lógica repetible conservando el historial.
+/** Desactiva o informa el estado existente de la cuenta, aplicando protecciones para roles críticos. */
 export async function deactivateAdminUser(identity:AuthUser,id:string):Promise<{deactivated:true;alreadyInactive:boolean;alreadyDeleted:boolean}> {
   return transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');
@@ -221,7 +228,7 @@ export async function deactivateAdminUser(identity:AuthUser,id:string):Promise<{
     return {deactivated:true,alreadyInactive,alreadyDeleted};
   });
 }
-// Función updateUserPermissions: actualiza o guarda información dentro de este módulo.
+/** Guarda overrides de permisos para un usuario tras comprobar permiso delegable y rol destino. */
 export async function updateUserPermissions(identity:AuthUser,id:string,value:unknown) {
   const body=objectBody(value,['overrides']);const overrides=permissionOverrides(body.overrides);
   await transaction(async c=>{
@@ -234,7 +241,7 @@ export async function updateUserPermissions(identity:AuthUser,id:string,value:un
     for(const override of overrides)if(override.allowed!==null)await c.execute('INSERT INTO user_permissions (user_id,permission_id,allowed) VALUES (?,?,?)',[id,catalog.find(p=>p.code===override.code)!.id,override.allowed]);
   });return adminUser(id);
 }
-// Función updateRole: actualiza o guarda información dentro de este módulo.
+/** Actualiza nombre y permisos de un rol editable respetando asignaciones y límites de delegación. */
 export async function updateRole(identity:AuthUser,id:string,value:unknown) {
   const body=objectBody(value,['name','permissionCodes']);const name=textField(body.name,'El nombre del rol',60);
   if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>100||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
@@ -249,7 +256,7 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
     const remaining=await readPermissions(actor.id,c);if(!remaining.some(p=>p.code==='roles.manage'&&p.effective)||!remaining.some(p=>p.code==='permissions.manage'&&p.effective))forbidden('El cambio quitaría tu acceso a la gestión de roles o permisos.');
   });return adminCatalog(identity);
 }
-// Función deleteCustomRole: elimina, revoca o cancela una operación dentro de este módulo.
+/** Elimina un rol personalizado solo cuando la política confirma que es removible. */
 export async function deleteCustomRole(identity:AuthUser,id:string) {
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');
@@ -263,7 +270,7 @@ export async function deleteCustomRole(identity:AuthUser,id:string) {
   });
   return {deleted:true};
 }
-// Función createRole: crea un registro o inicia una operación dentro de este módulo.
+/** Valida y crea un rol personalizado con permisos que el actor está autorizado a asignar. */
 export async function createRole(identity:AuthUser,value:unknown) {
   const body=objectBody(value,['name','permissionCodes']);
   const name=textField(body.name,'El nombre del rol',60);
@@ -289,7 +296,7 @@ export async function createRole(identity:AuthUser,value:unknown) {
   });
   return adminCatalog(identity);
 }
-// Función adminProducts: concentra la lógica dentro de este módulo.
+/** Lista catálogo administrativo de productos con búsqueda, estado y paginación. */
 export async function adminProducts(query:Record<string,unknown>) {
   const search=typeof query.search==='string'?query.search.trim():'';const pageText=query.page??'1';
   const status=query.status??'all',stock=query.stock??'all',sort=query.sort??'name';
@@ -302,7 +309,7 @@ export async function adminProducts(query:Record<string,unknown>) {
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT p.id,p.name,p.description,p.image_url AS imageUrl,p.category_id AS categoryId,c.name AS category,p.price_cents AS priceCents,(p.stock-p.reserved_stock) AS stock,p.stock AS physicalStock,p.reserved_stock AS reservedStock,p.stock_minimum AS stockMinimum,p.is_active AS isActive FROM client_products p LEFT JOIN client_product_categories c ON c.id=p.category_id ${where} ORDER BY ${ordering[String(sort)]},p.id LIMIT 20 OFFSET ${(page-1)*20}`,params);
   return {items:rows.map(p=>({...p,id:String(p.id),isActive:Boolean(p.isActive)})),page,total:Number(count[0].total),hasMore:page*20<Number(count[0].total)};
 }
-// Función updateAdminProduct: actualiza o guarda información dentro de este módulo.
+/** Actualiza producto, stock y movimientos asociados dentro de las reglas de catálogo. */
 export async function updateAdminProduct(identity:AuthUser,id:string,value:unknown) {
   const body=objectBody(value,['name','description','imageUrl','categoryId','isActive','priceCents','stock','stockMinimum','stockReason']);
   if(!Object.keys(body).some(key=>key!=='stockReason'))throw new AppError('VALIDATION_ERROR',400,'No hay cambios para guardar.');
@@ -325,12 +332,12 @@ export async function updateAdminProduct(identity:AuthUser,id:string,value:unkno
     // El servicio elimina la imagen previa únicamente después de que la transacción confirme el cambio.
     return {updated:true,previousImage:rows[0].imageUrl};});
 }
-// Función adminProductStockMovements: concentra la lógica dentro de este módulo.
+/** Devuelve movimientos de stock registrados para el producto indicado. */
 export async function adminProductStockMovements(identity:AuthUser,id:string) {
  const rows=await transaction(async c=>{await freshPermissionActor(c,identity,'products.update_stock');const [product]=await c.execute<RowDataPacket[]>('SELECT id,name,stock,stock_minimum AS stockMinimum,reserved_stock AS reservedStock FROM client_products WHERE id=?',[id]);if(!product[0])throw new AppError('NOT_FOUND',404,'Producto no encontrado.');const [movements]=await c.execute<RowDataPacket[]>('SELECT m.id,m.quantity_before AS quantityBefore,m.quantity_after AS quantityAfter,m.quantity_delta AS quantityDelta,m.reason,m.created_at AS createdAt,CONCAT(u.first_name,\' \',u.last_name) AS actorName FROM client_product_stock_movements m JOIN users u ON u.id=m.actor_user_id WHERE m.product_id=? ORDER BY m.created_at DESC,m.id DESC LIMIT 100',[id]);return {product:{id:String(product[0].id),name:String(product[0].name),stock:Number(product[0].stock),stockMinimum:Number(product[0].stockMinimum),reservedStock:Number(product[0].reservedStock)},items:movements};});
  return rows;
 }
-// Función adminProductCategories: concentra la lógica dentro de este módulo.
+/** Lista categorías disponibles para el catálogo administrativo. */
 export async function adminProductCategories(identity:AuthUser) {
   if(!['products.update','products.update_stock','products.update_price'].some(code=>identity.permissions?.includes(code)))forbidden();
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name FROM client_product_categories WHERE is_active=1 ORDER BY name');

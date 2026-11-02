@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: notifications.tsx
+ * UBICACIÓN: mobile/src/app/client/notifications.tsx
+ * FUNCIÓN: Bandeja de notificaciones propias para la cuenta CLIENT.
+ * RESPONSABILIDAD: Carga y pagina notificaciones, filtra por contexto, marca como leídas/ocultas y publica cambios al puente global.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/services/notification-path.ts y 4 más Se utiliza desde: mobile/src/app/notifications.tsx
+ * FUNCIONAMIENTO: useClient/useClientQuery → servicio cliente; notification-path resuelve destinos y notification-events sincroniza el contador.
+ * IMPORTANCIA: Mantiene la experiencia de notificación coherente con permisos y propiedad de la cuenta.
+ */
 /**
  * Pantalla de notificaciones propias para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -20,7 +27,7 @@ import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
 
-// Función NotificationsScreen: concentra la lógica dentro de este módulo.
+/** Carga bandeja paginada, contexto de notificación y acciones de lectura/ocultamiento para la cuenta actual. */
 export default function NotificationsScreen(){
   const api=useClient();
   const {user}=useAuth();

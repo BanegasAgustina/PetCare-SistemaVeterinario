@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: sql-audit-readonly.ts
+ * UBICACIÓN: backend/src/database/sql-audit-readonly.ts
+ * FUNCIÓN: Auditoría estática y de esquema de SQL sin modificar la base.
+ * RESPONSABILIDAD: Extrae referencias desde fuentes, consulta metadatos y reporta discrepancias/errores de auditoría.
+ * CONEXIONES: Importa: backend/src/config/database.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI de auditoría → lectura de archivos e INFORMATION_SCHEMA.
+ * IMPORTANCIA: Ayuda a revisar cobertura de tablas y consultas; el resultado no es una migración.
+ */
 /**
  * Exporta metadatos del esquema y ledgers de migración sin leer datos de negocio
  * ni ejecutar DDL. Reutiliza la conexión validada por el backend.
@@ -11,9 +18,9 @@ import type { RowDataPacket } from 'mysql2/promise';
 import ts from 'typescript';
 import { databasePool } from '../config/database';
 
-// Tipo MetadataRow: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Metadatos de tabla/columna obtenidos mediante consulta de solo lectura. */
 type MetadataRow = RowDataPacket & Record<string, unknown>;
-// Tipo AuditError: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Diagnóstico de discrepancia o error de auditoría con código seguro. */
 type AuditError = { stage: string; query: string; code: string; message: string; unknownColumn?: string };
 
 // Configuración safeHistoryColumns: reúne valores o reglas que consume el resto del módulo.
@@ -21,15 +28,15 @@ const safeHistoryColumns = [
   'version', 'migration_name', 'name', 'checksum', 'state', 'status',
   'applied_at', 'started_at', 'completed_at', 'batch', 'completed_steps',
 ];
-// Dato ignoredTableWords: conserva un valor calculado o de configuración usado por este módulo.
+/** Palabras SQL que no representan tabla fuente al extraer referencias. */
 const ignoredTableWords = new Set(['if', 'not', 'exists', 'select', 'only', 'lateral']);
 
-// Función quoteIdentifier: concentra la lógica dentro de este módulo.
+/** Escapa identificador SQL y rechaza nombres fuera del formato esperado. */
 function quoteIdentifier(value: string): string {
   return `\`${value.replaceAll('`', '``')}\``;
 }
 
-// Función extractTableReferences: concentra la lógica dentro de este módulo.
+/** Extrae referencias a tablas de sentencias SQL para comparación de alcance. */
 function extractTableReferences(source: string): string[] {
   const refs = new Set<string>();
   // Heuristic inventory only: runtime SQL assembled from variables/fragments can
@@ -42,7 +49,7 @@ function extractTableReferences(source: string): string[] {
   return [...refs].sort((a, b) => a.localeCompare(b));
 }
 
-// Función listTypeScriptFiles: obtiene o consulta información dentro de este módulo.
+/** Enumera fuentes propias a auditar excluyendo dependencias/builds. */
 async function listTypeScriptFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files: string[] = [];
@@ -55,7 +62,7 @@ async function listTypeScriptFiles(directory: string): Promise<string[]> {
   return files;
 }
 
-// Función extractSqlLikeStrings: concentra la lógica dentro de este módulo.
+/** Recupera literales que contienen posibles consultas SQL de las fuentes. */
 function extractSqlLikeStrings(filePath: string): string[] {
   const content = ts.sys.readFile(filePath);
   if (content === undefined) return [];
@@ -75,7 +82,7 @@ const visit = (node: ts.Node): void => {
   return strings;
 }
 
-// Función codeTableInventory: concentra la lógica dentro de este módulo.
+/** Agrupa referencias encontradas por tabla y archivo. */
 async function codeTableInventory(): Promise<{ filesScanned: number; byFile: Record<string, string[]>; allTables: string[] }> {
   const sourceRoot = path.resolve(__dirname, '..');
   const files = await listTypeScriptFiles(sourceRoot);
@@ -91,7 +98,7 @@ async function codeTableInventory(): Promise<{ filesScanned: number; byFile: Rec
   return { filesScanned: files.length, byFile, allTables: [...all].sort((a, b) => a.localeCompare(b)) };
 }
 
-// Función describeError: concentra la lógica dentro de este módulo.
+/** Reduce una excepción a código/mensaje útil sin incluir secretos. */
 function describeError(stage: string, query: string, error: unknown): AuditError {
   const dbError = error as NodeJS.ErrnoException & { sqlMessage?: string };
   const message = dbError.sqlMessage ?? dbError.message ?? String(error);
@@ -105,7 +112,7 @@ function describeError(stage: string, query: string, error: unknown): AuditError
   };
 }
 
-// Función audit: concentra la lógica dentro de este módulo.
+/** Compara referencias del código y esquema real y devuelve hallazgos sin mutaciones. */
 async function audit(): Promise<Record<string, unknown>> {
   const errors: AuditError[] = [];
   const warnings: string[] = [];
@@ -277,7 +284,7 @@ const runMetadata = async (stage: string, query: string): Promise<MetadataRow[] 
   return result;
 }
 
-// Función main: concentra la lógica dentro de este módulo.
+/** Ejecuta auditoría de solo lectura, imprime resultados y establece código de salida. */
 async function main(): Promise<void> {
   const outIndex = process.argv.indexOf('--out');
   const requestedOutput = outIndex >= 0 ? process.argv[outIndex + 1] : undefined;

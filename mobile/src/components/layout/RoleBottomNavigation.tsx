@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: RoleBottomNavigation.tsx
+ * UBICACIÓN: mobile/src/components/layout/RoleBottomNavigation.tsx
+ * FUNCIÓN: Barra inferior de navegación con pestañas según rol.
+ * RESPONSABILIDAD: Dar acceso táctil a destinos principales en vista móvil.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/components/layout/GlobalNavigation.tsx, mobile/src/components/layout/RoleNavigationContext.tsx, mobile/src/components/layout/RoleQuickAccess.tsx
+ * FUNCIONAMIENTO: Recibe destinos y ruta activa; resalta selección y delega navegación al callback del layout.
+ * IMPORTANCIA: Mantiene la barra presentacional mientras el padre conserva las reglas de acceso.
+ */
 import { useEffect,useState } from 'react';
 import { Keyboard,Platform,Pressable,StyleSheet,View,useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +21,7 @@ export type NavigationTab={label:string;path:string;icon:IconName;group?:string}
 // Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props={items:NavigationTab[];activePath:string|null;onNavigate:(path:string)=>void};
 
-// Función RoleBottomNavigation: concentra la lógica dentro de este módulo.
+/** Renderiza las pestañas recibidas y marca la ruta activa. */
 export function RoleBottomNavigation({items,activePath,onNavigate}:Props){
   const {colors}=useTheme();
   const {width}=useWindowDimensions();

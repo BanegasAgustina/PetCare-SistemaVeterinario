@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: index.tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/store/index.tsx
+ * FUNCIÓN: Catálogo de productos para clientes con búsqueda, filtros y accesos al carrito.
+ * RESPONSABILIDAD: Carga productos/categorías, aplica búsqueda debounced y filtros, presenta banners y navegación al detalle.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useDebouncedValue.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/types/client.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/Storefront.tsx, mobile/src/components/forms/AppInput.tsx y 6 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: useClient/useClientQuery → endpoints de tienda; Storefront, parámetros de ruta y contexto de checkout conectan selección/carrito.
+ * IMPORTANCIA: Ofrece exploración del catálogo; stock y precio finales se vuelven a validar en backend.
+ */
 /** Catálogo cliente con búsqueda, filtros reales, banners derivados de promociones activas y carrito existente. */
 import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -23,7 +30,7 @@ import { isWebAtLeast, responsiveLayout } from '../../../../constants/responsive
 // Tipo ProductSort: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProductSort = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 
-// Función StoreScreen: concentra la lógica dentro de este módulo.
+/** Carga y presenta catálogo y filtros, conservando búsqueda de URL y acceso al carrito. */
 export default function StoreScreen() {
   const routeParams=useLocalSearchParams<{category?:string|string[]}>();const routeCategory=Array.isArray(routeParams.category)?routeParams.category[0]??'':routeParams.category??'';
   const api = useClient();
@@ -268,7 +275,7 @@ const styles = StyleSheet.create({
   bottomScrollSpace: { height: 24 },
 });
 
-// Función CategoryTile: concentra la lógica dentro de este módulo.
+/** Presenta una categoría seleccionable con icono y estado activo. */
 function CategoryTile({ name, icon, selected, onPress }: { name: string; icon: ComponentProps<typeof Ionicons>['name']; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onPress} style={styles.categoryTile}>
@@ -279,7 +286,7 @@ function CategoryTile({ name, icon, selected, onPress }: { name: string; icon: C
   </Pressable>;
 }
 
-// Función categoryIcon: concentra la lógica dentro de este módulo.
+/** Asocia nombres de categorías conocidos con iconos visuales. */
 function categoryIcon(name: string): ComponentProps<typeof Ionicons>['name'] {
   const normalized = name.toLocaleLowerCase('es');
   if (/alimento|comida|nutric/.test(normalized)) return 'restaurant-outline';
@@ -290,7 +297,7 @@ function categoryIcon(name: string): ComponentProps<typeof Ionicons>['name'] {
   return 'paw-outline';
 }
 
-// Función toPriceCents: concentra la lógica dentro de este módulo.
+/** Convierte un valor monetario escrito en centavos enteros o devuelve null si no es válido. */
 function toPriceCents(value: string): number | null {
   if (!value.trim()) return null;
   const amount = Number(value.trim().replace(',', '.'));

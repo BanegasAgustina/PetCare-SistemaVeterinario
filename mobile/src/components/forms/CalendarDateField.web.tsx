@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: CalendarDateField.web.tsx
+ * UBICACIÓN: mobile/src/components/forms/CalendarDateField.web.tsx
+ * FUNCIÓN: Selector de fecha adaptado a controles de navegador web.
+ * RESPONSABILIDAD: Ofrecer selección de fecha accesible en web con el mismo contrato que la variante nativa.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts, mobile/src/utils/pet-date.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Usa entradas web y transforma el valor al formato esperado, respetando límites y estado disabled.
+ * IMPORTANCIA: Expo Router/Metro selecciona esta implementación web en lugar de CalendarDateField.tsx.
+ */
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { AppButton } from '../ui/AppButton';
@@ -13,7 +20,7 @@ type Props = { label: string; value: string; onChange: (value: string) => void; 
 const monthNames = Array.from({ length: 12 }, (_, month) => new Date(2020, month, 1).toLocaleDateString('es-AR', { month: 'long' }));
 
 /** Calendario web con selección directa de año y mes, sin ingreso manual de fechas. */
-// Función CalendarDateField: concentra la lógica dentro de este módulo.
+/** Implementa el selector de fecha con controles del navegador. */
 export function CalendarDateField({ label, value, onChange, disabled = false, optional = false, minDate, maxDate }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'days' | 'months' | 'years'>('days');
@@ -25,7 +32,7 @@ export function CalendarDateField({ label, value, onChange, disabled = false, op
   const lowerYear = minDate ? dateFromApi(minDate).getFullYear() : 1900;
   const upperYear = maxDate ? dateFromApi(maxDate).getFullYear() : new Date().getFullYear() + 10;
   const years = Array.from({ length: Math.max(0, upperYear - lowerYear + 1) }, (_, index) => upperYear - index);
-  // Función close: concentra la lógica dentro de este módulo.
+  // Finaliza la edición usando la misma representación ISO del control compartido.
 function close() { setOpen(false); setView('days'); }
   return <View style={{ gap: 8 }}>
     <AppText>{label}{optional ? ' (opcional)' : ''}</AppText>

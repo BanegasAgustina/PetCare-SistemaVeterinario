@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: pets.tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/pets.tsx
+ * FUNCIÓN: Listado de mascotas propias del cliente.
+ * RESPONSABILIDAD: Consulta mascotas autenticadas, permite filtrar activas/inactivas y abre creación, edición o detalle.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/RecordCards.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/constants/responsive.ts y 1 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: useClient/useClientQuery → endpoints de mascotas; RecordCards y parámetros de ruta conectan la ficha.
+ * IMPORTANCIA: Presenta recursos del titular sin permitir que el ID de UI sustituya ownership del backend.
+ */
 /**
  * Pantalla de mascotas propias para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -15,7 +22,7 @@ import { AppText } from '../../../components/ui/AppText';
 import { SelectionRow } from '../../../components/ui/SelectionRow';
 import { isWebAtLeast, responsiveLayout } from '../../../constants/responsive';
 import { normalizePetActiveFlag } from '../../../utils/pet-status';
-// Función PetsScreen: concentra la lógica dentro de este módulo.
+/** Carga y presenta mascotas asociadas a la cuenta CLIENT con filtros y accesos a sus fichas. */
 export default function PetsScreen(){
  const api=useClient();const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);const [showInactive,setShowInactive]=useState(false);
  const query=useClientQuery(useCallback(()=>api.pets(true),[api]));

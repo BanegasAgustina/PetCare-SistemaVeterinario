@@ -1,6 +1,13 @@
-// Este archivo se encarga de lo siguiente: Valores de configuración compartidos para mantener criterios consistentes en la app.
-
-/** Breakpoints and layout values shared by the web layouts and adaptive components. */
+/**
+ * ARCHIVO: responsive.ts
+ * UBICACIÓN: mobile/src/constants/responsive.ts
+ * FUNCIÓN: Constantes compartidas de presentación o comportamiento.
+ * RESPONSABILIDAD: Constantes compartidas de presentación o comportamiento dentro de PetCare; agrupa las declaraciones de responsive.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/admin/index.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/client/(tabs)/index.tsx, mobile/src/app/client/(tabs)/pets.tsx, mobile/src/app/client/(tabs)/store/index.tsx, mobile/src/app/client/notifications.tsx, mobile/src/app/client/orders/index.tsx y 26 más
+ * FUNCIONAMIENTO: Expone valores de referencia compartidos por los módulos que los importan.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
+/** Breakpoints y dimensiones compartidos por layouts web y componentes adaptables. */
 // Dato responsiveLayout: conserva un valor calculado o de configuración usado por este módulo.
 export const responsiveLayout = {
   breakpoints: {
@@ -50,12 +57,12 @@ export const responsiveLayout = {
   },
 } as const;
 
-// Función isWebAtLeast: comprueba una regla o condición dentro de este módulo.
+/** Indica si la plataforma es web y el ancho alcanza el breakpoint indicado. */
 export function isWebAtLeast(platform: string, width: number, breakpoint: number) {
   return platform === 'web' && width >= breakpoint;
 }
 
-// Función patientDetailPresentation: concentra la lógica dentro de este módulo.
+/** Activa dos columnas/tablas clínicas solo al alcanzar los anchos definidos para desktop. */
 export function patientDetailPresentation(platform: string, width: number) {
   return {
     twoColumns: isWebAtLeast(platform, width, responsiveLayout.breakpoints.desktop),
@@ -63,7 +70,7 @@ export function patientDetailPresentation(platform: string, width: number) {
   };
 }
 
-// Función desktopSidebarWidth: concentra la lógica dentro de este módulo.
+/** Calcula ancho de sidebar como proporción del viewport, limitado por mínimo y máximo establecidos. */
 export function desktopSidebarWidth(viewportWidth: number) {
   return Math.min(
     responsiveLayout.sidebar.maxWidth,

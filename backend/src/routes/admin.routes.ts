@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: admin.routes.ts
+ * UBICACIÓN: backend/src/routes/admin.routes.ts
+ * FUNCIÓN: Declara endpoints de administración de usuarios, roles, permisos y tienda.
+ * RESPONSABILIDAD: Aplicar autenticación, permisos y validación antes de delegar las acciones administrativas.
+ * CONEXIONES: Importa: backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/permission.middleware.ts, backend/src/middlewares/auth-rate-limit.middleware.ts, backend/src/validators/veterinarian.validator.ts, backend/src/types/auth.ts, backend/src/repositories/admin.repository.ts, backend/src/services/pet-photo.service.ts, backend/src/utils/app-error.ts y 2 más Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Usa middlewares de auth/permission y validadores; handlers obtienen el actor de res.locals y llaman a operaciones de administración.
+ * IMPORTANCIA: Define la superficie /admin y protege las operaciones más sensibles detrás de permisos del backend.
+ */
 /** Cada recurso administrativo exige identidad JWT, rol permitido y permiso real. */
 import { Router,type Request,type Response,type RequestHandler } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
@@ -12,13 +19,13 @@ import { isProductPhotoKey,isProfilePhotoKey,presentProductImages,removeProductP
 import { AppError } from '../utils/app-error';
 import * as account from '../services/admin-account.service';
 import * as generalInformation from '../repositories/general-information.repository';
-// Función handle: atiende una acción o evento dentro de este módulo.
+// Adapta una operación de repositorio a un handler y maneja errores de base.
 function handle(operation:(req:Request,res:Response)=>Promise<unknown>,status=200):RequestHandler {
   return async(req,res,next)=>{try{res.status(status).json({success:true,data:await operation(req,res)});}catch(error){next(error);}};
 }
-// Función actor: concentra una operación reutilizable de este módulo.
+// Obtiene de locals el usuario ya autenticado y verificado por middleware.
 const actor=(res:Response)=>res.locals.authenticatedUser as AuthUser;
-// Función updateProduct: actualiza o guarda información dentro de este módulo.
+// Actualiza producto y mantiene la limpieza de fotos reemplazadas.
 async function updateProduct(req:Request,res:Response) {
   const identity=actor(res);const raw=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   const {photoBase64,...fields}=raw;
@@ -28,7 +35,7 @@ async function updateProduct(req:Request,res:Response) {
   try{const result=await repository.updateAdminProduct(identity,identifier(req.params.id),{...fields,imageUrl:image.url});if(result.previousImage!==image.url&&isProductPhotoKey(result.previousImage))await removeProductPhoto(result.previousImage).catch(()=>console.error('No se pudo limpiar la imagen anterior del producto.'));return {updated:true};}
   catch(error){await image.remove().catch(()=>console.error('No se pudo limpiar una imagen de producto sin referencia.'));throw error;}
 }
-// Función updateUserPhoto: actualiza o guarda información dentro de este módulo.
+// Actualiza referencia fotográfica solo tras validar rol de la cuenta.
 async function updateUserPhoto(req:Request,res:Response) {
   const identity=actor(res);const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};
   if(Object.keys(body).some(key=>!['photoBase64','photoUrl','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&(body.photoBase64!==undefined||body.photoUrl!==undefined)||body.photoBase64!==undefined&&body.photoUrl!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');

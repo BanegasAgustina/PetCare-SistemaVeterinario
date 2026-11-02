@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: ProfilePhotoInput.tsx
+ * UBICACIÓN: mobile/src/components/forms/ProfilePhotoInput.tsx
+ * FUNCIÓN: Selector y vista previa de foto de perfil construido sobre el cargador compartido.
+ * RESPONSABILIDAD: Editar, reemplazar o quitar foto personal y fotos administradas de usuarios.
+ * CONEXIONES: Importa: mobile/src/components/forms/ImageUploadField.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx Se utiliza desde: mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/components/profile/AccountProfileScreen.tsx
+ * FUNCIONAMIENTO: Muestra currentUri o selección temporal, llama ImageUploadField y comunica objeto seleccionado/eliminación al padre.
+ * IMPORTANCIA: Reutiliza el cargador seguro en administración y perfil de cuenta.
+ */
 import { View } from 'react-native';
 import { ImageUploadField } from './ImageUploadField';
 import { PetImage } from '../client/PetCareUI';

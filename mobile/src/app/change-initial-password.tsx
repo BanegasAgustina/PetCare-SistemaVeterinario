@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
-
+/**
+ * ARCHIVO: change-initial-password.tsx
+ * UBICACIÓN: mobile/src/app/change-initial-password.tsx
+ * FUNCIÓN: Pantalla obligatoria para cambiar una contraseña inicial de empleado.
+ * RESPONSABILIDAD: Recibe email opcional, pide contraseña actual/nueva y confirmación, ejecuta el servicio y redirige según resultado.
+ * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAsyncAction.ts, mobile/src/services/auth.service.ts, mobile/src/services/api.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Login recibe PASSWORD_CHANGE_REQUIRED → esta pantalla → auth.service/API → backend invalida sesiones previas.
+ * IMPORTANCIA: Impide entrar al área de trabajo con una credencial inicial sin reemplazar.
+ */
 /** Cambio obligatorio antes de que una cuenta de empleado pueda acceder a la aplicación. */
 import { useState } from 'react';
 import { router,useLocalSearchParams } from 'expo-router';
@@ -12,7 +19,7 @@ import { useAsyncAction } from '../hooks/useAsyncAction';
 import { changeInitialPassword } from '../services/auth.service';
 import { ApiError } from '../services/api';
 
-// Función ChangeInitialPasswordScreen: actualiza o guarda información dentro de este módulo.
+/** Mantiene el estado de credenciales y aviso, y envía el cambio obligatorio al confirmar. */
 export default function ChangeInitialPasswordScreen(){
   const {email:emailParam}=useLocalSearchParams<{email?:string}>();const [email,setEmail]=useState(emailParam??'');const [currentPassword,setCurrentPassword]=useState('');const [password,setPassword]=useState('');const [confirmation,setConfirmation]=useState('');const [message,setMessage]=useState<string|null>(null);const action=useAsyncAction();
   // Función submit: concentra la lógica dentro de este módulo.

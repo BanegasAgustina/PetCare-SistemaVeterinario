@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: SocialLoginButton.tsx
+ * UBICACIÓN: mobile/src/components/ui/SocialLoginButton.tsx
+ * FUNCIÓN: Botón visual de proveedor social con icono y proveedor predefinido.
+ * RESPONSABILIDAD: Representar la acción OAuth sin implementar el protocolo en el botón.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/components/ui/OAuthSignInOptions.tsx
+ * FUNCIONAMIENTO: Recibe proveedor y callback; el contenedor decide qué operación ejecutar y comunica disabled durante carga.
+ * IMPORTANCIA: Mantiene cada proveedor como acción visual, dejando OAuth en el servicio dedicado.
+ */
 /** Dispara OAuth mediante su callback; el contenedor controla carga y errores inline. */
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { Pressable, StyleSheet } from 'react-native';

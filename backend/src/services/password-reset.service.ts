@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: password-reset.service.ts
+ * UBICACIÓN: backend/src/services/password-reset.service.ts
+ * FUNCIÓN: Solicitud y confirmación de recuperación de contraseña, además del cambio inicial obligatorio.
+ * RESPONSABILIDAD: Entrega respuesta uniforme para evitar enumeración, guarda hashes de tokens de corta duración, consume el token una vez y cambia la versión de sesión.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/config/mail.ts, backend/src/utils/app-error.ts, backend/src/utils/password-reset-token.ts, backend/src/validators/auth.validator.ts, backend/src/services/password.service.ts, backend/src/services/mail.service.ts, backend/src/config/public-frontend.ts Se utiliza desde: backend/src/controllers/auth.controller.ts
+ * FUNCIONAMIENTO: Rutas/controlador de auth → este servicio → MySQL, validators, mail.service, password.service y repositorio de usuarios.
+ * IMPORTANCIA: Permite recuperar acceso y obliga a invalidar sesiones existentes después de cambiar credenciales.
+ */
 import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { databasePool } from '../config/database';
@@ -11,9 +18,9 @@ import { hashPassword } from './password.service';
 import { sendPasswordResetEmail } from './mail.service';
 import { publicFrontendUrl } from '../config/public-frontend';
 
-// Función tokenHash: concentra una operación reutilizable de este módulo.
+/** Genera SHA-256 del token para evitar almacenarlo en texto claro. */
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
-// Función requestPasswordReset: concentra la lógica dentro de este módulo.
+/** Responde de forma uniforme, crea una prueba aleatoria con vencimiento y envía el enlace solo cuando corresponde. */
 export async function requestPasswordReset(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => key !== 'email')) throw new AppError('VALIDATION_ERROR',400,'Ingresá un correo válido.');
   const email = normalizeEmail((body as { email?: unknown }).email);
@@ -39,7 +46,7 @@ export async function requestPasswordReset(body: unknown): Promise<void> {
   await sendPasswordResetEmail(email, url.toString());
 }
 
-// Función resetPassword: concentra la lógica dentro de este módulo.
+/** Verifica y consume el token de recuperación una sola vez, actualiza hash y versión de sesión en transacción. */
 export async function resetPassword(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['token','password'].includes(key))) throw new AppError('VALIDATION_ERROR',400,'El enlace no es válido o venció.');
   const input = body as { token?: unknown; password?: unknown };
@@ -61,7 +68,7 @@ export async function resetPassword(body: unknown): Promise<void> {
 }
 
 /** Establece la primera contraseña propia tras verificar el correo de una cuenta de empleado. */
-// Función changeInitialPassword: actualiza o guarda información dentro de este módulo.
+/** Cambia contraseña de una cuenta que debe completar el cambio inicial y revoca sesiones al confirmar. */
 export async function changeInitialPassword(body: unknown): Promise<void> {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['email','currentPassword','newPassword'].includes(key))) throw new AppError('VALIDATION_ERROR',400,'Revisá los datos ingresados.');
   const value=body as {email?:unknown;currentPassword?:unknown;newPassword?:unknown};

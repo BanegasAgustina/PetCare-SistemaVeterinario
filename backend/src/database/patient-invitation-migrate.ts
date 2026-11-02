@@ -1,8 +1,18 @@
+/**
+ * ARCHIVO: patient-invitation-migrate.ts
+ * UBICACIÓN: backend/src/database/patient-invitation-migrate.ts
+ * FUNCIÓN: Actualiza el esquema necesario para invitar titulares de pacientes.
+ * RESPONSABILIDAD: Comprueba estado de tabla/columnas y aplica la transformación de invitaciones prevista.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI/bootstrap → migration service y MySQL.
+ * IMPORTANCIA: Conecta pacientes precreados por clínica con cuentas de cliente invitadas.
+ */
 /** Prepara la clave de idempotencia para altas clínicas; no modifica datos existentes. */
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 import type { RowDataPacket } from 'mysql2/promise';
 
+/** Comprueba el estado de invitaciones de pacientes y aplica la migración puntual prevista. */
 async function main(){
  const c=await databasePool.getConnection();
  try{await withDatabaseLock(c,async()=>{

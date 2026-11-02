@@ -1,13 +1,20 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne las operaciones relacionadas con este módulo.
-
+/**
+ * ARCHIVO: verification.validator.ts
+ * UBICACIÓN: backend/src/validators/verification.validator.ts
+ * FUNCIÓN: Valida el código de email y el token opaco del desafío.
+ * RESPONSABILIDAD: Limitar cantidad/formato de código y verificar que token pertenezca al formato esperado.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts Se utiliza desde: backend/src/services/verification.service.ts
+ * FUNCIONAMIENTO: Acepta unknown y devuelve valores validados o AppError; no maneja correo ni persistencia.
+ * IMPORTANCIA: Separa validación de entrada del contador de intentos y la entrega SMTP.
+ */
 /** Verificación exige el token entregado tras registro o credenciales válidas, no un email arbitrario. */
 import { AppError } from "../utils/app-error";
-// Función validateVerification: comprueba una regla o condición dentro de este módulo.
+/** Valida cuerpo de confirmación, token y código de verificación. */
 export function validateVerification(
   value: unknown,
   withCode: boolean,
 ): { verificationToken: string; code?: string } {
-  // Función invalid: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Arroja error de verificación con un código público estable.
 const invalid = () =>
     new AppError(
       "VALIDATION_ERROR",

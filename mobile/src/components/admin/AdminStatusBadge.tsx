@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: AdminStatusBadge.tsx
+ * UBICACIÓN: mobile/src/components/admin/AdminStatusBadge.tsx
+ * FUNCIÓN: Etiqueta visual de estado traducida al vocabulario de PetCare.
+ * RESPONSABILIDAD: Presentar estados de turnos, pacientes y entidades clínicas en listados.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppText.tsx, mobile/src/utils/display-labels.ts Se utiliza desde: mobile/src/components/clinic/AgendaScreen.tsx, mobile/src/components/clinic/AppointmentScreen.tsx, mobile/src/components/clinic/PatientDetailScreen.tsx, mobile/src/components/clinic/PatientListCard.tsx, mobile/src/components/clinic/PatientsScreen.tsx
+ * FUNCIONAMIENTO: Usa display-labels para resolver texto y tema para elegir estilos de estado.
+ * IMPORTANCIA: Evita traducciones y colores divergentes por cada pantalla.
+ */
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppText } from '../ui/AppText';
 import { generalStatusLabel } from '../../utils/display-labels';
 
-// Función AdminStatusBadge: concentra la lógica dentro de este módulo.
+/** Traduce el estado y selecciona una apariencia semántica coherente. */
 export function AdminStatusBadge({ status }: { status: string }) {
   const { colors } = useTheme();
   const tone = status === 'ACTIVE'

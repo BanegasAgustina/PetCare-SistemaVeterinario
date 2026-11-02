@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: ConfirmModal.tsx
+ * UBICACIÓN: mobile/src/components/ui/ConfirmModal.tsx
+ * FUNCIÓN: Diálogo de confirmación con acción asincrónica, cancelación y presentación destructiva opcional.
+ * RESPONSABILIDAD: Pedir confirmación explícita antes de operaciones sensibles y mostrar su estado de ejecución.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAsyncAction.ts, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx y 10 más
+ * FUNCIONAMIENTO: Compone AppModal, botones, avisos y useAsyncAction; ejecuta onConfirm y gestiona carga/errores del callback.
+ * IMPORTANCIA: Unifica confirmaciones de borrado, desactivación y otras acciones con consecuencias.
+ */
 /** Confirmación reutilizable; las acciones destructivas deben pasar por este patrón visual. */
 import { AppModal } from './AppModal';
 import { AppText } from './AppText';
@@ -11,7 +18,7 @@ import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 // Tipo ConfirmModalProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type ConfirmModalProps = { visible: boolean; title: string; message: string; confirmLabel?: string; cancelLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => Promise<void> };
-// Función ConfirmModal: concentra la lógica dentro de este módulo.
+/** Presenta confirmación y delega ejecución y errores asíncronos al hook compartido. */
 export function ConfirmModal({ visible, title, message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, onCancel, onConfirm }: ConfirmModalProps) {
   const action = useAsyncAction();
   const { width } = useWindowDimensions();

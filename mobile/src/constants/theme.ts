@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Valores de configuración compartidos para mantener criterios consistentes en la app.
-
+/**
+ * ARCHIVO: theme.ts
+ * UBICACIÓN: mobile/src/constants/theme.ts
+ * FUNCIÓN: Constantes compartidas de presentación o comportamiento.
+ * RESPONSABILIDAD: Constantes compartidas de presentación o comportamiento dentro de PetCare; agrupa las declaraciones de theme.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/contexts/ThemeContext.tsx
+ * FUNCIONAMIENTO: Expone valores de referencia compartidos por los módulos que los importan.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Tokens visuales basados en imagenes/paleta de colores .png. */
 // Configuración sharedColors: reúne valores o reglas que consume el resto del módulo.
 const sharedColors = {

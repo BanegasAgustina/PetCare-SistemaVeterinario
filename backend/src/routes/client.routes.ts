@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: client.routes.ts
+ * UBICACIÓN: backend/src/routes/client.routes.ts
+ * FUNCIÓN: Declara endpoints de mascotas, turnos, tienda, carrito, pedidos y perfil de cliente.
+ * RESPONSABILIDAD: Proteger operaciones del área cliente y asociarlas al controller correspondiente.
+ * CONEXIONES: Importa: backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/permission.middleware.ts, backend/src/middlewares/auth-rate-limit.middleware.ts, backend/src/controllers/client.controller.ts, backend/src/routes/notification.routes.ts Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Aplica autenticación, permisos de acceso personal, límites de carga y monta rutas de notificaciones.
+ * IMPORTANCIA: Mapea el dominio cliente bajo el prefijo /client.
+ */
 /**
  * Expone /api/client para CLIENT autenticados. El controller deriva ownership del JWT y el servicio consulta MySQL; estas rutas no deben aceptar un owner enviado por la app.
  */

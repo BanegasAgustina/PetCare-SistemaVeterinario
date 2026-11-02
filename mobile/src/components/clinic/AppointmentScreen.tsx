@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: AppointmentScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/AppointmentScreen.tsx
+ * FUNCIÓN: Detalle y acciones de un turno seleccionado.
+ * RESPONSABILIDAD: Mostrar datos clínicos y permitir cambios autorizados de observación, estado o cancelación.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/SlotSelectionCard.tsx, mobile/src/components/ui/AppText.tsx y 11 más Se utiliza desde: mobile/src/app/admin/appointment.tsx, mobile/src/app/professional/appointment.tsx, mobile/src/app/vet/appointment.tsx
+ * FUNCIONAMIENTO: Lee ID de ruta y detalle de clínica, deriva acciones según rol y permisos y guarda por clinicService con feedback.
+ * IMPORTANCIA: Conecta seguimiento de turnos con ficha e historial de atención.
+ */
 /** Consulta y gestiona un turno, de acuerdo con los permisos vigentes. */
 import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,7 +31,7 @@ import { appointmentDisplayValue,appointmentRouteId } from '../../utils/appointm
 import { AdminStatusBadge } from '../admin/AdminStatusBadge';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
-// Función AppointmentScreen: concentra la lógica dentro de este módulo.
+/** Carga el turno y determina las acciones disponibles por rol y estado. */
 export function AppointmentScreen() {
   const { id:rawId } = useLocalSearchParams<{ id: string|string[] }>();
   const id=appointmentRouteId(rawId);
@@ -60,13 +67,13 @@ export function AppointmentScreen() {
   const transitions: Record<string, string[]> = { REQUESTED: ['CONFIRMED', 'REJECTED', 'CANCELLED'], CONFIRMED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'] };
   const hasSavedConsultation=Boolean(id&&historyItems.some(record=>String(record.appointmentId)===id));
 
-  // Función saveObservations: actualiza o guarda información dentro de este módulo.
+  // Guarda observaciones clínicas y actualiza el estado visible tras respuesta exitosa.
 async function saveObservations() {
     if(!id)return;
     const saved = await observationAction.run(() => api.changeAppointment(id, { observations: observationValue }));
     if (saved) { showToast('Observaciones guardadas', 'success'); query.reload(); }
   }
-  // Función cancelAppointment: elimina, revoca o cancela una operación dentro de este módulo.
+  // Solicita cancelación con motivo y muestra el resultado devuelto por la API.
 async function cancelAppointment() {
     if(!id)return;
     const reason = cancellationReason.trim();

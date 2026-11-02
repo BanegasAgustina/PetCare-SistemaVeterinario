@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: SearchFilterBar.tsx
+ * UBICACIÓN: mobile/src/components/ui/SearchFilterBar.tsx
+ * FUNCIÓN: Adaptador de compatibilidad que organiza búsqueda/ordenamiento en el toolbar compartido.
+ * RESPONSABILIDAD: Mantener una API simple para pantallas de clínica existentes.
+ * CONEXIONES: Importa: mobile/src/components/ui/FilterDisclosure.tsx, mobile/src/components/admin/AdminListToolbar.tsx Se utiliza desde: mobile/src/components/clinic/AgendaScreen.tsx, mobile/src/components/clinic/AvailabilityScreen.tsx, mobile/src/components/clinic/ClientsScreen.tsx, mobile/src/components/clinic/ClinicProductsScreen.tsx
+ * FUNCIONAMIENTO: Compone AdminListToolbar y pasa contenido y control de orden sin ejecutar consultas ni guardar filtros.
+ * IMPORTANCIA: Permite compartir presentación entre listados sin mover la lógica de datos.
+ */
 /** Compatibilidad para listados existentes: deriva la estructura al toolbar compartido. */
 import { Children, isValidElement, type PropsWithChildren, type ReactNode } from 'react';
 import { FilterDisclosure } from './FilterDisclosure';

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: OAuthLinks.tsx
+ * UBICACIÓN: mobile/src/components/ui/OAuthLinks.tsx
+ * FUNCIÓN: Panel para revisar y desvincular proveedores OAuth de una cuenta autenticada.
+ * RESPONSABILIDAD: Gestionar enlaces externos desde el perfil sin inferir identidad a partir del email.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Consulta el contexto de autenticación, ejecuta acciones asincrónicas y reporta resultado con avisos dentro de la interfaz.
+ * IMPORTANCIA: Controla la relación entre la cuenta PetCare y proveedores externos desde una sesión válida.
+ */
 /** Vinculación explícita para usuarios autenticados; recibe identidad desde AuthContext, nunca por email. */
 import { View } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';

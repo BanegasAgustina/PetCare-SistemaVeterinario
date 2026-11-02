@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: BackButton.tsx
+ * UBICACIÓN: mobile/src/components/layout/BackButton.tsx
+ * FUNCIÓN: Acción de regreso que usa la política compartida de historial y rol.
+ * RESPONSABILIDAD: Permitir volver a la pantalla correcta en navegación de varios roles.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/hooks/useBackNavigation.ts Se utiliza desde: mobile/src/components/admin/AdminPageHeading.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/layout/GlobalNavigation.tsx
+ * FUNCIONAMIENTO: Si recibe callback lo ejecuta; si no, delega decisión a useBackNavigation y respeta ruta/fallback.
+ * IMPORTANCIA: Evita que cada pantalla invente su propio comportamiento de volver.
+ */
 import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
@@ -9,7 +16,7 @@ import { useBackNavigation } from '../../hooks/useBackNavigation';
 type Props = { label?: string; style?: ViewStyle; onPress?: () => void };
 
 /** Control de regreso compartido para encabezados de rutas secundarias. */
-// Función BackButton: concentra la lógica dentro de este módulo.
+/** Muestra el botón y aplica callback explícito o política compartida de regreso. */
 export function BackButton({ label = 'Volver', style, onPress }: Props) {
   const { colors } = useTheme();
   const { goBack } = useBackNavigation();

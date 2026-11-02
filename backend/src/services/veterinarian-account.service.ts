@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: veterinarian-account.service.ts
+ * UBICACIÓN: backend/src/services/veterinarian-account.service.ts
+ * FUNCIÓN: Edición del perfil propio y cambio de contraseña de una cuenta veterinaria.
+ * RESPONSABILIDAD: Valida los campos permitidos, confirma el rol leyendo MySQL bajo transacción, guarda datos profesionales y revoca sesiones al cambiar la contraseña.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/app-error.ts, backend/src/validators/auth.validator.ts, backend/src/services/password.service.ts Se utiliza desde: backend/src/routes/veterinarian.routes.ts
+ * FUNCIONAMIENTO: veterinarian.routes.ts → este servicio → validators, password.service, bcrypt y tablas users/veterinarians.
+ * IMPORTANCIA: Limita estas operaciones de autoservicio al profesional autenticado identificado por la ruta protegida.
+ */
 /** Actualizaciones propias del profesional; su identidad nunca proviene del cuerpo HTTP. */
 import bcrypt from 'bcrypt';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -8,7 +15,7 @@ import { AppError } from '../utils/app-error';
 import { readName, readPassword, readPhone } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 
-// Función updateOwnProfile: actualiza o guarda información dentro de este módulo.
+/** Valida campos propios, confirma rol y fila veterinaria, y actualiza en transacción los datos de usuario y descripción profesional. */
 export async function updateOwnProfile(userId:string,value:unknown) {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá los datos del perfil.');
   const body=value as Record<string,unknown>;
@@ -21,7 +28,7 @@ export async function updateOwnProfile(userId:string,value:unknown) {
   catch(error){await connection.rollback();throw error;}finally{connection.release();}
 }
 
-// Función changeOwnPassword: actualiza o guarda información dentro de este módulo.
+/** Comprueba rol y contraseña actual, guarda un nuevo hash y aumenta session_version para invalidar sesiones previas. */
 export async function changeOwnPassword(userId:string,value:unknown) {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá las contraseñas ingresadas.');
   const body=value as Record<string,unknown>;

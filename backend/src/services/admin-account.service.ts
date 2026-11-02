@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: admin-account.service.ts
+ * UBICACIÓN: backend/src/services/admin-account.service.ts
+ * FUNCIÓN: Edición del perfil propio y cambio de contraseña para cuentas ADMIN y SUPER_ADMIN.
+ * RESPONSABILIDAD: Valida únicamente campos admitidos, toma el usuario autenticado como identidad, consulta/actualiza MySQL y exige contraseña actual al cambiarla.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/app-error.ts, backend/src/validators/auth.validator.ts, backend/src/services/password.service.ts Se utiliza desde: backend/src/routes/admin.routes.ts
+ * FUNCIONAMIENTO: Rutas administrativas → controladores/rutas de cuenta → este servicio → validadores, bcrypt/password.service y users en MySQL. El cambio incrementa session_version para revocar sesiones anteriores.
+ * IMPORTANCIA: Mantiene el autoservicio administrativo sin permitir que el cliente elija otro usuario ni omita la comprobación de credenciales.
+ */
 /** Edición de la cuenta propia de un administrador, derivada siempre del JWT. */
 import bcrypt from 'bcrypt';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -8,7 +15,7 @@ import { AppError } from '../utils/app-error';
 import { readName, readPassword, readPhone } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 
-// Función bodyObject: concentra la lógica dentro de este módulo.
+/** Rechaza cuerpos que no sean objetos o incluyan claves fuera de la lista permitida. */
 function bodyObject(value: unknown, allowed: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !allowed.includes(key))) {
     throw new AppError('VALIDATION_ERROR', 400, 'Revisá los datos enviados.');
@@ -16,7 +23,7 @@ function bodyObject(value: unknown, allowed: string[]): Record<string, unknown> 
   return value as Record<string, unknown>;
 }
 
-// Función updateOwnProfile: actualiza o guarda información dentro de este módulo.
+/** Valida nombre, apellido y teléfono; confirma que la cuenta activa exista y actualiza sus datos propios. */
 export async function updateOwnProfile(userId: string, value: unknown) {
   const body = bodyObject(value, ['firstName', 'lastName', 'phone']);
   const firstName = readName(body.firstName, 'El nombre');
@@ -28,7 +35,7 @@ export async function updateOwnProfile(userId: string, value: unknown) {
   return { updated: true };
 }
 
-// Función changeOwnPassword: actualiza o guarda información dentro de este módulo.
+/** Bloquea la fila del administrador, compara la contraseña actual y actualiza el hash; incrementa session_version y requiere iniciar sesión otra vez. */
 export async function changeOwnPassword(userId: string, value: unknown) {
   const body = bodyObject(value, ['currentPassword', 'newPassword']);
   const current = readPassword(body.currentPassword, false);

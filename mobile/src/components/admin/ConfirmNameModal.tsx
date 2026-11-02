@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: ConfirmNameModal.tsx
+ * UBICACIÓN: mobile/src/components/admin/ConfirmNameModal.tsx
+ * FUNCIÓN: Modal de confirmación reforzada que exige volver a escribir un nombre esperado.
+ * RESPONSABILIDAD: Prevenir confirmaciones accidentales para acciones administrativas sensibles.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAsyncAction.ts, mobile/src/utils/exact-name-confirmation.ts Se utiliza desde: mobile/src/app/admin/roles.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx
+ * FUNCIONAMIENTO: Compara la entrada normalizada con expectedName y solo entonces permite ejecutar onConfirm con useAsyncAction.
+ * IMPORTANCIA: Agrega una comprobación explícita para bajas o cambios de impacto.
+ */
 import { useState } from 'react';
 import { View } from 'react-native';
 import { AppModal } from '../ui/AppModal';
@@ -13,7 +20,7 @@ import { matchesExactConfirmation } from '../../utils/exact-name-confirmation';
 // Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props={visible:boolean;title:string;message:string;expectedName:string;identityHint?:string;confirmLabel:string;onCancel:()=>void;onConfirm:()=>Promise<void>};
 /** Destructive confirmation shared across the responsive web and Android screens. */
-// Función ConfirmNameModal: concentra la lógica dentro de este módulo.
+/** Mantiene la confirmación bloqueada hasta validar el nombre requerido. */
 export function ConfirmNameModal({visible,title,message,expectedName,identityHint,confirmLabel,onCancel,onConfirm}:Props){
   const action=useAsyncAction();
   // Función cancel: agrupa una operación que este módulo puede ejecutar o reutilizar.
@@ -25,7 +32,7 @@ const cancel=()=>{action.clearError();onCancel();};
 
 // Tipo ContentProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type ContentProps=Omit<Props,'visible'|'onConfirm'>&{loading:boolean;error:string|null;onConfirm:()=>void};
-// Función ConfirmNameContent: concentra la lógica dentro de este módulo.
+/** Presenta el mensaje, entrada de confirmación y botón de acción protegido. */
 function ConfirmNameContent({title,message,expectedName,identityHint,confirmLabel,loading,error,onCancel,onConfirm}:ContentProps){
   const [entered,setEntered]=useState('');const matches=matchesExactConfirmation(expectedName,entered);
   return <>

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: oauth.service.ts
+ * UBICACIÓN: mobile/src/services/oauth.service.ts
+ * FUNCIÓN: Coordina el inicio, retorno, vinculación y registro asistido por proveedores OAuth.
+ * RESPONSABILIDAD: Aplicar el intercambio seguro de desafío, ticket y sesión en web y en plataformas nativas.
+ * CONEXIONES: Importa: mobile/src/services/api.ts, mobile/src/services/auth.service.ts, mobile/src/types/auth.ts, mobile/src/services/web-session-store.ts, mobile/src/services/oauth-flow.ts Se utiliza desde: mobile/src/app/oauth.tsx, mobile/src/components/ui/OAuthSignInOptions.tsx, mobile/src/contexts/AuthContext.tsx, mobile/src/utils/oauth-availability.ts
+ * FUNCIONAMIENTO: Genera una prueba criptográfica, solicita URL al backend, abre navegador/redirección y valida el callback con oauth-flow antes del canje.
+ * IMPORTANCIA: Impide aceptar directamente tokens del proveedor; solo el ticket temporal canjeado por el backend puede crear o vincular la sesión PetCare.
+ */
 /** Inicia OAuth: web redirige la pestaña y Android usa el navegador seguro; tickets se canjean por POST. */
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
@@ -10,22 +17,22 @@ import { readAccessSession } from './auth.service';
 import type { AccessSession,RegisterValues,VerificationChallenge } from '../types/auth';
 import { clearWebOAuthProof,readWebOAuthProof,saveWebOAuthProof } from './web-session-store';
 import { nativeOAuthSupported,oauthBrowserResultError,parseOAuthCallback } from './oauth-flow';
-// Tipo OAuthProvider: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Proveedores externos habilitados por el contrato actual de OAuth. */
 export type OAuthProvider = 'google'|'facebook'|'x';
 export type OAuthProviderAvailability = Record<OAuthProvider,boolean>;
-// Tipo OAuthPending: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Datos temporales necesarios para completar el registro después de identificar la cuenta externa. */
 export type OAuthPending = {ticket:string;proof:string;email:string|null};
-// Tipo Exchange: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Posibles resultados del endpoint que canjea ticket y prueba. */
 type Exchange = {session?:AccessSession;linked?:boolean;registrationRequired?:boolean;email?:string|null};
-// Tipo OAuthStart: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Respuesta del backend al pedir el inicio del proveedor. */
 type OAuthStart = {configured?:boolean;reason?:string;url?:string};
-// Tipo OAuthResult: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Resultado uniforme para sesión, identidad vinculada o registro pendiente. */
 type OAuthResult = {session?:AccessSession;linked?:boolean;pending?:OAuthPending};
-// Función oauthDiagnostic: concentra la lógica dentro de este módulo.
+/** Emite diagnósticos acotados solo en desarrollo; no registra tickets, pruebas ni tokens. */
 export function oauthDiagnostic(event:string,provider:OAuthProvider|'web',details:Record<string,string|boolean>={}):void {
   if(__DEV__)console.info('[PetCare OAuth]',JSON.stringify({event,provider,...details}));
 }
-// Función returnUrl: concentra la lógica dentro de este módulo.
+/** Devuelve el esquema nativo o la ruta web del callback que se envía al backend. */
 function returnUrl():string {
   if(Platform.OS!=='web')return 'petcare://oauth';
   // WebBrowser cierra la ventana emergente solo desde el mismo origen HTTPS.
@@ -37,10 +44,10 @@ export async function getOAuthProviderAvailability():Promise<OAuthProviderAvaila
   const result=await apiRequest<{providers?:Partial<OAuthProviderAvailability>}>(`/auth/oauth/providers?${query.toString()}`);
   return {google:result.providers?.google===true,facebook:result.providers?.facebook===true,x:result.providers?.x===true};
 }
-// Función base64Url: concentra la lógica dentro de este módulo.
+/** Convierte Base64 a la variante URL-safe usada para el desafío OAuth. */
 function base64Url(value:string):string {return value.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 /** Genera prueba criptográfica y valida el destino del retorno; un proveedor no puede elegir el panel. */
-// Función beginOAuth: concentra la lógica dentro de este módulo.
+/** Inicia vinculación o login OAuth y devuelve sesión/pendiente o marca la redirección web. */
 export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Promise<OAuthResult|{redirecting:true}> {
   if(!nativeOAuthSupported(Platform.OS,isRunningInExpoGo())){
     oauthDiagnostic('development_build_required',provider);
@@ -87,7 +94,7 @@ export async function beginOAuth(provider:OAuthProvider,accessToken?:string):Pro
   }catch(error){oauthDiagnostic('failed',provider,{code:error instanceof ApiError?error.code:'UNEXPECTED_ERROR'});throw error;
   } finally {popup?.close();}
 }
-// Función exchangeOAuthTicket: concentra la lógica dentro de este módulo.
+/** Canjea ticket y prueba ante el backend y valida cuál estado de autenticación resultó. */
 async function exchangeOAuthTicket(ticket:string,proof:string,provider:OAuthProvider|'web'='web'):Promise<OAuthResult> {
   oauthDiagnostic('backend_exchange_started',provider);
   const exchange=await apiRequest<Exchange>('/auth/oauth/exchange',{method:'POST',body:{ticket,proof}});
@@ -97,11 +104,11 @@ async function exchangeOAuthTicket(ticket:string,proof:string,provider:OAuthProv
   if(exchange.registrationRequired===true)return {pending:{ticket,proof,email:typeof exchange.email==='string'?exchange.email:null}};
   throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
 }
-// Función clearWebOAuthReturn: concentra la lógica dentro de este módulo.
+/** Limpia la prueba web temporal al descartar el callback. */
 export function clearWebOAuthReturn():void {
   if(Platform.OS==='web')clearWebOAuthProof();
 }
-// Función exchangeWebOAuthReturn: concentra la lógica dentro de este módulo.
+/** Valida el ticket del callback web, recupera la prueba de pestaña y completa el canje. */
 export async function exchangeWebOAuthReturn(ticket:string):Promise<OAuthResult> {
   if(Platform.OS!=='web'||!/^[a-f0-9]{64}$/.test(ticket))throw new ApiError('OAUTH_FAILED','La respuesta OAuth no es válida. Iniciá el proceso nuevamente.');
   const proof=readWebOAuthProof();
@@ -116,7 +123,7 @@ export async function exchangeWebOAuthReturn(ticket:string):Promise<OAuthResult>
     throw error;
   }
 }
-// Función completeOAuth: concentra la lógica dentro de este módulo.
+/** Completa el alta de una cuenta nueva identificada por OAuth y obtiene su desafío de verificación. */
 export async function completeOAuth(pending:OAuthPending,profile:RegisterValues):Promise<VerificationChallenge> {
   const {confirmPassword,...input}=profile;
   if(profile.password!==confirmPassword)throw new ApiError('VALIDATION_ERROR','Las contraseñas no coinciden.');

@@ -1,12 +1,19 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: AuthHeader.tsx
+ * UBICACIÓN: mobile/src/components/layout/AuthHeader.tsx
+ * FUNCIÓN: Encabezado de acceso con título y texto auxiliar.
+ * RESPONSABILIDAD: Dar contexto visual a pantallas de autenticación.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe texto por props y lo presenta con jerarquía y colores del tema.
+ * IMPORTANCIA: Mantiene consistente el inicio de sesión, registro y recuperación.
+ */
 /** Cabecera compartida por login/registro con logo real, navegación y tema. */
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
-// Función AuthHeader: concentra la lógica dentro de este módulo.
+/** Presenta título y subtítulo de una pantalla de acceso. */
 export function AuthHeader({ title, subtitle }: { title: string; subtitle: string }) {
   const { colors, mode, setPreference } = useTheme();
   return <View style={styles.container}>

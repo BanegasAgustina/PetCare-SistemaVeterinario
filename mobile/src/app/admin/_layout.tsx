@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: _layout.tsx
+ * UBICACIÓN: mobile/src/app/admin/_layout.tsx
+ * FUNCIÓN: Agrupa rutas del panel ADMIN/SUPER_ADMIN y ofrece guards de acceso por permiso.
+ * RESPONSABILIDAD: Consulta pathname y permisos efectivos del AuthContext; bloquea visualmente destinos no habilitados y presenta navegación del panel.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/utils/admin-route-access.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Expo Router aplica el layout a rutas admin; useAuth y admin-route-access deciden disponibilidad visual. La API vuelve a autorizar cada request.
+ * IMPORTANCIA: Organiza el panel y mejora navegación segura sin sustituir los guards del backend.
+ */
 // Navegador común para ADMIN y SUPER_ADMIN. La API vuelve a autorizar cada operación.
 import { Stack, usePathname, router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: verification.service.ts
+ * UBICACIÓN: backend/src/services/verification.service.ts
+ * FUNCIÓN: Emisión, reenvío y comprobación de códigos de verificación de correo.
+ * RESPONSABILIDAD: Genera desafíos con expiración y límites persistidos, almacena hashes/HMAC, envía por SMTP y consume la prueba antes de habilitar la sesión aplicable.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/config/mail.ts, backend/src/repositories/verification.repository.ts, backend/src/types/verification.ts, backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/utils/mask-email.ts, backend/src/validators/verification.validator.ts y 6 más Se utiliza desde: backend/src/controllers/verification.controller.ts, backend/src/services/auth.service.ts, backend/src/services/oauth.service.ts
+ * FUNCIONAMIENTO: auth/oauth services y verification.controller → este servicio → verification.repository, mail.service, session.service y oauth-policy.
+ * IMPORTANCIA: Confirma posesión del correo con códigos de un solo uso sin guardar el código en claro.
+ */
 /** Código de seis dígitos, HMAC con secreto, expiración y límites persistidos; sin JWT de acceso. */
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { databasePool } from '../config/database';
@@ -18,18 +25,18 @@ import { shouldIssueSessionAfterVerification } from './oauth-policy';
 import type { AccessSession } from '../types/auth';
 import type { RowDataPacket } from 'mysql2/promise';
 
-// Función hashVerificationToken: concentra una operación reutilizable de este módulo.
+/** Calcula la huella SHA-256 del token aleatorio de verificación. */
 export const hashVerificationToken = (token: string) => createHash('sha256').update(token).digest('hex');
-// Función hashVerificationCode: concentra una operación reutilizable de este módulo.
+/** Genera HMAC del identificador y código con el secreto del servidor. */
 export const hashVerificationCode = (id: string, code: string) => createHmac('sha256', getVerificationSecret()).update(`${id}:${code}`).digest('hex');
-// Función sameHash: concentra una operación reutilizable de este módulo.
+/** Compara hashes en tiempo constante para reducir filtraciones por diferencias de tiempo. */
 const sameHash = (a: string, b: string) => timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
-// Función challenge: concentra la lógica dentro de este módulo.
+/** Construye la respuesta pública de desafío con los datos almacenados y el token que debe conservar el cliente. */
 function challenge(token: string, row: VerificationRow): VerificationChallenge {
   return { verificationToken: token, maskedEmail: maskEmail(row.email), retryAfterSeconds: Number(row.retry_seconds),
     expiresAt: row.expires_at ? `${row.expires_at.replace(' ', 'T')}Z` : null, delivery: row.delivery };
 }
-// Función requireProof: concentra la lógica dentro de este módulo.
+/** Exige una prueba existente, no vencida ni consumida, y detiene el flujo con error uniforme si no se cumple. */
 function requireProof(row: VerificationRow | null, tokenHash: string): asserts row is VerificationRow {
   if (!row || !sameHash(row.token_hash, tokenHash) || Number(row.proof_expired) === 1) {
     throw new AppError('VERIFICATION_SESSION_EXPIRED', 401, 'Volvé a iniciar sesión para retomar la verificación.');
@@ -38,7 +45,7 @@ function requireProof(row: VerificationRow | null, tokenHash: string): asserts r
 }
 
 /** El token de 256 bits solo se entrega tras crear cuenta o comprobar su contraseña. */
-// Función createVerificationProof: crea un registro o inicia una operación dentro de este módulo.
+/** Crea y persiste una prueba aleatoria con expiración para el identificador recibido. */
 export async function createVerificationProof(id: string): Promise<VerificationChallenge> {
   getVerificationSecret();
   const token = randomBytes(32).toString('hex');
@@ -56,7 +63,7 @@ export async function createVerificationProof(id: string): Promise<VerificationC
   });
 }
 
-// Función resendVerification: concentra la lógica dentro de este módulo.
+/** Aplica límites y reserva un código nuevo antes de enviar; persiste el resultado de entrega sin revelar la cuenta. */
 export async function resendVerification(body: unknown): Promise<VerificationChallenge> {
   const { verificationToken: token } = validateVerification(body, false);
   getMailConfiguration(); getVerificationSecret();
@@ -98,7 +105,7 @@ export async function resendVerification(body: unknown): Promise<VerificationCha
   });
 }
 
-// Función verifyEmail: concentra la lógica dentro de este módulo.
+/** Valida desafío/código de un solo uso, actualiza verificación y solo crea sesión cuando la política permite hacerlo. */
 export async function verifyEmail(body: unknown): Promise<AccessSession | null> {
   const { verificationToken: token, code } = validateVerification(body, true);
   const tokenHash = hashVerificationToken(token);

@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: SearchableMultiSelect.tsx
+ * UBICACIÓN: mobile/src/components/forms/SearchableMultiSelect.tsx
+ * FUNCIÓN: Selector de varias opciones con búsqueda y resumen de selección.
+ * RESPONSABILIDAD: Elegir conjuntos de especialidades u opciones administrativas desde catálogos.
+ * CONEXIONES: Importa: mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/hooks/useTheme.ts, mobile/src/components/forms/AppSelectField.tsx, mobile/src/utils/search-normalization.ts Se utiliza desde: mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx
+ * FUNCIONAMIENTO: Mantiene apertura y término de búsqueda locales; toggle agrega o quita IDs sin mutar value y reporta el nuevo arreglo.
+ * IMPORTANCIA: Resuelve selecciones múltiples con la misma presentación accesible de los controles simples.
+ */
 import { useMemo,useState } from 'react';
 import { Pressable,StyleSheet,View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';

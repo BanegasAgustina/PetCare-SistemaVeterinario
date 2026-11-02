@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: GlobalNavigation.tsx
+ * UBICACIÓN: mobile/src/components/layout/GlobalNavigation.tsx
+ * FUNCIÓN: Marco principal que configura navegación, permisos, notificaciones y layout adaptable.
+ * RESPONSABILIDAD: Presentar navegación global distinta por rol y menú administrativo dinámico.
+ * CONEXIONES: Importa: mobile/src/services/notification-events.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useTheme.ts, mobile/src/utils/role-label.ts, mobile/src/constants/surface.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/layout/PetCareLogo.tsx y 11 más Se utiliza desde: mobile/src/app/_layout.tsx
+ * FUNCIONAMIENTO: Lee usuario y tema, solicita módulos según permisos, mide ruta activa, notifica cambios y compone sidebar, breadcrumb, tabs o navegación móvil.
+ * IMPORTANCIA: Es el punto común que conecta sesión, autorización de interfaz y navegación de toda la aplicación.
+ */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { subscribeToNotificationChanges } from '../../services/notification-events';
@@ -38,20 +45,20 @@ const AdminModulesContext = createContext<AdminModule[]>([]);
 const AdminModulesLoadingContext = createContext(false);
 // Configuración scheduleAdminModule: reúne valores o reglas que consume el resto del módulo.
 const scheduleAdminModule: AdminModule = { code: 'schedule.manage', name: 'Horarios', path: '/admin/availability' };
-// Función useAdminModules: concentra la lógica dentro de este módulo.
+// Lee del contexto los módulos administrativos habilitados.
 export function useAdminModules() { return useContext(AdminModulesContext); }
-// Función useAdminModulesLoading: concentra la lógica dentro de este módulo.
+// Expone si la carga de módulos administrativos sigue en curso.
 export function useAdminModulesLoading() { return useContext(AdminModulesLoadingContext); }
 // Dato adminGroups: conserva un valor calculado o de configuración usado por este módulo.
 const adminGroups = ['Inicio', 'Clínica', 'Tienda', 'Administración'] as const;
-// Función adminGroup: concentra la lógica dentro de este módulo.
+// Asigna cada ruta administrativa a una sección del menú.
 function adminGroup(path: string): typeof adminGroups[number] {
   if (path === '/admin') return 'Inicio';
   if (['/admin/patients','/admin/agenda','/admin/availability','/admin/veterinarians','/admin/professionals','/admin/clients','/admin/catalog/services','/admin/specialties'].includes(path)) return 'Clínica';
   if (['/admin/products','/admin/catalog/products','/admin/catalog/categories','/admin/catalog/promotions','/admin/store-settings','/admin/store-orders','/admin/store-banners'].includes(path)) return 'Tienda';
   return 'Administración';
 }
-// Función adminLabel: concentra la lógica dentro de este módulo.
+// Convierte el nombre de catálogo en etiqueta de navegación visible.
 function adminLabel(module: AdminModule) {
   const labels: Record<string,string> = {
     '/admin/patients':'Pacientes','/admin/agenda':'Turnos','/admin/clients':'Clientes','/admin/veterinarians':'Veterinarios','/admin/professionals':'Profesionales',
@@ -99,7 +106,7 @@ const groomerItems: MenuItem[] = [
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_own' },
   { label: 'Servicios', path: '/professional/services', icon: 'pricetags-outline', permission: 'appointments.view_all' },
 ];
-// Función iconFor: concentra la lógica dentro de este módulo.
+// Selecciona el icono para códigos de módulo conocidos y aplica un fallback.
 function iconFor(code: string): IconName {
   if (code.includes('pet')) return 'paw-outline';
   if (code.includes('appointment') || code.includes('schedule')) return 'calendar-outline';
@@ -120,7 +127,7 @@ const adminTabs = [
   { label: 'Administración', path: '/admin/administration', icon: 'settings-outline' as const },
 ];
 
-// Función GlobalNavigation: concentra la lógica dentro de este módulo.
+/** Coordina sidebar, tabs, breadcrumb y notificaciones para el usuario autenticado. */
 export function GlobalNavigation({ children }: PropsWithChildren) {
   const auth = useAuth();
   const { colors } = useTheme();
@@ -151,7 +158,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     if (!notificationsEnabled) return () => { active = false; };
-    // Función refreshUnread: agrupa una operación que este módulo puede ejecutar o reutilizar.
+    // Actualiza el contador local con una consulta autenticada y descarta errores secundarios.
 const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCenterPath,{method:'POST',body:{limit:1}}).then(result => { if (active) setUnreadNotifications(result.unreadCount ?? 0); }).catch(() => undefined);
     refreshUnread();
     const unsubscribe=subscribeToNotificationChanges(refreshUnread);
@@ -199,7 +206,7 @@ const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCente
   const activePrimaryPath=activePrimaryNavigationPath(user?.role??'',pathname,primaryItems);
 
   if (!user || ['/login','/register','/reset-password','/change-initial-password','/oauth','/activate-account','/activate-vet'].includes(pathname)) return <>{children}</>;
-  // Función navigate: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Cambia la ruta y cierra el menú móvil cuando corresponde.
 const navigate = (path: string) => router.navigate(path as never);
 
   if (isAdmin && desktop) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -280,7 +287,7 @@ function ProfessionalTopBar({count}:{count:number}) {
   </SafeAreaView>;
 }
 
-// Función DesktopPageContent: concentra la lógica dentro de este módulo.
+/** Añade el área de contenido de escritorio junto al menú lateral. */
 function DesktopPageContent({children,role,destinations}:PropsWithChildren<{role:string;destinations:MenuItem[]}>) {
   return <View style={styles.desktopPage}>
     <AppBreadcrumbs role={role} destinations={destinations}/>
@@ -288,7 +295,7 @@ function DesktopPageContent({children,role,destinations}:PropsWithChildren<{role
   </View>;
 }
 
-// Función DesktopSidebar: concentra la lógica dentro de este módulo.
+/** Renderiza agrupación y elementos del menú lateral para escritorio. */
 function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePath:string|null;onNavigate:(path:string)=>void}) {
   const {colors,mode,setPreference}=useTheme();
   const {user,signOut}=useAuth();
@@ -299,7 +306,7 @@ function DesktopSidebar({items,activePath,onNavigate}:{items:MenuItem[];activePa
   const groups=items.some(item=>item.group);
   const activeGroup=items.find(item=>item.path===activePath)?.group??adminTabs.find(tab=>tab.path===pathname)?.label;
   const initials=[user?.firstName?.[0],user?.lastName?.[0]].filter(Boolean).join('').toLocaleUpperCase();
-  // Función navItem: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Presenta un destino, su estado activo y su acción de navegación.
 const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="button" accessibilityState={{selected:item.path===activePath}} onPress={()=>onNavigate(item.path)} style={[styles.desktopNavItem,{backgroundColor:item.path===activePath?colors.accent:'transparent',borderColor:item.path===activePath?colors.primary:'transparent'}]}>
     <Ionicons name={item.icon} size={20} color={item.path===activePath?colors.primary:colors.muted}/>
     <AppText numberOfLines={1} style={[styles.itemText,{color:item.path===activePath?colors.primary:colors.text,fontWeight:item.path===activePath?'700':'500'}]}>{item.label}</AppText>

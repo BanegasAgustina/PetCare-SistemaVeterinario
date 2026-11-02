@@ -1,10 +1,17 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: notification.repository.ts
+ * UBICACIÓN: backend/src/repositories/notification.repository.ts
+ * FUNCIÓN: Inserción idempotente de notificaciones para clientes.
+ * RESPONSABILIDAD: Guarda notificación y referencia del evento usando la conexión transaccional recibida, respetando la clave única de evento.
+ * CONEXIONES: Importa: backend/src/config/mail.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/repositories/clinic.repository.ts, backend/src/repositories/store-checkout.repository.ts, backend/src/repositories/store-orders.repository.ts, backend/src/services/notifications.service.ts
+ * FUNCIONAMIENTO: Servicios de clínica, pedidos, checkout y jobs → createClientNotification → client_notifications en MySQL.
+ * IMPORTANCIA: Unifica la creación de eventos y previene duplicados cuando se repite un flujo o job.
+ */
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { getMailConfiguration } from '../config/mail';
 import { AppError } from '../utils/app-error';
 
-// Tipo ClientNotificationInput: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Campos necesarios para crear una notificación interna y su referencia idempotente. */
 export type ClientNotificationInput = {
   ownerId: string;
   title: string;
@@ -16,7 +23,7 @@ export type ClientNotificationInput = {
 };
 
 /** Persist an in-app notice as the source of truth and queue configured email delivery. */
-// Función createClientNotification: crea un registro o inicia una operación dentro de este módulo.
+/** Inserta notificación y entrega asociada en una conexión existente; informa si se creó un evento nuevo. */
 export async function createClientNotification(connection: PoolConnection, notification: ClientNotificationInput): Promise<boolean> {
   let inserted: ResultSetHeader;
   try {

@@ -1,10 +1,17 @@
-// Este archivo se encarga de lo siguiente: Hook reutilizable de React; concentra estado o comportamiento que pueden compartir varias pantallas.
-
+/**
+ * ARCHIVO: useAsyncAction.ts
+ * UBICACIÓN: mobile/src/hooks/useAsyncAction.ts
+ * FUNCIÓN: Hook de React para compartir estado o comportamiento.
+ * RESPONSABILIDAD: Hook de React para compartir estado o comportamiento dentro de PetCare; agrupa las declaraciones de useAsyncAction.
+ * CONEXIONES: Importa: mobile/src/services/api.ts Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/app/change-initial-password.tsx, mobile/src/app/client/(tabs)/appointments.tsx, mobile/src/app/client/appointments/request.tsx y 18 más
+ * FUNCIONAMIENTO: Combina estado y ciclo de vida de React con dependencias del dominio y expone datos o acciones.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Comparte loading y error seguro y evita envíos duplicados o cambios tras desmontar. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { friendlyError } from '../services/api';
 
-// Función useAsyncAction: concentra la lógica dentro de este módulo.
+/** Devuelve loading/error/run; evita concurrencia, convierte fallos a mensaje público y no actualiza estado tras desmontar. */
 export function useAsyncAction() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

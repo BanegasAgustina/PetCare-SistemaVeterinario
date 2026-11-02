@@ -1,13 +1,23 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: oauth-provider.service.ts
+ * UBICACIÓN: backend/src/services/oauth-provider.service.ts
+ * FUNCIÓN: Intercambio de códigos OAuth y normalización de identidades de Google, Facebook y X.
+ * RESPONSABILIDAD: Construye URLs y solicitudes de token, aplica PKCE donde corresponde, consulta el perfil, limita tiempos, sanea diagnósticos y no persiste tokens del proveedor.
+ * CONEXIONES: Importa: backend/src/config/oauth.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/repositories/oauth.repository.ts, backend/src/services/oauth.service.ts
+ * FUNCIONAMIENTO: oauth.service.ts → providerIdentity/authorizationUrl → oauth.config y endpoints oficiales; identidad normalizada vuelve al flujo de cuenta/sesión.
+ * IMPORTANCIA: Aísla diferencias entre proveedores y evita confiar en emails no verificados o registrar secretos en logs.
+ */
 /** Intercambia códigos por identidad con el proveedor; no persiste sus access tokens. */
 import { createHmac } from 'node:crypto';
 import { oauthConfig, type OAuthProvider } from '../config/oauth';
 import { AppError } from '../utils/app-error';
-// Tipo ProviderIdentity: define la forma o las opciones válidas de datos usados por este módulo.
+/** Forma normalizada del identificador estable externo y datos de perfil que pueden sugerirse. */
 export type ProviderIdentity = { subject: string; email: string | null; name: string | null };
+/** Contexto no sensible que correlaciona fallos del proveedor con una solicitud. */
 type ProviderDiagnosticContext={correlationId?:string};
+/** Conserva solo códigos de error con caracteres acotados y formato seguro para diagnóstico. */
 const safeProviderError=(value:unknown):string|undefined=>typeof value==='string'&&/^[A-Za-z0-9_.-]{1,80}$/.test(value)?value:undefined;
+/** Limpia controles y redacta tokens, secretos y emails antes de registrar texto del proveedor. */
 function safeProviderText(value:unknown):string|undefined{
   if(typeof value!=='string')return undefined;
   const safe=value.replace(/[\u0000-\u001f\u007f]/g,' ')
@@ -18,15 +28,17 @@ function safeProviderText(value:unknown):string|undefined{
     .trim().slice(0,240);
   return safe||undefined;
 }
+/** Selecciona y sanea campos de error HTTP del proveedor, evitando guardar la respuesta completa. */
 function providerHttpDiagnostics(details:Record<string,unknown>):Record<string,unknown>{
   const reason=safeProviderText(details.reason),type=safeProviderText(details.type),title=safeProviderText(details.title),detail=safeProviderText(details.detail);
   const all=[reason,type,title,detail].filter(Boolean).join(' ').toLowerCase();
   const providerError=/client[-_ ]not[-_ ]enrolled/.test(all)?'client-not-enrolled':safeProviderError(details.error);
   return {...(providerError?{providerError}:{}),...(reason?{reason}:{}),...(type?{type}:{}),...(title?{title}:{}),...(detail?{detail}:{})};
 }
+/** Emite un evento estructurado con campos previamente saneados para diagnosticar errores OAuth. */
 function logProviderFailure(context:ProviderDiagnosticContext,details:Record<string,unknown>):void{console.warn(JSON.stringify({event:'oauth.provider_failure',...context,...details}));}
 /** Limita esperas y registra fase/status sin incluir URL, cabeceras ni respuestas completas. */
-// Función json: concentra la lógica dentro de este módulo.
+/** Realiza fetch con timeout y sin redirecciones, valida JSON/estado y transforma fallos externos en un error OAuth uniforme. */
 async function json(url:string,options:RequestInit={},provider?:OAuthProvider,stage?:string,context:ProviderDiagnosticContext={}):Promise<Record<string,unknown>> {
   let response:Response;
   try{response=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(10000)});}
@@ -38,27 +50,27 @@ async function json(url:string,options:RequestInit={},provider?:OAuthProvider,st
   if(!body||typeof body!=='object'||Array.isArray(body)){logProviderFailure(context,{provider,stage,kind:'INVALID_RESPONSE',status:response.status,code:'OAUTH_PROVIDER_ERROR'});throw new AppError('OAUTH_PROVIDER_ERROR',502,'No pudimos verificar tu identidad con el proveedor. Volvé a intentar.');}
   return body as Record<string,unknown>;
 }
-// Función identity: concentra la lógica dentro de este módulo.
+/** Valida subject y limita email/nombre; el email solo se conserva si el proveedor declara que está verificado. */
 function identity(subject:unknown,email:unknown,name:unknown,emailVerified=false,provider?:OAuthProvider,context:ProviderDiagnosticContext={}):ProviderIdentity {
   if(typeof subject!=='string'||!/^[\x21-\x7e]{1,255}$/.test(subject)){logProviderFailure(context,{event:'oauth.profile_invalid_identity',provider,stage:'profile_normalization',field:'subject',code:'OAUTH_PROVIDER_ERROR'});throw new AppError('OAUTH_PROVIDER_ERROR',502,'El proveedor no devolvió una identidad válida.');}
   // Solo se usa el email verificado del proveedor como sugerencia; PetCare siempre pide su propio código.
   return {subject,email:emailVerified&&typeof email==='string'&&email.length<=254?email:null,name:typeof name==='string'&&name.length<=200?name:null};
 }
-// Función authorizationUrl: concentra la lógica dentro de este módulo.
+/** Construye el endpoint y parámetros de autorización del proveedor, incluyendo PKCE para Google y X. */
 export function authorizationUrl(provider:OAuthProvider,state:string,challenge:string):string {
   const c=oauthConfig(provider);const url=new URL(provider==='google'?'https://accounts.google.com/o/oauth2/v2/auth':provider==='facebook'?`https://www.facebook.com/${c.facebookVersion}/dialog/oauth`:'https://x.com/i/oauth2/authorize');
   url.search=new URLSearchParams({client_id:c.clientId,redirect_uri:c.callback,response_type:'code',state,scope:provider==='google'?'openid email profile':provider==='facebook'?'email,public_profile':'tweet.read users.read'}).toString();
   // Facebook usa cliente confidencial y state; Google/X también usan PKCE S256.
   if(provider!=='facebook'){url.searchParams.set('code_challenge',challenge);url.searchParams.set('code_challenge_method','S256');}return url.toString();
 }
-// Función providerIdentity: concentra la lógica dentro de este módulo.
+/** Intercambia el código por identidad, con mecanismos específicos de Facebook, Google y X, y devuelve un perfil normalizado. */
 export async function providerIdentity(provider:OAuthProvider,code:string,verifier:string,correlationId?:string):Promise<ProviderIdentity> {
   const context={...(correlationId?{correlationId}:{})};
   const c=oauthConfig(provider);
   if(provider==='facebook'){
     const root=`https://graph.facebook.com/${c.facebookVersion}`;
-    // Meta's authorization-code exchange for Facebook Login is a GET request.
-    // Keep its app secret server-side and never emit this URL in diagnostics.
+    // Facebook Login intercambia el código de autorización mediante una solicitud GET.
+    // La clave de la aplicación permanece en el servidor y esta URL nunca se incluye en diagnósticos.
     const tokenUrl=new URL(`${root}/oauth/access_token`);
     tokenUrl.search=new URLSearchParams({client_id:c.clientId,client_secret:c.clientSecret,redirect_uri:c.callback,code}).toString();
     const token=await json(tokenUrl.toString(),{},provider,'token_exchange',context);
@@ -73,10 +85,10 @@ export async function providerIdentity(provider:OAuthProvider,code:string,verifi
     fields.set('client_id',c.clientId);
     fields.set('client_secret',c.clientSecret);
   } else {
-    // X is configured as a confidential Web App. Its client authentication is
-    // the Basic header alone; sending client_id in both the header and body is
-    // rejected by OAuth servers as multiple client-authentication methods.
-    // RFC 6749 requires form-encoding each credential before constructing it.
+    // X está configurado como una aplicación web confidencial; autentica al cliente mediante
+    // el encabezado Basic, ya que enviar client_id también en el cuerpo implica usar
+    // más de un método de autenticación y los servidores OAuth lo rechazan.
+    // RFC 6749 requiere codificar cada credencial como formulario antes de construir el encabezado.
     const formEncode=(value:string)=>new URLSearchParams({value}).toString().slice('value='.length);
     headers.Authorization=`Basic ${Buffer.from(`${formEncode(c.clientId)}:${formEncode(c.clientSecret)}`).toString('base64')}`;
   }

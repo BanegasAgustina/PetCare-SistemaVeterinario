@@ -1,4 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+/**
+ * ARCHIVO: app.ts
+ * UBICACIÓN: backend/src/app.ts
+ * PROPÓSITO: Construir y exportar la aplicación Express que sirve la API de PetCare.
+ * RESPONSABILIDAD: Configurar confianza en proxy, CORS, cabeceras de seguridad, lectura de cuerpos, rutas especiales de carga y montaje general de /api.
+ * RELACIONES: Importa apiRouter de routes/index.ts y los middlewares globales de seguridad/error. server.ts inicia el listener local; Vercel puede usar el default export. Las rutas delegan en controladores, servicios y repositorios.
+ * FLUJO: Recibe una solicitud HTTP, aplica las capas de configuración y middleware en el orden declarado, la entrega a su ruta y normaliza rutas inexistentes y errores al final.
+ * IMPORTANCIA: Es el punto común de entrada para las solicitudes de la API; centraliza el orden de protecciones y el despacho a módulos.
+ */
 
 /** Construye Express separado del puerto de escucha para facilitar pruebas HTTP. */
 import express from 'express';

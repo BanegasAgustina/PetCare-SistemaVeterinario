@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: notifications.service.ts
+ * UBICACIÓN: backend/src/services/notifications.service.ts
+ * FUNCIÓN: Generación de recordatorios de turnos y entrega reintentable de notificaciones por correo.
+ * RESPONSABILIDAD: Busca turnos en ventanas temporales, crea eventos idempotentes, reclama entregas con leases y SKIP LOCKED, y marca envío o programa reintentos limitados.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/repositories/notification.repository.ts, backend/src/utils/notification-date.ts, backend/src/services/mail.service.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/routes/notification-jobs.routes.ts
+ * FUNCIONAMIENTO: notification-jobs.routes.ts → processNotificationJobs → MySQL, notification.repository, notification-date y mail.service.
+ * IMPORTANCIA: Hace que los recordatorios puedan ejecutarse desde tareas periódicas sin duplicar eventos en ejecuciones solapadas.
+ */
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { createClientNotification } from '../repositories/notification.repository';
@@ -7,7 +14,7 @@ import { formatNotificationDateTime } from '../utils/notification-date';
 import { sendClientNotificationEmail } from './mail.service';
 import { AppError } from '../utils/app-error';
 
-// Tipo AppointmentReminder: define la forma o las opciones válidas de datos usados por este módulo.
+/** Representa los datos de turno que se vuelven a leer y bloquear antes de crear un recordatorio. */
 type AppointmentReminder = RowDataPacket & {
   id: string;
   ownerId: string;
@@ -18,7 +25,7 @@ type AppointmentReminder = RowDataPacket & {
   startsAt: string;
 };
 
-// Tipo EmailDelivery: define la forma o las opciones válidas de datos usados por este módulo.
+/** Representa una entrega pendiente con destinatario, contenido y contador de intentos. */
 type EmailDelivery = RowDataPacket & {
   id: string;
   email: string;
@@ -27,20 +34,20 @@ type EmailDelivery = RowDataPacket & {
   attempts: number;
 };
 
-// Dato MAX_DELIVERY_ATTEMPTS: conserva un valor calculado o de configuración usado por este módulo.
+/** Fija cuántos intentos se permiten antes de marcar una entrega como fallida. */
 const MAX_DELIVERY_ATTEMPTS = 8;
 
-// Función appointmentReminderWindow: concentra la lógica dentro de este módulo.
+/** Devuelve los minutos que delimitan la ventana de captura para recordatorios de 4 o 24 horas. */
 export function appointmentReminderWindow(hours: 4 | 24): { lowerOffsetMinutes: number; upperOffsetMinutes: number } {
   return { lowerOffsetMinutes: hours * 60 - 10, upperOffsetMinutes: hours * 60 + 5 };
 }
 
-// Función appointmentReminderEventKey: concentra la lógica dentro de este módulo.
+/** Genera una clave única estable para evitar duplicar recordatorios del mismo turno y horario. */
 export function appointmentReminderEventKey(appointmentId: string, slotId: string, hours: 4 | 24): string {
   return `appointment:${appointmentId}:slot:${slotId}:reminder:${hours}h`;
 }
 
-// Función withTransaction: concentra la lógica dentro de este módulo.
+/** Ejecuta una operación con conexión y transacción, haciendo commit o rollback y liberando siempre la conexión. */
 async function withTransaction<T>(operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
   const connection = await databasePool.getConnection();
   try {
@@ -56,8 +63,8 @@ async function withTransaction<T>(operation: (connection: PoolConnection) => Pro
   }
 }
 
-/** Finds confirmed appointments in a bounded catch-up window; unique event keys make overlapping cron runs safe. */
-// Función createDueAppointmentReminders: crea un registro o inicia una operación dentro de este módulo.
+/** Busca turnos confirmados en una ventana acotada; la clave única evita duplicados si se solapan tareas periódicas. */
+/** Encuentra turnos confirmados dentro de ventanas de recordatorio, revalida y bloquea cada candidato, y crea eventos idempotentes. */
 export async function createDueAppointmentReminders(): Promise<number> {
   let created = 0;
   for (const hours of [24, 4] as const) {
@@ -127,12 +134,12 @@ export async function createDueAppointmentReminders(): Promise<number> {
   return created;
 }
 
-// Función retryDelaySeconds: concentra la lógica dentro de este módulo.
+/** Calcula una espera exponencial entre intentos, con tope de 30 minutos. */
 export function retryDelaySeconds(attempts: number): number {
   return Math.min(60 * (2 ** Math.max(0, attempts - 1)), 1800);
 }
 
-// Función claimEmailDeliveries: concentra la lógica dentro de este módulo.
+/** Marca destinatarios no disponibles, reclama hasta cinco entregas vencidas con SKIP LOCKED y asigna un lease temporal. */
 async function claimEmailDeliveries(): Promise<EmailDelivery[]> {
   return withTransaction(async connection => {
     await connection.execute(
@@ -165,7 +172,7 @@ async function claimEmailDeliveries(): Promise<EmailDelivery[]> {
   });
 }
 
-// Función sendEmailBatch: crea un registro o inicia una operación dentro de este módulo.
+/** Envía el lote en paralelo y actualiza estado, error y próximo intento según resultado y límite de reintentos. */
 async function sendEmailBatch(deliveries: EmailDelivery[]): Promise<number> {
   const results = await Promise.all(deliveries.map(async delivery => {
     try {
@@ -191,21 +198,21 @@ async function sendEmailBatch(deliveries: EmailDelivery[]): Promise<number> {
   return results.filter(Boolean).length;
 }
 
-// Tipo NotificationJobTasks: define la forma o las opciones válidas de datos usados por este módulo.
+/** Define las operaciones inyectables que componen el job para facilitar su composición. */
 export type NotificationJobTasks = {
   createDueAppointmentReminders: () => Promise<number>;
   claimEmailDeliveries: () => Promise<EmailDelivery[]>;
   sendEmailBatch: (deliveries: EmailDelivery[]) => Promise<number>;
 };
 
-// Función runNotificationJobTasks: concentra la lógica dentro de este módulo.
+/** Ejecuta generación de recordatorios, reclama entregas y envía el lote, devolviendo ambos conteos. */
 export async function runNotificationJobTasks(tasks: NotificationJobTasks): Promise<{ remindersCreated: number; emailsSent: number }> {
   const remindersCreated = await tasks.createDueAppointmentReminders();
   const emailsSent = await tasks.sendEmailBatch(await tasks.claimEmailDeliveries());
   return { remindersCreated, emailsSent };
 }
 
-// Función processNotificationJobs: concentra la lógica dentro de este módulo.
+/** Conecta las implementaciones reales del job y devuelve el resumen de ejecución. */
 export async function processNotificationJobs(): Promise<{ remindersCreated: number; emailsSent: number }> {
   return runNotificationJobTasks({
     createDueAppointmentReminders,

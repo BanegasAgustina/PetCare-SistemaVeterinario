@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: create-database.ts
+ * UBICACIÓN: backend/src/database/create-database.ts
+ * FUNCIÓN: Crea la base configurada si aún no existe.
+ * RESPONSABILIDAD: Obtiene conexión administrativa y ejecuta CREATE DATABASE con identificador validado.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/config/env.ts, backend/src/services/database.service.ts, backend/src/utils/database-error.ts Se utiliza desde: backend/src/database/cli.ts
+ * FUNCIONAMIENTO: CLI/operación explícita → createDatabase → config/database.
+ * IMPORTANCIA: Prepara el contenedor lógico sobre el que luego corren migraciones.
+ */
 /** Crea solo la base configurada, sin eliminar ni alterar una base existente. */
 import mysql, { type RowDataPacket } from 'mysql2/promise';
 import { databaseOptions } from '../config/database';
@@ -7,7 +14,7 @@ import { env } from '../config/env';
 import { assertMysql8Version } from '../services/database.service';
 import { runDatabaseOperation } from '../utils/database-error';
 
-// Función createDatabase: crea un registro o inicia una operación dentro de este módulo.
+/** Abre conexión administrativa y crea la base configurada solo si el nombre validado aún no existe. */
 export async function createDatabase(): Promise<void> {
   await runDatabaseOperation(async () => {
     // La conexión inicial no selecciona una base que quizás todavía no existe.

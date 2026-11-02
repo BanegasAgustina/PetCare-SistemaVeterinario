@@ -1,10 +1,17 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: health.controller.ts
+ * UBICACIÓN: backend/src/controllers/health.controller.ts
+ * FUNCIÓN: Responde la consulta pública básica de salud de la API.
+ * RESPONSABILIDAD: Exponer estado mínimo del proceso sin iniciar una consulta a base de datos.
+ * CONEXIONES: Importa: backend/src/types/api.ts Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Lee la solicitud, llama a la operación del dominio y convierte su resultado o error en respuesta HTTP.
+ * IMPORTANCIA: Permite a despliegues y monitores distinguir si la aplicación HTTP está activa.
+ */
 /** Confirma disponibilidad HTTP; no representa una comprobación de MySQL. */
 import type { Request, Response } from 'express';
 import type { ApiSuccess } from '../types/api';
 
-// Función getHealth: obtiene o consulta información dentro de este módulo.
+/** Devuelve sobre success/data con estado de aplicación activo. */
 export function getHealth(_request: Request, response: Response): void {
   const result: ApiSuccess<{ status: string; message: string }> = {
     success: true,

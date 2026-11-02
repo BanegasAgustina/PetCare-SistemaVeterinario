@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: AppText.tsx
+ * UBICACIÓN: mobile/src/components/ui/AppText.tsx
+ * FUNCIÓN: Texto con variantes tipográficas y color atenuado según el tema.
+ * RESPONSABILIDAD: Compartir jerarquía y estilo de lectura en toda la interfaz.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/app/admin/_layout.tsx, mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/index.tsx, mobile/src/app/admin/permissions.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx y 83 más
+ * FUNCIONAMIENTO: Extiende TextProps; la variante selecciona estilos y el tema resuelve colores sin cambiar el texto recibido.
+ * IMPORTANCIA: Evita estilos tipográficos inconsistentes entre pantallas.
+ */
 /** Texto reutilizable con jerarquía visual y escalado accesible del sistema. */
 import { StyleSheet, Text, type TextProps } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';

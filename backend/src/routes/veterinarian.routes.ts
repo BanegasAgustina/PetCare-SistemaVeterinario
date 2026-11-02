@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: veterinarian.routes.ts
+ * UBICACIÓN: backend/src/routes/veterinarian.routes.ts
+ * FUNCIÓN: Declara administración veterinaria, invitaciones, especialidades, perfil profesional y fotos.
+ * RESPONSABILIDAD: Separar rutas de admin, activación, panel de veterinario/groomer y carga de foto.
+ * CONEXIONES: Importa: backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/permission.middleware.ts, backend/src/middlewares/auth-rate-limit.middleware.ts, backend/src/repositories/veterinarian.repository.ts, backend/src/validators/veterinarian.validator.ts, backend/src/services/invitation.service.ts, backend/src/repositories/clinic.repository.ts, backend/src/config/database.ts y 7 más Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Combina auth, roles, permisos, validadores, repositorios y servicios de invitación; accessibleModules filtra menú por permiso.
+ * IMPORTANCIA: Conecta gestión de profesionales con identidad, agenda y catálogos clínicos.
+ */
 /** ADMIN/SUPER_ADMIN requieren grants efectivos para gestionar profesionales. */
 import { Router, type RequestHandler, type Request, type Response } from 'express';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -27,7 +34,7 @@ async function profilePhotoInput(body:Record<string,unknown>){
   throw new AppError('VALIDATION_ERROR',400,'Seleccioná una foto de perfil.');
 }
 
-// Función handler: atiende una acción o evento dentro de este módulo.
+// Construye un handler con su operación y normaliza los errores hacia el middleware.
 function handler(operation: (request: Request,response: Response) => Promise<unknown>,status=200): RequestHandler {
   return async (request,response,next) => {
     try { response.status(status).json({ success:true,data:await operation(request,response) }); }
@@ -117,7 +124,7 @@ professionalPhotoRouter.put('/',createAuthRateLimiter(),handler(async(req,res)=>
   try {const saved=await updateOwnProfessionalPhoto(user.id,image?.url??null);if(saved.previous&&saved.previous!==image?.url)await removeProfilePhoto(saved.previous).catch(()=>console.error('No se pudo limpiar la foto anterior del profesional.'));return {profilePhotoUrl:image?.url??null};}
   catch(error){if(image)console.error('La actualización del perfil falló; se conservará el objeto nuevo para evitar romper una posible referencia confirmada.');throw error;}
 }));
-// Función accessibleModules: concentra la lógica dentro de este módulo.
+// Filtra módulos administrativos veterinarios con los permisos del actor.
 async function accessibleModules(user: AuthUser) {
   return runDatabaseOperation(async ()=> {
     const codes=user.permissions ?? [];

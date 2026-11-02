@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: clinic.service.ts
+ * UBICACIÓN: backend/src/services/clinic.service.ts
+ * FUNCIÓN: Casos de uso de clínica, administración de catálogo y operaciones del espacio veterinario.
+ * RESPONSABILIDAD: Aplica permisos del actor, coordina repositories clínicos y administrativos y gestiona productos, servicios, banners e imágenes.
+ * CONEXIONES: Importa: backend/src/types/auth.ts, backend/src/repositories/client.repository.ts, backend/src/repositories/clinic.repository.ts, backend/src/repositories/clinic-admin.repository.ts, backend/src/repositories/storefront.repository.ts, backend/src/repositories/store-orders.repository.ts, backend/src/validators/clinic.validator.ts, backend/src/utils/database-error.ts y 2 más Se utiliza desde: backend/src/controllers/clinic.controller.ts
+ * FUNCIONAMIENTO: clinic.controller.ts → clinicOperation → clinic/client/admin/storefront/store-orders repositories y servicios de fotos; las rutas aportan actor autenticado y operación.
+ * IMPORTANCIA: Concentra reglas de acceso y coordinación entre recursos compartidos por clientes, profesionales y personal de clínica.
+ */
 /** Servicios comparten repositories: cliente, profesional y secretaría leen las mismas filas. */
 import type { AuthUser } from '../types/auth';
 import * as client from '../repositories/client.repository';
@@ -11,7 +18,7 @@ import * as v from '../validators/clinic.validator';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 import { isBannerPhotoKey,isProductPhotoKey,isServicePhotoKey,presentServiceImages,removeBannerPhoto,removeProductPhoto,removeServicePhoto,storeBannerPhoto,storeProductPhoto,storeServicePhoto } from './pet-photo.service';
-// Función clinicOperation: concentra la lógica dentro de este módulo.
+/** Despacha operaciones clínicas/administrativas según actor, recurso y acción; aplica permisos y coordina persistencia e imágenes asociadas. */
 export async function clinicOperation(actor:AuthUser,operation:string,id:unknown,value:unknown,query:Record<string,unknown>,kind?:string) {
  return runDatabaseOperation(async()=>{switch(operation){
  case 'slots':return clinic.slots(v.id(query.serviceId),query.professionalId?v.id(query.professionalId):undefined);

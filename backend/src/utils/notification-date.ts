@@ -1,7 +1,15 @@
+/**
+ * ARCHIVO: notification-date.ts
+ * UBICACIÓN: backend/src/utils/notification-date.ts
+ * FUNCIÓN: Formatea fecha y hora para el texto de notificaciones.
+ * RESPONSABILIDAD: Convertir una fecha de evento válida a etiquetas legibles en español argentino.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/repositories/clinic.repository.ts, backend/src/services/notifications.service.ts
+ * FUNCIONAMIENTO: Analiza valor desconocido, aplica Intl.DateTimeFormat y devuelve fecha/hora, usando fallback si no es válido.
+ * IMPORTANCIA: Mantiene formato homogéneo de notificaciones generadas en distintos flujos.
+ */
 // Este archivo se encarga de convertir las fechas de notificaciones al formato local que muestra la aplicación.
 
-// Función formatNotificationDateTime: transforma o prepara datos dentro de este módulo.
-// Función formatNotificationDateTime: transforma o prepara datos dentro de este módulo.
+/** Formatea una marca de tiempo en fecha y hora de locale es-AR. */
 export function formatNotificationDateTime(value: unknown): { date: string; time: string } {
   const input = value instanceof Date
     ? value
@@ -18,7 +26,7 @@ export function formatNotificationDateTime(value: unknown): { date: string; time
     minute: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(input);
-  // Función part: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Extrae una unidad ya formateada o entrega texto vacío si no existe.
 const part = (type: string) => parts.find(item => item.type === type)?.value ?? '';
   return { date: `${part('day')}/${part('month')}/${part('year')}`, time: `${part('hour')}:${part('minute')}` };
 }

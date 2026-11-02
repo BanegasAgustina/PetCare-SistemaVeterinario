@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: auth.middleware.ts
+ * UBICACIÓN: backend/src/middlewares/auth.middleware.ts
+ * FUNCIÓN: Autentica solicitudes Bearer y carga identidad vigente desde almacenamiento.
+ * RESPONSABILIDAD: Validar token, sesión y estado de cuenta antes de permitir que las rutas continúen.
+ * CONEXIONES: Importa: backend/src/repositories/user.repository.ts, backend/src/services/token.service.ts, backend/src/repositories/session.repository.ts, backend/src/repositories/authorization.repository.ts, backend/src/utils/app-error.ts, backend/src/utils/account-session-guards.ts Se utiliza desde: backend/src/app.ts, backend/src/routes/admin.routes.ts, backend/src/routes/auth.routes.ts, backend/src/routes/client.routes.ts, backend/src/routes/clinic.routes.ts, backend/src/routes/media.routes.ts, backend/src/routes/notification.routes.ts, backend/src/routes/veterinarian.routes.ts
+ * FUNCIONAMIENTO: Extrae access token, lo verifica, consulta usuario/sesión/versión y establece authenticatedUser/family en res.locals.
+ * IMPORTANCIA: Es la frontera de identidad que usan routers protegidos.
+ */
 /** Autentica JWT y revalida usuario/rol activo desde MySQL en cada solicitud protegida. */
 import type { RequestHandler } from 'express';
 import { findUserById, publicUser } from '../repositories/user.repository';
@@ -9,7 +16,7 @@ import { authorizationData } from '../repositories/authorization.repository';
 import { AppError } from '../utils/app-error';
 import { isAccessSessionCurrent } from '../utils/account-session-guards';
 
-// Función authenticate: concentra una operación reutilizable de este módulo.
+/** Comprueba Bearer, sesión y cuenta activa y adjunta el actor autenticado a locals. */
 export const authenticate: RequestHandler = async (request, response, next) => {
   try {
     const header = request.headers.authorization;

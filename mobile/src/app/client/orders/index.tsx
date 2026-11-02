@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: index.tsx
+ * UBICACIÓN: mobile/src/app/client/orders/index.tsx
+ * FUNCIÓN: Pantalla o ruta de la aplicación.
+ * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de index.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/admin/AdminDataTable.tsx, mobile/src/constants/responsive.ts, mobile/src/utils/display-labels.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Historial consultado desde pedidos reales del cliente autenticado. */
 import { useClient } from '../../../hooks/useClient';
 import { useClientQuery } from '../../../hooks/useClientQuery';

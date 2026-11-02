@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
-
+/**
+ * ARCHIVO: ClinicalScreen.tsx
+ * UBICACIÓN: mobile/src/components/client/ClinicalScreen.tsx
+ * FUNCIÓN: Presenta registros clínicos del tipo seleccionado para mascotas del usuario.
+ * RESPONSABILIDAD: Listar vacunas, recetas, recomendaciones o historia clínica consultada desde el servicio cliente.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/RecordCards.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/types/client.ts Se utiliza desde: mobile/src/app/client/medical-history.tsx, mobile/src/app/client/prescriptions.tsx, mobile/src/app/client/recommendations.tsx, mobile/src/app/client/vaccines.tsx
+ * FUNCIONAMIENTO: Usa kind para cargar el endpoint y petId opcional de la ruta como filtro; muestra estado vacío, carga y tarjetas especializadas.
+ * IMPORTANCIA: Permite revisar en una interfaz común el historial clínico vinculado al dueño autenticado.
+ */
 /**
  * Muestra registros clínicos del tipo recibido en kind para mascotas del cliente. Consulta clientService y diferencia carga, error y resultado vacío; nunca permite editar información clínica como cliente.
  */
@@ -18,7 +25,7 @@ const copy:Record<ClinicalKind,{title:string;empty:string;icon:IconName}>={
   prescriptions:{title:'Recetas',empty:'No hay recetas disponibles',icon:'document-text-outline'},
   recommendations:{title:'Recomendaciones',empty:'No hay recomendaciones por el momento',icon:'heart-outline'},
 };
-// Función ClinicalScreen: concentra la lógica dentro de este módulo.
+/** Carga y presenta el historial del tipo clínico seleccionado. */
 export function ClinicalScreen({kind}:{kind:ClinicalKind}){const {petId:initial}=useLocalSearchParams<{petId?:string}>();const [petId,setPet]=useState(initial??'');const api=useClient();
   const pets=useClientQuery(api.pets);const query=useClientQuery(useCallback(()=>api.clinical(kind,petId||undefined),[api,kind,petId]));const text=copy[kind];const Card=kind==='vaccines'?VaccineCard:kind==='prescriptions'?PrescriptionCard:kind==='recommendations'?RecommendationCard:MedicalRecordCard;
   return <PetCareScreen><PetCareHeader title={text.title} subtitle="Información registrada por la clínica" back/>

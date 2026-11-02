@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: veterinarian.repository.ts
+ * UBICACIÓN: backend/src/repositories/veterinarian.repository.ts
+ * FUNCIÓN: Persistencia de profesionales veterinarios, especialidades, perfiles y estados.
+ * RESPONSABILIDAD: Lista y consulta profesionales, gestiona fotos/especialidades, crea cuentas invitadas y actualiza perfil/estado con transacciones y autorización.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/validators/veterinarian.validator.ts, backend/src/repositories/authorization.repository.ts, backend/src/repositories/admin.repository.ts, backend/src/database/lock.ts, backend/src/services/password.service.ts y 4 más Se utiliza desde: backend/src/routes/veterinarian.routes.ts, backend/src/routes/veterinarian.routes.ts
+ * FUNCIONAMIENTO: Rutas veterinarias y repositories administrativos → este módulo → clinic/admin/authorization repositories, invitaciones y MySQL.
+ * IMPORTANCIA: Coordina identidad de usuario y ficha profesional sin separar permisos del rol real.
+ */
 /** Gestión transaccional sin borrar profesionales. Identificadores BIGINT siempre como texto. */
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { randomBytes } from 'node:crypto';
@@ -16,21 +23,21 @@ import type { AuthUser } from '../types/auth';
 import { isProfilePhotoKey,profilePhotoUrl } from '../services/pet-photo.service';
 import { catalogName } from '../utils/catalog-presentation';
 
-// Función transaction: concentra la lógica dentro de este módulo.
+/** Ejecuta cambios de cuenta/perfil en transacción y libera conexión al finalizar. */
 async function transaction<T>(operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
   return runDatabaseOperation(async () => {
     const connection = await databasePool.getConnection();
     try {return await withDatabaseLock(connection,async()=>{await connection.beginTransaction();try {const result=await operation(connection);await connection.commit();return result;}catch(error){await connection.rollback();throw error;}});} finally { connection.release(); }
   });
 }
-// Función vetCatalog: concentra la lógica dentro de este módulo.
+/** Lista datos de catálogo de profesionales requeridos por formularios. */
 export async function vetCatalog() {
   return runDatabaseOperation(async () => {
     const [specialties] = await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties WHERE is_active=1 ORDER BY name');
     return { specialties: specialties.map(s=>({ id: String(s.id),name: catalogName(s.name as string),isActive:true })) };
   });
 }
-// Función vetDetail: concentra la lógica dentro de este módulo.
+/** Carga ficha completa del veterinario con estado, especialidades y perfil asociado. */
 export async function vetDetail(id: string) {
   return runDatabaseOperation(async () => {
     const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT u.id AS user_id,u.first_name,u.last_name,u.email,u.phone,u.profile_photo_url AS profilePhotoUrl,u.is_active,u.email_verified_at,
@@ -46,7 +53,7 @@ export async function vetDetail(id: string) {
       licenseNumber:profile?.licenseNumber ?? '',specialties:profile?.specialties ?? [] };
   });
 }
-// Función vetList: concentra la lógica dentro de este módulo.
+/** Busca y pagina veterinarios con filtros de estado y orden permitido. */
 export async function vetList(query: Record<string, unknown>) {
   const search = typeof query.search === 'string' ? query.search.trim() : '';
   const status = query.status ?? 'all'; const sort = query.sort ?? 'recent';
@@ -77,7 +84,7 @@ export async function vetList(query: Record<string, unknown>) {
       page,pageSize:limit,total:Number(count[0].total),hasMore:page*limit<Number(count[0].total) };
   });
 }
-// Función updateVetPhoto: actualiza o guarda información dentro de este módulo.
+/** Actualiza foto de un profesional después de verificar el permiso del actor. */
 export async function updateVetPhoto(id:string,key:string|null,identity:AuthUser) {
   let previous:unknown=null;
   await transaction(async connection=>{
@@ -91,7 +98,7 @@ export async function updateVetPhoto(id:string,key:string|null,identity:AuthUser
   return {previous:previous as string|null};
 }
 /** Un profesional solo puede editar la foto de la cuenta ligada a su propio JWT. */
-// Función updateOwnProfessionalPhoto: actualiza o guarda información dentro de este módulo.
+/** Actualiza foto del perfil profesional identificado por el usuario autenticado. */
 export async function updateOwnProfessionalPhoto(userId:string,key:string|null) {
   let previous:string|null=null;
   await transaction(async connection=>{
@@ -102,7 +109,7 @@ export async function updateOwnProfessionalPhoto(userId:string,key:string|null) 
   });
   return {previous};
 }
-// Función replaceSpecialties: concentra la lógica dentro de este módulo.
+/** Reemplaza las asociaciones de especialidad del veterinario dentro de una transacción. */
 async function replaceSpecialties(connection: PoolConnection,vetId: string,ids: string[]) {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT id FROM specialties WHERE is_active=1 AND id IN (${ids.map(()=>'?').join(',')})`,ids);
   if (rows.length !== ids.length) throw new AppError('VALIDATION_ERROR',400,'Una especialidad seleccionada ya no existe.');
@@ -110,14 +117,14 @@ async function replaceSpecialties(connection: PoolConnection,vetId: string,ids: 
   await connection.execute('DELETE vs FROM veterinarian_specialties vs JOIN specialties s ON s.id=vs.specialty_id WHERE vs.veterinarian_id=? AND s.is_active=1',[vetId]);
   for (const id of ids) await connection.execute('INSERT INTO veterinarian_specialties (veterinarian_id,specialty_id) VALUES (?,?)',[vetId,id]);
 }
-// Función lockVet: concentra la lógica dentro de este módulo.
+/** Carga y bloquea la ficha profesional para serializar cambios concurrentes. */
 async function lockVet(connection: PoolConnection,id: string) {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.email,u.is_active,u.email_verified_at,u.must_change_password FROM users u JOIN veterinarians v ON v.user_id=u.id
     JOIN roles r ON r.id=u.role_id WHERE v.id=? AND r.code='VETERINARIAN' FOR UPDATE`,[id]);
   if (!rows[0]) throw new AppError('NOT_FOUND',404,'Veterinario no encontrado.');
   return rows[0];
 }
-// Función createVet: crea un registro o inicia una operación dentro de este módulo.
+/** Crea cuenta y perfil veterinario, asigna especialidades y envía invitación. */
 export async function createVet(input: VetInput,identity:AuthUser) {
   const unusablePasswordHash = await hashPassword(randomBytes(32).toString('hex'));
   const result = await transaction(async connection => {
@@ -152,7 +159,7 @@ export async function createVet(input: VetInput,identity:AuthUser) {
   const invitationDelivery=await deliverInvitation(result.email,result.invitationToken,'veterinarian');
   return { veterinarian:await vetDetail(result.id),invitationDelivery };
 }
-// Función updateVet: actualiza o guarda información dentro de este módulo.
+/** Actualiza usuario, perfil, especialidades y correo según permisos y validación de entrada. */
 export async function updateVet(id: string,input: VetInput,identity:AuthUser) {
   await transaction(async connection => {
     const actor=await freshAdmin(connection,identity,'veterinarians.manage');
@@ -172,7 +179,7 @@ export async function updateVet(id: string,input: VetInput,identity:AuthUser) {
   });
   return vetDetail(id);
 }
-// Función updateVetStatus: actualiza o guarda información dentro de este módulo.
+/** Activa/desactiva al profesional y sincroniza el estado de la cuenta bajo reglas de acceso. */
 export async function updateVetStatus(id: string,isActive: boolean,identity:AuthUser) {
   await transaction(async connection => {
     const actor=await freshAdmin(connection,identity,'veterinarians.manage');

@@ -1,19 +1,26 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: verification.repository.ts
+ * UBICACIÓN: backend/src/repositories/verification.repository.ts
+ * FUNCIÓN: Persistencia y bloqueo de desafíos de verificación de correo.
+ * RESPONSABILIDAD: Busca el usuario por hash, abre transacción con fila del usuario bloqueada y lee el desafío para validar/consumirlo sin carrera.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/database-error.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/services/verification.service.ts
+ * FUNCIONAMIENTO: verification.service → este repository → tablas de usuario/verificación en MySQL.
+ * IMPORTANCIA: Hace que reenvío y consumo de códigos se coordinen con bloqueos y persistencia.
+ */
 /** Estado persistido y bloqueado por usuario: serializa verificación/reenvío entre procesos. */
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 
-// Tipo VerificationRow: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Forma de fila persistida usada para verificar desafío, expiración y consumo. */
 export type VerificationRow = RowDataPacket & {
   user_id: string; email: string; is_active: number; email_verified_at: string | null;
   token_hash: string; code_hash: string | null; expires_at: string | null;
   attempts: number; send_count: number; delivery: 'sent' | 'failed' | 'pending'; consumed_at: string | null;
   proof_expired: number; code_expired: number; retry_seconds: number; window_expired: number; window_seconds: number;
 };
-// Función findVerificationUser: obtiene o consulta información dentro de este módulo.
+/** Busca el ID de usuario ligado a una prueba de verificación con hash. */
 export async function findVerificationUser(tokenHash: string): Promise<string> {
   return runDatabaseOperation(async () => {
     const [rows] = await databasePool.execute<RowDataPacket[]>('SELECT CAST(user_id AS CHAR) AS id FROM email_verifications WHERE token_hash = ?', [tokenHash]);
@@ -23,7 +30,7 @@ export async function findVerificationUser(tokenHash: string): Promise<string> {
 }
 
 /** Orden fijo de locks (usuario, desafío) evita carreras y el consumo simultáneo del código. */
-// Función withVerificationUser: concentra la lógica dentro de este módulo.
+/** Abre transacción y bloquea usuario/desafío para ejecutar una verificación sin carreras. */
 export async function withVerificationUser<T>(id: string, operation: (connection: PoolConnection, user: RowDataPacket) => Promise<T>): Promise<T> {
   return runDatabaseOperation(async () => {
     const connection = await databasePool.getConnection();
@@ -39,7 +46,7 @@ export async function withVerificationUser<T>(id: string, operation: (connection
   });
 }
 
-// Función readVerification: obtiene o consulta información dentro de este módulo.
+/** Lee el desafío correspondiente dentro de la conexión bloqueada. */
 export async function readVerification(connection: PoolConnection, id: string): Promise<VerificationRow | null> {
   const [rows] = await connection.execute<VerificationRow[]>(`SELECT v.*, u.email, u.is_active, u.email_verified_at,
     v.proof_expires_at <= UTC_TIMESTAMP(3) AS proof_expired,

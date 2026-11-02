@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: migration-runner.ts
+ * UBICACIÓN: backend/src/database/migration-runner.ts
+ * FUNCIÓN: Ejecución central de archivos de migración pendientes.
+ * RESPONSABILIDAD: Lee y valida historial, ejecuta sentencias en orden y actualiza ledger de versiones con la política configurada.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/services/database.service.ts, backend/src/utils/database-error.ts, backend/src/database/lock.ts, backend/src/database/migration-files.ts Se utiliza desde: backend/src/database/cli.ts
+ * FUNCIONAMIENTO: Bootstrap/CLI → runMigrations → migration-files, database.service y MySQL.
+ * IMPORTANCIA: Mantiene el orden de esquema y detecta repetición o deriva.
+ */
 /** Aplica migraciones pendientes sin destruir datos ni simular rollback de DDL MySQL. */
 import { databasePool } from '../config/database';
 import { checkDatabaseConnection } from '../services/database.service';
@@ -7,7 +14,7 @@ import { runDatabaseOperation } from '../utils/database-error';
 import { withDatabaseLock } from './lock';
 import { readMigrationFiles, verifyMigrationHistory, type MigrationRecord } from './migration-files';
 
-// Función runMigrations: concentra la lógica dentro de este módulo.
+/** Valida historial y aplica en secuencia cada archivo SQL pendiente. */
 export async function runMigrations(directory?: string): Promise<number> {
   const files = await readMigrationFiles(directory);
   await checkDatabaseConnection();

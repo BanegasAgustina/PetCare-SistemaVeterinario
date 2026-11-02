@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: database-health.controller.ts
+ * UBICACIÓN: backend/src/controllers/database-health.controller.ts
+ * FUNCIÓN: Construye el handler de diagnóstico de conexión a la base de datos.
+ * RESPONSABILIDAD: Traducir disponibilidad SQL a una respuesta API sin filtrar detalles internos.
+ * CONEXIONES: Importa: backend/src/services/database.service.ts, backend/src/types/api.ts Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Lee la solicitud, llama a la operación del dominio y convierte su resultado o error en respuesta HTTP.
+ * IMPORTANCIA: Separa salud HTTP de salud del pool SQL para diagnóstico operativo.
+ */
 /** Readiness independiente: conserva el health original y no revela configuración. */
 import type { RequestHandler } from 'express';
 import { checkDatabaseConnection } from '../services/database.service';
 import type { ApiSuccess } from '../types/api';
 
-// Función createDatabaseHealthHandler: crea un registro o inicia una operación dentro de este módulo.
+/** Permite inyectar el chequeo y devolver el mismo contrato público ante conexión disponible/no disponible. */
 export function createDatabaseHealthHandler(checkConnection = checkDatabaseConnection): RequestHandler {
   return async (_request, response, next) => {
     try {

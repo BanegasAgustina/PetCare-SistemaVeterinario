@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: pet-form-migrate.ts
+ * UBICACIÓN: backend/src/database/pet-form-migrate.ts
+ * FUNCIÓN: Migra estructura y catálogos utilizados por los formularios de mascotas.
+ * RESPONSABILIDAD: Ejecuta SQL versionado con checksum y conexión liberada en todos los resultados.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Runner/CLI → migración de formulario → MySQL.
+ * IMPORTANCIA: Mantiene compatibilidad de campos requeridos por el registro de mascota.
+ */
 /** Aplica únicamente la extensión del formulario sobre las tablas existentes.
  * No depende de restaurar la migración Cliente original eliminada del checkout.
  */
@@ -9,7 +16,7 @@ import { createHash } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
-// Función migrate: concentra la lógica dentro de este módulo.
+/** Aplica migración idempotente versionada para los campos del formulario de mascota. */
 async function migrate() {
   const version='002_pet_breed_name.sql';
   const sql=await readFile(resolve(__dirname,'../../client-migrations',version),'utf8');

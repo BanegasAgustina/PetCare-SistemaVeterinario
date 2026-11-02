@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: AdminSectionHub.tsx
+ * UBICACIÓN: mobile/src/components/admin/AdminSectionHub.tsx
+ * FUNCIÓN: Inicio de sección administrativa para clínica, tienda y administración general.
+ * RESPONSABILIDAD: Presentar accesos disponibles e indicadores de tienda cuando el usuario tiene permiso.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useAdmin.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/utils/admin-route-access.ts Se utiliza desde: mobile/src/app/admin/administration.tsx, mobile/src/app/admin/clinic.tsx, mobile/src/app/admin/store.tsx
+ * FUNCIONAMIENTO: Lee permisos y datos remotos, arma tarjetas de sección y muestra métricas con destinos filtrados.
+ * IMPORTANCIA: Sirve como punto de entrada organizado al panel, sin sustituir los controles de autorización del backend.
+ */
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
@@ -19,7 +26,7 @@ type CardSpec = { title: string; description: string; path: string; icon: IconNa
 // Tipo StoreIndicatorSpec: define la forma o las opciones válidas de los datos usados por este módulo.
 type StoreIndicatorSpec = { title: string; value: string | number; icon: IconName; path: string; params?: Record<string, string> };
 
-// Función StoreIndicator: concentra la lógica dentro de este módulo.
+/** Muestra una métrica de tienda que enlaza al listado relacionado. */
 function StoreIndicator({ title, value, icon, path, params }: StoreIndicatorSpec) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={`${title}: ${value}`} onPress={() => router.push({ pathname: path as never, params } as never)} style={({ pressed }) => [styles.indicator, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}>
@@ -56,7 +63,7 @@ const sections: Record<AdminSection, { title: string; subtitle: string; cards: C
   ] },
 };
 
-// Función AdminSectionHub: concentra la lógica dentro de este módulo.
+/** Construye el panel de accesos filtrado por sección y permisos. */
 export function AdminSectionHub({ section }: { section: AdminSection }) {
   const auth = useAuth();
   const { colors } = useTheme();

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: ScreenContainer.tsx
+ * UBICACIÓN: mobile/src/components/layout/ScreenContainer.tsx
+ * FUNCIÓN: Contenedor de pantalla con ancho máximo, área segura y ajuste opcional al teclado.
+ * RESPONSABILIDAD: Dar un marco consistente para páginas y formularios.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/constants/responsive.ts, mobile/src/components/client/PetCareDecorations.tsx Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/permissions.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx y 7 más
+ * FUNCIONAMIENTO: Envuelve children, aplica dimensiones responsivas, decoraciones y comportamiento de teclado según props.
+ * IMPORTANCIA: Centraliza reglas de superficie que necesitan todas las rutas.
+ */
 /** Contenedor desplazable que respeta notch y barra inferior en distintos celulares. */
 import { useRef,useState,type ComponentRef,type PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
@@ -9,7 +16,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { PetCareDecorativeBackground } from '../client/PetCareDecorations';
 
-// Función ScreenContainer: concentra la lógica dentro de este módulo.
+/** Provee contenedor responsivo de pantalla y evita contenido bajo el teclado. */
 export function ScreenContainer({ children, keyboardAvoiding = false, wide = false }: PropsWithChildren<{ keyboardAvoiding?: boolean; wide?: boolean }>) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();

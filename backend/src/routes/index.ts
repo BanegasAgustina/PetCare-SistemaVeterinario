@@ -1,4 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
+/**
+ * ARCHIVO: index.ts
+ * UBICACIÓN: backend/src/routes/index.ts
+ * PROPÓSITO: Reunir los routers de cada dominio bajo un router principal de API.
+ * RESPONSABILIDAD: Mantener el mapa público de endpoints agrupado por dominio.
+ * RELACIONES: app.ts monta apiRouter bajo /api. Cada router importado conecta sus endpoints con controladores y middlewares del dominio correspondiente.
+ * FLUJO: Express recibe una solicitud bajo /api, este router la deriva según el prefijo; /health y /health/database se conectan directamente a sus controladores.
+ * IMPORTANCIA: Permite localizar y extender la superficie HTTP central del backend.
+ */
 
 /** Agrupa las rutas públicas bajo /api para ampliar la API por módulos. */
 import { Router } from 'express';

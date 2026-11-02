@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: authorization.repository.ts
+ * UBICACIÓN: backend/src/repositories/authorization.repository.ts
+ * FUNCIÓN: Lectura de permisos efectivos y perfil profesional asociados a una identidad.
+ * RESPONSABILIDAD: Consulta rol, permisos heredados/overrides y perfil de veterinario; convierte los resultados en contratos de autorización del backend.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/database-error.ts, backend/src/types/authorization.ts, backend/src/types/authorization.ts, backend/src/utils/catalog-presentation.ts Se utiliza desde: backend/src/middlewares/auth.middleware.ts, backend/src/repositories/admin.repository.ts, backend/src/repositories/clinic.repository.ts, backend/src/repositories/veterinarian.repository.ts, backend/src/services/session.service.ts
+ * FUNCIONAMIENTO: auth.middleware y session.service → authorizationData/readPermissions; repositories de clínica/admin reutilizan la misma fuente.
+ * IMPORTANCIA: Permite verificar autorización con datos actuales de MySQL, no con valores obsoletos del cliente.
+ */
 /** MySQL es la fuente de verdad; no se cachean permisos dentro del JWT. */
 import type { RowDataPacket, PoolConnection } from 'mysql2/promise';
 import { databasePool } from '../config/database';
@@ -8,7 +15,7 @@ import type { Permission, VetProfile } from '../types/authorization';
 import { effectiveRolePermission } from '../types/authorization';
 import { catalogName, permissionDescription, permissionName } from '../utils/catalog-presentation';
 
-// Función readPermissions: obtiene o consulta información dentro de este módulo.
+/** Lee permisos del usuario, combinando permisos del rol y overrides persistidos. */
 export async function readPermissions(userId: string, connection?: PoolConnection): Promise<Permission[]> {
   return runDatabaseOperation(async () => {
     const [rows] = await (connection ?? databasePool).execute<RowDataPacket[]>(`SELECT p.code,p.name,p.description,p.module_code,p.is_critical,r.code AS role,
@@ -27,7 +34,7 @@ export async function readPermissions(userId: string, connection?: PoolConnectio
     });
   });
 }
-// Función readVetProfile: obtiene o consulta información dentro de este módulo.
+/** Obtiene el perfil profesional ligado al usuario o devuelve null si no existe. */
 export async function readVetProfile(userId: string): Promise<VetProfile | null> {
   return runDatabaseOperation(async () => {
     const [profiles] = await databasePool.execute<RowDataPacket[]>('SELECT id,license_number,professional_description AS professionalDescription FROM veterinarians WHERE user_id=?',[userId]);
@@ -38,7 +45,7 @@ export async function readVetProfile(userId: string): Promise<VetProfile | null>
       specialties: specialties.map(s => ({ id: String(s.id), name: catalogName(s.name) })) };
   });
 }
-// Función authorizationData: concentra la lógica dentro de este módulo.
+/** Construye los datos actuales de autorización, rol y perfil que requiere middleware/sesión. */
 export async function authorizationData(userId: string,role?:string) {
   const [permissions, veterinarian] = await Promise.all([readPermissions(userId),readVetProfile(userId)]);
   let professional:null|{typeId:string;name:string;isClinical:boolean;serviceIds:string[]}=null;

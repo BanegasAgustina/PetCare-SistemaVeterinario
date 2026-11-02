@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: AppButton.tsx
+ * UBICACIÓN: mobile/src/components/ui/AppButton.tsx
+ * FUNCIÓN: Botón reutilizable con variantes visuales, estado de carga y activación accesible.
+ * RESPONSABILIDAD: Proveer una acción táctil coherente a pantallas y formularios de todos los roles.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/constants/surface.ts Se utiliza desde: mobile/src/app/admin/_layout.tsx, mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/index.tsx, mobile/src/app/admin/permissions.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx y 51 más
+ * FUNCIONAMIENTO: Recibe label y props de Pressable; carga o deshabilitado bloquean la interacción, y el tema determina colores y contraste.
+ * IMPORTANCIA: Centraliza estados visuales de acciones para que cada formulario no replique el mismo botón.
+ */
 /** Botón accesible con tamaño táctil mínimo y estados de interacción. */
 import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';

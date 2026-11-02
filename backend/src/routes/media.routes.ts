@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: media.routes.ts
+ * UBICACIÓN: backend/src/routes/media.routes.ts
+ * FUNCIÓN: Declara endpoints para obtener parámetros de carga directa de imágenes.
+ * RESPONSABILIDAD: Autenticar y limitar solicitudes antes de generar credenciales temporales de carga.
+ * CONEXIONES: Importa: backend/src/middlewares/auth.middleware.ts, backend/src/middlewares/auth-rate-limit.middleware.ts, backend/src/types/auth.ts, backend/src/services/direct-image-upload.service.ts Se utiliza desde: backend/src/routes/index.ts
+ * FUNCIONAMIENTO: Usa middleware de sesión/rate limit y delega firma temporal al servicio de carga directa.
+ * IMPORTANCIA: Separa carga de archivos del CRUD ordinario y evita exponer claves permanentes.
+ */
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';

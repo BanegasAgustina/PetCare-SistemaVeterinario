@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: auth.service.ts
+ * UBICACIÓN: backend/src/services/auth.service.ts
+ * FUNCIÓN: Registro y autenticación local de usuarios mediante correo y contraseña.
+ * RESPONSABILIDAD: Orquesta validación, búsqueda de cuentas, hashing, verificación de correo y creación de sesión; evita revelar si un correo existe durante el login.
+ * CONEXIONES: Importa: backend/src/config/env.ts, backend/src/repositories/user.repository.ts, backend/src/types/auth.ts, backend/src/utils/app-error.ts, backend/src/validators/auth.validator.ts, backend/src/services/session.service.ts, backend/src/config/mail.ts, backend/src/services/verification.service.ts y 4 más Se utiliza desde: backend/src/controllers/auth.controller.ts
+ * FUNCIONAMIENTO: auth.controller.ts → este servicio → user.repository, validators, mail/config y verification/session services → repositorios de usuarios y sesiones.
+ * IMPORTANCIA: Es el límite de negocio entre las solicitudes de autenticación HTTP y los mecanismos de persistencia, correo y sesión.
+ */
 /** Registro con bcrypt y login sin distinguir públicamente cuenta inexistente de contraseña incorrecta. */
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'node:crypto';
@@ -16,9 +23,9 @@ import { registerStage } from '../utils/register-diagnostics';
 import { hashPassword } from './password.service';
 import { isLoginAllowed } from '../utils/account-session-guards';
 
-// Dato dummyHash: conserva un valor calculado o de configuración usado por este módulo.
+/** Hash ficticio reutilizado para comparar con bcrypt aunque no exista el correo. */
 let dummyHash: Promise<string> | undefined;
-// Función getDummyHash: obtiene o consulta información dentro de este módulo.
+/** Crea una sola promesa bcrypt de respaldo para que un email inexistente también ejecute una comparación costosa. */
 function getDummyHash(): Promise<string> {
   // Se calcula una vez a partir de datos aleatorios; también se compara bcrypt cuando no hay usuario.
   dummyHash ??= bcrypt.hash(randomBytes(32).toString('hex'), env.bcryptSaltRounds);
@@ -26,7 +33,7 @@ function getDummyHash(): Promise<string> {
 }
 
 /** Crea CLIENT pendiente y prepara código SMTP; no emite sesión hasta verificar el email. */
-// Función registerUser: crea un registro o inicia una operación dentro de este módulo.
+/** Valida el alta pública CLIENT, comprueba email duplicado, guarda hash y crea verificación; no emite sesión antes de verificar el correo. */
 export async function registerUser(body: unknown): Promise<{ user: AuthUser; verification: VerificationChallenge }> {
   registerStage('validation');
   const input = validateRegister(body);
@@ -47,7 +54,7 @@ export async function registerUser(body: unknown): Promise<{ user: AuthUser; ver
 }
 
 /** Compara bcrypt incluso si la cuenta no existe para reducir diferencias de tiempo observables. */
-// Función loginUser: concentra la lógica dentro de este módulo.
+/** Valida credenciales y políticas de cuenta; emite una sesión solo si la cuenta está activa, verificada y no requiere cambio inicial. */
 export async function loginUser(body: unknown): Promise<AccessSession> {
   const input = validateLogin(body);
   getJwtConfiguration();

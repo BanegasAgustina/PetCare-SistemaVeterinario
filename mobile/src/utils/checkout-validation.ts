@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: checkout-validation.ts
+ * UBICACIÓN: mobile/src/utils/checkout-validation.ts
+ * FUNCIÓN: Regla auxiliar de la interfaz.
+ * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de checkout-validation.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/client/(tabs)/store/checkout.tsx
+ * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 // Tipo CheckoutAddressValues: define la forma o las opciones válidas de los datos usados por este módulo.
 // Propósito: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
 
@@ -32,7 +39,7 @@ const requiredAddressFields = [
   ['postalCode', 'el código postal', 16],
 ] as const;
 
-// Función validateCheckoutAddress: comprueba una regla o condición dentro de este módulo.
+/** Revisa campos obligatorios y longitudes de dirección; devuelve errores por campo para que checkout no avance. */
 export function validateCheckoutAddress(address: CheckoutAddressValues): CheckoutFieldErrors {
   const errors: CheckoutFieldErrors = {};
   for (const [field, label, maxLength] of requiredAddressFields) {
@@ -45,7 +52,7 @@ export function validateCheckoutAddress(address: CheckoutAddressValues): Checkou
   return errors;
 }
 
-// Función validateCheckoutBuyer: comprueba una regla o condición dentro de este módulo.
+/** Valida nombre completo, email y DNI del comprador y genera errores asociados al formulario de transferencia. */
 export function validateCheckoutBuyer({ name, email, dni }: CheckoutBuyerValues): CheckoutFieldErrors {
   const errors: CheckoutFieldErrors = {};
   const normalizedName = name.trim();
@@ -60,7 +67,7 @@ export function validateCheckoutBuyer({ name, email, dni }: CheckoutBuyerValues)
   return errors;
 }
 
-// Función mapCheckoutFieldErrors: transforma o prepara datos dentro de este módulo.
+/** Adapta errores de API a claves del formulario y elimina el prefijo address. para ubicar el campo correcto. */
 export function mapCheckoutFieldErrors(errors: readonly { field: string; message: string }[]): CheckoutFieldErrors {
   return Object.fromEntries(errors.map(({ field, message }) => [field.replace(/^address\./, ''), message]));
 }

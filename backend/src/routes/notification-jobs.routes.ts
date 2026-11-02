@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: notification-jobs.routes.ts
+ * UBICACIÓN: backend/src/routes/notification-jobs.routes.ts
+ * FUNCIÓN: Crea el endpoint de procesamiento de trabajos de notificación programados.
+ * RESPONSABILIDAD: Validar credencial de cron y ejecutar lotes de trabajo sin exponerlos al público general.
+ * CONEXIONES: Importa: backend/src/services/notifications.service.ts, backend/src/utils/app-error.ts, backend/src/utils/cron-auth.ts Se utiliza desde: backend/src/app.ts
+ * FUNCIONAMIENTO: Recibe processor inyectable, valida autorización de cron y devuelve resultado o error acotado.
+ * IMPORTANCIA: Permite que la plataforma programadora active trabajos de notificaciones.
+ */
 import { Router } from 'express';
 import { processNotificationJobs } from '../services/notifications.service';
 import { AppError } from '../utils/app-error';
@@ -10,7 +17,7 @@ type NotificationJobResult = Awaited<ReturnType<typeof processNotificationJobs>>
 // Tipo NotificationJobProcessor: define la forma o las opciones válidas de los datos usados por este módulo.
 type NotificationJobProcessor = () => Promise<NotificationJobResult>;
 
-// Función createNotificationJobsRouter: crea un registro o inicia una operación dentro de este módulo.
+/** Crea un router inyectable para procesar lotes de notificaciones programados. */
 export function createNotificationJobsRouter(processJobs: NotificationJobProcessor = processNotificationJobs): Router {
   const router = Router();
   router.get('/', async (request, response, next) => {

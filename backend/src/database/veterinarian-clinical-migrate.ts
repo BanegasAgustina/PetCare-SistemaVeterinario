@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: veterinarian-clinical-migrate.ts
+ * UBICACIÓN: backend/src/database/veterinarian-clinical-migrate.ts
+ * FUNCIÓN: Migra columnas clínicas relacionadas con veterinarios y citas.
+ * RESPONSABILIDAD: Inspecciona columnas actuales, verifica atributos SQL y aplica cambios faltantes.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI/bootstrap → MySQL y clinic repository.
+ * IMPORTANCIA: Mantiene compatibilidad entre ficha profesional y nuevos registros clínicos.
+ */
 /**
  * Migración aditiva para enlazar consultas con turnos y separar notas privadas.
  * No transforma ni borra registros clínicos existentes.
@@ -8,7 +15,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Tipo Column: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Metadatos SQL de una columna clínica observada. */
 type Column = { table: string; name: string; type: string; nullable: 'YES'|'NO'; length?:number; sql: string };
 // Configuración columns: reúne valores o reglas que consume el resto del módulo.
 const columns: Column[] = [
@@ -20,7 +27,7 @@ const columns: Column[] = [
   { table:'veterinarians',name:'professional_description',type:'varchar',nullable:'YES',length:2000,sql:'VARCHAR(2000) NULL' },
 ];
 
-// Función migrate: concentra la lógica dentro de este módulo.
+/** Inspecciona y actualiza las columnas clínicas requeridas para profesionales. */
 async function migrate(): Promise<void> {
   const connection = await databasePool.getConnection();
   try {

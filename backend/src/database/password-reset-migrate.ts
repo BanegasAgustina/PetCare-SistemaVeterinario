@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: password-reset-migrate.ts
+ * UBICACIÓN: backend/src/database/password-reset-migrate.ts
+ * FUNCIÓN: Crea o actualiza el esquema de pruebas de recuperación de contraseña.
+ * RESPONSABILIDAD: Aplica migración versionada de tokens y metadatos de expiración/consumo con checksum.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Migration runner → MySQL.
+ * IMPORTANCIA: Soporta pruebas de recuperación de un solo uso con vencimiento persistido.
+ */
 /** Migración aditiva e independiente: no depende del historial SQL incompleto del checkout. */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -8,9 +15,9 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Dato version: conserva un valor calculado o de configuración usado por este módulo.
+/** Versión registrada de la estructura de recuperación de contraseña. */
 const version='001_password_resets.sql';
-// Función migratePasswordResets: concentra la lógica dentro de este módulo.
+/** Aplica el SQL de tablas/índices de recuperación una sola vez con control de historial. */
 export async function migratePasswordResets(){
   const sql=await readFile(resolve(__dirname,'../../password-reset-migrations',version),'utf8');
   const checksum=createHash('sha256').update(sql).digest('hex');

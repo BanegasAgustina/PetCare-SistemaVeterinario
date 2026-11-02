@@ -1,9 +1,16 @@
-// Este archivo se encarga de validar si un horario o bloqueo puede reactivarse sin generar conflictos.
-
-// Tipo AvailabilityKind: define la forma o las opciones válidas de datos usados por este módulo.
+/**
+ * ARCHIVO: availability-lifecycle.ts
+ * UBICACIÓN: backend/src/utils/availability-lifecycle.ts
+ * FUNCIÓN: Decide si un horario archivado puede reactivarse.
+ * RESPONSABILIDAD: Validar relación/fecha/profesional antes de permitir volver a publicar disponibilidad.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/repositories/clinic-admin.repository.ts
+ * FUNCIONAMIENTO: Recibe comprobaciones de pertenencia, vigencia y estado y devuelve código de error legible o null.
+ * IMPORTANCIA: Conserva restricciones del ciclo de vida fuera del SQL de repositorio.
+ */
+/** Distingue los dos recursos que pueden publicarse o archivarse. */
 export type AvailabilityKind = 'slot' | 'block';
 
-// Tipo ReactivationChecks: define la forma o las opciones válidas de datos usados por este módulo.
+/** Resultados consultados por repositorio antes de reactivar disponibilidad. */
 export type ReactivationChecks = {
   kind: AvailabilityKind;
   startsAt: string;
@@ -14,8 +21,7 @@ export type ReactivationChecks = {
   hasNonCancelledAppointment?: boolean;
 };
 
-/** Validaciones puras para reactivar disponibilidad sin ofrecer horarios inválidos. */
-// Función availabilityReactivationError: concentra la lógica dentro de este módulo.
+/** Devuelve el motivo por el que un slot archivado no se puede reactivar, si aplica. */
 export function availabilityReactivationError(checks: ReactivationChecks, now = new Date()): string | null {
   const startsAt = new Date(`${checks.startsAt.replace(' ', 'T')}Z`);
   if (Number.isNaN(startsAt.getTime()) || startsAt <= now) return 'No se puede reactivar un horario que ya comenzó.';

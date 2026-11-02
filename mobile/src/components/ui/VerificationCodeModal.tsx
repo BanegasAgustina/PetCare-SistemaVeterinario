@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: VerificationCodeModal.tsx
+ * UBICACIÓN: mobile/src/components/ui/VerificationCodeModal.tsx
+ * FUNCIÓN: Modal del código de verificación de email durante registro o login pendiente de verificar.
+ * RESPONSABILIDAD: Permitir validar el código, reenviarlo y resolver si continúa la sesión o se vuelve al login.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/forms/VerificationCodeInput.tsx, mobile/src/hooks/useTheme.ts, mobile/src/hooks/useAuth.ts, mobile/src/contexts/FeedbackContext.tsx y 4 más Se utiliza desde: mobile/src/app/_layout.tsx
+ * FUNCIONAMIENTO: Usa AuthContext para completar verificación, servicio de verificación para reenvíos, estado de expiración y feedback accesible; el usuario no avanza sin verificación.
+ * IMPORTANCIA: Protege las cuentas nuevas hasta confirmar que controlan el correo declarado.
+ */
 /** Modal único para registro/login: obligatorio hasta verificar o volver a autenticarse si la prueba vence. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Keyboard, Pressable, StyleSheet, View } from 'react-native';
@@ -18,7 +25,7 @@ import { readVerification, resendCode, verifyCode } from '../../services/verific
 import type { VerificationChallenge } from '../../types/auth';
 import { roleHome } from '../../utils/role-home';
 
-// Función VerificationCodeModal: concentra la lógica dentro de este módulo.
+/** Orquesta cronómetro, reenvío, verificación y estados de sesión vencida. */
 export function VerificationCodeModal({ challenge, autoSend = false }: { challenge: VerificationChallenge; autoSend?: boolean }) {
   const auth = useAuth(); const { colors } = useTheme(); const { showToast } = useFeedback();
   const [code, setCode] = useState(''); const [error, setError] = useState<string | null>(null);
@@ -64,8 +71,8 @@ export function VerificationCodeModal({ challenge, autoSend = false }: { challen
     const timer = setTimeout(() => { autoAttempt.current = true; void resend(); }, 0);
     return () => clearTimeout(timer);
   }, [autoSend, remaining, challenge.expiresAt, expired, resend]);
-  // Función verify: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const verify = async () => {
+  /** Verifica seis dígitos y, si la respuesta incluye sesión, la entrega al contexto autenticado. */
+  const verify = async () => {
     if (inFlight.current) return;
     if (code.length !== 6) { setError('Ingresá los seis dígitos del código.'); return; }
     inFlight.current = true; setLoading('verify'); setError(null); setInfo(null);
@@ -83,8 +90,8 @@ const verify = async () => {
       }
     } finally { inFlight.current = false; if (mounted.current) setLoading(null); }
   };
-  // Función continueToLogin: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const continueToLogin = () => { auth.finishVerification(); showToast('Correo verificado. Tu cuenta está lista.', 'success'); router.replace('/login'); };
+  /** Cierra el desafío verificado y lleva al login cuando no había una sesión que reanudar. */
+  const continueToLogin = () => { auth.finishVerification(); showToast('Correo verificado. Tu cuenta está lista.', 'success'); router.replace('/login'); };
   return <AppModal visible>
     <View style={[styles.icon, { backgroundColor: colors.accent }]}><Ionicons name={verified ? 'checkmark-circle-outline' : 'mail-outline'} size={28} color={colors.primary} accessible={false} /></View>
     {verified ? <>

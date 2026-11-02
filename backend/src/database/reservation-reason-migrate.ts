@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: reservation-reason-migrate.ts
+ * UBICACIÓN: backend/src/database/reservation-reason-migrate.ts
+ * FUNCIÓN: Agrega el motivo de cancelación o vencimiento a reservas/turnos.
+ * RESPONSABILIDAD: Comprueba columna y aplica la migración necesaria de forma idempotente.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: backend/src/database/clinic-schema-migrate.ts
+ * FUNCIONAMIENTO: Runner/CLI → esquema de reservas y clinic.repository.
+ * IMPORTANCIA: Permite guardar la explicación ligada a la transición de estado.
+ */
 /** Agrega el motivo opcional a cada cambio de estado de reserva existente. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Función migrateReservationReason: concentra la lógica dentro de este módulo.
+/** Agrega columna de motivo de reserva si todavía no existe. */
 export async function migrateReservationReason() {
   const connection = await databasePool.getConnection();
   try {

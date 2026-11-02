@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
-
+/**
+ * ARCHIVO: PetCareDecorations.tsx
+ * UBICACIÓN: mobile/src/components/client/PetCareDecorations.tsx
+ * FUNCIÓN: Fondos decorativos de marca para superficies de cliente y layouts compartidos.
+ * RESPONSABILIDAD: Añadir ilustraciones no interactivas de mascotas y cuidado según variante.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/layout/LoginLayout.tsx, mobile/src/components/layout/ScreenContainer.tsx
+ * FUNCIONAMIENTO: Recibe pets/care y selecciona adornos y paleta del tema; no gestiona datos del usuario.
+ * IMPORTANCIA: Centraliza decoración de la app fuera de cada pantalla.
+ */
 import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
@@ -8,7 +15,7 @@ import { useTheme } from '../../hooks/useTheme';
 export type PetCareDecorationVariant = 'pets' | 'care';
 
 /** Fondo decorativo no interactivo, adaptado al tema y sin datos de negocio. */
-// Función PetCareDecorativeBackground: concentra la lógica dentro de este módulo.
+/** Presenta fondos de decoración no interactivos para la variante pedida. */
 export function PetCareDecorativeBackground({ variant = 'care' }: { variant?: PetCareDecorationVariant }) {
   const { colors } = useTheme();
   return <View pointerEvents="none" accessible={false} style={styles.pageDecoration}>

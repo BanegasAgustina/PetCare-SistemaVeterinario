@@ -1,12 +1,19 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: error.middleware.ts
+ * UBICACIÓN: backend/src/middlewares/error.middleware.ts
+ * FUNCIÓN: Normaliza rutas inexistentes y excepciones a respuestas JSON públicas.
+ * RESPONSABILIDAD: Evitar que SQL, stack traces o detalles internos lleguen a clientes HTTP.
+ * CONEXIONES: Importa: backend/src/types/api.ts, backend/src/utils/database-error.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/app.ts
+ * FUNCIONAMIENTO: Distingue AppError/DatabaseError, asigna status/código y sobre success=false; registra solo diagnóstico permitido.
+ * IMPORTANCIA: Cierra el pipeline Express y unifica errores de todos los dominios.
+ */
 /** Traduce errores internos a mensajes seguros sin revelar detalles de Node o SQL. */
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { ApiFailure } from '../types/api';
 import { DatabaseError } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
 
-// Función notFoundHandler: concentra una operación reutilizable de este módulo.
+/** Devuelve error ROUTE_NOT_FOUND con sobre JSON uniforme. */
 export const notFoundHandler: RequestHandler = (request, response) => {
   const path = request.path.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140);
   const storeRoute = /^\/api\/client\/(?:store(?:\/|$)|cart(?:\/|$))/.test(request.path);
@@ -17,7 +24,7 @@ export const notFoundHandler: RequestHandler = (request, response) => {
   response.status(404).json(result);
 };
 
-// Función errorHandler: concentra una operación reutilizable de este módulo.
+/** Traduce AppError/DatabaseError y fallos desconocidos a respuesta pública segura. */
 export const errorHandler: ErrorRequestHandler = (error: unknown, request, response, next) => {
   if (response.headersSent) { next(error); return; }
   if (error instanceof DatabaseError || error instanceof AppError) {

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área administrativa; conecta la interfaz con las operaciones de administración.
-
+/**
+ * ARCHIVO: general-information.tsx
+ * UBICACIÓN: mobile/src/app/admin/general-information.tsx
+ * FUNCIÓN: Pantalla o ruta de la aplicación.
+ * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de general-information.
+ * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/ImageUploadField.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/SelectionRow.tsx y 8 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 import { useState } from "react";
 import { View } from "react-native";
 import { ScreenContainer } from "../../components/layout/ScreenContainer";

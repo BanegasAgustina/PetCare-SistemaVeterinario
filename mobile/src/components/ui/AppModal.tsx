@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: AppModal.tsx
+ * UBICACIÓN: mobile/src/components/ui/AppModal.tsx
+ * FUNCIÓN: Contenedor modal común con cierre opcional, áreas desplazables y pie configurable.
+ * RESPONSABILIDAD: Mantener diálogos adaptables y accesibles en web y móvil.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/constants/surface.ts, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/app/client/(tabs)/appointments.tsx, mobile/src/components/admin/ConfirmNameModal.tsx y 17 más
+ * FUNCIONAMIENTO: Recibe visibilidad, contenido, tamaño y pie; aplica áreas seguras y comportamiento de teclado, y solo cierra por interacción cuando dismissible lo permite.
+ * IMPORTANCIA: Da un patrón común para formularios, detalles y confirmaciones modales.
+ */
 /** Base visual PetCare: Safe Area, teclado y contenido desplazable; nunca usa alerts nativos. */
 import type { PropsWithChildren, ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';

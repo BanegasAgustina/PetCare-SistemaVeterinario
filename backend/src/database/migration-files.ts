@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: migration-files.ts
+ * UBICACIÓN: backend/src/database/migration-files.ts
+ * FUNCIÓN: Descubrimiento y validación de archivos SQL de migración.
+ * RESPONSABILIDAD: Ordena nombres versionados, calcula checksum, separa sentencias y compara historial con archivos presentes.
+ * CONEXIONES: Importa: backend/src/utils/database-error.ts Se utiliza desde: backend/src/database/auth-migrate.ts, backend/src/database/bootstrap.ts, backend/src/database/client-migrate.ts, backend/src/database/migration-preflight-readonly.ts, backend/src/database/migration-runner.ts, backend/src/database/seed-runner.ts
+ * FUNCIONAMIENTO: Runners de dominio → readMigrationFiles/verifyMigrationHistory → fs y database.service.
+ * IMPORTANCIA: Detecta archivos faltantes, duplicados o alterados antes de ejecutar cambios.
+ */
 /** Lee SQL versionado y verifica integridad; no acepta archivos arbitrarios ni DELIMITER. */
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
@@ -7,14 +14,14 @@ import { resolve } from 'node:path';
 import type { RowDataPacket } from 'mysql2/promise';
 import { DatabaseError } from '../utils/database-error';
 
-// Dato migrationsDirectory: conserva un valor calculado o de configuración usado por este módulo.
+/** Directorio fuente de los archivos SQL versionados. */
 export const migrationsDirectory = resolve(__dirname, '../../migrations');
-// Tipo MigrationFile: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Migración encontrada con versión, nombre, sentencias y checksum. */
 export type MigrationFile = { version: string; checksum: string; statements: string[] };
-// Tipo MigrationRecord: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Registro ya aplicado en el ledger de la base. */
 export type MigrationRecord = RowDataPacket & { version: string; checksum: string; state: 'running' | 'applied' };
 
-// Función readMigrationFiles: obtiene o consulta información dentro de este módulo.
+/** Ordena archivos de migración, valida nombres/versiones, divide sentencias y calcula checksum. */
 export async function readMigrationFiles(directory = migrationsDirectory): Promise<MigrationFile[]> {
   const names = (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort();
   const versionNumbers = new Set<string>();
@@ -37,7 +44,7 @@ export async function readMigrationFiles(directory = migrationsDirectory): Promi
 }
 
 /** Una migración aplicada es inmutable; la falta de un archivo también se considera deriva. */
-// Función verifyMigrationHistory: concentra la lógica dentro de este módulo.
+/** Detecta migraciones aplicadas que faltan localmente o cuyos contenidos cambiaron. */
 export function verifyMigrationHistory(files: MigrationFile[], records: MigrationRecord[]): void {
   for (const record of records) {
     const file = files.find((candidate) => candidate.version === record.version);

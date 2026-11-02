@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: OAuthRegistrationModal.tsx
+ * UBICACIÓN: mobile/src/components/forms/OAuthRegistrationModal.tsx
+ * FUNCIÓN: Modal para completar el perfil y contraseña de una identidad OAuth pendiente de registro.
+ * RESPONSABILIDAD: Solicitar los datos PetCare requeridos después de que el backend reconoce un proveedor nuevo.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AuthForm.tsx, mobile/src/hooks/useAuth.ts, mobile/src/utils/auth-validation.ts, mobile/src/types/auth.ts Se utiliza desde: mobile/src/app/_layout.tsx
+ * FUNCIONAMIENTO: Consulta oauthPending del contexto, valida el formulario y llama a la finalización OAuth; la prueba/ticket los administra el servicio.
+ * IMPORTANCIA: Completa alta sin confundir la identidad externa con una cuenta PetCare ya activada.
+ */
 /** Completa una identidad OAuth nueva con datos reales; reutiliza verificación de email del AuthContext. */
 import { AppModal } from '../ui/AppModal';
 import { AppText } from '../ui/AppText';
@@ -17,7 +24,7 @@ const fields:AuthField<RegisterValues>[]=[
   {key:'password',label:'Contraseña de PetCare',password:true,hint:'8 caracteres, mayúscula, minúscula, número y símbolo.'},
   {key:'confirmPassword',label:'Repetir contraseña',password:true},
 ];
-// Función OAuthRegistrationModal: concentra la lógica dentro de este módulo.
+/** Solo aparece cuando AuthContext conserva un registro OAuth pendiente. */
 export function OAuthRegistrationModal(){
   const auth=useAuth();if(!auth.oauthPending)return null;
   return <AppModal visible><AppText variant="subtitle">Completá tu cuenta</AppText><AppText muted>Verificaremos tu correo con un código. Si ya tenés una cuenta, cancelá e iniciá sesión con tu contraseña para vincular este proveedor.</AppText>

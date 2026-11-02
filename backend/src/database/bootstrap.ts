@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: bootstrap.ts
+ * UBICACIÓN: backend/src/database/bootstrap.ts
+ * FUNCIÓN: Coordina la inicialización del esquema y catálogos requeridos por el backend.
+ * RESPONSABILIDAD: Ordena la ejecución de migraciones y seeds conforme a los runners especializados.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/services/database.service.ts, backend/src/database/migration-files.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI y utilidades de operación → bootstrapDatabase → migrator/seed runner.
+ * IMPORTANCIA: Ofrece un punto de arranque repetible para preparar una base vacía o actualizada.
+ */
 /** Instala el esquema nuevo solo en DB vacía. No sustituye ni inventa migraciones históricas. */
 import { resolve } from 'node:path';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -7,7 +14,7 @@ import { databasePool } from '../config/database';
 import { checkDatabaseConnection } from '../services/database.service';
 import { readMigrationFiles } from './migration-files';
 import { withDatabaseLock } from './lock';
-// Función bootstrapDatabase: concentra la lógica dentro de este módulo.
+/** Prepara la base siguiendo el orden establecido para migraciones y seeds. */
 export async function bootstrapDatabase():Promise<void>{
   const files=await readMigrationFiles(resolve(__dirname,'../../bootstrap'));await checkDatabaseConnection();
   const c=await databasePool.getConnection();

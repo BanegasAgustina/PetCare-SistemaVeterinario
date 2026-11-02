@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: LoginPets.tsx
+ * UBICACIÓN: mobile/src/components/layout/LoginPets.tsx
+ * FUNCIÓN: Ilustración decorativa adaptable de mascotas para pantallas de acceso.
+ * RESPONSABILIDAD: Acompañar login y registro sin interferir con el formulario.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/app/register.tsx, mobile/src/components/layout/LoginLayout.tsx
+ * FUNCIONAMIENTO: Controla disposición inline, solo móvil o variante de registro mediante props y layout responsivo.
+ * IMPORTANCIA: Aporta identidad visual sin almacenar ni procesar estado de autenticación.
+ */
 /** Franja inferior full bleed; el marco recorta solo los cuerpos. */
 import { useEffect, useState } from 'react';
 import { Image, Keyboard, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -7,7 +14,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 // Dato artwork: conserva un valor calculado o de configuración usado por este módulo.
 const artwork = require('../../assets/auth-pets.png');
-// Función LoginPets: concentra la lógica dentro de este módulo.
+/** Ajusta la ilustración decorativa según la variante y el ancho de pantalla. */
 export function LoginPets({ registration = false, inline = false, mobileOnly = false }: { registration?: boolean; inline?: boolean; mobileOnly?: boolean }) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();

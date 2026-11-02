@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: clinic-reconcile.ts
+ * UBICACIÓN: backend/src/database/clinic-reconcile.ts
+ * FUNCIÓN: Preflight y reconciliación acotada de índices del esquema clínico.
+ * RESPONSABILIDAD: Compara ledger y metadatos reales, planifica decisiones de índice y aplica reconciliación solo tras preflight.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/config/env.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI explícita → reconcileClinic → INFORMATION_SCHEMA, databasePool y helpers de plan.
+ * IMPORTANCIA: Detecta deriva sin asumir que la presencia de un índice con otro nombre implica equivalencia.
+ */
 /** Adopta el esquema clínico existente con validación y DDL mínimo reanudable. */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -9,25 +16,25 @@ import { databasePool } from '../config/database';
 import { env } from '../config/env';
 import { withDatabaseLock } from './lock';
 
-// Dato RECONCILIATION_VERSION: conserva un valor calculado o de configuración usado por este módulo.
+/** Versión de reconciliación de índices aplicada por esta herramienta. */
 export const RECONCILIATION_VERSION = '002_adopt_existing_clinic_schema.sql';
-// Dato HISTORICAL_VERSION: conserva un valor calculado o de configuración usado por este módulo.
+/** Versión histórica reconocida en el ledger para decidir si corresponde reconciliar. */
 export const HISTORICAL_VERSION = '001_connected_clinic.sql';
-// Dato MIGRATION_PATH: conserva un valor calculado o de configuración usado por este módulo.
+/** Ruta del archivo SQL histórico que define el esquema esperado. */
 const MIGRATION_PATH = resolve(process.cwd(), 'clinic-migrations', RECONCILIATION_VERSION);
 
-// Tipo IndexRow: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Metadatos de una fila del índice consultada en INFORMATION_SCHEMA. */
 type IndexRow = RowDataPacket & { TABLE_NAME: string; INDEX_NAME: string; NON_UNIQUE: number | string; SEQ_IN_INDEX: number | string; COLUMN_NAME: string };
-// Tipo ForeignKeyRow: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Metadatos de clave foránea para comprobar soporte y dependencias. */
 type ForeignKeyRow = RowDataPacket & { COLUMN_NAME: string; REFERENCED_TABLE_NAME: string; REFERENCED_COLUMN_NAME: string };
-// Tipo Queryable: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Interfaz mínima de consulta usada para permitir inspección/pruebas sin pool concreto. */
 type Queryable = Pick<PoolConnection, 'execute' | 'query'>;
-// Tipo IndexSpec: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Descripción de nombre y columnas de un índice esperado. */
 export type IndexSpec = { name: string; unique: boolean; columns: string[] };
-// Tipo ReconcilePlan: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Decisión calculada para crear, conservar o rechazar un índice candidato. */
 export type ReconcilePlan = { addSupportIndex: boolean; dropHistoricalUnique: boolean };
 
-// Función decideLedgerAction: concentra la lógica dentro de este módulo.
+/** Decide si ledger/historial requieren aplicar, registrar o detener reconciliación. */
 export function decideLedgerAction(entry: { checksum: string; state: string } | undefined, checksum: string, historicalRecorded: boolean): 'start' | 'resume' | 'skip' {
   if (entry && entry.checksum !== checksum) throw new Error('El checksum de 002 no coincide con el historial; se aborta.');
   if (historicalRecorded) throw new Error('Existe un registro de 001; revisar manualmente la historia antes de adoptar 002.');
@@ -37,7 +44,7 @@ export function decideLedgerAction(entry: { checksum: string; state: string } | 
   throw new Error(`Estado de 002 no reconocido: ${entry.state}.`);
 }
 
-// Función planIndexReconciliation: concentra la lógica dentro de este módulo.
+/** Compara índices presentes con especificación y distingue coincidencia exacta de soporte parcial. */
 export function planIndexReconciliation(indexes: IndexSpec[], foreignKeyExists: boolean, duplicatePairs: number): ReconcilePlan {
   if (duplicatePairs !== 0) throw new Error('Hay pares veterinarian_id + starts_at duplicados; se aborta sin cambios.');
   const exactOld = indexes.find((index) => index.name === 'veterinarian_start');
@@ -50,13 +57,13 @@ export function planIndexReconciliation(indexes: IndexSpec[], foreignKeyExists: 
   return { addSupportIndex: !hasSupport && !hasNamedHistory, dropHistoricalUnique: Boolean(exactOld) };
 }
 
-// Función rows: concentra la lógica dentro de este módulo.
+/** Ejecuta consulta de metadatos y devuelve sus filas tipadas. */
 async function rows<T extends RowDataPacket>(connection: Queryable, sql: string, values: unknown[] = []): Promise<T[]> {
   const [result] = await connection.execute<T[]>(sql, values as (string | number | boolean | null)[]);
   return result;
 }
 
-// Función assertPreflight: comprueba una regla o condición dentro de este módulo.
+/** Detiene operación si identidad/base o metadatos no satisfacen condiciones previas. */
 async function assertPreflight(connection: Queryable, expectedDatabase: string): Promise<{ plan: ReconcilePlan; rowCount: number; duplicatePairs: number }> {
   const [database] = await rows<RowDataPacket & { db: string }>(connection, 'SELECT DATABASE() AS db');
   if (!database?.db || database.db !== expectedDatabase || database.db !== env.database.database) {
@@ -132,7 +139,7 @@ const hasEquivalent = (unique: boolean, columnName: string) => [...appointmentIn
   return { plan, rowCount, duplicatePairs };
 }
 
-// Función readLedger: obtiene o consulta información dentro de este módulo.
+/** Consulta versiones registradas de migración. */
 async function readLedger(connection: Queryable, checksum: string) {
   const ledger = await rows<RowDataPacket & { version: string; checksum: string; state: string }>(connection,
     'SELECT version,checksum,state FROM clinic_schema_migrations WHERE version IN (?,?)', [RECONCILIATION_VERSION, HISTORICAL_VERSION]);
@@ -141,7 +148,7 @@ async function readLedger(connection: Queryable, checksum: string) {
   return { adopted, historical: ledger.some((entry) => entry.version === HISTORICAL_VERSION) };
 }
 
-// Función reconcileIndexes: concentra la lógica dentro de este módulo.
+/** Aplica únicamente los índices aprobados por el plan de reconciliación. */
 async function reconcileIndexes(connection: PoolConnection): Promise<void> {
   // Se vuelve a leer el estado antes de cada DDL para permitir reanudación tras DDL no transaccional.
   const current = await assertPreflight(connection, env.database.database);
@@ -160,7 +167,7 @@ async function reconcileIndexes(connection: PoolConnection): Promise<void> {
   }
 }
 
-// Función reconcileClinic: concentra la lógica dentro de este módulo.
+/** Ejecuta preflight, compara ledger y reconcilia índices clínicos en modo controlado. */
 export async function reconcileClinic(connection: PoolConnection, sql: string): Promise<void> {
   const checksum = createHash('sha256').update(sql).digest('hex');
   await withDatabaseLock(connection, async () => {
@@ -189,7 +196,7 @@ export async function reconcileClinic(connection: PoolConnection, sql: string): 
   });
 }
 
-// Función main: concentra la lógica dentro de este módulo.
+/** Punto de entrada de CLI que presenta el resultado de reconciliación y su código de salida. */
 async function main(): Promise<void> {
   const sql = await readFile(MIGRATION_PATH, 'utf8');
   const connection = await databasePool.getConnection();

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: register-diagnostics.ts
+ * UBICACIÓN: backend/src/utils/register-diagnostics.ts
+ * FUNCIÓN: Contexto y sanitización de diagnósticos del flujo de registro.
+ * RESPONSABILIDAD: Correlacionar etapas/fallos de registro evitando registrar email, contraseña, código o detalles internos.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/config/env.ts Se utiliza desde: backend/src/controllers/auth.controller.ts, backend/src/repositories/user.repository.ts, backend/src/services/auth.service.ts, backend/src/services/mail.service.ts, backend/src/services/verification.service.ts
+ * FUNCIONAMIENTO: Usa AsyncLocalStorage para requestId/etapa, clasifica errores y emite registros estructurados y seguros.
+ * IMPORTANCIA: Facilita investigar registro y correo sin filtrar datos sensibles en logs.
+ */
 /** Diagnóstico temporal opt-in. Nunca registra cuerpo, email, hashes, códigos ni credenciales. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
@@ -7,16 +14,16 @@ import { AppError } from './app-error';
 import { DatabaseError } from './database-error';
 import { env } from '../config/env';
 
-// Tipo RegisterStage: define la forma o las opciones válidas de datos usados por este módulo.
+/** Etapas permitidas que se escriben en diagnósticos de registro. */
 export type RegisterStage = 'request_received' | 'validation' | 'validation_ok' | 'mail_configuration' | 'mail_configuration_ok'
   | 'checking_existing_email' | 'existing_email_checked' | 'password_hashing' | 'password_hashed'
   | 'database_connection' | 'database_connection_ok' | 'client_role_resolution' | 'client_role_resolved'
   | 'creating_user' | 'user_created' | 'user_committed' | 'verification_proof' | 'verification_persisted'
   | 'verification_code_reservation' | 'verification_code_persisted' | 'sending_verification_email'
   | 'verification_email_sent' | 'verification_email_failed' | 'verification_delivery_persisted' | 'completed';
-// Dato context: conserva un valor calculado o de configuración usado por este módulo.
+/** Contexto asíncrono aislado por solicitud con identificador y etapa vigente. */
 const context = new AsyncLocalStorage<{ requestId: string; stage: RegisterStage }>();
-// Configuración driverMessages: reúne valores o reglas que consume el resto del módulo.
+/** Mensajes del driver reconocidos para emitir códigos diagnósticos acotados. */
 const driverMessages: Record<string,string> = {
   ER_ACCESS_DENIED_ERROR: 'MySQL rechazó la autenticación de la cuenta configurada.',
   ER_DBACCESS_DENIED_ERROR: 'MySQL denegó acceso a la base configurada.',
@@ -28,7 +35,7 @@ const driverMessages: Record<string,string> = {
   EAUTH: 'El proveedor SMTP rechazó la autenticación.', ECONNECTION: 'No se pudo conectar al proveedor SMTP.',
 };
 /** Lista blanca en lugar de error.message/stack/response/sqlMessage, que pueden contener secretos. */
-// Función safeRegisterError: concentra la lógica dentro de este módulo.
+/** Sanitiza errores del registro para conservar diagnóstico sin datos privados. */
 export function safeRegisterError(error: unknown) {
   const object = error && typeof error === 'object' ? error as { code?: unknown; cause?: unknown } : {};
   const rawCode = typeof object.code === 'string' ? object.code : '';
@@ -43,19 +50,19 @@ export function safeRegisterError(error: unknown) {
     message: driverMessages[causeCode ?? code ?? ''] ?? (controlled ? 'Error controlado del registro; consultar su código público.' : 'Error interno; detalle sensible omitido.'),
   };
 }
-// Función registerStage: crea un registro o inicia una operación dentro de este módulo.
+/** Asocia la etapa actual de registro al contexto asíncrono de la solicitud. */
 export function registerStage(stage: RegisterStage): void {
   const trace = context.getStore();
   if (!trace) return;
   trace.stage = stage;
   console.info('[REGISTER]',JSON.stringify({ requestId: trace.requestId,stage }));
 }
-// Función registerDiagnosticFailure: crea un registro o inicia una operación dentro de este módulo.
+/** Registra el fallo de registro con ID y etapa disponibles. */
 export function registerDiagnosticFailure(error: unknown): void {
   const trace = context.getStore();
   if (trace) console.error('[REGISTER][ERROR]',JSON.stringify({ requestId:trace.requestId,stage:trace.stage,...safeRegisterError(error) }));
 }
-// Función withRegisterDiagnostics: concentra la lógica dentro de este módulo.
+/** Ejecuta un flujo dentro del contexto diagnóstico y propaga su resultado/error. */
 export async function withRegisterDiagnostics<T>(operation: () => Promise<T>): Promise<T> {
   if (process.env.REGISTER_DIAGNOSTICS !== 'true' || env.nodeEnvironment === 'production') return operation();
   return context.run({ requestId:randomUUID(),stage:'request_received' },async()=> {

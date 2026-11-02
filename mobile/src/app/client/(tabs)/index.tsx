@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: index.tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/index.tsx
+ * FUNCIÓN: Panel de inicio del cliente con resumen de mascotas, turnos y contenido de tienda.
+ * RESPONSABILIDAD: Consulta recursos del usuario por hooks, presenta información general y adapta carruseles al ancho/dispositivo.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/layout/RoleQuickAccess.tsx, mobile/src/components/client/RecordCards.tsx, mobile/src/types/client.ts, mobile/src/components/client/GeneralInformationCard.tsx y 1 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: AuthContext → useClient/useClientQuery → servicios de cliente; tarjetas navegan a fichas de mascota y turno.
+ * IMPORTANCIA: Reúne accesos y resúmenes frecuentes manteniendo datos de dominio en servicios/backend.
+ */
 /**
  * Pantalla de inicio del panel para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -15,7 +22,7 @@ import { AppointmentCard,PetCard,ProductCard,ViewAllPetsButton } from '../../../
 import type { Appointment } from '../../../types/client';
 import { GeneralInformationCard } from '../../../components/client/GeneralInformationCard';
 import { isWebAtLeast, responsiveLayout } from '../../../constants/responsive';
-// Función ClientHome: concentra la lógica dentro de este módulo.
+/** Carga los resúmenes del usuario autenticado y compone secciones responsivas para mascotas, turnos y productos. */
 export default function ClientHome(){
   const {user}=useAuth();const api=useClient();const query=useClientQuery(api.home);
   const {width}=useWindowDimensions();
@@ -72,7 +79,7 @@ const movePetCarousel=(direction:number)=>{
   </PetCareScreen>;
 }
 
-// Función UpcomingAppointments: concentra la lógica dentro de este módulo.
+/** Presenta turnos próximos en carrusel con controles accesibles y enlaces a cada detalle. */
 function UpcomingAppointments({appointments,desktopDashboard=false}:{appointments:Appointment[];desktopDashboard?:boolean}){const carousel=useRef<ComponentRef<typeof ScrollView>>(null);const [index,setIndex]=useState(0);const [availableWidth,setAvailableWidth]=useState(0);const {width}=useWindowDimensions();const cardWidth=desktopDashboard?(availableWidth||Math.min(340,width-40)):Math.max(270,Math.min(340,width-40));const goTo=(next:number)=>{const target=Math.max(0,Math.min(appointments.length-1,next));setIndex(target);carousel.current?.scrollTo({x:target*(cardWidth+(desktopDashboard?0:12)),animated:true});};return <View style={{gap:10,minWidth:0,width:'100%',overflow:desktopDashboard?'hidden':undefined}} onLayout={desktopDashboard?event=>setAvailableWidth(event.nativeEvent.layout.width):undefined}><ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-home-appointments':undefined} ref={carousel} style={desktopDashboard?styles.desktopAppointmentScroll:undefined} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:desktopDashboard?0:12,paddingRight:desktopDashboard?0:16}} snapToInterval={desktopDashboard?cardWidth:cardWidth+12} decelerationRate="fast" onMomentumScrollEnd={event=>setIndex(Math.max(0,Math.min(appointments.length-1,Math.round(event.nativeEvent.contentOffset.x/(cardWidth+(desktopDashboard?0:12))))))}>{appointments.map(item=><View key={item.id} style={{width:cardWidth}}><AppointmentCard appointment={item} desktopDashboard={desktopDashboard} onPress={()=>router.push({pathname:'/client/appointments/[id]',params:{id:item.id}})}/></View>)}</ScrollView>{desktopDashboard?<View style={styles.appointmentCarouselControls}><View accessibilityRole="text" accessibilityLabel={`Turno ${index+1} de ${appointments.length}`} style={styles.appointmentCarouselDots}>{appointments.map((item,i)=><View key={item.id} style={{width:i===index?18:6,height:6,borderRadius:4,backgroundColor:i===index?'#28795D':'#C8D8D1'}}/>)}</View><View style={styles.appointmentCarouselButtons}>{index>0&&<PetCareIconButton icon="chevron-back" label="Turno anterior" onPress={()=>goTo(index-1)}/>}{index<appointments.length-1&&<PetCareIconButton icon="chevron-forward" label="Turno siguiente" onPress={()=>goTo(index+1)}/>}</View></View>:<View accessibilityRole="text" accessibilityLabel={`Turno ${index+1} de ${appointments.length}`} style={{flexDirection:'row',justifyContent:'center',gap:6}}>{appointments.map((item,i)=><View key={item.id} style={{width:i===index?18:6,height:6,borderRadius:4,backgroundColor:i===index?'#28795D':'#C8D8D1'}}/>)}</View>}</View>;}
 
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: AgendaScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/AgendaScreen.tsx
+ * FUNCIÓN: Agenda y listados de turnos para administración y profesionales.
+ * RESPONSABILIDAD: Consultar, filtrar y presentar turnos por fecha, estado, rol y permisos.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useDebouncedValue.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/AppSelectField.tsx y 13 más Se utiliza desde: mobile/src/app/admin/agenda.tsx, mobile/src/app/professional/agenda.tsx, mobile/src/app/vet/agenda.tsx
+ * FUNCIONAMIENTO: Debouncea búsqueda, carga catálogo/turnos, convierte fechas de filtro y delega cambios de estado al servicio de clínica.
+ * IMPORTANCIA: Concentra la agenda operativa usada por admins, veterinarios y groomers.
+ */
 /** Agenda compartida. Sus filtros y resultados provienen de /clinic/appointments. */
 import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -27,7 +34,7 @@ import { AdminDataTable } from '../admin/AdminDataTable';
 import { AdminStatusBadge } from '../admin/AdminStatusBadge';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
-// Función AgendaScreen: concentra la lógica dentro de este módulo.
+/** Carga turnos según filtros y permisos del usuario que consulta la agenda. */
 export function AgendaScreen() {
   const routeParams=useLocalSearchParams<{status?:string|string[]}>();
   const requestedStatus=Array.isArray(routeParams.status)?routeParams.status[0]??'':routeParams.status??'';
@@ -51,7 +58,7 @@ export function AgendaScreen() {
   const weekStart=new Date(focusUtc);weekStart.setUTCDate(weekStart.getUTCDate()-((weekStart.getUTCDay()+6)%7));
   const rangeStart=period==='day'?focusUtc:period==='week'?weekStart:new Date(Date.UTC(focusUtc.getUTCFullYear(),focusUtc.getUTCMonth(),1));
   const rangeEnd=period==='day'?focusUtc:period==='week'?new Date(weekStart.getTime()+6*86400000):new Date(Date.UTC(focusUtc.getUTCFullYear(),focusUtc.getUTCMonth()+1,0));
-  // Función apiDate: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Convierte el día local seleccionado al formato de fecha esperado por la API.
 const apiDate=(date:Date)=>date.toISOString().slice(0,10);
   const monthLength=new Date(Date.UTC(focusUtc.getUTCFullYear(),focusUtc.getUTCMonth()+1,0)).getUTCDate();
   const monthOffset=(new Date(Date.UTC(focusUtc.getUTCFullYear(),focusUtc.getUTCMonth(),1)).getUTCDay()+6)%7;
@@ -62,7 +69,7 @@ const apiDate=(date:Date)=>date.toISOString().slice(0,10);
   const catalog = useClientQuery(api.catalog);
   const query = useClientQuery(useCallback(() => {const date=new Date(`${focusDate}T12:00:00Z`);const start=period==='month'?new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),1)):period==='week'?new Date(date.getTime()-((date.getUTCDay()+6)%7)*86400000):date;const end=period==='month'?new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,0)):period==='week'?new Date(start.getTime()+6*86400000):date;return api.appointments({ ...filters, ...(personalAgenda?{fromDate:apiDate(start),toDate:apiDate(end)}:{fromDate:clinicDateFilterToApi(filters.fromDate ?? ''),toDate:clinicDateFilterToApi(filters.toDate ?? '')}), ...(adminAgenda?{sort:appointmentSort}:{}), search: debouncedSearch, page: String(page) });}, [api, filters, debouncedSearch, page,personalAgenda,focusDate,period,adminAgenda,appointmentSort]));
   const visibleAppointments=period==='month'&&personalAgenda?(query.data??[]).filter(appointment=>clinicDate(String(appointment.startsAt))===focusDate):query.data??[];
-  // Función updateFilter: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Actualiza un filtro y reinicia la paginación para evitar una página fuera de rango.
 const updateFilter = (key: string, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
   const activeCount = Object.values(filters).filter(Boolean).length;
   const statusFilters = ['', 'REQUESTED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'REJECTED'];

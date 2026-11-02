@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: RecoveryNotice.tsx
+ * UBICACIÓN: mobile/src/components/ui/RecoveryNotice.tsx
+ * FUNCIÓN: Modal de solicitud de recuperación de contraseña desde el login.
+ * RESPONSABILIDAD: Recoger email, validar entrada y solicitar el envío de instrucciones de recuperación.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAsyncAction.ts, mobile/src/services/auth.service.ts Se utiliza desde: mobile/src/app/login.tsx
+ * FUNCIONAMIENTO: submit valida formato antes de llamar requestPasswordReset; al cerrar limpia email, estado enviado, validación y error asíncrono.
+ * IMPORTANCIA: Mantiene el proceso de recuperación separado del formulario de inicio de sesión.
+ */
 import { useState } from 'react';
 import { AppModal } from './AppModal';
 import { AppText } from './AppText';
@@ -9,19 +16,19 @@ import { FormNotice } from './FormNotice';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { requestPasswordReset } from '../../services/auth.service';
 
-// Función RecoveryNotice: concentra la lógica dentro de este módulo.
+/** Conserva el formulario y sus estados locales mientras el modal está abierto. */
 export function RecoveryNotice({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [email,setEmail]=useState('');
   const [sent,setSent]=useState(false);
   const [validationError,setValidationError]=useState('');
   const action=useAsyncAction();
-  // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const submit=()=>{
+  /** Valida el correo antes de solicitar el enlace; la respuesta no revela si existe la cuenta. */
+  const submit=()=>{
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())){setValidationError('Ingresá un correo electrónico válido.');return;}
     setValidationError('');void action.run(async()=>{await requestPasswordReset(email);setSent(true);});
   };
-  // Función close: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const close=()=>{setSent(false);setEmail('');setValidationError('');action.clearError();onClose();};
+  /** Limpia el borrador y el resultado al cerrar para que la próxima apertura empiece limpia. */
+  const close=()=>{setSent(false);setEmail('');setValidationError('');action.clearError();onClose();};
   return <AppModal visible={visible} dismissible onClose={close}>
     <AppText variant="subtitle">¿Olvidaste tu contraseña?</AppText>
     {sent ? <AppText muted>Si hay una cuenta activa asociada a ese correo, te enviaremos un enlace para restablecer la contraseña. Revisá también la carpeta de correo no deseado.</AppText> : <>

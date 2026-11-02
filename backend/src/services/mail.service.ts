@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: mail.service.ts
+ * UBICACIÓN: backend/src/services/mail.service.ts
+ * FUNCIÓN: Envío SMTP de invitaciones, verificación, recuperación de contraseña y notificaciones.
+ * RESPONSABILIDAD: Obtiene configuración segura, crea transporte con límites de tiempo, construye contenido de texto/HTML, verifica aceptación y traduce fallos a errores controlados.
+ * CONEXIONES: Importa: backend/src/config/mail.ts, backend/src/utils/app-error.ts, backend/src/utils/register-diagnostics.ts Se utiliza desde: backend/src/services/invitation.service.ts, backend/src/services/notifications.service.ts, backend/src/services/password-reset.service.ts, backend/src/services/verification.service.ts
+ * FUNCIONAMIENTO: Servicios de invitación, verificación, recuperación y notificaciones → mail.service → config/mail.ts y Nodemailer/SMTP.
+ * IMPORTANCIA: Aísla el transporte de correo y evita que los servicios de dominio dependan directamente de Nodemailer.
+ */
 /** Envía códigos reales mediante SMTP; nunca imprime código, token ni credenciales. */
 import nodemailer from 'nodemailer';
 import { getMailConfiguration } from '../config/mail';
@@ -7,7 +14,7 @@ import { AppError } from '../utils/app-error';
 import { registerDiagnosticFailure } from '../utils/register-diagnostics';
 
 /** Envía el enlace de un uso ya preparado por el servicio; aceptación SMTP no asegura entrega en Inbox. */
-// Función sendInvitationEmail: crea un registro o inicia una operación dentro de este módulo.
+/** Envía el enlace de invitación con texto y HTML escapado; cierra transporte y normaliza fallos SMTP. */
 export async function sendInvitationEmail(email: string, url: string, context?: { firstName: string; petName?: string }): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -28,10 +35,11 @@ export async function sendInvitationEmail(email: string, url: string, context?: 
   finally { transport.close(); }
 }
 
+/** Escapa caracteres HTML especiales para insertar nombres y enlaces como texto seguro en el mensaje. */
 function escapeHtml(value:string):string{return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!));}
 
 /** Envía un código real sin logs ni acceso a archivos/URLs externos; los límites viven en verificación. */
-// Función sendVerificationEmail: crea un registro o inicia una operación dentro de este módulo.
+/** Envía el código de verificación sin exponerlo en logs y registra diagnóstico sanitizado si SMTP falla. */
 export async function sendVerificationEmail(email: string, code: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -48,7 +56,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 }
 
 /** Envía enlace de recuperación; el token solo viaja en el enlace y no se registra. */
-// Función sendPasswordResetEmail: crea un registro o inicia una operación dentro de este módulo.
+/** Envía el enlace de recuperación de un solo uso y presenta errores SMTP con un mensaje controlado. */
 export async function sendPasswordResetEmail(email: string, url: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,
@@ -62,8 +70,8 @@ export async function sendPasswordResetEmail(email: string, url: string): Promis
   finally { transport.close(); }
 }
 
-/** Sends only the already-sanitized title/body persisted with a client notification. */
-// Función sendClientNotificationEmail: crea un registro o inicia una operación dentro de este módulo.
+/** Envía únicamente el título y el cuerpo ya sanitizados que se guardaron con la notificación. */
+/** Envía por correo el título y cuerpo de notificación ya persistidos; el proceso de reintentos pertenece a notifications.service. */
 export async function sendClientNotificationEmail(email: string, title: string, body: string): Promise<void> {
   const { from, ...configuration } = getMailConfiguration();
   const transport = nodemailer.createTransport({ ...configuration, connectionTimeout: 5000, greetingTimeout: 5000,

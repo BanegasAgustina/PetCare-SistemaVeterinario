@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: create-super-admin.ts
+ * UBICACIÓN: backend/src/database/create-super-admin.ts
+ * FUNCIÓN: Asistente local e interactivo para crear la primera cuenta SUPER_ADMIN.
+ * RESPONSABILIDAD: Pide y confirma datos en terminal y delega validación, hashing y transacción en bootstrap-super-admin.service.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/services/bootstrap-super-admin.service.ts, backend/src/utils/app-error.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: CLI de operador → create-super-admin → createFirstSuperAdmin. No es endpoint HTTP.
+ * IMPORTANCIA: Permite bootstrap privilegiado con control local y sin habilitar autoelevación pública.
+ */
 /** Credenciales por terminal con contraseña oculta, o JSON por stdin explícito.
  * No acepta credenciales en argumentos, no guarda archivos y no imprime secretos.
  */
@@ -9,7 +16,7 @@ import { stdin,stdout } from 'node:process';
 import { databasePool } from '../config/database';
 import { createFirstSuperAdmin } from '../services/bootstrap-super-admin.service';
 import { AppError } from '../utils/app-error';
-// Función readInput: obtiene o consulta información dentro de este módulo.
+/** Obtiene datos de cuenta por argumentos o preguntas interactivas sin imprimir secretos. */
 async function readInput():Promise<unknown> {
   const args=process.argv.slice(2);
   if(args.length===1&&args[0]==='--stdin') {

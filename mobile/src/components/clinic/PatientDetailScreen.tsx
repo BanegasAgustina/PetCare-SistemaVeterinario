@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: PatientDetailScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/PatientDetailScreen.tsx
+ * FUNCIÓN: Ficha clínica detallada de paciente con datos, registros e historial de ciclo de vida.
+ * RESPONSABILIDAD: Consultar mascota, propietario, antecedentes y acciones disponibles para el personal autorizado.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/hooks/useTheme.ts, mobile/src/constants/responsive.ts, mobile/src/types/clinic.ts, mobile/src/utils/clinic-date.ts y 10 más Se utiliza desde: mobile/src/components/clinic/PatientsScreen.tsx
+ * FUNCIONAMIENTO: Lee ID de ruta, consulta ficha y registros, presenta secciones expandibles y controles de ciclo de vida.
+ * IMPORTANCIA: Es la vista central del expediente clínico del paciente.
+ */
 import { useCallback, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +39,7 @@ const clinicalSections = [
 ];
 
 /** Ficha clínica compartida: una fuente de datos y permisos con presentaciones móvil y escritorio. */
-// Función PatientDetailScreen: concentra la lógica dentro de este módulo.
+/** Carga datos, registros e historial y presenta la ficha expandible del paciente. */
 export function PatientDetailScreen() {
   const { id = '' } = useLocalSearchParams<{ id: string }>();
   const api = useClinic();
@@ -56,7 +63,7 @@ export function PatientDetailScreen() {
   const recordKey = `${id}:${kind}`;
   const recordItems = [...(records.data?.items ?? []), ...(extraRecords?.key === recordKey ? extraRecords.items : [])];
   const nextRecordPage = extraRecords?.key === recordKey ? extraRecords.nextPage : records.data?.nextPage ?? null;
-  // Función field: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Obtiene un campo del detalle cargado para presentar valores opcionales.
 const field = (key: string) => details.data?.[key];
   const name = String(field('name') ?? 'Paciente');
   const species = String(field('species') ?? 'Sin especie registrada');
@@ -179,12 +186,12 @@ const field = (key: string) => details.data?.[key];
   </PetCareScreen>;
 }
 
-// Función PatientInfo: concentra la lógica dentro de este módulo.
+/** Presenta una etiqueta y su valor con énfasis opcional. */
 function PatientInfo({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
   return <View style={styles.infoItem}><AppText variant="caption" muted>{label}</AppText><AppText style={emphasis ? styles.infoEmphasis : undefined}>{value}</AppText></View>;
 }
 
-// Función PatientDisclosure: concentra la lógica dentro de este módulo.
+/** Permite expandir o contraer una sección de la ficha clínica. */
 function PatientDisclosure({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { colors } = useTheme();
@@ -194,7 +201,7 @@ function PatientDisclosure({ title, children }: { title: string; children: React
   </View>;
 }
 
-// Función PatientLifecycleHistory: concentra la lógica dentro de este módulo.
+/** Valida eventos de ciclo de vida y los presenta en orden temporal legible. */
 function PatientLifecycleHistory({ events }: { events: unknown }) {
   if (!Array.isArray(events)) return null;
   const history = events as ClinicRow[];

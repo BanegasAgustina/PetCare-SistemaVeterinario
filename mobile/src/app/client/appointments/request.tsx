@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: request.tsx
+ * UBICACIÓN: mobile/src/app/client/appointments/request.tsx
+ * FUNCIÓN: Pantalla o ruta de la aplicación.
+ * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de request.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/hooks/useTheme.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/FormNotice.tsx y 7 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Asistente de solicitud de turnos. Solo presenta servicios, mascotas y slots reales del backend. */
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -26,7 +33,7 @@ const stepTitles = ['Mascota', 'Servicio', 'Profesional', 'Fecha y horario', 'Co
 // Tipo Submission: define la forma o las opciones válidas de los datos usados por este módulo.
 type Submission = { id: string; status: 'REQUESTED' | 'CONFIRMED' };
 
-// Función RequestAppointment: concentra la lógica dentro de este módulo.
+/** Asistente de cinco pasos que combina mascota, servicio, profesional y horario disponibles antes de crear la solicitud. */
 export default function RequestAppointment() {
   const api = useClient();
   const action = useAsyncAction();
@@ -67,14 +74,14 @@ export default function RequestAppointment() {
     Boolean(professional.isActive) && data?.catalog.assignments.some(assignment => assignment.professionalId === professional.id && assignment.serviceId === serviceId),
   );
 
-  // Función clearLaterSelections: concentra la lógica dentro de este módulo.
+  /** Invalida profesional, fecha y slot cuando cambia una selección anterior de la que dependían. */
 function clearLaterSelections() {
     setVetId('');
     setSelectedDate('');
     setSlotId('');
   }
 
-  // Función chooseType: concentra la lógica dentro de este módulo.
+  /** Cambia el tipo de atención y limpia especialidad, servicio y horario dependientes. */
 function chooseType(id: string) {
     if (id === typeId) return;
     setTypeId(id);
@@ -85,7 +92,7 @@ function chooseType(id: string) {
     action.clearError();
   }
 
-  // Función chooseSpecialty: concentra la lógica dentro de este módulo.
+  /** Cambia especialidad, restablece servicio y slots y limpia errores previos de selección. */
 function chooseSpecialty(id: string) {
     if (id === specialtyId) return;
     setSpecialtyId(id);
@@ -95,7 +102,7 @@ function chooseSpecialty(id: string) {
     action.clearError();
   }
 
-  // Función chooseService: concentra la lógica dentro de este módulo.
+  /** Cambia servicio y fuerza una nueva consulta de slots, descartando selección horaria anterior. */
 function chooseService(id: string) {
     if (id === serviceId) return;
     setServiceId(id);
@@ -104,7 +111,7 @@ function chooseService(id: string) {
     action.clearError();
   }
 
-  // Función chooseProfessional: concentra la lógica dentro de este módulo.
+  /** Aplica el profesional opcional y descarta fecha/horario que ya no corresponden. */
 function chooseProfessional(id: string) {
     if (id === vetId) return;
     setVetId(id);
@@ -114,7 +121,7 @@ function chooseProfessional(id: string) {
     action.clearError();
   }
 
-  // Función continueStep: concentra la lógica dentro de este módulo.
+  /** Valida la selección requerida del paso activo antes de avanzar, sin enviar datos al servidor. */
 function continueStep() {
     setFormError(null);
     if (step === 1 && !activePets.some(pet => pet.id === petId)) {
@@ -136,7 +143,7 @@ function continueStep() {
     setStep(current => Math.min(5, current + 1));
   }
 
-  // Función submitRequest: concentra la lógica dentro de este módulo.
+  /** Envía petId y slotId seleccionados; conserva el asistente ante error y muestra confirmación con la respuesta real. */
 async function submitRequest() {
     if (!selectedPet || !selectedSlot || !serviceId) {
       setFormError('Revisá la mascota, el servicio y el horario antes de enviar.');

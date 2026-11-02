@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: PatientsScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/PatientsScreen.tsx
+ * FUNCIÓN: Listado, detalle y editor de registros clínicos asociados a pacientes.
+ * RESPONSABILIDAD: Buscar pacientes, gestionar altas/invitaciones y crear notas, vacunas, recetas o recomendaciones.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useDebouncedValue.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx y 22 más Se utiliza desde: mobile/src/app/admin/patient.tsx, mobile/src/app/admin/patients.tsx, mobile/src/app/professional/patient.tsx, mobile/src/app/professional/patients.tsx, mobile/src/app/vet/patient.tsx, mobile/src/app/vet/patients.tsx, mobile/src/app/vet/record.tsx
+ * FUNCIONAMIENTO: Debouncea filtros, usa clinicService y formularios especializados; valida campos y mantiene cambios del editor.
+ * IMPORTANCIA: Agrupa trabajo diario sobre pacientes y escritura de antecedentes bajo permisos clínicos.
+ */
 /**
  * Listado, detalle y edición clínica de pacientes reales mediante /clinic/patients. Los guards y permisos de /me presentan acciones; el backend restringe pacientes y autoría veterinaria.
  */

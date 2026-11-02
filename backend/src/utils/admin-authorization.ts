@@ -1,28 +1,35 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: admin-authorization.ts
+ * UBICACIÓN: backend/src/utils/admin-authorization.ts
+ * FUNCIÓN: Aserciones de permisos y delegación para operaciones de administración.
+ * RESPONSABILIDAD: Validar actor, códigos de permiso, objetivo y asignación de roles en repositorios.
+ * CONEXIONES: Importa: backend/src/types/auth.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/repositories/admin.repository.ts, backend/src/repositories/clinic-admin.repository.ts, backend/src/repositories/clinic.repository.ts, backend/src/repositories/storefront.repository.ts
+ * FUNCIONAMIENTO: Consulta role/permissions del actor y lanza AppError FORBIDDEN cuando la operación excede su autoridad.
+ * IMPORTANCIA: Centraliza la política backend para que el acceso no dependa del frontend.
+ */
 /** Límites de delegación: tener un rol administrativo nunca equivale a tener todos los permisos. */
 import type { AuthUser } from '../types/auth';
 import { AppError } from './app-error';
-// Función forbidden: concentra la lógica dentro de este módulo.
+// Arroja la respuesta común 403 para denegar una operación.
 export function forbidden(message='No tenés permiso para esta operación.'):never {throw new AppError('FORBIDDEN',403,message);}
-// Función assertAdminPermission: comprueba una regla o condición dentro de este módulo.
+// Requiere rol administrativo y los permisos indicados para el actor.
 export function assertAdminPermission(actor:AuthUser,...codes:string[]) {
   if(!['ADMIN','SUPER_ADMIN'].includes(actor.role)||!codes.every(code=>actor.permissions?.includes(code)))forbidden();
 }
 /** Autoriza módulos operativos por grant efectivo aunque el actor tenga un rol personalizado. */
-// Función assertCapabilityPermission: comprueba una regla o condición dentro de este módulo.
+// Comprueba permisos de capacidad sin asumir que el usuario es superadmin.
 export function assertCapabilityPermission(actor:AuthUser,...codes:string[]) {
   if(!codes.every(code=>actor.permissions?.includes(code)))forbidden();
 }
-// Función assertDelegation: comprueba una regla o condición dentro de este módulo.
+// Impide delegar códigos que el actor no puede administrar.
 export function assertDelegation(actor:AuthUser,codes:string[]) {
   if(codes.some(code=>!actor.permissions?.includes(code)))forbidden('No podés conceder ni modificar permisos que no tenés.');
 }
-// Función assertTarget: comprueba una regla o condición dentro de este módulo.
+// Valida si el actor tiene autoridad sobre el usuario objetivo.
 export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
   if(actor.role==='ADMIN'&&target.role==='SUPER_ADMIN')forbidden('Un ADMIN no puede modificar una cuenta SUPER_ADMIN.');
 }
-// Función assertRoleAssignment: comprueba una regla o condición dentro de este módulo.
+// Comprueba que el rol y los permisos asignados no excedan la autoridad del actor.
 export function assertRoleAssignment(actor:AuthUser,role:string,permissions:string[]) {
   assertAdminPermission(actor,'roles.manage');
   if(role==='SECRETARY')throw new AppError('ROLE_RETIRED',409,'El rol de Secretaría fue retirado; las cuentas existentes deben migrarse a ADMIN.');

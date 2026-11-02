@@ -1,9 +1,16 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: appointment-cancellation.ts
+ * UBICACIÓN: backend/src/utils/appointment-cancellation.ts
+ * FUNCIÓN: Valida el motivo obligatorio para cancelar una cita.
+ * RESPONSABILIDAD: Normalizar razón de cancelación antes de registrar estado e historial.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts Se utiliza desde: backend/src/repositories/clinic.repository.ts
+ * FUNCIONAMIENTO: Recorta el valor, comprueba presencia y longitud y lanza AppError de validación si no es válido.
+ * IMPORTANCIA: Evita cancelaciones sin causa trazable.
+ */
 import { AppError } from './app-error';
 
 /** Shared boundary for client cancellation; whitespace-only input is never persisted. */
-// Función requiredCancellationReason: concentra la lógica dentro de este módulo.
+/** Recorta el motivo y exige valor no vacío con longitud máxima permitida. */
 export function requiredCancellationReason(value:unknown):string {
   if(typeof value!=='string')throw new AppError('VALIDATION_ERROR',400,'Ingresá el motivo de cancelación.');
   const reason=value.trim();

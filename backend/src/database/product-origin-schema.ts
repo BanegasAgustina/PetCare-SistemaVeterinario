@@ -1,37 +1,44 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: product-origin-schema.ts
+ * UBICACIÓN: backend/src/database/product-origin-schema.ts
+ * FUNCIÓN: Modelo y planificador puro para comparar y migrar esquema de origen de producto.
+ * RESPONSABILIDAD: Normaliza tipos/defaults/índices y produce pasos para columnas y claves foráneas faltantes o incompatibles.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/database/product-origin-migrate.ts
+ * FUNCIONAMIENTO: product-origin-migrate.ts → funciones de inspección/plan; no abre conexión SQL.
+ * IMPORTANCIA: Separa decisión de esquema de la ejecución de DDL.
+ */
 /** Describe una columna leída de information_schema sin asumir el esquema de producción. */
-// Tipo SchemaColumn: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Descripción normalizada de columna de base de datos. */
 export type SchemaColumn = { table: string; name: string; type: string; nullable: boolean; defaultValue: string | null; extra: string };
 /** Describe un índice en el orden de sus columnas, incluido su nombre y unicidad. */
-// Tipo SchemaIndex: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Descripción normalizada de índice. */
 export type SchemaIndex = { table: string; name: string; unique: boolean; columns: string[] };
 /** Describe una clave foránea y las columnas padre que protege. */
-// Tipo SchemaForeignKey: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Descripción normalizada de constraint foránea. */
 export type SchemaForeignKey = { table: string; name: string; columns: string[]; referencedTable: string; referencedColumns: string[]; deleteRule: string };
 /** Agrupa solo metadatos necesarios para planificar la extensión de productos y reservas. */
-// Tipo ProductOriginSchema: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Snapshot de tablas y relaciones de origen de producto. */
 export type ProductOriginSchema = { tables: Set<string>; columns: SchemaColumn[]; indexes: SchemaIndex[]; foreignKeys: SchemaForeignKey[]; engineByTable: Map<string, string>; charsetByTable: Map<string, string>; collationByTable: Map<string, string> };
 /** Representa una sentencia DDL aditiva que se ejecuta y verifica individualmente. */
-// Tipo MigrationStep: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Paso SQL/acción del plan de migración con condición de aplicación. */
 export type MigrationStep = { description: string; sql: string };
 /** Normaliza tipos de MariaDB para comparar definiciones sin diferencias irrelevantes de mayúsculas. */
-// Función normalizeType: concentra una operación reutilizable de este módulo.
+/** Normaliza tipo SQL para comparar sin diferencias de formato. */
 const normalizeType = (value: string): string => value.toLowerCase().replace(/\s+/g, ' ').trim();
 /** Normaliza valores predeterminados para comparar NULL, cadenas y constantes del servidor. */
-// Función normalizeDefault: concentra una operación reutilizable de este módulo.
+/** Normaliza DEFAULT SQL para comparar valores equivalentes. */
 const normalizeDefault = (value: string | null): string | null => {
   if (value === null || value.trim().toLowerCase() === 'null') return null;
   return value.replace(/^['"]|['"]$/g, '').toLowerCase();
 };
 /** Falla con un mensaje accionable ante un objeto existente cuya definición no sea la esperada. */
-// Función incompatible: concentra una operación reutilizable de este módulo.
+/** Determina si tipo/atributos de una columna actual son incompatibles. */
 const incompatible = (object: string, expected: string, actual: string): never => { throw new Error(`Esquema incompatible en ${object}: se esperaba ${expected}; se encontró ${actual}. No se ejecutaron más cambios.`); };
 /** Recupera una columna existente o devuelve null si todavía puede añadirse de forma aditiva. */
-// Función column: concentra una operación reutilizable de este módulo.
+/** Busca columna por nombre en el snapshot observado. */
 const column = (schema: ProductOriginSchema, table: string, name: string): SchemaColumn | null => schema.columns.find(item => item.table === table && item.name === name) ?? null;
 /** Comprueba que una columna existente coincida con la definición que consulta el backend. */
-// Función ensureColumn: concentra una operación reutilizable de este módulo.
+/** Añade plan para columna ausente o devuelve incompatibilidad si definición no coincide. */
 const ensureColumn = (schema: ProductOriginSchema, table: string, name: string, type: string, nullable: boolean, defaultValue: string | null): boolean => {
   /** Una columna ausente puede agregarse sin reescribir filas ni relaciones. */
   const existing = column(schema, table, name);
@@ -43,7 +50,7 @@ const ensureColumn = (schema: ProductOriginSchema, table: string, name: string, 
   return false;
 };
 /** Valida que un tipo padre sea un entero compatible con una FK y seguro para interpolar en DDL. */
-// Función foreignKeyIntegerType: concentra una operación reutilizable de este módulo.
+/** Determina tipo entero compatible para una FK según columna primaria real. */
 const foreignKeyIntegerType = (schema: ProductOriginSchema, table: string, name: string): string => {
   /** La migración usa la definición real de la clave padre, no un tipo supuesto. */
   const actual = column(schema, table, name);
@@ -55,10 +62,10 @@ const foreignKeyIntegerType = (schema: ProductOriginSchema, table: string, name:
   return actual.type;
 };
 /** Comprueba si un índice ya cubre las columnas requeridas como prefijo en el orden indicado. */
-// Función hasIndexPrefix: concentra una operación reutilizable de este módulo.
+/** Comprueba si índice existente cubre el prefijo requerido de columnas. */
 const hasIndexPrefix = (schema: ProductOriginSchema, table: string, columns: string[], unique = false): boolean => schema.indexes.some(index => index.table === table && (!unique || index.unique) && columns.every((name, position) => index.columns[position] === name));
 /** Comprueba que las tablas padre tengan motor y claves indexadas aptos para las relaciones. */
-// Función ensureParentKey: concentra una operación reutilizable de este módulo.
+/** Añade al plan una clave única requerida por referencias hijas. */
 const ensureParentKey = (schema: ProductOriginSchema, table: string): void => {
   /** InnoDB garantiza la comprobación referencial requerida por las claves foráneas. */
   if (schema.engineByTable.get(table)?.toUpperCase() !== 'INNODB') incompatible(`${table}.ENGINE`, 'InnoDB', schema.engineByTable.get(table) ?? 'desconocido');
@@ -66,7 +73,7 @@ const ensureParentKey = (schema: ProductOriginSchema, table: string): void => {
   if (!hasIndexPrefix(schema, table, ['id'])) incompatible(`${table}.id`, 'columna padre indexada', 'índice compatible ausente');
 };
 /** Comprueba que una clave foránea existente tenga el mismo destino y regla de borrado. */
-// Función ensureForeignKey: concentra una operación reutilizable de este módulo.
+/** Añade constraint cuando falta y detiene si la relación existente contradice el modelo. */
 const ensureForeignKey = (schema: ProductOriginSchema, table: string, name: string, columns: string[], referencedTable: string, referencedColumns: string[], deleteRule: string): boolean => {
   /** Una FK se reconoce tanto por su nombre declarado como por su columna de origen. */
   const matches = schema.foreignKeys.filter(item => item.table === table && (item.name === name || item.columns.join(',') === columns.join(',')));
@@ -76,7 +83,7 @@ const ensureForeignKey = (schema: ProductOriginSchema, table: string, name: stri
   return matches.length === 0;
 };
 /** Construye el plan DDL sin conectarse a la base ni ejecutar ninguna escritura. */
-// Función planProductOriginMigration: concentra la lógica dentro de este módulo.
+/** Devuelve el plan puro de cambios de esquema necesarios para el origen de productos. */
 export function planProductOriginMigration(schema: ProductOriginSchema): MigrationStep[] {
   /** El backend necesita estos objetos padre para productos, reservas y actores de auditoría. */
   for (const table of ['client_products', 'client_orders', 'users']) if (!schema.tables.has(table)) incompatible(table, 'tabla existente', 'tabla ausente');

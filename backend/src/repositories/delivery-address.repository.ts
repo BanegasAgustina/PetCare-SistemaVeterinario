@@ -1,23 +1,30 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: delivery-address.repository.ts
+ * UBICACIÓN: backend/src/repositories/delivery-address.repository.ts
+ * FUNCIÓN: Lectura y administración de direcciones de entrega del cliente.
+ * RESPONSABILIDAD: Consulta la estructura disponible, limita cada operación al propietario y crea/actualiza direcciones validadas para checkout.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/validators/client.validator.ts Se utiliza desde: backend/src/services/client.service.ts
+ * FUNCIONAMIENTO: client.service y checkout → este repository → databasePool y client.validator.
+ * IMPORTANCIA: Conserva las direcciones separadas del pedido, evitando acceso a datos de otra cuenta.
+ */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { AppError } from '../utils/app-error';
 import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 import { clientBody, clientId, text, invalid } from '../validators/client.validator';
 
-// Dato columns: conserva un valor calculado o de configuración usado por este módulo.
+/** Proyección SQL común para mapear los campos persistidos de una dirección. */
 const columns = `CAST(id AS CHAR) AS id,label,recipient_name AS recipientName,phone,street,street_number AS streetNumber,unit,city,province,postal_code AS postalCode,reference`;
-// Función withAddressSchema: concentra la lógica dentro de este módulo.
+/** Comprueba/usa la forma de esquema de direcciones disponible y ejecuta la operación solicitada. */
 async function withAddressSchema<T>(operation:()=>Promise<T>):Promise<T>{
   try{return await runDatabaseOperation(operation);}catch(error){if(error instanceof DatabaseError&&error.code==='SCHEMA_UPDATE_REQUIRED')throw new AppError('STORE_ADDRESSES_SCHEMA_REQUIRED',503,'Las direcciones guardadas requieren la migración 006.');throw error;}
 }
-// Función list: obtiene o consulta información dentro de este módulo.
+/** Lista direcciones guardadas por el propietario autenticado. */
 export async function list(owner: string) {
   return withAddressSchema(async()=>{const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT ${columns} FROM client_delivery_addresses WHERE owner_id=? AND is_active=1 ORDER BY updated_at DESC,id DESC`, [owner]);return rows;});
 }
 
-// Función save: actualiza o guarda información dentro de este módulo.
+/** Valida y crea/actualiza una dirección propia usando esquema de tabla compatible. */
 export async function save(owner: string, value: unknown, rawId?: unknown) {
   return withAddressSchema(async()=>{
   const body = clientBody(value, ['label','recipientName','phone','street','streetNumber','unit','city','province','postalCode','reference']);

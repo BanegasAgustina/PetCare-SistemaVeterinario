@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: patient-permissions-migrate.ts
+ * UBICACIÓN: backend/src/database/patient-permissions-migrate.ts
+ * FUNCIÓN: Asegura permisos y roles necesarios para el alcance de pacientes.
+ * RESPONSABILIDAD: Consulta roles existentes y agrega o verifica permisos requeridos sin asumir IDs fijos.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Tarea explícita de migración → roles/permisos MySQL.
+ * IMPORTANCIA: Permite que los controles de acceso de la aplicación operen sobre catálogos conocidos.
+ */
 /** Grants the existing patient update capability to the four staff roles authorized by the owner. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
@@ -5,6 +14,7 @@ import { withDatabaseLock } from './lock';
 
 const authorizedRoles = ['VETERINARIAN', 'GROOMER', 'ADMIN', 'SUPER_ADMIN'] as const;
 
+/** Verifica roles/permisos existentes y crea las asignaciones requeridas por el backend. */
 async function main() {
   const connection = await databasePool.getConnection();
   try {

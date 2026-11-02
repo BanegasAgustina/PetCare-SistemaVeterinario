@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: AccountProfileScreen.tsx
+ * UBICACIÓN: mobile/src/components/profile/AccountProfileScreen.tsx
+ * FUNCIÓN: Pantalla de perfil de cuenta con secciones personales, seguridad, tema y datos profesionales.
+ * RESPONSABILIDAD: Consultar o editar identidad, foto, contraseña, descripción profesional y preferencia visual.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClient.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/hooks/useTheme.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/services/api.ts, mobile/src/utils/auth-validation.ts, mobile/src/types/auth.ts y 15 más Se utiliza desde: mobile/src/app/account.tsx, mobile/src/app/client/(tabs)/profile.tsx, mobile/src/app/client/profile/edit.tsx, mobile/src/app/client/profile/security.tsx, mobile/src/app/vet/profile.tsx, mobile/src/components/clinic/VeterinarianProfileScreen.tsx
+ * FUNCIONAMIENTO: Combina AuthContext, servicios de cliente/clínica, validadores, consultas, guardia de cambios no guardados y acciones asincrónicas según rol y sección.
+ * IMPORTANCIA: Centraliza perfil compartido por cliente, veterinario, groomer y administración con permisos aplicados por sesión.
+ */
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -38,7 +45,7 @@ type PasswordValues = { currentPassword: string; password: string; confirmPasswo
 // Tipo PasswordErrors: define la forma o las opciones válidas de los datos usados por este módulo.
 type PasswordErrors = Partial<Record<keyof PasswordValues, string>>;
 
-// Función AccountProfileScreen: concentra la lógica dentro de este módulo.
+/** Resuelve qué sección y operaciones de perfil se muestran al rol actual. */
 export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSection }) {
   const auth = useAuth();
   const user = auth.user;
@@ -91,8 +98,8 @@ export function AccountProfileScreen({ section = 'all' }: { section?: ProfileSec
   const securityEditPath = isClient ? '/client/profile/security' : '/account?section=security';
   const themePath = isClient ? '/client/profile/appearance' : '/account?section=theme';
 
-  // Función saveProfile: actualiza o guarda información dentro de este módulo.
-async function saveProfile() {
+  /** Valida identidad, guarda cambios del perfil y sincroniza la sesión local con la respuesta. */
+  async function saveProfile() {
     setErrors({});
     const validation = validateIdentityForm({ ...values, email: user?.email ?? '' });
     const nextErrors: ProfileErrors = {
@@ -125,8 +132,8 @@ async function saveProfile() {
     }
   }
 
-  // Función savePhoto: actualiza o guarda información dentro de este módulo.
-async function savePhoto() {
+  /** Aplica o quita la foto seleccionada y actualiza el usuario autenticado. */
+  async function savePhoto() {
     if (!isProfessional || (!photo && !removePhoto)) return;
     const saved = await photoAction.run(async () => {
       await auth.request('/vet/profile/photo', { method: 'PUT', body: photo ? { photoUrl: photo.url } : { removePhoto: true } });
@@ -137,8 +144,8 @@ async function savePhoto() {
     if (saved) showToast('Foto de perfil actualizada', 'success');
   }
 
-  // Función changePassword: actualiza o guarda información dentro de este módulo.
-async function changePassword() {
+  /** Valida contraseña actual y nueva antes de pedir el cambio al servicio autorizado por rol. */
+  async function changePassword() {
     const fieldErrors: PasswordErrors = {};
     if (!password.currentPassword) fieldErrors.currentPassword = 'Ingresá tu contraseña actual.';
     const validation = validatePasswordForm(password);
@@ -173,8 +180,8 @@ async function changePassword() {
     }
   }
 
-  // Función saveProfessionalDescription: actualiza o guarda información dentro de este módulo.
-async function saveProfessionalDescription() {
+  /** Guarda descripción profesional para veterinarios y vuelve a consultar el perfil. */
+  async function saveProfessionalDescription() {
     if (!isVet) return;
     const saved = await profileAction.run(async () => {
       await auth.request('/vet/profile', { method: 'PATCH', body: { firstName: values.firstName.trim(), lastName: values.lastName.trim(), phone: values.phone.trim() || null, professionalDescription: professionalDescription.trim() } });
@@ -266,7 +273,7 @@ async function saveProfessionalDescription() {
   </PetCareScreen>;
 }
 
-// Función ProfessionalPhotoCard: concentra la lógica dentro de este módulo.
+/** Presenta foto profesional y controles para seleccionar, quitar o guardar cambios. */
 function ProfessionalPhotoCard({ user, photo, removePhoto, action, onSelect, onRemove, onSave }: { user: AuthUser; photo: PickedProfilePhoto | null; removePhoto: boolean; action: ReturnType<typeof useAsyncAction>; onSelect: (value: PickedProfilePhoto) => void; onRemove: () => void; onSave: () => void }) {
   return <PetCareCard>
     <AppText variant="subtitle">Foto de perfil</AppText>
@@ -275,7 +282,7 @@ function ProfessionalPhotoCard({ user, photo, removePhoto, action, onSelect, onR
   </PetCareCard>;
 }
 
-// Función VeterinarianDetails: concentra la lógica dentro de este módulo.
+/** Carga catálogo clínico y muestra especialidades, matrícula, servicios y descripción. */
 function VeterinarianDetails({ user, description, setDescription, onSave, loading, error }: { user: AuthUser; description: string; setDescription: (value: string) => void; onSave: () => void; loading: boolean; error: string | null }) {
   const clinic = useClinic();
   const loadCatalog = useCallback(() => clinic.catalog(), [clinic]);
@@ -302,9 +309,9 @@ function VeterinarianDetails({ user, description, setDescription, onSave, loadin
   </PetCareSection>;
 }
 
-// Función ProfileEditRoute: concentra la lógica dentro de este módulo.
+/** Ruta de datos personales que reutiliza la pantalla con la sección personal. */
 export function ProfileEditRoute() { return <AccountProfileScreen section="personal"/>; }
-// Función ProfileSecurityRoute: concentra la lógica dentro de este módulo.
+/** Ruta de seguridad que reutiliza la pantalla con la sección correspondiente. */
 export function ProfileSecurityRoute() { return <AccountProfileScreen section="security"/>; }
 
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: VerificationCodeInput.tsx
+ * UBICACIÓN: mobile/src/components/forms/VerificationCodeInput.tsx
+ * FUNCIÓN: Campo de seis dígitos para códigos de verificación de correo.
+ * RESPONSABILIDAD: Capturar solo caracteres numéricos con ayuda de teclado y estado inválido accesible.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/components/ui/VerificationCodeModal.tsx
+ * FUNCIONAMIENTO: Filtra la entrada a dígitos, limita longitud y delega el valor al modal contenedor.
+ * IMPORTANCIA: Reduce errores de formato antes de enviar el código al servicio de verificación.
+ */
 /** Un input numérico con seis casillas visuales: foco, avance, borrado y pegado coherentes. */
 import { useRef, useState } from 'react';
 import type { ComponentRef } from 'react';
@@ -7,7 +14,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 
-// Función VerificationCodeInput: concentra la lógica dentro de este módulo.
+/** Presenta seis posiciones y filtra valores no numéricos antes de llamar onChange. */
 export function VerificationCodeInput({ value, onChange, disabled, invalid }: { value: string; onChange: (value: string) => void; disabled?: boolean; invalid?: boolean }) {
   const { colors } = useTheme();
   const input = useRef<ComponentRef<typeof TextInput>>(null);

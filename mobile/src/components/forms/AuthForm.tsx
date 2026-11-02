@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: AuthForm.tsx
+ * UBICACIÓN: mobile/src/components/forms/AuthForm.tsx
+ * FUNCIÓN: Formulario genérico para campos de autenticación con validación y envío asincrónico.
+ * RESPONSABILIDAD: Compartir disposición, foco de primer campo inválido y estados de envío entre login, registro y OAuth.
+ * CONEXIONES: Importa: mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAsyncAction.ts, mobile/src/utils/auth-validation.ts Se utiliza desde: mobile/src/app/login.tsx, mobile/src/app/register.tsx, mobile/src/components/forms/OAuthRegistrationModal.tsx
+ * FUNCIONAMIENTO: Recibe definición de campos, valores, validador y onSubmit; enfoca el primer error y ejecuta la acción protegida por useAsyncAction.
+ * IMPORTANCIA: Reduce duplicación de formularios manteniendo la validación de dominio en cada pantalla.
+ */
 /** Motor pequeño de formularios: errores por campo, foco siguiente y un único envío activo. */
 import { useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Keyboard, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
@@ -26,13 +33,13 @@ type AuthFormProps<T extends Record<string, string>> = {
   disabled?: boolean;
 };
 
-// Función AuthForm: concentra la lógica dentro de este módulo.
+/** Renderiza campos configurables y administra errores de validación y envío. */
 export function AuthForm<T extends Record<string, string>>({ fields, initialValues, validate, onSubmit, submitLabel, loadingLabel, secondaryAction, compact = false, centerSubmitButton = false, dense = false, disabled = false }: AuthFormProps<T>) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<T>>({});
   const inputs = useRef<Partial<Record<keyof T, ComponentRef<typeof TextInput> | null>>>({});
   const action = useAsyncAction();
-  // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Valida, enfoca el primer campo incorrecto y ejecuta onSubmit con el estado ocupado. */
 const submit = async () => {
     if (action.loading||disabled) return;
     const nextErrors = validate(values);

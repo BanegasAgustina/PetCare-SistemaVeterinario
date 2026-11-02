@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Construye enlaces públicos de PetCare desde un único origen frontend validado.
-
+/**
+ * ARCHIVO: public-frontend-url.ts
+ * UBICACIÓN: backend/src/utils/public-frontend-url.ts
+ * FUNCIÓN: Construye enlaces públicos de invitación y recuperación.
+ * RESPONSABILIDAD: Validar el origen frontend y componer ruta segura con token cuando corresponda.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts Se utiliza desde: backend/src/config/public-frontend.ts
+ * FUNCIONAMIENTO: Mapea tipo de enlace a ruta y verifica URL configurada conforme al entorno antes de adjuntar token.
+ * IMPORTANCIA: Invitaciones y recuperación necesitan vínculos que vuelvan a una web autorizada.
+ */
 import { AppError } from './app-error';
 
 export type PublicFrontendLinkKind = 'account-invitation' | 'veterinarian-invitation' | 'password-reset';
@@ -11,6 +18,7 @@ const paths: Record<PublicFrontendLinkKind, string> = {
 };
 
 /** Pure URL builder so every email flow can be regression-tested without SMTP or database access. */
+/** Valida origen público y arma el enlace del tipo indicado con token opcional. */
 export function buildPublicFrontendUrl(
   kind: PublicFrontendLinkKind,
   token: string | undefined,

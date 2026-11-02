@@ -1,7 +1,14 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: personal-route-access.ts
+ * UBICACIÓN: mobile/src/utils/personal-route-access.ts
+ * FUNCIÓN: Regla auxiliar de la interfaz.
+ * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de personal-route-access.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/client/_layout.tsx, mobile/src/components/layout/GlobalNavigation.tsx, mobile/src/components/notifications/NotificationBridge.native.tsx, mobile/src/components/notifications/NotificationBridge.web.tsx, mobile/src/utils/role-home.ts
+ * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Guardia de presentación para rutas del espacio personal; backend vuelve a validar cada operación. */
-// Función personalPermissionsForPathname: concentra la lógica dentro de este módulo.
+/** Mapea ruta personal a grants requeridos; devuelve null si no pertenece a este espacio. */
 export function personalPermissionsForPathname(pathname:string):string[]|null {
   const path=pathname.replace(/\/+$/,'')||'/';
   if(path==='/client/pets'||path.startsWith('/client/pets/'))return ['personal.pets.view','personal.pets.manage'];
@@ -15,12 +22,12 @@ export function personalPermissionsForPathname(pathname:string):string[]|null {
   return null;
 }
 
-/** Inbox access is available to authenticated product roles; the server still scopes every row to the session user. */
+/** Permite inbox a los cinco roles de producto; el servidor aún filtra filas por usuario autenticado. */
 export function canAccessNotificationCenter(role:string):boolean {
   return ['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role);
 }
 
-// Función canEnterPersonalPath: comprueba una regla o condición dentro de este módulo.
+/** CLIENT entra en sus rutas; otros roles necesitan grant mapeado o acceso al centro de notificaciones. */
 export function canEnterPersonalPath(role:string,permissions:string[]|undefined,pathname:string):boolean {
   if(role==='CLIENT')return true;
   if(pathname.replace(/\/+$/,'')==='/client/notifications')return canAccessNotificationCenter(role);

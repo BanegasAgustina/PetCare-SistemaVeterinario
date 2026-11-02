@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
-
+/**
+ * ARCHIVO: PetEditor.tsx
+ * UBICACIÓN: mobile/src/components/client/PetEditor.tsx
+ * FUNCIÓN: Editor de datos de mascota y confirmación de guardado/desactivación.
+ * RESPONSABILIDAD: Crear o actualizar una mascota del cliente y manejar su foto.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/ImageUploadField.tsx y 11 más Se utiliza desde: mobile/src/app/client/pets/[id]/edit.tsx, mobile/src/app/client/pets/new.tsx
+ * FUNCIONAMIENTO: Carga catálogos, rellena borrador, valida campos, usa selector de nacimiento y llama clientService; comunica resultado al padre.
+ * IMPORTANCIA: Conecta captura de datos e historial de mascotas con la API de cliente.
+ */
 /**
  * Formulario de alta o edición según el id recibido. Carga mascotas y catálogos reales, sube la foto directamente a almacenamiento y envía solo su referencia.
  */
@@ -28,7 +35,7 @@ import { AdminFormActions,AdminFormField,AdminFormSection } from '../admin/Admin
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 // Configuración empty: reúne valores o reglas que consume el resto del módulo.
 const empty:PetValues={name:'',sex:'',speciesId:'',breedId:'',breedName:'',birthDate:'',microchipNumber:'',photoUrl:'',weightKg:''};
-// Función PetEditor: concentra la lógica dentro de este módulo.
+/** Formulario de alta/edición: carga catálogo y mascota opcional, valida campos, guarda mediante clientService y navega al registro confirmado. */
 export function PetEditor({id}:{id?:string}) {
   const api=useClient();const action=useAsyncAction();const {showToast}=useFeedback();const {colors}=useTheme();
   const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
@@ -43,7 +50,7 @@ export function PetEditor({id}:{id?:string}) {
     if(pet){const loaded:PetValues={name:pet.name,sex:pet.sex??'',speciesId:pet.speciesId,breedId:pet.breedId??'',breedName:pet.breed??'',birthDate:pet.birthDate??'',microchipNumber:pet.microchipNumber??'',photoUrl:pet.photoUrl??'',weightKg:pet.weightKg??''};setValues(loaded);setInitialValues(JSON.stringify(loaded));}
     return {catalog,pet};
   },[api,id]);const query=useClientQuery(load);const disabled=action.loading||picking;
-  // Función change: actualiza o guarda información dentro de este módulo.
+  /** Actualiza un campo y limpia su error; cambiar especie o raza invalida la raza previamente seleccionada. */
 function change(key:keyof PetValues,value:string) {
     setValues(v=>({...v,[key]:value,...(key==='speciesId'||key==='breedName'?{breedId:''}:{})}));
     setErrors(e=>({...e,[key]:undefined}));
@@ -57,7 +64,7 @@ function change(key:keyof PetValues,value:string) {
     allowNavigation();
     router.replace({pathname:'/client/pets/[id]',params:{id:pendingPetId}});
   },[allowNavigation,id,pendingPetId,showToast]);
-  // Función save: actualiza o guarda información dentro de este módulo.
+  /** Valida los datos del formulario y envía savePet; ante errores conserva el formulario y deja que useAsyncAction los presente. */
 async function save() {
     if(disabled)return;const next:typeof errors={};
     if(!values.name.trim()||values.name.trim().length>100)next.name='Ingresá un nombre de hasta 100 caracteres.';

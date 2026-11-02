@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: RoleQuickAccess.tsx
+ * UBICACIÓN: mobile/src/components/layout/RoleQuickAccess.tsx
+ * FUNCIÓN: Tarjetas de accesos rápidos agrupadas por rol y categoría.
+ * RESPONSABILIDAD: Mostrar entradas frecuentes en los home de cliente, staff y administración.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/constants/responsive.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/layout/RoleNavigationContext.tsx, mobile/src/components/layout/RoleBottomNavigation.tsx Se utiliza desde: mobile/src/app/admin/index.tsx, mobile/src/app/client/(tabs)/index.tsx, mobile/src/app/workspace.tsx, mobile/src/components/clinic/StaffHome.tsx
+ * FUNCIONAMIENTO: Usa items provistos o leídos del contexto, agrupa por categoría y delega cambios de ruta al padre.
+ * IMPORTANCIA: Expone accesos frecuentes consistentes con la configuración de navegación.
+ */
 import { useState } from 'react';
 import { Pressable,StyleSheet,View } from 'react-native';
 import { router } from 'expo-router';
@@ -11,7 +18,7 @@ import { PetCareSection,type IconName } from '../client/PetCareUI';
 import { useRoleQuickAccess } from './RoleNavigationContext';
 import type { NavigationTab } from './RoleBottomNavigation';
 
-// Función RoleQuickAccess: concentra la lógica dentro de este módulo.
+/** Selecciona items explícitos o del contexto y los agrupa para mostrarlos. */
 export function RoleQuickAccess({items:providedItems,title='Accesos rápidos'}:{items?:NavigationTab[];title?:string}={}){
   const contextItems=useRoleQuickAccess();
   const items=providedItems??contextItems;
@@ -22,7 +29,7 @@ export function RoleQuickAccess({items:providedItems,title='Accesos rápidos'}:{
   const minWidth=responsiveLayout.grid.quickAccessMinItemWidth;
   const columns=Math.max(1,Math.min(2,Math.floor((contentWidth+gap)/(minWidth+gap))));
   const groups=[...new Map(items.map(item=>[item.group??'',items.filter(candidate=>(candidate.group??'')===(item.group??''))])).entries()];
-  // Función renderItems: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Representa un grupo de accesos como tarjetas que navegan al destino indicado.
 const renderItems=(groupItems:typeof items)=><View style={styles.grid}>
     {groupItems.map(item=><Pressable key={item.path} accessibilityRole="button" accessibilityLabel={`Abrir ${item.label}`} onPress={()=>router.push(item.path as never)} style={({pressed})=>[styles.card,{width:contentWidth?(columns===1?contentWidth:(contentWidth-gap)/2):undefined,backgroundColor:colors.surface,borderColor:colors.border,opacity:pressed?0.78:1}]}>
       <View style={[styles.icon,{backgroundColor:colors.accent}]}><Ionicons name={item.icon as IconName} size={20} color={colors.primary}/></View>

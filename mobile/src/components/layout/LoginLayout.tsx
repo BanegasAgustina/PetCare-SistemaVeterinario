@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: LoginLayout.tsx
+ * UBICACIÓN: mobile/src/components/layout/LoginLayout.tsx
+ * FUNCIÓN: Disposición visual de login/registro con marca, contenido y elementos decorativos.
+ * RESPONSABILIDAD: Adaptar pantallas de acceso a tamaños de escritorio y móvil.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/layout/LoginPets.tsx, mobile/src/constants/responsive.ts, mobile/src/components/client/PetCareDecorations.tsx Se utiliza desde: mobile/src/app/login.tsx, mobile/src/app/register.tsx, mobile/src/app/reset-password.tsx
+ * FUNCIONAMIENTO: Recibe children y banderas de variante; combina LoginBrand, LoginPets y estilos responsivos.
+ * IMPORTANCIA: Separa el diseño de autenticación de la lógica de formularios.
+ */
 /** Contenido y artwork son hermanos: solo el formulario hereda el padding horizontal. */
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -9,7 +16,7 @@ import { LoginPets } from './LoginPets';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { PetCareDecorativeBackground } from '../client/PetCareDecorations';
 
-// Función LoginLayout: concentra la lógica dentro de este módulo.
+/** Compone marca, contenido y elementos gráficos del flujo de autenticación. */
 export function LoginLayout({ children, scrollable = false, disableScrollWhenFits = false, compactContent = false, showDesktopImage = false, petArtwork = 'login', petDecorations = false }: PropsWithChildren<{ scrollable?: boolean; disableScrollWhenFits?: boolean; compactContent?: boolean; showDesktopImage?: boolean; petArtwork?: 'login' | 'register' | 'none'; petDecorations?: boolean }>) {
   const { colors } = useTheme();
   const { height, width } = useWindowDimensions();

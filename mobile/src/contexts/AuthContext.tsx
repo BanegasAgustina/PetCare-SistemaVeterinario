@@ -1,248 +1,621 @@
-// Este archivo se encarga de lo siguiente: Contexto compartido de React; conserva estado y acciones que usan varias pantallas.
-
+/**
+ * ARCHIVO: AuthContext.tsx
+ * UBICACIÓN: mobile/src/contexts/AuthContext.tsx
+ * FUNCIÓN: Proveedor de estado compartido.
+ * RESPONSABILIDAD: Proveedor de estado compartido dentro de PetCare; agrupa las declaraciones de AuthContext.
+ * CONEXIONES: Importa: mobile/src/services/auth.service.ts, mobile/src/services/api.ts, mobile/src/services/session-store.ts, mobile/src/types/auth.ts, mobile/src/services/verification.service.ts, mobile/src/utils/authorization.ts, mobile/src/services/oauth.service.ts, mobile/src/utils/single-flight.ts Se utiliza desde: mobile/src/app/_layout.tsx, mobile/src/hooks/useAuth.ts
+ * FUNCIONAMIENTO: Mantiene estado compartido y lo expone a los componentes descendientes mediante Context.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Sesión global: revalida /me, rota renovación con un único envío y revoca al cerrar sesión. */
-import { createContext, useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { AppState, Platform } from 'react-native';
-import * as authApi from '../services/auth.service';
-import { ApiError, friendlyError, apiRequest } from '../services/api';
-import { clearSession, readSession, saveSession } from '../services/session-store';
-import type { AuthUser, LoginValues, RegisterValues, StoredSession, VerificationChallenge,AccessSession } from '../types/auth';
-import { readVerification } from '../services/verification.service';
-import { hasRole,hasPermission } from '../utils/authorization';
-import { beginOAuth,completeOAuth,exchangeWebOAuthReturn,oauthDiagnostic,type OAuthPending,type OAuthProvider } from '../services/oauth.service';
-import { createSingleFlight } from '../utils/single-flight';
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from "react";
+import { AppState, Platform } from "react-native";
+import * as authApi from "../services/auth.service";
+import { ApiError, friendlyError, apiRequest } from "../services/api";
+import {
+  clearSession,
+  readSession,
+  saveSession,
+} from "../services/session-store";
+import type {
+  AuthUser,
+  LoginValues,
+  RegisterValues,
+  StoredSession,
+  VerificationChallenge,
+  AccessSession,
+} from "../types/auth";
+import { readVerification } from "../services/verification.service";
+import { hasRole, hasPermission } from "../utils/authorization";
+import {
+  beginOAuth,
+  completeOAuth,
+  exchangeWebOAuthReturn,
+  oauthDiagnostic,
+  type OAuthPending,
+  type OAuthProvider,
+} from "../services/oauth.service";
+import { createSingleFlight } from "../utils/single-flight";
 
-// Tipo AuthContextValue: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Estado y acciones públicas de sesión, autenticación, OAuth, verificación y request autenticado. */
 type AuthContextValue = {
-  socialSignIn: (provider:OAuthProvider)=>Promise<void>;
-  completeWebOAuthReturn: (ticket:string)=>Promise<boolean>;
-  linkProvider: (provider:OAuthProvider)=>Promise<void>;
-  oauthPending: OAuthPending|null;
-  cancelOAuth: ()=>void;
-  registerOAuth: (profile:RegisterValues)=>Promise<void>;
-  completeVerifiedSession: (result:unknown)=>Promise<AuthUser|null>;
-  hasRole: (...roles:AuthUser['role'][])=>boolean;
-  hasPermission: (...codes:string[])=>boolean;
-  request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown;contentType?:string;headers?:Record<string,string> }) => Promise<T>;
-  user: AuthUser | null; restoring: boolean; restoreError: string | null; notice: string | null; registeredEmail: string;
-  signIn: (values: LoginValues) => Promise<void>; register: (values: RegisterValues) => Promise<void>;
-  signOut: () => Promise<void>; restoreSession: () => Promise<void>; refreshProfile: () => Promise<void>;
-  pendingVerification: VerificationChallenge | null; verificationOpen: boolean;
-  openVerification: () => void; updateVerification: (value: VerificationChallenge) => void; finishVerification: () => void;
-  verificationFromLogin: boolean; leaveVerification: () => void;
+  socialSignIn: (provider: OAuthProvider) => Promise<void>;
+  completeWebOAuthReturn: (ticket: string) => Promise<boolean>;
+  linkProvider: (provider: OAuthProvider) => Promise<void>;
+  oauthPending: OAuthPending | null;
+  cancelOAuth: () => void;
+  registerOAuth: (profile: RegisterValues) => Promise<void>;
+  completeVerifiedSession: (result: unknown) => Promise<AuthUser | null>;
+  hasRole: (...roles: AuthUser["role"][]) => boolean;
+  hasPermission: (...codes: string[]) => boolean;
+  request: <T>(
+    path: string,
+    options?: {
+      method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+      body?: unknown;
+      contentType?: string;
+      headers?: Record<string, string>;
+    },
+  ) => Promise<T>;
+  user: AuthUser | null;
+  restoring: boolean;
+  restoreError: string | null;
+  notice: string | null;
+  registeredEmail: string;
+  signIn: (values: LoginValues) => Promise<void>;
+  register: (values: RegisterValues) => Promise<void>;
+  signOut: () => Promise<void>;
+  restoreSession: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  pendingVerification: VerificationChallenge | null;
+  verificationOpen: boolean;
+  openVerification: () => void;
+  updateVerification: (value: VerificationChallenge) => void;
+  finishVerification: () => void;
+  verificationFromLogin: boolean;
+  leaveVerification: () => void;
 };
-// Dato AuthContext: conserva un valor calculado o de configuración usado por este módulo.
-export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+// Contexto opcional que expone AuthProvider y valida useAuth.
+export const AuthContext = createContext<AuthContextValue | undefined>(
+  undefined,
+);
 
-// Función isWebOAuthCallback: comprueba una regla o condición dentro de este módulo.
-function isWebOAuthCallback():boolean {
-  return Platform.OS==='web'&&typeof window!=='undefined'&&window.location.pathname.replace(/\/+$/,'')==='/oauth'&&new URLSearchParams(window.location.search).has('ticket');
+/** Detecta retorno OAuth web con ticket para posponer restauración de sesión hasta intercambiarlo. */
+function isWebOAuthCallback(): boolean {
+  return (
+    Platform.OS === "web" &&
+    typeof window !== "undefined" &&
+    window.location.pathname.replace(/\/+$/, "") === "/oauth" &&
+    new URLSearchParams(window.location.search).has("ticket")
+  );
 }
 
-// Función AuthProvider: concentra la lógica dentro de este módulo.
+/** Coordina sesión, OAuth, verificación y solicitudes autenticadas; publica su estado a todas las pantallas descendientes. */
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [restoring, setRestoring] = useState(()=>!isWebOAuthCallback());
+  const [restoring, setRestoring] = useState(() => !isWebOAuthCallback());
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
-  const [pendingVerification, setPendingVerification] = useState<VerificationChallenge | null>(null);
+  const [pendingVerification, setPendingVerification] =
+    useState<VerificationChallenge | null>(null);
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [verificationFromLogin, setVerificationFromLogin] = useState(false);
   const session = useRef<StoredSession | null>(null);
-  const [oauthPending,setOAuthPending]=useState<OAuthPending|null>(null);
-  const renewing=useRef<Promise<StoredSession>|null>(null);
-  const refreshingProfile=useRef(createSingleFlight<void>());
+  const [oauthPending, setOAuthPending] = useState<OAuthPending | null>(null);
+  const renewing = useRef<Promise<StoredSession> | null>(null);
+  const refreshingProfile = useRef(createSingleFlight<void>());
   // Cambiar la generación invalida respuestas de solicitudes anteriores al cierre de sesión.
   const generation = useRef(0);
 
+  /** Invalida solicitudes/refresh anteriores, limpia tokens locales y presenta el motivo de cierre. */
   const expireSession = useCallback((message: string) => {
-    renewing.current=null;
-    generation.current += 1; session.current = null; setUser(null); setExpiresAt(null); setNotice(message);
-    void clearSession().catch(() => setNotice('Tu sesión venció. No pudimos cerrarla por completo; iniciá sesión nuevamente.'));
+    renewing.current = null;
+    generation.current += 1;
+    session.current = null;
+    setUser(null);
+    setExpiresAt(null);
+    setNotice(message);
+    void clearSession().catch(() =>
+      setNotice(
+        "Tu sesión venció. No pudimos cerrarla por completo; iniciá sesión nuevamente.",
+      ),
+    );
   }, []);
 
   /** Una promesa compartida evita usar dos veces el refresh token ante requests concurrentes. */
-  const renewSession=useCallback(async(stored:StoredSession):Promise<StoredSession>=>{
-    if(renewing.current)return renewing.current;
-    const attempt=generation.current;
-    const operation=(async()=>{
-      if(!stored.refreshToken)throw new ApiError('INVALID_TOKEN','Iniciá sesión nuevamente.',401);
-      const result=await authApi.refresh(stored.refreshToken);
-      const next={accessToken:result.accessToken,refreshToken:result.refreshToken,expiresAt:Date.now()+result.expiresIn*1000};
-      if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);throw new ApiError('AUTH_REQUIRED','La sesión se cerró.',401);}
-      await saveSession(next);
-      if(attempt===generation.current){session.current=next;setUser(result.user);setExpiresAt(next.expiresAt);}
-      return next;
-    })();
-    renewing.current=operation;
-    try{return await operation;}catch(error){if(attempt===generation.current&&error instanceof ApiError&&error.status===401)expireSession(error.message);throw error;}
-    finally{if(renewing.current===operation)renewing.current=null;}
-  },[expireSession]);
+  const renewSession = useCallback(
+    async (stored: StoredSession): Promise<StoredSession> => {
+      if (renewing.current) return renewing.current;
+      const attempt = generation.current;
+      const operation = (async () => {
+        if (!stored.refreshToken)
+          throw new ApiError("INVALID_TOKEN", "Iniciá sesión nuevamente.", 401);
+        const result = await authApi.refresh(stored.refreshToken);
+        const next = {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresAt: Date.now() + result.expiresIn * 1000,
+        };
+        if (attempt !== generation.current) {
+          await authApi.logout(result.refreshToken).catch(() => undefined);
+          throw new ApiError("AUTH_REQUIRED", "La sesión se cerró.", 401);
+        }
+        await saveSession(next);
+        if (attempt === generation.current) {
+          session.current = next;
+          setUser(result.user);
+          setExpiresAt(next.expiresAt);
+        }
+        return next;
+      })();
+      renewing.current = operation;
+      try {
+        return await operation;
+      } catch (error) {
+        if (
+          attempt === generation.current &&
+          error instanceof ApiError &&
+          error.status === 401
+        )
+          expireSession(error.message);
+        throw error;
+      } finally {
+        if (renewing.current === operation) renewing.current = null;
+      }
+    },
+    [expireSession],
+  );
 
   /** Todas las vías de login comparten validación /me y persistencia, sin aceptar un rol local. */
-  const acceptSession=useCallback(async(result:AccessSession,attempt:number)=>{
-    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return null;}
-    const currentUser=await authApi.getCurrentUser(result.accessToken);
-    if(attempt!==generation.current){await authApi.logout(result.refreshToken).catch(()=>undefined);return null;}
-    const stored={accessToken:result.accessToken,refreshToken:result.refreshToken,expiresAt:Date.now()+result.expiresIn*1000};
-    await saveSession(stored);
-    if(attempt===generation.current){session.current=stored;setUser(currentUser);setExpiresAt(stored.expiresAt);setNotice(null);setRestoreError(null);setRegisteredEmail('');setPendingVerification(null);setVerificationOpen(false);setOAuthPending(null);}
-    return attempt===generation.current?currentUser:null;
-  },[]);
-  const completeVerifiedSession=useCallback(async(result:unknown)=>acceptSession(authApi.readAccessSession(result),generation.current),[acceptSession]);
+  const acceptSession = useCallback(
+    async (result: AccessSession, attempt: number) => {
+      if (attempt !== generation.current) {
+        await authApi.logout(result.refreshToken).catch(() => undefined);
+        return null;
+      }
+      const currentUser = await authApi.getCurrentUser(result.accessToken);
+      if (attempt !== generation.current) {
+        await authApi.logout(result.refreshToken).catch(() => undefined);
+        return null;
+      }
+      const stored = {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: Date.now() + result.expiresIn * 1000,
+      };
+      await saveSession(stored);
+      if (attempt === generation.current) {
+        session.current = stored;
+        setUser(currentUser);
+        setExpiresAt(stored.expiresAt);
+        setNotice(null);
+        setRestoreError(null);
+        setRegisteredEmail("");
+        setPendingVerification(null);
+        setVerificationOpen(false);
+        setOAuthPending(null);
+      }
+      return attempt === generation.current ? currentUser : null;
+    },
+    [],
+  );
+  /** Valida una sesión recibida tras verificación/OAuth y la acepta por el mismo camino seguro del login. */
+  const completeVerifiedSession = useCallback(
+    async (result: unknown) =>
+      acceptSession(authApi.readAccessSession(result), generation.current),
+    [acceptSession],
+  );
 
+  /** Rehidrata token guardado, lo renueva si venció y reconsulta /auth/me antes de volver a mostrar el usuario. */
   const restoreSession = useCallback(async () => {
-    renewing.current=null;
+    renewing.current = null;
     const attempt = ++generation.current;
-    setRestoring(true); setRestoreError(null);
+    setRestoring(true);
+    setRestoreError(null);
     try {
       let stored = await readSession();
       if (attempt !== generation.current) return;
-      if(stored&&stored.expiresAt<=Date.now()&&stored.refreshToken)stored=await renewSession(stored);
+      if (stored && stored.expiresAt <= Date.now() && stored.refreshToken)
+        stored = await renewSession(stored);
       if (!stored || stored.expiresAt <= Date.now()) {
-        if (stored) { await clearSession(); setNotice('Tu sesión venció. Iniciá sesión nuevamente.'); }
-        if (attempt === generation.current) { session.current = null; setUser(null); setExpiresAt(null); }
+        if (stored) {
+          await clearSession();
+          setNotice("Tu sesión venció. Iniciá sesión nuevamente.");
+        }
+        if (attempt === generation.current) {
+          session.current = null;
+          setUser(null);
+          setExpiresAt(null);
+        }
         return;
       }
       const currentUser = await authApi.getCurrentUser(stored.accessToken);
-      if (attempt === generation.current) { session.current = stored; setUser(currentUser); setExpiresAt(stored.expiresAt); }
+      if (attempt === generation.current) {
+        session.current = stored;
+        setUser(currentUser);
+        setExpiresAt(stored.expiresAt);
+      }
     } catch (error) {
       if (attempt !== generation.current) return;
-      if (error instanceof ApiError && (error.status === 401 || error.code === 'EMAIL_NOT_VERIFIED')) {
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.code === "EMAIL_NOT_VERIFIED")
+      ) {
         expireSession(error.message);
         setRestoring(false);
-      } else { setRestoreError(friendlyError(error)); }
-    } finally { if (attempt === generation.current) setRestoring(false); }
-  }, [expireSession,renewSession]);
+      } else {
+        setRestoreError(friendlyError(error));
+      }
+    } finally {
+      if (attempt === generation.current) setRestoring(false);
+    }
+  }, [expireSession, renewSession]);
 
   useEffect(() => {
     // La lectura del almacenamiento inicia después de montar el proveedor.
-    if(isWebOAuthCallback())return;
-    const start = setTimeout(() => { void restoreSession(); }, 0);
-    return () => { clearTimeout(start); generation.current += 1; };
+    if (isWebOAuthCallback()) return;
+    const start = setTimeout(() => {
+      void restoreSession();
+    }, 0);
+    return () => {
+      clearTimeout(start);
+      generation.current += 1;
+    };
   }, [restoreSession]);
   useEffect(() => {
     if (expiresAt === null) return;
-    // Función renew: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const renew=()=>{const stored=session.current;if(stored)void renewSession(stored).catch(error=>{if(!(error instanceof ApiError&&error.status===401))setNotice(friendlyError(error));});};
-    const timeout = setTimeout(renew, Math.max(0, expiresAt - Date.now()-30000));
-    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active' && expiresAt <= Date.now()+30000) renew(); });
-    return () => { clearTimeout(timeout); subscription.remove(); };
+    // Adelanta renovación al acercarse el vencimiento o al volver la app a primer plano.
+    // Adelanta el refresh antes del vencimiento y también al volver la app a primer plano.
+    const renew = () => {
+      const stored = session.current;
+      if (stored)
+        void renewSession(stored).catch((error) => {
+          if (!(error instanceof ApiError && error.status === 401))
+            setNotice(friendlyError(error));
+        });
+    };
+    const timeout = setTimeout(
+      renew,
+      Math.max(0, expiresAt - Date.now() - 30000),
+    );
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && expiresAt <= Date.now() + 30000) renew();
+    });
+    return () => {
+      clearTimeout(timeout);
+      subscription.remove();
+    };
   }, [expiresAt, renewSession]);
 
-  const signIn = useCallback(async (values: LoginValues) => {
-    renewing.current=null;
-    const attempt = ++generation.current;
-    let result;
-    try { result = await authApi.login(values); }
-    catch (error) {
-      if (attempt === generation.current && error instanceof ApiError && error.code === 'EMAIL_NOT_VERIFIED' && error.verification) {
-        setPendingVerification(readVerification(error.verification)); setRegisteredEmail(values.email.trim().toLowerCase());
-        setVerificationFromLogin(true);
+  /** Ejecuta login tradicional; ante email no verificado prepara el desafío y no marca usuario autenticado. */
+  const signIn = useCallback(
+    async (values: LoginValues) => {
+      renewing.current = null;
+      const attempt = ++generation.current;
+      let result;
+      try {
+        result = await authApi.login(values);
+      } catch (error) {
+        if (
+          attempt === generation.current &&
+          error instanceof ApiError &&
+          error.code === "EMAIL_NOT_VERIFIED" &&
+          error.verification
+        ) {
+          setPendingVerification(readVerification(error.verification));
+          setRegisteredEmail(values.email.trim().toLowerCase());
+          setVerificationFromLogin(true);
+        }
+        throw error;
       }
-      throw error;
-    }
-    await acceptSession(result,attempt);
-  }, [acceptSession]);
+      await acceptSession(result, attempt);
+    },
+    [acceptSession],
+  );
 
-  const socialSignIn=useCallback(async(provider:OAuthProvider)=>{
-    renewing.current=null;
-    const attempt=++generation.current;
-    try{const result=await beginOAuth(provider);if(attempt!==generation.current){oauthDiagnostic('stale_attempt_discarded',provider);return;}
-      if('redirecting' in result)return;
-      if(result.session){const currentUser=await acceptSession(result.session,attempt);if(attempt===generation.current&&currentUser){oauthDiagnostic('session_persisted',provider);oauthDiagnostic('navigation_target_ready',provider,{role:currentUser.role});}}
-      else if(result.pending)setOAuthPending(result.pending);
-    }catch(error){if(attempt===generation.current&&error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED'&&error.verification){setPendingVerification(readVerification(error.verification));setVerificationFromLogin(true);setVerificationOpen(true);}throw error;}
-  },[acceptSession]);
-  const completeWebOAuthReturn=useCallback(async(ticket:string)=>{
-    const attempt=++generation.current;
-    try {
-      const result=await exchangeWebOAuthReturn(ticket);
-      if(attempt!==generation.current)return false;
-      if(result.session){await acceptSession(result.session,attempt);return true;}
-      if(result.pending){setOAuthPending(result.pending);return false;}
-      throw new ApiError('INVALID_RESPONSE','La respuesta OAuth no es válida.');
-    } catch(error) {
-      if(attempt===generation.current&&error instanceof ApiError&&error.code==='EMAIL_NOT_VERIFIED'&&error.verification){
-        setPendingVerification(readVerification(error.verification));setVerificationFromLogin(true);setVerificationOpen(true);return false;
+  /** Inicia OAuth del provider y acepta sesión o deja pendiente el perfil que requiere completar registro. */
+  const socialSignIn = useCallback(
+    async (provider: OAuthProvider) => {
+      renewing.current = null;
+      const attempt = ++generation.current;
+      try {
+        const result = await beginOAuth(provider);
+        if (attempt !== generation.current) {
+          oauthDiagnostic("stale_attempt_discarded", provider);
+          return;
+        }
+        if ("redirecting" in result) return;
+        if (result.session) {
+          const currentUser = await acceptSession(result.session, attempt);
+          if (attempt === generation.current && currentUser) {
+            oauthDiagnostic("session_persisted", provider);
+            oauthDiagnostic("navigation_target_ready", provider, {
+              role: currentUser.role,
+            });
+          }
+        } else if (result.pending) setOAuthPending(result.pending);
+      } catch (error) {
+        if (
+          attempt === generation.current &&
+          error instanceof ApiError &&
+          error.code === "EMAIL_NOT_VERIFIED" &&
+          error.verification
+        ) {
+          setPendingVerification(readVerification(error.verification));
+          setVerificationFromLogin(true);
+          setVerificationOpen(true);
+        }
+        throw error;
       }
-      throw error;
-    }
-  },[acceptSession]);
-  const linkProvider=useCallback(async(provider:OAuthProvider)=>{
-    let stored=session.current;if(!stored)throw new ApiError('AUTH_REQUIRED','Iniciá sesión.',401);
-    if(stored.expiresAt<=Date.now()+30000)stored=await renewSession(stored);
-    const result=await beginOAuth(provider,stored.accessToken);if('redirecting' in result||!result.linked)throw new ApiError('INVALID_RESPONSE','No se pudo vincular el proveedor.');
-  },[renewSession]);
-  const registerOAuth=useCallback(async(profile:RegisterValues)=>{
-    if(!oauthPending)throw new ApiError('OAUTH_FAILED','Volvé a iniciar sesión con este proveedor.');const attempt=generation.current;
-    const verification=readVerification(await completeOAuth(oauthPending,profile));if(attempt!==generation.current)return;
-    setOAuthPending(null);setPendingVerification(verification);setRegisteredEmail(profile.email);setVerificationFromLogin(false);setVerificationOpen(true);
-  },[oauthPending]);
+    },
+    [acceptSession],
+  );
+  /** Intercambia ticket de retorno web y devuelve true solo si se estableció una sesión completa. */
+  const completeWebOAuthReturn = useCallback(
+    async (ticket: string) => {
+      const attempt = ++generation.current;
+      try {
+        const result = await exchangeWebOAuthReturn(ticket);
+        if (attempt !== generation.current) return false;
+        if (result.session) {
+          await acceptSession(result.session, attempt);
+          return true;
+        }
+        if (result.pending) {
+          setOAuthPending(result.pending);
+          return false;
+        }
+        throw new ApiError(
+          "INVALID_RESPONSE",
+          "La respuesta OAuth no es válida.",
+        );
+      } catch (error) {
+        if (
+          attempt === generation.current &&
+          error instanceof ApiError &&
+          error.code === "EMAIL_NOT_VERIFIED" &&
+          error.verification
+        ) {
+          setPendingVerification(readVerification(error.verification));
+          setVerificationFromLogin(true);
+          setVerificationOpen(true);
+          return false;
+        }
+        throw error;
+      }
+    },
+    [acceptSession],
+  );
+  /** Enlaza un provider a la cuenta ya autenticada; el backend valida identidad y estado del vínculo. */
+  const linkProvider = useCallback(
+    async (provider: OAuthProvider) => {
+      let stored = session.current;
+      if (!stored) throw new ApiError("AUTH_REQUIRED", "Iniciá sesión.", 401);
+      if (stored.expiresAt <= Date.now() + 30000)
+        stored = await renewSession(stored);
+      const result = await beginOAuth(provider, stored.accessToken);
+      if ("redirecting" in result || !result.linked)
+        throw new ApiError(
+          "INVALID_RESPONSE",
+          "No se pudo vincular el proveedor.",
+        );
+    },
+    [renewSession],
+  );
+  /** Completa datos requeridos de un OAuth pendiente y abre el flujo de verificación resultante. */
+  const registerOAuth = useCallback(
+    async (profile: RegisterValues) => {
+      if (!oauthPending)
+        throw new ApiError(
+          "OAUTH_FAILED",
+          "Volvé a iniciar sesión con este proveedor.",
+        );
+      const attempt = generation.current;
+      const verification = readVerification(
+        await completeOAuth(oauthPending, profile),
+      );
+      if (attempt !== generation.current) return;
+      setOAuthPending(null);
+      setPendingVerification(verification);
+      setRegisteredEmail(profile.email);
+      setVerificationFromLogin(false);
+      setVerificationOpen(true);
+    },
+    [oauthPending],
+  );
 
+  /** Registra los campos de cliente y prepara el modal de verificación sin persistir una sesión autenticada. */
   const register = useCallback(async (values: RegisterValues) => {
     const result = await authApi.register(values);
-    setRegisteredEmail(result.user.email); setPendingVerification(result.verification); setVerificationFromLogin(false); setVerificationOpen(true); setNotice(null);
+    setRegisteredEmail(result.user.email);
+    setPendingVerification(result.verification);
+    setVerificationFromLogin(false);
+    setVerificationOpen(true);
+    setNotice(null);
   }, []);
 
+  /** Cierra sesión local y solicita revocación remota; informa si el servidor no pudo cerrar otros dispositivos. */
   const signOut = useCallback(async () => {
-    renewing.current=null;
+    renewing.current = null;
     generation.current += 1;
-    const refreshToken=session.current?.refreshToken;
+    const refreshToken = session.current?.refreshToken;
     await clearSession();
-    session.current = null; setUser(null); setExpiresAt(null); setRestoreError(null); setRestoring(false); setNotice(null);setOAuthPending(null);
-    let sessionRevocationFailed=false;
-    if(refreshToken)try{await authApi.logout(refreshToken);}catch{sessionRevocationFailed=true;}
-    if(sessionRevocationFailed)setNotice('Se cerró la sesión en este dispositivo, pero no pudimos completar el cierre en tus otros dispositivos. Conectate e intentá nuevamente.');
+    session.current = null;
+    setUser(null);
+    setExpiresAt(null);
+    setRestoreError(null);
+    setRestoring(false);
+    setNotice(null);
+    setOAuthPending(null);
+    let sessionRevocationFailed = false;
+    if (refreshToken)
+      try {
+        await authApi.logout(refreshToken);
+      } catch {
+        sessionRevocationFailed = true;
+      }
+    if (sessionRevocationFailed)
+      setNotice(
+        "Se cerró la sesión en este dispositivo, pero no pudimos completar el cierre en tus otros dispositivos. Conectate e intentá nuevamente.",
+      );
   }, []);
 
-  const refreshProfile = useCallback(() => refreshingProfile.current(async()=>{
-    let stored = session.current;
-    if (!stored) throw new ApiError('AUTH_REQUIRED', 'Iniciá sesión para continuar.', 401);
-    const attempt = generation.current;
-    try {
-      if(stored.expiresAt<=Date.now()+30000)stored=await renewSession(stored);
-      const currentUser = await authApi.getCurrentUser(stored.accessToken);
-      if (attempt === generation.current) setUser(currentUser);
-    } catch (error) {
-      if (attempt === generation.current && error instanceof ApiError && (error.status === 401 || error.code === 'EMAIL_NOT_VERIFIED')) expireSession(error.message);
-      throw error;
-    }
-  }), [expireSession,renewSession]);
+  /** Comparte una revalidación de perfil entre callers, renueva si se acerca el vencimiento y expira ante 401. */
+  const refreshProfile = useCallback(
+    () =>
+      refreshingProfile.current(async () => {
+        let stored = session.current;
+        if (!stored)
+          throw new ApiError(
+            "AUTH_REQUIRED",
+            "Iniciá sesión para continuar.",
+            401,
+          );
+        const attempt = generation.current;
+        try {
+          if (stored.expiresAt <= Date.now() + 30000)
+            stored = await renewSession(stored);
+          const currentUser = await authApi.getCurrentUser(stored.accessToken);
+          if (attempt === generation.current) setUser(currentUser);
+        } catch (error) {
+          if (
+            attempt === generation.current &&
+            error instanceof ApiError &&
+            (error.status === 401 || error.code === "EMAIL_NOT_VERIFIED")
+          )
+            expireSession(error.message);
+          throw error;
+        }
+      }),
+    [expireSession, renewSession],
+  );
 
-  // Función openVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const openVerification = () => setVerificationOpen(true);
-  const request = useCallback(async <T,>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown;contentType?:string;headers?:Record<string,string> } = {}): Promise<T> => {
-    let stored=session.current;
-    if (!stored) throw new ApiError('AUTH_REQUIRED','Iniciá sesión para continuar.',401);
-    const attempt=generation.current;
-    try {
-      if(stored.expiresAt<=Date.now()+30000)stored=await renewSession(stored);
-      if(attempt!==generation.current)throw new ApiError('AUTH_REQUIRED','La sesión se cerró.',401);
-      try{return await apiRequest<T>(path,{...options,accessToken:stored.accessToken});}
-      catch(error){if(error instanceof ApiError&&error.code==='TOKEN_EXPIRED'){const renewed=await renewSession(stored);return await apiRequest<T>(path,{...options,accessToken:renewed.accessToken});}throw error;}
-    }
-    catch(error) {
-      if (attempt===generation.current && error instanceof ApiError && error.status===401) expireSession(error.message);
-      if (error instanceof ApiError && error.status===403) void refreshProfile().catch(()=>undefined);
-      throw error;
-    }
-  },[expireSession,refreshProfile,renewSession]);
-  useEffect(()=> {
-    const subscription=AppState.addEventListener('change',state=> {
-      if (state==='active' && session.current && session.current.expiresAt>Date.now()) void refreshProfile().catch(()=>undefined);
+  /** Abre el modal del desafío de verificación actualmente cargado. */
+  const openVerification = () => setVerificationOpen(true);
+  /** Añade Bearer vigente, renueva/reintenta una vez ante token vencido y actualiza perfil ante 403. */
+  const request = useCallback(
+    async <T,>(
+      path: string,
+      options: {
+        method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        body?: unknown;
+        contentType?: string;
+        headers?: Record<string, string>;
+      } = {},
+    ): Promise<T> => {
+      let stored = session.current;
+      if (!stored)
+        throw new ApiError(
+          "AUTH_REQUIRED",
+          "Iniciá sesión para continuar.",
+          401,
+        );
+      const attempt = generation.current;
+      try {
+        if (stored.expiresAt <= Date.now() + 30000)
+          stored = await renewSession(stored);
+        if (attempt !== generation.current)
+          throw new ApiError("AUTH_REQUIRED", "La sesión se cerró.", 401);
+        try {
+          return await apiRequest<T>(path, {
+            ...options,
+            accessToken: stored.accessToken,
+          });
+        } catch (error) {
+          if (error instanceof ApiError && error.code === "TOKEN_EXPIRED") {
+            const renewed = await renewSession(stored);
+            return await apiRequest<T>(path, {
+              ...options,
+              accessToken: renewed.accessToken,
+            });
+          }
+          throw error;
+        }
+      } catch (error) {
+        if (
+          attempt === generation.current &&
+          error instanceof ApiError &&
+          error.status === 401
+        )
+          expireSession(error.message);
+        if (error instanceof ApiError && error.status === 403)
+          void refreshProfile().catch(() => undefined);
+        throw error;
+      }
+    },
+    [expireSession, refreshProfile, renewSession],
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (
+        state === "active" &&
+        session.current &&
+        session.current.expiresAt > Date.now()
+      )
+        void refreshProfile().catch(() => undefined);
     });
-    return ()=>subscription.remove();
-  },[refreshProfile]);
-  // Función updateVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const updateVerification = (value: VerificationChallenge) => setPendingVerification(value);
+    return () => subscription.remove();
+  }, [refreshProfile]);
+  /** Reemplaza el desafío mostrado después de reenviar el código o actualizar su vencimiento. */
+  const updateVerification = (value: VerificationChallenge) =>
+    setPendingVerification(value);
   // El backend solo devuelve sesión al verificar una cuenta que ya tiene identidad OAuth vinculada.
-  // Función finishVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const finishVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice(null); };
-  // Función leaveVerification: agrupa una operación que este módulo puede ejecutar o reutilizar.
-const leaveVerification = () => { setPendingVerification(null); setVerificationOpen(false); setNotice('Volvé a iniciar sesión para retomar la verificación de tu correo.'); };
-  return <AuthContext.Provider value={{socialSignIn,completeWebOAuthReturn,linkProvider,oauthPending,cancelOAuth:()=>setOAuthPending(null),registerOAuth,completeVerifiedSession, hasRole:(...roles)=>hasRole(user,...roles),hasPermission:(...codes)=>hasPermission(user,...codes),request, user, restoring, restoreError, notice, registeredEmail, signIn, register, signOut, restoreSession, refreshProfile,
-    pendingVerification, verificationOpen, openVerification, updateVerification, finishVerification, verificationFromLogin, leaveVerification }}>{children}</AuthContext.Provider>;
+  /** Cierra el modal y limpia el desafío después de completar verificación. */
+  const finishVerification = () => {
+    setPendingVerification(null);
+    setVerificationOpen(false);
+    setNotice(null);
+  };
+  /** Sale del modal y avisa que debe iniciar sesión para retomar la verificación. */
+  const leaveVerification = () => {
+    setPendingVerification(null);
+    setVerificationOpen(false);
+    setNotice(
+      "Volvé a iniciar sesión para retomar la verificación de tu correo.",
+    );
+  };
+  return (
+    <AuthContext.Provider
+      value={{
+        socialSignIn,
+        completeWebOAuthReturn,
+        linkProvider,
+        oauthPending,
+        cancelOAuth: () => setOAuthPending(null),
+        registerOAuth,
+        completeVerifiedSession,
+        hasRole: (...roles) => hasRole(user, ...roles),
+        hasPermission: (...codes) => hasPermission(user, ...codes),
+        request,
+        user,
+        restoring,
+        restoreError,
+        notice,
+        registeredEmail,
+        signIn,
+        register,
+        signOut,
+        restoreSession,
+        refreshProfile,
+        pendingVerification,
+        verificationOpen,
+        openVerification,
+        updateVerification,
+        finishVerification,
+        verificationFromLogin,
+        leaveVerification,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }

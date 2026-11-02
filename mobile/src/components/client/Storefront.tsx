@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área de clientes; presenta información y acciones para sus mascotas, turnos o compras.
-
+/**
+ * ARCHIVO: Storefront.tsx
+ * UBICACIÓN: mobile/src/components/client/Storefront.tsx
+ * FUNCIÓN: Componentes presentacionales de productos, promociones, banners y detalle de tienda.
+ * RESPONSABILIDAD: Permitir explorar catálogo, abrir detalle y comunicar intención de agregar al carrito.
+ * CONEXIONES: Importa: mobile/src/types/client.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useTheme.ts y 2 más Se utiliza desde: mobile/src/app/client/(tabs)/store/index.tsx
+ * FUNCIONAMIENTO: Recibe datos y acciones del flujo de tienda; calcula etiquetas/descuento y administra índice visual del carrusel.
+ * IMPORTANCIA: Mantiene presentación de storefront separada de checkout y persistencia del carrito.
+ */
 /** Presentación de catálogo, promociones vigentes y detalle de productos en la tienda cliente. */
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -18,7 +25,7 @@ import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 // Tipo StoreProductCardProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type StoreProductCardProps = { product: Product; adding: boolean; cartReady: boolean; onOpen: () => void; onAdd: () => void };
 
-// Función StoreProductCard: concentra la lógica dentro de este módulo.
+/** Resume producto y entrega acciones para detalle o agregado al carrito. */
 export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: StoreProductCardProps) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -46,7 +53,7 @@ export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: 
   </View>;
 }
 
-// Función PromotionCarousel: concentra la lógica dentro de este módulo.
+/** Presenta productos destacados en el carrusel de promociones. */
 export function PromotionCarousel({ products, onOpen }: { products: PromotionBanner[]; onOpen: (product: Product) => void }) {
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
@@ -90,12 +97,12 @@ export function PromotionCarousel({ products, onOpen }: { products: PromotionBan
   </View>;
 }
 
-// Función StoreBannerCarousel: concentra la lógica dentro de este módulo.
+/** Controla banner activo, fallback de imagen y desplazamiento horizontal. */
 export function StoreBannerCarousel({banners,onOpen}:{banners:StoreBanner[];onOpen:(banner:StoreBanner)=>void}) {
   const {colors}=useTheme();const {width:windowWidth}=useWindowDimensions();const [measuredWidth,setMeasuredWidth]=useState(0);const [active,setActive]=useState(0);const [imageFailed,setImageFailed]=useState(false);const scrollRef=useRef<ComponentRef<typeof ScrollView>>(null);
   const width=measuredWidth||Math.max(1,Math.min(windowWidth-40,1120));const height=windowWidth>=responsiveLayout.breakpoints.desktop?responsiveLayout.store.desktopBannerHeight:windowWidth>=responsiveLayout.breakpoints.tablet?responsiveLayout.store.tabletBannerHeight:responsiveLayout.store.mobileBannerHeight;const banner=banners[active];
   if(!banner)return null;
-  // Función change: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Actualiza índice del banner con ciclo y desplaza el carrusel a la página elegida.
 const change=(index:number)=>{const next=(index+banners.length)%banners.length;setActive(next);setImageFailed(false);scrollRef.current?.scrollTo({x:next*width,animated:true});};
   return <View onLayout={event=>{const next=event.nativeEvent.layout.width;setMeasuredWidth(current=>Math.abs(current-next)<1?current:next);}} style={styles.storeBannerSection}>
     <ScrollView nativeID={Platform.OS==='web'?'petcare-web-scroll-store-banners':undefined} ref={scrollRef} horizontal pagingEnabled snapToInterval={width} decelerationRate="fast" showsHorizontalScrollIndicator={false} onMomentumScrollEnd={event=>{const next=Math.min(banners.length-1,Math.max(0,Math.round(event.nativeEvent.contentOffset.x/width)));setActive(next);setImageFailed(false);}}>
@@ -113,7 +120,7 @@ const change=(index:number)=>{const next=(index+banners.length)%banners.length;s
   </View>;
 }
 
-// Función ProductDetailModal: concentra la lógica dentro de este módulo.
+/** Presenta datos y cantidad de producto y delega cierre/agregado al padre. */
 export function ProductDetailModal({ product, quantity, inCart, error, saving, cartReady, onQuantityChange, onClose, onAdd }: {
   product: Product | null; quantity: string; inCart: number; error: string | null; saving: boolean; cartReady: boolean;
   onQuantityChange: (value: string) => void; onClose: () => void; onAdd: () => void;
@@ -161,14 +168,14 @@ export function ProductDetailModal({ product, quantity, inCart, error, saving, c
   </AppModal>;
 }
 
-// Función productTypeLabel: concentra la lógica dentro de este módulo.
+// Traduce el tipo de producto para mostrarlo como categoría al usuario.
 function productTypeLabel(type: Product['productType']) {
   if (type === 'MEDICINE') return 'Medicamento';
   if (type === 'ACCESSORY') return 'Accesorio';
   return 'Producto general';
 }
 
-// Función discountPercentage: concentra la lógica dentro de este módulo.
+// Calcula porcentaje de descuento usando precio regular y actual.
 function discountPercentage(product: Product) {
   if (product.regularPriceCents <= 0) return 0;
   return Math.round((1 - product.priceCents / product.regularPriceCents) * 100);

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
-
+/**
+ * ARCHIVO: register.tsx
+ * UBICACIÓN: mobile/src/app/register.tsx
+ * FUNCIÓN: Pantalla de registro de cliente por email y contraseña, con entradas OAuth disponibles.
+ * RESPONSABILIDAD: Valida campos localmente, construye payload y delega creación al AuthContext; la verificación de email se completa después.
+ * CONEXIONES: Importa: mobile/src/components/forms/AuthForm.tsx, mobile/src/components/layout/LoginBrand.tsx, mobile/src/components/layout/LoginPets.tsx, mobile/src/components/layout/LoginLayout.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/OAuthSignInOptions.tsx, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useTheme.ts y 2 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Ruta register → AuthForm y auth-validation → AuthContext/auth service → backend verification.
+ * IMPORTANCIA: Presenta registro al cliente sin sustituir validación, persistencia ni verificación del servidor.
+ */
 /** Registro conserva la ruta de fondo: el AuthContext abre el modal después de crear la cuenta. */
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -25,7 +32,7 @@ const fields: AuthField<RegistrationFormValues>[] = [
   { key: 'password', label: 'Contraseña', password: true, hint: '8 caracteres, mayúscula, minúscula, número y símbolo.', inputProps: { autoComplete: 'new-password', textContentType: 'newPassword', autoCorrect: false } },
   { key: 'confirmPassword', label: 'Repetir contraseña', password: true, inputProps: { autoComplete: 'new-password', textContentType: 'newPassword', autoCorrect: false } },
 ];
-// Función RegisterScreen: crea un registro o inicia una operación dentro de este módulo.
+/** Conecta validación local, registro de AuthContext y apertura del paso de verificación. */
 export default function RegisterScreen() {
   const auth = useAuth(); const { colors } = useTheme();
   const [socialLoading, setSocialLoading] = useState(false);

@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: profile-photo-migrate.ts
+ * UBICACIÓN: backend/src/database/profile-photo-migrate.ts
+ * FUNCIÓN: Adapta la columna de foto de perfil al esquema de usuarios actual.
+ * RESPONSABILIDAD: Comprueba estado de columna y aplica alteración idempotente si hace falta.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Runner/CLI → MySQL y user/profile services.
+ * IMPORTANCIA: Permite guardar referencias de foto sin recrear la tabla de cuentas.
+ */
 /** Migración aditiva e idempotente para la referencia privada de fotos de staff. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Función migrateProfilePhoto: concentra la lógica dentro de este módulo.
+/** Comprueba y crea la columna de foto de perfil si falta. */
 export async function migrateProfilePhoto() {
   const connection=await databasePool.getConnection();
   try {

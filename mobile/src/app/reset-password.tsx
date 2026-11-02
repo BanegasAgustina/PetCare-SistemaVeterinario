@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
-
+/**
+ * ARCHIVO: reset-password.tsx
+ * UBICACIÓN: mobile/src/app/reset-password.tsx
+ * FUNCIÓN: Pantalla para elegir una contraseña nueva desde un enlace de recuperación.
+ * RESPONSABILIDAD: Normaliza token de URL/deep link, valida formato, controla campos y consume la prueba por medio del servicio de autenticación.
+ * CONEXIONES: Importa: mobile/src/components/layout/LoginLayout.tsx, mobile/src/components/layout/LoginBrand.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/hooks/useAsyncAction.ts, mobile/src/services/auth.service.ts y 1 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Correo de recuperación → Linking/Expo Router → reset-password → auth.service/API → backend consume token.
+ * IMPORTANCIA: Completa la recuperación sin guardar ni reutilizar en frontend la prueba una vez aceptada.
+ */
 import { router } from 'expo-router';
 import { useEffect,useState } from 'react';
 import { Platform } from 'react-native';
@@ -14,7 +21,7 @@ import { useAsyncAction } from '../hooks/useAsyncAction';
 import { resetPassword } from '../services/auth.service';
 import { isValidPasswordResetToken, normalizePasswordResetToken } from '../utils/password-reset-token';
 
-// Función ResetPasswordScreen: concentra la lógica dentro de este módulo.
+/** Lee token de recuperación de URL, gestiona formulario y mensajes y realiza el cambio seguro. */
 export default function ResetPasswordScreen(){
   const [token,setToken]=useState('');
   const [password,setPassword]=useState('');

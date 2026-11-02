@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: SelectionRow.tsx
+ * UBICACIÓN: mobile/src/components/ui/SelectionRow.tsx
+ * FUNCIÓN: Fila seleccionable con apariencia de casilla o radio, etiqueta y ayuda opcional.
+ * RESPONSABILIDAD: Capturar elecciones accesibles en permisos, especialidades y formularios de configuración.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/store-settings.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx y 16 más
+ * FUNCIONAMIENTO: Representa checked y disabled recibidos, expone semántica de selección y delega cambios a onPress.
+ * IMPORTANCIA: Uniforma controles de opción en superficies de configuración.
+ */
 /** Checkbox accesible compartido por especialidades y permisos. */
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

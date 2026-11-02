@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
-
+/**
+ * ARCHIVO: login.tsx
+ * UBICACIÓN: mobile/src/app/login.tsx
+ * FUNCIÓN: Pantalla de inicio de sesión local y acceso mediante proveedores OAuth.
+ * RESPONSABILIDAD: AuthForm recoge datos y AuthContext autentica; un cambio inicial requerido redirige a la pantalla de cambio de contraseña.
+ * CONEXIONES: Importa: mobile/src/components/forms/AuthForm.tsx, mobile/src/components/layout/LoginLayout.tsx, mobile/src/components/layout/LoginBrand.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/OAuthSignInOptions.tsx, mobile/src/components/ui/RecoveryNotice.tsx, mobile/src/hooks/useTheme.ts, mobile/src/components/ui/FormNotice.tsx y 5 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Ruta login → AuthForm/ OAuthSignInOptions → AuthContext y auth/OAuth services → backend.
+ * IMPORTANCIA: Es la entrada de identidad; la autorización final y la validez de credenciales las decide el servidor.
+ */
 /** Pantalla de acceso: validación local y servicio de sesión; el backend verifica credenciales. */
 import { router } from 'expo-router';
 import { AuthForm, type AuthField } from '../components/forms/AuthForm';
@@ -24,7 +31,7 @@ const fields: AuthField<LoginValues>[] = [
   { key: 'email', label: 'Correo electrónico', icon: 'mail-outline', inputProps: { keyboardType: 'email-address', autoComplete: 'email', textContentType: 'emailAddress', autoCorrect: false, placeholder: 'ejemplo@email.com', maxLength: 254 } },
   { key: 'password', label: 'Contraseña', password: true, inputProps: { autoComplete: 'current-password', textContentType: 'password', autoCorrect: false, placeholder: 'Ingresá tu contraseña' } },
 ];
-// Función LoginScreen: concentra la lógica dentro de este módulo.
+/** Conecta campos, OAuth, tema y estado de sesión para presentar el formulario de acceso. */
 export default function LoginScreen() {
   const auth = useAuth();
   const { colors } = useTheme();

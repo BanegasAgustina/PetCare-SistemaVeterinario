@@ -1,11 +1,23 @@
-/** Sorting rules for administrative appointment lists. Status values match clinic-rules transitions. */
+/**
+ * ARCHIVO: appointment-order.ts
+ * UBICACIÓN: backend/src/utils/appointment-order.ts
+ * FUNCIÓN: Comparadores y expresiones SQL para ordenar la agenda administrativa.
+ * RESPONSABILIDAD: Mantener el mismo orden por prioridad de estado/fecha tanto en memoria como en consultas SQL.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/repositories/clinic.repository.ts
+ * FUNCIONAMIENTO: Convierte fecha a timestamp y selecciona comparación o fragmento SQL según tipo de orden.
+ * IMPORTANCIA: Evita discrepancias al listar turnos con filtros equivalentes.
+ */
+/** Opciones de ordenación que acepta el listado administrativo de turnos. */
 export type AdminAppointmentSort = 'priority' | 'date_asc' | 'date_desc';
 
+/** Orden relativo de estados abiertos y cerrados usado en el modo priority. */
 const statusPriority: Record<string, number> = { REQUESTED: 0, CONFIRMED: 1, IN_PROGRESS: 2, COMPLETED: 3, CANCELLED: 4, REJECTED: 5 };
+/** Campos mínimos del comparador además de las propiedades de cada entidad. */
 type AppointmentOrderFields = { id: string | number; status: string; startsAt: string | Date };
+/** Normaliza fechas texto y Date a milisegundos para comparar. */
 function timestamp(value: string | Date): number { return value instanceof Date ? value.getTime() : new Date(value).getTime(); }
 
-/** Open work is nearest first; closed work is most recent first. */
+/** Compara por prioridad/fecha e ID estable para que el orden sea determinista. */
 export function compareAdminAppointments<T extends AppointmentOrderFields>(sort: AdminAppointmentSort, left: T, right: T): number {
   if (sort === 'priority') {
     const priorityDifference = (statusPriority[left.status] ?? Number.MAX_SAFE_INTEGER) - (statusPriority[right.status] ?? Number.MAX_SAFE_INTEGER);
@@ -18,7 +30,7 @@ export function compareAdminAppointments<T extends AppointmentOrderFields>(sort:
   return dateDifference || String(left.id).localeCompare(String(right.id));
 }
 
-/** SQL equivalent, applied before LIMIT/OFFSET in the administrative repository. */
+/** Devuelve el ORDER BY equivalente para aplicarlo antes de LIMIT/OFFSET. */
 export function adminAppointmentOrderSql(sort: AdminAppointmentSort): string {
   if (sort === 'date_asc') return 's.starts_at ASC,a.id ASC';
   if (sort === 'date_desc') return 's.starts_at DESC,a.id ASC';

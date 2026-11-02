@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: ImageUploadField.tsx
+ * UBICACIÓN: mobile/src/components/forms/ImageUploadField.tsx
+ * FUNCIÓN: Campo para elegir, preparar y cargar imágenes a almacenamiento externo firmado.
+ * RESPONSABILIDAD: Gestionar fotos de mascotas/perfiles y recursos de productos, servicios y banners.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/FormNotice.tsx Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/components/client/PetEditor.tsx, mobile/src/components/clinic/CatalogScreen.tsx, mobile/src/components/forms/ProfilePhotoInput.tsx
+ * FUNCIONAMIENTO: Solicita firma al backend con la sesión, limita tipo/tamaño/píxeles, prepara recorte, informa progreso y entrega referencia pública mediante onChange.
+ * IMPORTANCIA: Mantiene la firma en PetCare y evita enviar la clave de almacenamiento desde el cliente.
+ */
 import { useState } from 'react';
 import { Image,Platform,View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';

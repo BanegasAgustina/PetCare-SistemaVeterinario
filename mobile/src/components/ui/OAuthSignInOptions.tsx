@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: OAuthSignInOptions.tsx
+ * UBICACIÓN: mobile/src/components/ui/OAuthSignInOptions.tsx
+ * FUNCIÓN: Selector de proveedores OAuth disponibles durante login o registro.
+ * RESPONSABILIDAD: Iniciar login/vinculación delegando seguridad e intercambio al servicio OAuth.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useTheme.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/services/oauth.service.ts, mobile/src/services/api.ts, mobile/src/utils/oauth-availability.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/FormNotice.tsx y 1 más Se utiliza desde: mobile/src/app/login.tsx, mobile/src/app/register.tsx
+ * FUNCIONAMIENTO: Consulta disponibilidad para el retorno actual, presenta proveedores activos y comunica carga/errores al flujo de autenticación.
+ * IMPORTANCIA: Evita ofrecer proveedores que el backend declara sin configurar.
+ */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
@@ -11,7 +20,7 @@ import { AppText } from './AppText';
 import { FormNotice } from './FormNotice';
 import { SocialLoginButton } from './SocialLoginButton';
 
-/** Shared OAuth panel for registration and login; hides providers that are not configured for this redirect. */
+/** Consulta proveedores disponibles para esta URL y presenta el estado de inicio/vinculación OAuth. */
 export function OAuthSignInOptions({ onLoadingChange }: { onLoadingChange?: (loading: boolean) => void }) {
   const auth = useAuth();
   const action = useAsyncAction();

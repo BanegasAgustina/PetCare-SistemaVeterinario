@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: store-orders.repository.ts
+ * UBICACIÓN: backend/src/repositories/store-orders.repository.ts
+ * FUNCIÓN: Lectura y administración de pedidos por usuario o personal autorizado.
+ * RESPONSABILIDAD: Filtra pedidos por actor, presenta detalles y gestiona estado/logística/pago mediante reglas y repositorio de comprobantes.
+ * CONEXIONES: Importa: backend/src/types/auth.ts, backend/src/repositories/clinic.repository.ts, backend/src/config/database.ts, backend/src/utils/app-error.ts, backend/src/validators/client.validator.ts, backend/src/validators/clinic.validator.ts, backend/src/repositories/store-payment.repository.ts, backend/src/services/pet-photo.service.ts y 2 más Se utiliza desde: backend/src/services/clinic.service.ts
+ * FUNCIONAMIENTO: clinic.service y rutas → este módulo → clinic.repository, store-payment.repository y pet-photo.service.
+ * IMPORTANCIA: Aplica separación entre vista del cliente y acciones administrativas sobre pedidos.
+ */
 import type { RowDataPacket } from 'mysql2/promise';
 import type { AuthUser } from '../types/auth';
 import * as clinic from './clinic.repository';
@@ -12,7 +19,7 @@ import { paymentProofUrl } from '../services/pet-photo.service';
 import { createClientNotification } from './notification.repository';
 import { allowedOrderTransitions, operationalOrderStatuses, validOrderTransition } from '../utils/store-order-transitions';
 
-// Dato select: conserva un valor calculado o de configuración usado por este módulo.
+/** Proyección SQL de pedido con cliente, pago, fulfillment e indicadores de vencimiento. */
 const select = `o.id,o.order_type AS orderType,o.owner_id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS clientName,u.email AS clientEmail,u.phone AS clientPhone,
   o.store_order_status AS orderStatus,o.store_payment_status AS paymentStatus,o.payment_method AS paymentMethod,o.fulfillment_method AS fulfillmentMethod,
   o.delivery_status AS deliveryStatus,o.subtotal_cents AS subtotalCents,o.delivery_fee_cents AS deliveryFeeCents,o.total_cents AS totalCents,o.created_at AS createdAt,
@@ -22,7 +29,7 @@ const select = `o.id,o.order_type AS orderType,o.owner_id AS ownerId,CONCAT(u.fi
 // Configuración payment: reúne valores o reglas que consume el resto del módulo.
 const payment = ['PENDING','PAID','FAILED','REFUNDED'];
 
-// Función list: obtiene o consulta información dentro de este módulo.
+/** Lista pedidos según alcance del actor y filtros de estado, pago, logística y fecha. */
 export async function list(actor: AuthUser, query: Record<string, unknown>) {
   clinic.permit(actor,'orders.view_all');
   const search = typeof query.search === 'string' ? query.search.trim() : '';
@@ -47,7 +54,7 @@ export async function list(actor: AuthUser, query: Record<string, unknown>) {
   return rows.map(mapOrder);
 }
 
-// Función detail: concentra la lógica dentro de este módulo.
+/** Carga un pedido y sus líneas con autorización por propietario o permiso administrativo. */
 export async function detail(actor: AuthUser, id: string) {
   clinic.permit(actor,'orders.view_all');
   const [rows]=await databasePool.execute<RowDataPacket[]>(`SELECT ${select} FROM client_orders o JOIN users u ON u.id=o.owner_id LEFT JOIN client_store_payment_intents pi ON pi.id=(SELECT MAX(pi2.id) FROM client_store_payment_intents pi2 WHERE pi2.order_id=o.id) LEFT JOIN users v ON v.id=pi.verified_by WHERE o.id=? AND o.is_store_order=1`,[id]);
@@ -58,7 +65,7 @@ export async function detail(actor: AuthUser, id: string) {
   return {...mapOrder(row),allowedOrderStatuses:allowedOrderTransitions(String(row.orderStatus),String(row.paymentStatus),typeof row.fulfillmentMethod==='string'?row.fulfillmentMethod:null,actor.permissions?.includes('orders.manage')??false),items:items.map(item=>({...item,productId:String(item.productId),quantity:Number(item.quantity),priceCents:Number(item.priceCents),subtotalCents:Number(item.subtotalCents)})),history};
 }
 
-// Función update: actualiza o guarda información dentro de este módulo.
+/** Aplica transiciones válidas de pedido/fulfillment, actualiza datos y genera notificación de seguimiento. */
 export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
   const id=clientId(rawId);const body=v.body(value,['orderStatus','paymentStatus']);
   if((body.orderStatus===undefined)===(body.paymentStatus===undefined)) v.invalid('Indicá un único estado para actualizar.');
@@ -91,10 +98,10 @@ export async function update(actor: AuthUser, rawId: unknown, value: unknown) {
     return {saved:true};
   });
 }
-// Función proof: concentra la lógica dentro de este módulo.
+/** Obtiene comprobante de pago autorizado y crea URL firmada para revisarlo. */
 export async function proof(actor:AuthUser,id:string){const result=await storePayment.proofForAdmin(actor,id);if(!result.objectKey)throw new AppError('PAYMENT_PROOF_REQUIRED',404,'El cliente todavía no envió un comprobante.');return {...result,url:await paymentProofUrl(result.objectKey)};}
-// Función reviewPayment: concentra la lógica dentro de este módulo.
+/** Delega revisión de pago al repository de pagos y devuelve el nuevo estado. */
 export async function reviewPayment(actor:AuthUser,id:string,value:unknown){return storePayment.review(actor,id,value);}
 
-// Función mapOrder: transforma o prepara datos dentro de este módulo.
+/** Normaliza IDs, montos y flags del resultado SQL del pedido. */
 function mapOrder(row:RowDataPacket){return {...row,id:String(row.id),ownerId:String(row.ownerId),paymentProofLate:Boolean(row.paymentProofLate),subtotalCents:Number(row.subtotalCents??0),deliveryFeeCents:Number(row.deliveryFeeCents??0),totalCents:Number(row.totalCents),createdAt:row.createdAt};}

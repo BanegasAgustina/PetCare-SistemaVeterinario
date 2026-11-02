@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente visual reutilizable; mantiene una interacción o presentación común en la app.
-
+/**
+ * ARCHIVO: FormNotice.tsx
+ * UBICACIÓN: mobile/src/components/ui/FormNotice.tsx
+ * FUNCIÓN: Aviso de formulario para mensajes de estado o error con semántica accesible.
+ * RESPONSABILIDAD: Presentar validación y respuesta de solicitudes junto al formulario.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/store-settings.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx y 30 más
+ * FUNCIONAMIENTO: No renderiza cuando message es null; el flag error ajusta rol accesible y colores del tema.
+ * IMPORTANCIA: Evita mensajes silenciosos y mantiene una presentación compartida.
+ */
 /** Mensajes de formularios con anuncio accesible y colores del tema. */
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

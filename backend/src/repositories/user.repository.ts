@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: user.repository.ts
+ * UBICACIÓN: backend/src/repositories/user.repository.ts
+ * FUNCIÓN: Acceso a cuentas de usuario para login, autenticación, sesión y registro cliente.
+ * RESPONSABILIDAD: Busca por email/ID, convierte filas a contratos internos o públicos y crea usuarios junto con datos iniciales de verificación.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/types/auth.ts, backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/utils/register-diagnostics.ts, backend/src/utils/catalog-presentation.ts Se utiliza desde: backend/src/middlewares/auth.middleware.ts, backend/src/services/auth.service.ts, backend/src/services/client.service.ts, backend/src/services/oauth.service.ts, backend/src/services/session.service.ts, backend/src/services/verification.service.ts
+ * FUNCIONAMIENTO: auth.middleware y servicios auth/OAuth/session/verification → este repository → users, roles y MySQL.
+ * IMPORTANCIA: Centraliza el mapeo de identidad y evita exponer hash u otros campos privados en publicUser.
+ */
 /** Acceso parametrizado a usuarios; no recibe roles desde una solicitud pública. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
@@ -9,17 +16,17 @@ import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 import { registerStage } from '../utils/register-diagnostics';
 import { roleName } from '../utils/catalog-presentation';
 
-// Tipo UserRow: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Forma tipada de las columnas internas que se leen de users/roles. */
 type UserRow = RowDataPacket & { id: string; role_id?:string; roleId?:string; first_name: string; last_name: string; email: string; phone: string | null; profile_photo_url:string|null; role: RoleCode; role_name: string; password_hash: string; is_active: number; email_verified_at: string | null; session_version: number; must_change_password:number };
-// Dato userColumns: conserva un valor calculado o de configuración usado por este módulo.
+/** Proyección común de usuario con credenciales y datos de sesión solo para uso interno. */
 const userColumns = 'u.id, r.id AS role_id, u.first_name, u.last_name, u.email, u.phone, u.profile_photo_url, u.password_hash, u.is_active, u.email_verified_at, u.session_version, u.must_change_password, r.code AS role, r.name AS role_name';
 
-// Función mapUser: transforma o prepara datos dentro de este módulo.
+/** Convierte resultado SQL a StoredUser y normaliza IDs/flags internos. */
 function mapUser(row: UserRow): StoredUser {
   return { id: String(row.id), roleId:String(row.role_id??row.roleId), firstName: row.first_name, lastName: row.last_name, email: row.email, phone: row.phone, profilePhotoUrl:row.profile_photo_url, role: row.role, roleName: roleName(row.role,row.role_name), passwordHash: row.password_hash, isActive: row.is_active === 1, emailVerifiedAt: row.email_verified_at, sessionVersion: row.session_version, mustChangePassword:Number(row.must_change_password)===1 };
 }
 
-// Función findUserByEmail: obtiene o consulta información dentro de este módulo.
+/** Busca cuenta por email normalizado y carga campos privados necesarios para autenticar. */
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
   return runDatabaseOperation(async () => {
     const [rows] = await databasePool.execute<UserRow[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id = u.role_id WHERE u.email = ? LIMIT 1`, [email]);
@@ -27,7 +34,7 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
   });
 }
 
-// Función findUserById: obtiene o consulta información dentro de este módulo.
+/** Carga cuenta actual por ID para middleware y sesión. */
 export async function findUserById(id: string): Promise<StoredUser | null> {
   return runDatabaseOperation(async () => {
     const [rows] = await databasePool.execute<UserRow[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1`, [id]);
@@ -35,13 +42,13 @@ export async function findUserById(id: string): Promise<StoredUser | null> {
   });
 }
 
-// Función publicUser: concentra la lógica dentro de este módulo.
+/** Proyecta StoredUser a identidad pública sin hash de contraseña ni datos internos. */
 export function publicUser(user: StoredUser): AuthUser {
   // Selección explícita: evita filtrar hashes al agregar campos internos en el futuro.
   return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, profilePhotoUrl:user.profilePhotoUrl??null, role: user.role, roleName: user.roleName };
 }
 
-// Función createClientUser: crea un registro o inicia una operación dentro de este módulo.
+/** Crea cuenta CLIENT y prueba inicial de verificación mediante transacción. */
 export async function createClientUser(input: RegisterInput, passwordHash: string, verificationTokenHash: string): Promise<AuthUser> {
   try {
     return await runDatabaseOperation(async () => {

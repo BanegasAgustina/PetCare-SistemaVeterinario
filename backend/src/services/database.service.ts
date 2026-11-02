@@ -1,14 +1,21 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: database.service.ts
+ * UBICACIÓN: backend/src/services/database.service.ts
+ * FUNCIÓN: Comprobación de disponibilidad y versiones admitidas de MySQL/MariaDB.
+ * RESPONSABILIDAD: Consulta VERSION() y estado de conexión, aplica la política explícita de compatibilidad y normaliza fallos de base de datos.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/utils/database-error.ts Se utiliza desde: backend/src/controllers/database-health.controller.ts, backend/src/database/bootstrap.ts, backend/src/database/cli.ts, backend/src/database/client-reference-seed.ts, backend/src/database/create-database.ts, backend/src/database/migration-runner.ts, backend/src/database/seed-runner.ts
+ * FUNCIONAMIENTO: Health/bootstrap/migration/seed y controladores → este servicio → databasePool y database-error.ts.
+ * IMPORTANCIA: Evita iniciar o declarar saludable el backend con una versión de base no verificada.
+ */
 /** Comprobación centralizada de conectividad y compatibilidad con MySQL/MariaDB soportados. */
 import type { Pool, RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 
-// Tipo VersionRow: define la forma o las opciones válidas de datos usados por este módulo.
+/** Tipa las columnas devueltas por la consulta de estado y versión del motor. */
 type VersionRow = RowDataPacket & { version: string; connection_status: number };
 
-// Función assertSupportedMysqlVersion: comprueba una regla o condición dentro de este módulo.
+/** Acepta solo MySQL 8.0.16 o superior, MySQL 9.x y MariaDB 11.8.x; otras ramas generan error de disponibilidad. */
 export function assertSupportedMysqlVersion(version: string): void {
   const normalized = version.trim();
   const maria = /^(\d+)\.(\d+)\.(\d+)(?:[-+.]|\s|$).*mariadb/i.exec(normalized);
@@ -22,10 +29,10 @@ export function assertSupportedMysqlVersion(version: string): void {
   }
 }
 // Alias conserva los imports existentes sin cambiar contratos de creación de base.
-// Dato assertMysql8Version: conserva un valor calculado o de configuración usado por este módulo.
+/** Conserva el nombre de importación histórico como alias de la política vigente. */
 export const assertMysql8Version = assertSupportedMysqlVersion;
 
-// Función checkDatabaseConnection: comprueba una regla o condición dentro de este módulo.
+/** Ejecuta una consulta real, valida conexión y versión soportada, y normaliza errores del driver. */
 export async function checkDatabaseConnection(pool: Pool = databasePool): Promise<void> {
   await runDatabaseOperation(async () => {
     const [rows] = await pool.execute<VersionRow[]>('SELECT ? AS connection_status, VERSION() AS version', [1]);

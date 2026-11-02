@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: AdminPersonRow.tsx
+ * UBICACIÓN: mobile/src/components/admin/AdminPersonRow.tsx
+ * FUNCIÓN: Fila/tarjeta compacta para persona administrativa o veterinaria.
+ * RESPONSABILIDAD: Mostrar identidad, rol, estado y acciones de editar/ver en listados.
+ * CONEXIONES: Importa: mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts, mobile/src/constants/surface.ts Se utiliza desde: mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/index.tsx
+ * FUNCIONAMIENTO: Recibe imagen, nombre, rol y estado; botones delegan las acciones al consumidor.
+ * IMPORTANCIA: Mantiene lectura y acciones consistentes en listados de personas.
+ */
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PetImage } from '../client/PetCareUI';
@@ -17,7 +24,7 @@ type AdminPersonRowProps = {
   onView: () => void;
 };
 
-// Función AdminPersonRow: concentra la lógica dentro de este módulo.
+/** Presenta identidad/estado y delega acciones de edición o detalle. */
 export function AdminPersonRow({ imageUri, name, role, status, onEdit, onView }: AdminPersonRowProps) {
   const { colors } = useTheme();
   return <View style={[styles.row, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>

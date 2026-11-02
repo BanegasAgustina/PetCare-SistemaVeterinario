@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: [id].tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/store/[id].tsx
+ * FUNCIÓN: Detalle de un producto de tienda y edición de cantidad para agregar al carrito.
+ * RESPONSABILIDAD: Lee ID de ruta, consulta producto actual, valida cantidad y ejecuta alta en carrito con feedback.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/FormNotice.tsx y 1 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Expo Router → useClient/useClientQuery → producto/carrito API → Cart/Checkout; el backend recalcula stock y precio.
+ * IMPORTANCIA: Mantiene la operación de carrito ligada a un producto visible y disponible.
+ */
 /** Detalle del catálogo y alta en el carrito real; el servidor vuelve a comprobar stock y precio. */
 import { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -15,7 +22,7 @@ import { AppText } from '../../../../components/ui/AppText';
 import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
 
-// Función ProductDetail: concentra la lógica dentro de este módulo.
+/** Carga producto por ID y presenta precio, disponibilidad y control de cantidad. */
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const api = useClient();

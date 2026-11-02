@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: pet-photo-migrate.ts
+ * UBICACIÓN: backend/src/database/pet-photo-migrate.ts
+ * FUNCIÓN: Adapta referencias de fotos de mascotas al formato de almacenamiento actual.
+ * RESPONSABILIDAD: Inspecciona esquema y datos heredados, identifica referencias y ejecuta la actualización prevista.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Runner/CLI → pet-photo migration → schema y pet-photo.service.
+ * IMPORTANCIA: Evita tratar rutas antiguas como referencias válidas sin migración.
+ */
 /** Add pets.photo_url and preserve legacy photo references when present. */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -7,7 +14,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Función migratePetPhoto: concentra la lógica dentro de este módulo.
+/** Inspecciona referencias antiguas y actualiza el esquema de fotos de mascota sin modificar archivos remotos. */
 export async function migratePetPhoto() {
   const connection = await databasePool.getConnection();
   try {

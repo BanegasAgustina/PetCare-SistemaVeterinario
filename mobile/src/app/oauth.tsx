@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla de entrada o autenticación de la aplicación móvil; guía el acceso y la navegación inicial.
-
+/**
+ * ARCHIVO: oauth.tsx
+ * UBICACIÓN: mobile/src/app/oauth.tsx
+ * FUNCIÓN: Ruta de retorno para completar el flujo OAuth en la app.
+ * RESPONSABILIDAD: Lee parámetros de callback, cierra el contexto de navegador cuando aplica, canjea el estado pendiente y actualiza la sesión local.
+ * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/hooks/useAuth.ts, mobile/src/utils/role-home.ts, mobile/src/services/api.ts, mobile/src/services/oauth.service.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Proveedor → deep link/Expo Router → OAuthReturn → oauth.service y AuthContext → destino por rol.
+ * IMPORTANCIA: Separa el retorno del proveedor de la creación de access token, que corresponde al backend.
+ */
 /** Retorno del navegador OAuth. Cierra el popup web; nunca recibe tokens PetCare ni decide el rol. */
 import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,11 +18,11 @@ import { roleHome } from '../utils/role-home';
 import { Platform } from 'react-native';
 import { ApiError, friendlyError } from '../services/api';
 import { clearWebOAuthReturn } from '../services/oauth.service';
-// Función clearCallbackQuery: concentra la lógica dentro de este módulo.
+/** Limpia los parámetros de callback de la barra de dirección web tras procesarlos. */
 function clearCallbackQuery():void {
   window.history.replaceState(window.history.state,'',window.location.pathname);
 }
-// Función OAuthReturn: concentra la lógica dentro de este módulo.
+/** Procesa el retorno OAuth una sola vez, confirma/canjea el flujo pendiente y actualiza la sesión PetCare. */
 export default function OAuthReturn(){
   const {user,completeWebOAuthReturn}=useAuth();
   const params=useLocalSearchParams<{ticket?:string|string[];error?:string|string[]}>();

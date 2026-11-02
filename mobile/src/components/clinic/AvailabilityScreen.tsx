@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: AvailabilityScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/AvailabilityScreen.tsx
+ * FUNCIÓN: Gestión de horarios y bloqueos de disponibilidad profesional.
+ * RESPONSABILIDAD: Consultar calendario, crear bloques/slots y activar, desactivar o archivar disponibilidad.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/SearchFilterBar.tsx y 3 más Se utiliza desde: mobile/src/app/admin/availability.tsx
+ * FUNCIONAMIENTO: Carga disponibilidad por profesional, muestra calendario y envía operaciones al servicio clínico.
+ * IMPORTANCIA: La disponibilidad publicada abastece selección de horarios de turnos.
+ */
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Platform, View, useWindowDimensions } from 'react-native';
@@ -16,7 +23,7 @@ import { AdminDataTable } from '../admin/AdminDataTable';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 /** Punto único para publicar y revisar horarios de todos los servicios activos. */
-// Función AvailabilityScreen: concentra la lógica dentro de este módulo.
+/** Consulta calendario y permite mantener slots/bloqueos del profesional. */
 export function AvailabilityScreen() {
   const {width}=useWindowDimensions();
   const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: navigation-tabs.ts
+ * UBICACIÓN: mobile/src/utils/navigation-tabs.ts
+ * FUNCIÓN: Regla auxiliar de la interfaz.
+ * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de navigation-tabs.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/components/layout/GlobalNavigation.tsx
+ * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 // Tipo RoleNavigationItem: define la forma o las opciones válidas de los datos usados por este módulo.
 // Propósito: Funciones auxiliares reutilizables; resuelven reglas de formato, validación o navegación.
 
@@ -21,8 +28,7 @@ const profileShortcutPathsByRole:Record<string,string[]>={
   SUPER_ADMIN:['/account'],
 };
 
-/** Selects the role's main destinations, keeping every remaining permitted route available for Home. */
-// Función selectPrimaryNavigation: concentra la lógica dentro de este módulo.
+/** Prioriza rutas principales por rol, quita duplicados y limita el número de pestañas visibles. */
 export function selectPrimaryNavigation<T extends RoleNavigationItem>(role:string,items:T[],limit=5):T[]{
   const unique=[...new Map(items.map(item=>[item.path,item])).values()];
   const preferred=primaryPathsByRole[role]??['/workspace'];
@@ -32,8 +38,7 @@ export function selectPrimaryNavigation<T extends RoleNavigationItem>(role:strin
   return [...prioritized,...remaining].slice(0,limit);
 }
 
-/** Keeps secondary role-enabled destinations for the reusable Home quick-access section. */
-// Función selectSecondaryNavigation: concentra la lógica dentro de este módulo.
+/** Selecciona destinos secundarios para accesos rápidos, excluyendo pestañas, cuenta y grupos internos de administración. */
 export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:string,items:T[],primaryItems:RoleNavigationItem[]):T[]{
   const primaryPaths=new Set(primaryItems.map(item=>item.path));
   const profileShortcuts=new Set(role==='CLIENT'?[]:role==='VETERINARIAN'?['/account','/client/profile']:['/account']);
@@ -42,8 +47,7 @@ export function selectSecondaryNavigation<T extends RoleNavigationItem>(role:str
     .map(item=>[item.path,item])).values()];
 }
 
-/** Resolves detail and secondary screens to the closest permitted primary destination. */
-// Función activePrimaryNavigationPath: concentra la lógica dentro de este módulo.
+/** Relaciona ruta actual con pestaña padre; usa alias por rol y devuelve null si el destino no está permitido. */
 export function activePrimaryNavigationPath<T extends RoleNavigationItem>(role:string,pathname:string,items:T[]):string|null{
   const homePath:Record<string,string>={CLIENT:'/client',ADMIN:'/admin',SUPER_ADMIN:'/admin',VETERINARIAN:'/vet',GROOMER:'/professional'};
   const match=items

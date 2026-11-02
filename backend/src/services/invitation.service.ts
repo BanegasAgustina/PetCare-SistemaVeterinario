@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Servicio móvil que agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: invitation.service.ts
+ * UBICACIÓN: backend/src/services/invitation.service.ts
+ * FUNCIÓN: Emisión, envío, renovación y aceptación de invitaciones de un solo uso.
+ * RESPONSABILIDAD: Genera tokens aleatorios, conserva su hash en MySQL, aplica vencimiento y locks, entrega por correo y establece credenciales al aceptar.
+ * CONEXIONES: Importa: backend/src/services/password.service.ts, backend/src/config/database.ts, backend/src/config/mail.ts, backend/src/config/public-frontend.ts, backend/src/services/mail.service.ts, backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/validators/veterinarian.validator.ts y 1 más Se utiliza desde: backend/src/repositories/admin.repository.ts, backend/src/repositories/clinic.repository.ts, backend/src/repositories/veterinarian.repository.ts, backend/src/routes/veterinarian.routes.ts
+ * FUNCIONAMIENTO: Rutas y repositories administrativos/clínicos/veterinarios → este servicio → MySQL, mail.service, password.service y validators.
+ * IMPORTANCIA: Conecta la creación de cuentas invitadas con la verificación del correo sin exponer contraseñas ni reutilizar invitaciones.
+ */
 /** Invitación y restablecimiento: 256 bits aleatorios, SHA-256 en MySQL, un uso y 24 h.
  * El token prueba posesión del correo; no es un JWT ni permite usar endpoints de la cuenta.
  * Los locks y la versión de sesión impiden replay y revocan sesiones previas al cambiar contraseña.
@@ -16,14 +23,14 @@ import { runDatabaseOperation } from '../utils/database-error';
 import { validateInvitation } from '../validators/veterinarian.validator';
 import { withDatabaseLock } from '../database/lock';
 
-// Función invitationUrl: concentra la lógica dentro de este módulo.
+/** Construye el destino público configurado para completar la invitación del tipo indicado. */
 export function invitationUrl(kind:'veterinarian'|'account'='veterinarian'): URL {
   getMailConfiguration();
   return publicFrontendUrl(kind==='account'?'account-invitation':'veterinarian-invitation');
 }
-// Función tokenHash: concentra la lógica dentro de este módulo.
+/** Calcula SHA-256 del token para almacenar y buscar solo su huella. */
 export function tokenHash(token: string) { return createHash('sha256').update(token).digest('hex'); }
-// Función saveInvitation: actualiza o guarda información dentro de este módulo.
+/** Invalida invitaciones anteriores y guarda un token aleatorio de un solo uso con vencimiento; devuelve el secreto para enviarlo. */
 export async function saveInvitation(connection: PoolConnection,userId: string): Promise<string> {
   const token = randomBytes(32).toString('hex');
   await connection.execute(`INSERT INTO veterinarian_invitations (user_id,token_hash,expires_at,sent_at)
@@ -31,7 +38,7 @@ export async function saveInvitation(connection: PoolConnection,userId: string):
     ON DUPLICATE KEY UPDATE token_hash=VALUES(token_hash),expires_at=VALUES(expires_at),consumed_at=NULL,sent_at=VALUES(sent_at),delivery='pending'`,[userId,tokenHash(token)]);
   return token;
 }
-// Función deliverInvitation: concentra la lógica dentro de este módulo.
+/** Construye URL, envía el correo y convierte errores de entrega en un resultado explícito sin registrar el token. */
 export async function deliverInvitation(email: string,token: string,kind:'veterinarian'|'account'='veterinarian',context?:{firstName:string;petName?:string}): Promise<'sent' | 'failed'> {
   let delivery:'sent'|'failed';
   try {
@@ -44,15 +51,15 @@ export async function deliverInvitation(email: string,token: string,kind:'veteri
   await runDatabaseOperation(async()=>{await databasePool.execute('UPDATE veterinarian_invitations SET delivery=? WHERE token_hash=?',[delivery,tokenHash(token)]);});
   return delivery;
 }
-// Función renewInvitation: concentra la lógica dentro de este módulo.
+/** Solicita la renovación de una invitación de profesional y delega la operación transaccional común. */
 export async function renewInvitation(vetId: string): Promise<{ delivery: 'sent' | 'failed' }> {
   return renew(vetId,true);
 }
-// Función renewUserInvitation: concentra la lógica dentro de este módulo.
+/** Renueva invitación de una cuenta y ejecuta la autorización del actor sobre la fila bloqueada. */
 export async function renewUserInvitation(userId:string,authorize:(c:PoolConnection,target:{id:string;role:string})=>Promise<void>):Promise<{delivery:'sent'|'failed'}> {
   return renew(userId,false,authorize);
 }
-// Función renew: concentra la lógica dentro de este módulo.
+/** Bloquea la cuenta destino, comprueba su estado y rol, autoriza si aplica, crea token nuevo y trata de enviarlo. */
 async function renew(id:string,veterinarian:boolean,authorize?:(c:PoolConnection,target:{id:string;role:string})=>Promise<void>):Promise<{delivery:'sent'|'failed'}> {
   const kind=veterinarian?'veterinarian':'account';invitationUrl(kind);
   const invitation = await runDatabaseOperation(async () => {
@@ -78,7 +85,7 @@ async function renew(id:string,veterinarian:boolean,authorize?:(c:PoolConnection
   });
   return { delivery: await deliverInvitation(invitation.email,invitation.token,kind) };
 }
-// Función acceptInvitation: concentra la lógica dentro de este módulo.
+/** Valida token y datos de registro, consume la invitación dentro de transacción, establece contraseña y activa/verifica la cuenta. */
 export async function acceptInvitation(value: unknown): Promise<void> {
   const input = validateInvitation(value);
   const hash = await hashPassword(input.password);

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: reservation.repository.ts
+ * UBICACIÓN: backend/src/repositories/reservation.repository.ts
+ * FUNCIÓN: Vencimiento por lotes de reservas de checkout que no se confirmaron a tiempo.
+ * RESPONSABILIDAD: Selecciona pedidos/reservas vencidas, bloquea filas y delega liberación de stock/estado en operaciones clínicas/checkout.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/repositories/clinic.repository.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/server.ts
+ * FUNCIONAMIENTO: server.ts job periódico → expireDueReservations → databasePool y clinic.repository.
+ * IMPORTANCIA: Mantiene coherencia entre reservas temporales, inventario disponible y pedidos.
+ */
 /**
  * Limpieza transitoria de reservas comerciales históricas.
  * No permite crear, consultar ni cambiar reservas; solo libera stock vencido existente.
@@ -11,7 +18,7 @@ import * as db from './clinic.repository';
 import { AppError } from '../utils/app-error';
 
 /** Mantiene consistente reserved_stock mientras se auditan las operaciones heredadas. */
-// Función expireDueReservations: concentra la lógica dentro de este módulo.
+/** Procesa reservas vencidas por lotes y devuelve cuántas fueron liberadas. */
 export async function expireDueReservations(batchSize=100):Promise<number> {
  const connection=await databasePool.getConnection();let count=0;
  try {await connection.beginTransaction();

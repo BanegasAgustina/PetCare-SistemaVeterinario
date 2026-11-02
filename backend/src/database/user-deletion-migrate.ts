@@ -1,9 +1,17 @@
-// Este archivo se encarga de lo siguiente: migración aditiva para retirar usuarios de las listas sin borrar su historial.
-
+/**
+ * ARCHIVO: user-deletion-migrate.ts
+ * UBICACIÓN: backend/src/database/user-deletion-migrate.ts
+ * FUNCIÓN: Añade campos y restricciones para baja lógica de usuarios.
+ * RESPONSABILIDAD: Comprueba esquema y aplica columnas necesarias para conservar estado de baja/control temporal.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Migration runner → MySQL y user.repository/auth middleware.
+ * IMPORTANCIA: Permite desactivar/eliminar acceso sin perder relaciones históricas.
+ */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
+/** Comprueba y aplica los campos de baja lógica de cuenta si el esquema aún no los tiene. */
 export async function migrateUserDeletion() {
   const connection = await databasePool.getConnection();
   try {

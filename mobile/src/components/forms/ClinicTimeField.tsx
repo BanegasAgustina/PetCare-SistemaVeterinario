@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: ClinicTimeField.tsx
+ * UBICACIÓN: mobile/src/components/forms/ClinicTimeField.tsx
+ * FUNCIÓN: Selector de hora nativo con valores de reloj y confirmación.
+ * RESPONSABILIDAD: Elegir una hora de clínica en Android/iOS.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/components/clinic/CatalogScreen.tsx, mobile/src/components/forms/ClinicDateTimeField.tsx
+ * FUNCIONAMIENTO: Convierte HH:mm a Date para el selector y vuelve a formatear el resultado como HH:mm al cambiar.
+ * IMPORTANCIA: Adapta el selector nativo al contrato de texto simple usado por formularios de clínica.
+ */
 import { useState } from 'react';
 import { Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -9,13 +16,13 @@ import { useTheme } from '../../hooks/useTheme';
 
 // Tipo Props: define la forma o las opciones válidas de los datos usados por este módulo.
 type Props = { label: string; value: string; onChange: (value: string) => void; disabled?: boolean };
-// Función timeDate: concentra la lógica dentro de este módulo.
+// Convierte HH:mm en una fecha local para alimentar el selector nativo.
 function timeDate(value: string) { const date = new Date(); const [hours, minutes] = (value || '09:00').split(':').map(Number); date.setHours(hours || 0, minutes || 0, 0, 0); return date; }
-// Función timeText: concentra la lógica dentro de este módulo.
+// Devuelve la hora local como HH:mm, formato usado por el formulario.
 function timeText(date: Date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
 
 /** Selector de hora del sistema en iOS/Android. */
-// Función ClinicTimeField: concentra la lógica dentro de este módulo.
+/** Adapta el selector nativo de reloj al callback string del dominio. */
 export function ClinicTimeField({ label, value, onChange, disabled = false }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => timeDate(value));

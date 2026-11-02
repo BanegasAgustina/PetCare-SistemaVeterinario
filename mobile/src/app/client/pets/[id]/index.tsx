@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: index.tsx
+ * UBICACIÓN: mobile/src/app/client/pets/[id]/index.tsx
+ * FUNCIÓN: Ficha de una mascota del cliente y acciones de ciclo de vida.
+ * RESPONSABILIDAD: Carga mascota y turnos propios, presenta datos clínicos/resumen y permite desactivar o reactivar con confirmación.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/services/api.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/RecordCards.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx y 3 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Expo Router aporta ID → useClient queries → ficha/turnos API; backend comprueba titular y conflictos de turnos.
+ * IMPORTANCIA: Conserva historial de mascota y refleja transiciones permitidas por el servidor.
+ */
 /**
  * Pantalla de inicio del panel para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -17,8 +24,8 @@ import { AppButton } from '../../../../components/ui/AppButton';
 import { ConfirmModal } from '../../../../components/ui/ConfirmModal';
 import { isWebAtLeast,responsiveLayout } from '../../../../constants/responsive';
 import { normalizePetActiveFlag } from '../../../../utils/pet-status';
-// Función PetDetail: concentra la lógica dentro de este módulo.
-export default function PetDetail(){const {id}=useLocalSearchParams<{id:string}>();const api=useClient();const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);const query=useClientQuery(useCallback(()=>api.pet(id),[api,id]));const appointments=useClientQuery(useCallback(()=>api.appointments(),[api]));const lastAppointment=appointments.data?.filter(a=>a.petId===id&&!a.isUpcoming&&a.status!=='CANCELLED').sort((a,b)=>b.startsAt.localeCompare(a.startsAt))[0];const [confirm,setConfirm]=useState(false);const {showToast}=useFeedback();const isActive=normalizePetActiveFlag(query.data?.isActive);// Función changePetStatus: actualiza o guarda información dentro de este módulo.
+/** Carga la mascota y sus turnos y presenta detalle adaptable al dispositivo. */
+export default function PetDetail(){const {id}=useLocalSearchParams<{id:string}>();const api=useClient();const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);const query=useClientQuery(useCallback(()=>api.pet(id),[api,id]));const appointments=useClientQuery(useCallback(()=>api.appointments(),[api]));const lastAppointment=appointments.data?.filter(a=>a.petId===id&&!a.isUpcoming&&a.status!=='CANCELLED').sort((a,b)=>b.startsAt.localeCompare(a.startsAt))[0];const [confirm,setConfirm]=useState(false);const {showToast}=useFeedback();const isActive=normalizePetActiveFlag(query.data?.isActive);// Cambia el estado de la mascota y sincroniza consultas o conflictos de turnos.
 async function changePetStatus(){if(isActive===null)return;try{if(isActive)await api.deactivatePet(id);else await api.reactivatePet(id);}catch(error){const message=friendlyError(error);if(/turno/i.test(message)){setConfirm(false);showToast('Hay turnos futuros pendientes. No se cambió el estado; revisá tus turnos para resolverlos.','error');router.push('/client/appointments');return;}throw error;}setConfirm(false);showToast(isActive?'Mascota desactivada; conservamos su información':'Mascota reactivada','success');query.reload();appointments.reload();}return <PetCareScreen wide><PetCareHeader title={query.data?.name??'Ficha de mascota'} back/>
 <QueryState {...query}/>{query.data&&<><View style={[styles.overview,desktop&&styles.overviewDesktop]}><PetCard pet={query.data} portraitSize={desktop?150:132} showViewButton={false} showMicrochip/>
   <PetCareCard><AppText variant="subtitle">Último turno</AppText>

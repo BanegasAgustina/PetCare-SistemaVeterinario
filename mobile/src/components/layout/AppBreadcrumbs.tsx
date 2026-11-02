@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente de estructura visual y navegación; define cómo se acomodan las pantallas.
-
+/**
+ * ARCHIVO: AppBreadcrumbs.tsx
+ * UBICACIÓN: mobile/src/components/layout/AppBreadcrumbs.tsx
+ * FUNCIÓN: Construye migas de pan a partir de ruta actual, rol y destinos habilitados.
+ * RESPONSABILIDAD: Representar la posición del usuario en navegación administrativa, clínica o de cliente.
+ * CONEXIONES: Importa: mobile/src/hooks/useTheme.ts, mobile/src/components/ui/AppText.tsx Se utiliza desde: mobile/src/components/layout/GlobalNavigation.tsx
+ * FUNCIONAMIENTO: Reconoce prefijos y rutas conocidas, resuelve etiquetas/grupos según rol, deduplica y renderiza enlaces jerárquicos.
+ * IMPORTANCIA: Ayuda a orientarse sin inventar destinos fuera del conjunto recibido por props.
+ */
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +38,7 @@ const knownLabels: Record<string, string> = {
   '/workspace': 'Inicio', '/account': 'Mi cuenta',
 };
 
-// Función adminRoute: concentra la lógica dentro de este módulo.
+// Traduce rutas /admin a grupo, padre y etiqueta legible.
 function adminRoute(path: string): { group?: string; parent?: string; label: string } {
   if (path === '/admin/clinic') return { label: 'Clínica' };
   if (path === '/admin/store') return { label: 'Tienda' };
@@ -62,7 +69,7 @@ function adminRoute(path: string): { group?: string; parent?: string; label: str
   return entry ? { ...entry } : { label: 'Administración' };
 }
 
-// Función resolveCrumbs: concentra la lógica dentro de este módulo.
+// Resuelve la cadena de migas con destinos permitidos y jerarquía de ruta.
 function resolveCrumbs(path: string, role: string, destinations: Destination[]): Crumb[] {
   const allowed = new Set(destinations.map(item => item.path));
   const root = role === 'ADMIN' || role === 'SUPER_ADMIN' ? '/admin'
@@ -87,7 +94,7 @@ function resolveCrumbs(path: string, role: string, destinations: Destination[]):
   return deduplicate(trail);
 }
 
-// Función resolveRoleRoute: concentra la lógica dentro de este módulo.
+// Interpreta rutas de trabajo y cliente según el rol actual.
 function resolveRoleRoute(path: string, role: string): { parent?: string; label: string } {
   const patterns: [RegExp, (match: RegExpExecArray) => { parent?: string; label: string }][] = [
     [/^\/client\/pets\/new$/, () => ({ parent: '/client/pets', label: 'Agregar mascota' })],
@@ -115,16 +122,16 @@ function resolveRoleRoute(path: string, role: string): { parent?: string; label:
   return { label: 'PetCare' };
 }
 
-// Función rootForPath: concentra la lógica dentro de este módulo.
+// Elige el destino raíz asociado a la ruta y rol.
 function rootForPath(path: string, role: string): string | undefined {
   const roleRoot = role === 'CLIENT' ? '/client' : role === 'VETERINARIAN' ? '/vet' : role === 'GROOMER' ? '/professional' : '/workspace';
   return path === roleRoot ? undefined : roleRoot;
 }
 
-// Función deduplicate: concentra la lógica dentro de este módulo.
+// Quita etiquetas repetidas consecutivas para evitar migas redundantes.
 function deduplicate(crumbs: Crumb[]): Crumb[] { return crumbs.filter((crumb, index) => index === 0 || crumb.label !== crumbs[index - 1]?.label); }
 
-// Función AppBreadcrumbs: concentra la lógica dentro de este módulo.
+/** Renderiza la cadena de rutas y convierte en enlaces las migas navegables. */
 export function AppBreadcrumbs({ role, destinations }: Props) {
   const pathname = usePathname();
   const { colors } = useTheme();

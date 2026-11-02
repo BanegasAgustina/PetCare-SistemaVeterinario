@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: eslint.config.js
+ * UBICACIÓN: mobile/eslint.config.js
+ * FUNCIÓN: Configura ESLint para la app móvil con el preset plano de Expo y reglas de UX.
+ * RESPONSABILIDAD: Aplica lint a TypeScript/React Native, ignora artefactos y prohíbe APIs de alerta/confirmación nativas no permitidas.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: package.json ejecuta ESLint → este archivo compone eslint/config con eslint-config-expo y reglas locales del producto.
+ * IMPORTANCIA: Mantiene criterios de lint y evita diálogos que no siguen el patrón accesible de feedback de PetCare.
+ */
 // Configuración oficial de Expo para revisar TypeScript y componentes React Native.
 const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');

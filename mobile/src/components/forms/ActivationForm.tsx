@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: ActivationForm.tsx
+ * UBICACIÓN: mobile/src/components/forms/ActivationForm.tsx
+ * FUNCIÓN: Formulario para aceptar invitaciones de cuenta o de veterinario.
+ * RESPONSABILIDAD: Procesar token de invitación, completar activación y establecer la contraseña inicial.
+ * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/services/api.ts, mobile/src/services/invitation-paths.ts, mobile/src/hooks/useAsyncAction.ts y 2 más Se utiliza desde: mobile/src/app/activate-account.tsx, mobile/src/app/activate-vet.tsx
+ * FUNCIONAMIENTO: Según kind, selecciona la ruta constante adecuada, escucha enlaces profundos/web y envía token, perfil y contraseñas con validación y estado de carga.
+ * IMPORTANCIA: Convierte la invitación administrativa en una cuenta activada y autenticable.
+ */
 /** Pantalla pública de invitación; el secreto permanece en memoria y nunca se persiste. */
 import { useEffect,useState } from 'react';
 import { router } from 'expo-router';
@@ -15,13 +22,13 @@ import { invitationAcceptancePath } from '../../services/invitation-paths';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { validatePasswordForm } from '../../utils/auth-validation';
-// Función ActivationForm: concentra la lógica dentro de este módulo.
+/** Selecciona el flujo de activación del tipo de invitación recibido. */
 export function ActivationForm({kind}:{kind:'account'|'veterinarian'}) {
   const [token,setToken]=useState('');const [password,setPassword]=useState('');const [confirmPassword,setConfirm]=useState('');
   const [errors,setErrors]=useState<{password?:string;confirmPassword?:string}>({});const action=useAsyncAction();const {showToast}=useFeedback();const [done,setDone]=useState(false);
   useEffect(()=>{
     let active=true;
-    // Función receive: agrupa una operación que este módulo puede ejecutar o reutilizar.
+    // Acepta el token desde fragmento web o deep link nativo sin exponerlo en la ruta del servidor.
 const receive=(url:string|null)=>{
       if(!active)return;
       const fragment=Platform.OS==='web'&&typeof window!=='undefined'?window.location.hash:url?.split('#')[1]??'';

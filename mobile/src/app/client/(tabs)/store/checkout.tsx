@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: checkout.tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/store/checkout.tsx
+ * FUNCIÓN: Checkout de tienda para retiro o entrega y pago configurado.
+ * RESPONSABILIDAD: Valida datos de comprador/dirección, consulta cotización, guarda dirección y envía la modalidad de checkout al backend.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/StoreCheckoutContext.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/ui/AppText.tsx y 8 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Carrito/StoreCheckoutContext + useClient API + configuración pública de fulfillment → store-checkout.repository.
+ * IMPORTANCIA: Centraliza el envío del pedido sin recopilar datos de tarjeta; importes/stock se calculan en servidor.
+ */
 /** Checkout de tienda: crea el pedido en backend; nunca recoge credenciales de tarjeta. */
 import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -23,7 +30,7 @@ import { createSubmissionGate } from '../../../../utils/submission-gate';
 import { useUnsavedChangesGuard } from '../../../../hooks/useUnsavedChangesGuard';
 import { hasDeliveryCoverage } from '../../../../utils/fulfillment';
 
-// Función StoreCheckout: concentra la lógica dentro de este módulo.
+/** Orquesta comprador, dirección, modalidad de cumplimiento, cotización y envío del checkout. */
 export default function StoreCheckout(){
  const api=useClient();const auth=useAuth();const cart=useClientQuery(api.cart);const fulfillment=useClientQuery(api.fulfillment);const flow=useStoreCheckout();const {colors}=useTheme();
  const addressLoader=useCallback(()=>api.deliveryAddresses(),[api]);const addresses=useClientQuery(addressLoader);
@@ -99,5 +106,5 @@ const submit=async()=>{
 // Dato styles: conserva un valor calculado o de configuración usado por este módulo.
 const styles=StyleSheet.create({productRow:{flexDirection:'row',alignItems:'center',gap:10},imageBox:{width:52,height:52,borderRadius:13,alignItems:'center',justifyContent:'center',overflow:'hidden'},image:{width:'100%',height:'100%'},productInfo:{flex:1,minWidth:0},summaryRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:12},option:{minHeight:64,padding:12,borderWidth:1,borderRadius:16,flexDirection:'row',alignItems:'center',gap:10},optionCopy:{flex:1,minWidth:0,gap:3},fields:{gap:10},inline:{flexDirection:'row',gap:10},flex:{flex:1,minWidth:0},bank:{gap:7,padding:14,borderRadius:14},bankInstructions:{gap:9,padding:14,borderWidth:1,borderRadius:16},bankDetail:{gap:2,paddingVertical:2},success:{flex:1,justifyContent:'center'},successIcon:{width:72,height:72,borderRadius:26,alignItems:'center',justifyContent:'center',alignSelf:'center'},center:{textAlign:'center'}});
 
-// Función BankDetail: concentra la lógica dentro de este módulo.
+/** Presenta un dato de transferencia configurado o el texto de ausencia. */
 function BankDetail({label,value}:{label:string;value?:string|null}){return <View style={styles.bankDetail}><AppText variant="caption" muted>{label}</AppText><AppText selectable>{value||'No configurado'}</AppText></View>;}

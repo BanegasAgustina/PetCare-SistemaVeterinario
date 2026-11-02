@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: ProfessionalsScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/ProfessionalsScreen.tsx
+ * FUNCIÓN: Administración de profesionales de atención y sus servicios.
+ * RESPONSABILIDAD: Listar profesionales, asignar servicios y mantener su estado activo.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAdmin.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx y 12 más Se utiliza desde: mobile/src/app/admin/professionals.tsx
+ * FUNCIONAMIENTO: Carga tipos/catálogos y profesionales con hooks; delega cambios al servicio de clínica y confirma acciones.
+ * IMPORTANCIA: Los servicios y estado del profesional condicionan agenda y disponibilidad.
+ */
 /** Gestión de profesionales y asignaciones reales de la clínica. */
 import { useCallback, useMemo, useState } from 'react';
 import { Platform,Pressable,StyleSheet,View,useWindowDimensions } from 'react-native';
@@ -26,7 +33,7 @@ import { AdminFormActions, AdminFormField, AdminFormGrid, AdminFormSection } fro
 import { FormNotice } from '../ui/FormNotice';
 import { isWebAtLeast,responsiveLayout } from '../../constants/responsive';
 
-// Función ProfessionalsScreen: concentra la lógica dentro de este módulo.
+/** Consulta profesionales y catálogos y organiza cambios disponibles para administración. */
 export function ProfessionalsScreen() {
   const {width}=useWindowDimensions();
   const desktopWeb=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
@@ -58,7 +65,7 @@ export function ProfessionalsScreen() {
   const selectedProfessional = query.data?.find(person => person.id === selected);
   const selectedIsVeterinarian = Boolean(selectedProfessional && 'veterinarianId' in selectedProfessional && selectedProfessional.veterinarianId);
 
-  // Función changeActiveStatus: actualiza o guarda información dentro de este módulo.
+  // Cambia estado del profesional usando la operación de clínica y renueva la consulta.
 async function changeActiveStatus() {
     if (!selectedProfessional) return;
     const saved = await statusAction.run(async () => {

@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: index.tsx
+ * UBICACIÓN: mobile/src/app/admin/index.tsx
+ * FUNCIÓN: Pantalla o ruta de la aplicación.
+ * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de index.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/hooks/useTheme.ts, mobile/src/utils/clinic-date.ts, mobile/src/components/ui/AppButton.tsx y 3 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 // Panel compartido de ADMIN y SUPER_ADMIN; muestra datos y destinos autorizados por el backend.
 import { useCallback } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';

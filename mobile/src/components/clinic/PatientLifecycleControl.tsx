@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: PatientLifecycleControl.tsx
+ * UBICACIÓN: mobile/src/components/clinic/PatientLifecycleControl.tsx
+ * FUNCIÓN: Controles para desactivar/reactivar pacientes y capturar causa cuando aplica.
+ * RESPONSABILIDAD: Proteger cambios de ciclo de vida con permisos, confirmación y motivo.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useTheme.ts, mobile/src/constants/responsive.ts, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx y 4 más Se utiliza desde: mobile/src/components/clinic/PatientDetailScreen.tsx, mobile/src/components/clinic/PatientListCard.tsx, mobile/src/components/clinic/PatientsScreen.tsx
+ * FUNCIONAMIENTO: Verifica capability recibida, llama operaciones clínicas con action async y notifica al padre al completarse.
+ * IMPORTANCIA: Evita que listados y fichas implementen transiciones de paciente de forma desigual.
+ */
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +25,7 @@ import { FormNotice } from '../ui/FormNotice';
 import { ConfirmModal } from '../ui/ConfirmModal';
 
 /** Shared lifecycle actions for list details and the full patient chart. */
-// Función PatientLifecycleControl: concentra la lógica dentro de este módulo.
+/** Muestra acciones de ciclo de vida cuando el usuario tiene capacidad para gestionarlo. */
 export function PatientLifecycleControl({ patientId, isActive, canManage, onComplete }: { patientId: string; isActive: boolean | null; canManage: boolean; onComplete: () => void }) {
   const api = useClinic();
   const action = useAsyncAction();
@@ -36,7 +43,7 @@ export function PatientLifecycleControl({ patientId, isActive, canManage, onComp
   const hasAppointmentConflict = /turno/i.test(action.error ?? '');
   const agendaPath = user?.role === 'GROOMER' ? '/professional/agenda' : user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? '/admin/agenda' : '/vet/agenda';
 
-  // Función deactivate: concentra la lógica dentro de este módulo.
+  // Pide motivo y ejecuta desactivación; informa al padre solo tras completar.
 async function deactivate() {
     const normalizedReason = reason.trim();
     if (normalizedReason.length < 3 || normalizedReason.length > 500) {
@@ -53,7 +60,7 @@ async function deactivate() {
     }
   }
 
-  // Función reactivate: concentra la lógica dentro de este módulo.
+  // Confirma reactivación y actualiza el listado o ficha mediante onComplete.
 async function reactivate() {
     const saved = await action.run(() => api.reactivatePatient(patientId));
     if (saved) {

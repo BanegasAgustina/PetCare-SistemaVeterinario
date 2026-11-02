@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: cart.tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/store/cart.tsx
+ * FUNCIÓN: Carrito persistido del cliente y resumen previo al checkout.
+ * RESPONSABILIDAD: Consulta líneas actuales, permite ajustar cantidad/quitar productos y navega a checkout conservando estado de compra.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/FormNotice.tsx y 2 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: useClient API y StoreCheckoutContext → carrito backend → ruta checkout; FeedbackContext informa cambios/fallos.
+ * IMPORTANCIA: Permite revisar selección antes de crear pedido; el servidor vuelve a verificar inventario.
+ */
 /** Carrito del cliente sincronizado con el catálogo y la disponibilidad actuales del backend. */
 import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -16,7 +23,7 @@ import { FormNotice } from '../../../../components/ui/FormNotice';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useStoreCheckout } from '../../../../contexts/StoreCheckoutContext';
 
-// Función CartScreen: concentra la lógica dentro de este módulo.
+/** Carga el carrito autenticado, permite modificar sus líneas y conduce al checkout. */
 export default function CartScreen() {
   const api = useClient();
   const cart = useClientQuery(api.cart);

@@ -1,4 +1,13 @@
 /**
+ * ARCHIVO: admin-route-access.ts
+ * UBICACIÓN: mobile/src/utils/admin-route-access.ts
+ * FUNCIÓN: Regla auxiliar de la interfaz.
+ * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de admin-route-access.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/admin/_layout.tsx, mobile/src/components/admin/AdminSectionHub.tsx
+ * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
+/**
  * Permisos de presentación para las rutas administrativas. La API vuelve a
  * comprobar cada operación; esta tabla mantiene iguales los accesos visibles
  * y la protección de navegación.
@@ -29,7 +38,7 @@ const singlePermissionRoutes: { matches: (path: string) => boolean; permission: 
   { matches: path => path === '/admin/general-information', permission: 'settings.general.manage' },
 ];
 
-/** Allows a route only when its configured effective permission is present. */
+/** Normaliza la ruta y aplica la regla de permisos visibles; rutas administrativas desconocidas quedan denegadas. La API verifica lo mismo al ejecutar la operación. */
 export function canAccessAdminPath(pathname: string, hasPermission: PermissionCheck): boolean {
   const path = pathname.replace(/\/+$/, '') || '/';
   if (['/admin', '/admin/clinic', '/admin/store', '/admin/administration'].includes(path)) return true;

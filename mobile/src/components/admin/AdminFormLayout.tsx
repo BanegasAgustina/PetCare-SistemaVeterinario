@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área administrativa; organiza formularios, listas o controles de gestión.
-
+/**
+ * ARCHIVO: AdminFormLayout.tsx
+ * UBICACIÓN: mobile/src/components/admin/AdminFormLayout.tsx
+ * FUNCIÓN: Conjunto de contenedores para secciones, cuadrículas, campos y acciones de formulario.
+ * RESPONSABILIDAD: Organizar formularios administrativos y clínicos con anchos responsivos.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/constants/responsive.ts Se utiliza desde: mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/[id].tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/components/client/PetEditor.tsx, mobile/src/components/clinic/CatalogScreen.tsx, mobile/src/components/clinic/ProfessionalsScreen.tsx y 1 más
+ * FUNCIONAMIENTO: Cada exportación envuelve children y aplica título, descripción, columnas o ancho completo según props.
+ * IMPORTANCIA: Mantiene jerarquía y distribución de formularios entre módulos.
+ */
 /** Bloques y acciones compartidos para que los formularios administrativos se recorran en un orden claro. */
 import { Children, isValidElement, type PropsWithChildren } from 'react';
 import { Platform,StyleSheet,View,useWindowDimensions } from 'react-native';
@@ -10,7 +17,7 @@ import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 type AdminFormSectionProps = PropsWithChildren<{ title: string; description?: string; columns?: 1 | 2 }>;
 
 /** A consistent form section. `columns={2}` only switches to a grid on web/tablet widths. */
-// Función AdminFormSection: concentra la lógica dentro de este módulo.
+/** Agrupa campos bajo un encabezado y una descripción opcional. */
 export function AdminFormSection({ title, description, columns = 1, children }: AdminFormSectionProps) {
   return <View style={styles.section}>
     <View style={styles.heading}>
@@ -22,7 +29,7 @@ export function AdminFormSection({ title, description, columns = 1, children }: 
 }
 
 /** Responsive field grid used by sections and multi-panel admin forms. */
-// Función AdminFormGrid: concentra la lógica dentro de este módulo.
+/** Distribuye los campos hijos en una o dos columnas responsivas. */
 export function AdminFormGrid({ children, columns = 2 }: PropsWithChildren<{ columns?: 1 | 2 }>) {
   const {width}=useWindowDimensions();
   const tablet=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);
@@ -30,14 +37,14 @@ export function AdminFormGrid({ children, columns = 2 }: PropsWithChildren<{ col
 }
 
 /** Use around fields that need the full row inside a two-column section. */
-// Función AdminFormField: concentra la lógica dentro de este módulo.
+/** Controla si un campo ocupa todo el ancho de la cuadrícula. */
 export function AdminFormField({ children, fullWidth = false, style }: PropsWithChildren<{ fullWidth?: boolean; style?: object }>) {
   const {width}=useWindowDimensions();
   const tablet=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);
   return <View style={[styles.fieldItem,tablet&&styles.fieldItemDesktop,tablet&&fullWidth&&styles.fieldFullWidth,style]}>{children}</View>;
 }
 
-// Función AdminFormActions: concentra la lógica dentro de este módulo.
+/** Presenta botones de envío/cancelación con distribución compartida. */
 export function AdminFormActions({ children }: PropsWithChildren) {
   const {width}=useWindowDimensions();
   const tablet=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.tablet);

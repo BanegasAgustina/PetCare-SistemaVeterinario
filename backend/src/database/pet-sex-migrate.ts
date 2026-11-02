@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: pet-sex-migrate.ts
+ * UBICACIÓN: backend/src/database/pet-sex-migrate.ts
+ * FUNCIÓN: Normaliza columna y valores de sexo de mascotas al tipo admitido.
+ * RESPONSABILIDAD: Inspecciona tipo SQL y adapta el esquema/valores según categorías conocidas.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Migration runner → MySQL y contrato de client.repository.
+ * IMPORTANCIA: Mantiene consistencia entre datos existentes y validación actual del backend.
+ */
 /** Extensión aditiva de pets para guardar el sexo sin alterar mascotas existentes. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Función migratePetSex: concentra la lógica dentro de este módulo.
+/** Inspecciona tipo SQL y ajusta la columna/valores para el contrato de sexo admitido. */
 export async function migratePetSex() {
   const connection=await databasePool.getConnection();
   try {

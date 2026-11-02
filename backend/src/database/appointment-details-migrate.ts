@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: appointment-details-migrate.ts
+ * UBICACIÓN: backend/src/database/appointment-details-migrate.ts
+ * FUNCIÓN: Migra columnas de detalle y observaciones de los turnos clínicos.
+ * RESPONSABILIDAD: Detecta columnas pendientes y aplica cambios SQL necesarios para guardar datos ampliados de turnos.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: backend/src/database/clinic-schema-migrate.ts
+ * FUNCIONAMIENTO: Se invoca desde el runner de migraciones y usa databasePool/error handling de la capa de datos.
+ * IMPORTANCIA: Alinea el esquema existente con los campos que consumen los turnos clínicos.
+ */
 /** Agrega motivo de cancelación y observaciones sin cambiar turnos existentes. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Función migrateAppointmentDetails: concentra la lógica dentro de este módulo.
+/** Comprueba columnas de detalles clínicos y agrega las que falten sin sobrescribir el contenido existente. */
 export async function migrateAppointmentDetails() {
   const connection = await databasePool.getConnection();
   try {

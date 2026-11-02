@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Pantalla o navegación del área de clientes; muestra y permite gestionar la información del usuario y sus mascotas.
-
+/**
+ * ARCHIVO: appointments.tsx
+ * UBICACIÓN: mobile/src/app/client/(tabs)/appointments.tsx
+ * FUNCIÓN: Listado y gestión de turnos del cliente.
+ * RESPONSABILIDAD: Consulta turnos propios, permite revisar detalles y cancelar con motivo y confirmación, luego actualiza la lista.
+ * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/client/RecordCards.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppModal.tsx y 3 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: useClient y queries → auth/API → rutas de turnos; tarjetas navegan a detalle y FeedbackContext comunica resultado.
+ * IMPORTANCIA: Conecta solicitudes y cancelaciones del usuario con reglas de disponibilidad/propiedad del backend.
+ */
 /**
  * Pantalla de turnos propios para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
@@ -16,7 +23,7 @@ import { AppModal } from '../../../components/ui/AppModal';
 import { AppInput } from '../../../components/forms/AppInput';
 import { AppText } from '../../../components/ui/AppText';
 import { FormNotice } from '../../../components/ui/FormNotice';
-// Función AppointmentsScreen: concentra la lógica dentro de este módulo.
+/** Presenta turnos propios y permite revisar o iniciar una cancelación mediante confirmación. */
 export default function AppointmentsScreen(){
  const api=useClient();const query=useClientQuery(api.appointments);const [past,setPast]=useState(false),[selectedId,setSelectedId]=useState(''),[confirmingCancel,setConfirmingCancel]=useState(false),[reason,setReason]=useState(''),[reasonError,setReasonError]=useState('');const action=useAsyncAction();const {showToast}=useFeedback();
  const detail=useClientQuery(useCallback(()=>selectedId?api.appointment(selectedId):Promise.resolve(null),[api,selectedId]));

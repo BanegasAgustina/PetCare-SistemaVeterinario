@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: seed-runner.ts
+ * UBICACIÓN: backend/src/database/seed-runner.ts
+ * FUNCIÓN: Carga datos de referencia iniciales con archivos controlados.
+ * RESPONSABILIDAD: Lee catálogo de seeds, verifica versiones y ejecuta inserciones/reconciliaciones permitidas.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/services/database.service.ts, backend/src/utils/database-error.ts, backend/src/database/lock.ts, backend/src/database/migration-files.ts Se utiliza desde: backend/src/database/cli.ts, backend/src/database/client-reference-seed.ts
+ * FUNCIONAMIENTO: Bootstrap/CLI → seed runner → MySQL y catálogos de roles/especies/permisos.
+ * IMPORTANCIA: Provee datos básicos sin mezclarlos con las migraciones estructurales.
+ */
 /** Carga únicamente catálogos reales, de forma transaccional e idempotente. */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -9,11 +16,11 @@ import { DatabaseError, runDatabaseOperation } from '../utils/database-error';
 import { withDatabaseLock } from './lock';
 import { readMigrationFiles, verifyMigrationHistory, type MigrationRecord } from './migration-files';
 
-// Tipo CatalogEntry: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Fila de catálogo con código y etiqueta que se inserta o reconcilia. */
 type CatalogEntry = { code: string; name: string };
 
 /** Aunque el JSON sea versionado, validarlo evita cargar un catálogo mal editado. */
-// Función readCatalog: obtiene o consulta información dentro de este módulo.
+/** Lee y valida archivo de catálogo para un tipo permitido. */
 export function readCatalog(value: unknown): CatalogEntry[] {
   if (!Array.isArray(value) || value.length === 0) throw new DatabaseError('SEED_INVALID', 500, 'El catálogo de seed es inválido.');
   const codes = new Set<string>();
@@ -28,7 +35,7 @@ export function readCatalog(value: unknown): CatalogEntry[] {
   });
 }
 
-// Función runSeeds: concentra la lógica dentro de este módulo.
+/** Aplica seeds pendientes y consistentes con los catálogos presentes. */
 export async function runSeeds(): Promise<void> {
   const source: unknown = JSON.parse(await readFile(resolve(__dirname, '../../seeds/001_reference_catalogs.json'), 'utf8'));
   if (typeof source !== 'object' || source === null || !('roles' in source) || !('species' in source)) {

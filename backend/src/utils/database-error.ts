@@ -1,8 +1,15 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: database-error.ts
+ * UBICACIÓN: backend/src/utils/database-error.ts
+ * FUNCIÓN: Normaliza errores del driver de base a códigos de aplicación.
+ * RESPONSABILIDAD: Traducir duplicados, restricciones, conectividad y errores inesperados sin filtrar SQL al usuario.
+ * CONEXIONES: Importa: backend/src/utils/app-error.ts Se utiliza desde: backend/src/controllers/clinic.controller.ts, backend/src/database/cli.ts, backend/src/database/create-database.ts, backend/src/database/lock.ts, backend/src/database/migration-files.ts, backend/src/database/migration-runner.ts, backend/src/database/promote-super-admin.ts, backend/src/database/seed-runner.ts y 22 más
+ * FUNCIONAMIENTO: Clasifica códigos del driver, convierte a DatabaseError y ejecuta operaciones capturando fallos.
+ * IMPORTANCIA: Centraliza manejo de SQL para que los controladores reciban errores seguros.
+ */
 /** Convierte errores MySQL en errores públicos seguros; nunca publica sqlMessage/sql. */
 import { AppError } from './app-error';
-// Clase DatabaseError: agrupa estado y operaciones que trabajan como una unidad.
+/** Error normalizado de almacenamiento con código seguro, estado HTTP y causa interna. */
 export class DatabaseError extends Error {
   constructor(public readonly code: string, public readonly status: number, message: string, cause?: unknown) {
     super(message, { cause });
@@ -10,7 +17,7 @@ export class DatabaseError extends Error {
   }
 }
 
-// Dato unavailableCodes: conserva un valor calculado o de configuración usado por este módulo.
+/** Códigos del driver que indican que la base o el pool no está disponible. */
 const unavailableCodes = new Set([
   'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EACCES',
   'PROTOCOL_CONNECTION_LOST', 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR', 'PROTOCOL_ENQUEUE_AFTER_QUIT',
@@ -18,7 +25,7 @@ const unavailableCodes = new Set([
   'ER_CON_COUNT_ERROR', 'ER_SERVER_SHUTDOWN', 'ER_SERVER_OFFLINE_MODE', 'POOL_ENQUEUELIMIT',
 ]);
 
-// Función normalizeDatabaseError: transforma o prepara datos dentro de este módulo.
+/** Clasifica error del driver en código seguro y contexto para capa superior. */
 export function normalizeDatabaseError(error: unknown): DatabaseError {
   if (error instanceof DatabaseError) return error;
   const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
@@ -44,8 +51,7 @@ export function normalizeDatabaseError(error: unknown): DatabaseError {
   return new DatabaseError('DB_ERROR', 500, 'No se pudo completar la operación con la base de datos.', error);
 }
 
-/** Frontera común que usarán servicios y futuros repositorios para proteger errores SQL. */
-// Función runDatabaseOperation: concentra la lógica dentro de este módulo.
+/** Ejecuta una operación SQL y normaliza cualquier error que arroje. */
 export async function runDatabaseOperation<T>(operation: () => Promise<T>): Promise<T> {
   try { return await operation(); } catch (error) {
     if (error instanceof AppError) throw error;

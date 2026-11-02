@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: CatalogScreen.tsx
+ * UBICACIÓN: mobile/src/components/clinic/CatalogScreen.tsx
+ * FUNCIÓN: Editor dinámico de catálogos de clínica y tienda, además de calendarios de agenda.
+ * RESPONSABILIDAD: Administrar productos, servicios, tipos, promociones y disponibilidad según kind y permiso.
+ * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAdmin.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx y 21 más Se utiliza desde: mobile/src/app/admin/catalog/[kind].tsx, mobile/src/components/clinic/AvailabilityScreen.tsx
+ * FUNCIONAMIENTO: Selecciona esquema de campos por ruta, obtiene catálogos, normaliza formulario, valida valores y delega persistencia al servicio.
+ * IMPORTANCIA: Concentra edición de varios catálogos que alimentan turnos, perfiles y tienda.
+ */
 /**
  * Gestiona el catálogo indicado por kind mediante /clinic/admin. Obtiene entradas reales y envía formularios; el backend limita entidades y comprueba el permiso de cada catálogo.
  */

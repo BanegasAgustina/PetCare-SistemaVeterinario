@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Contexto compartido de React; conserva estado y acciones que usan varias pantallas.
-
+/**
+ * ARCHIVO: FeedbackContext.tsx
+ * UBICACIÓN: mobile/src/contexts/FeedbackContext.tsx
+ * FUNCIÓN: Proveedor de estado compartido.
+ * RESPONSABILIDAD: Proveedor de estado compartido dentro de PetCare; agrupa las declaraciones de FeedbackContext.
+ * CONEXIONES: Importa: mobile/src/components/ui/AppText.tsx, mobile/src/hooks/useTheme.ts Se utiliza desde: mobile/src/app/_layout.tsx, mobile/src/app/admin/general-information.tsx, mobile/src/app/admin/products.tsx, mobile/src/app/admin/roles.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/store-orders.tsx, mobile/src/app/admin/store-settings.tsx, mobile/src/app/admin/users/[id].tsx y 19 más
+ * FUNCIONAMIENTO: Mantiene estado compartido y lo expone a los componentes descendientes mediante Context.
+ * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ */
 /** Feedback breve propio: una notificación a la vez, no bloquea y desaparece automáticamente. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Animated, Pressable, StyleSheet, View, AccessibilityInfo } from 'react-native';
@@ -8,21 +15,22 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppText } from '../components/ui/AppText';
 import { useTheme } from '../hooks/useTheme';
 
-// Tipo Kind: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Clases visuales permitidas para un toast. */
 type Kind = 'success' | 'error' | 'info';
-// Tipo Toast: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Aviso visible con ID para gestionar su animación/ciclo de vida. */
 type Toast = { id: number; message: string; kind: Kind };
-// Tipo Feedback: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Contrato mínimo consumido por pantallas que informan una acción. */
 type Feedback = { showToast: (message: string, kind?: Kind) => void };
-// Dato FeedbackContext: conserva un valor calculado o de configuración usado por este módulo.
+// Contexto opcional: useFeedback produce un error claro si falta el provider.
 const FeedbackContext = createContext<Feedback | undefined>(undefined);
-// Función FeedbackProvider: concentra la lógica dentro de este módulo.
+/** Provee showToast y renderiza un aviso temporal accesible usando colores y safe area actuales. */
 export function FeedbackProvider({ children }: PropsWithChildren) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<Toast | null>(null);
   const sequence = useRef(0);
   const [opacity] = useState(() => new Animated.Value(0));
+  /** Reemplaza el aviso visible con un mensaje nuevo y un ID que reinicia su ciclo de vida. */
   const showToast = useCallback((message: string, kind: Kind = 'info') => setToast({ id: ++sequence.current, message, kind }), []);
   useEffect(() => {
     if (!toast) return;
@@ -46,7 +54,7 @@ export function FeedbackProvider({ children }: PropsWithChildren) {
     </View>}
   </FeedbackContext.Provider>;
 }
-// Función useFeedback: concentra la lógica dentro de este módulo.
+/** Consume FeedbackContext y falla si falta FeedbackProvider en el árbol. */
 export function useFeedback(): Feedback {
   const feedback = useContext(FeedbackContext);
   if (!feedback) throw new Error('useFeedback requiere FeedbackProvider.');

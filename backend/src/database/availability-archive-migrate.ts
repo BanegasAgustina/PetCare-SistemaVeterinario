@@ -1,11 +1,18 @@
-// Este archivo se encarga de lo siguiente: Código fuente de la aplicación; reúne declaraciones y operaciones relacionadas con su módulo.
-
+/**
+ * ARCHIVO: availability-archive-migrate.ts
+ * UBICACIÓN: backend/src/database/availability-archive-migrate.ts
+ * FUNCIÓN: Migra el archivo de disponibilidad y su relación con citas.
+ * RESPONSABILIDAD: Comprueba el esquema actual y prepara las columnas/índices necesarios para conservar disponibilidad archivada.
+ * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/database/lock.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
+ * FUNCIONAMIENTO: Runner de migración → databasePool y tablas de disponibilidad/agenda.
+ * IMPORTANCIA: Permite retirar disponibilidad sin perder trazabilidad de turnos ya creados.
+ */
 /** Agrega un indicador para retirar horarios desactivados de la lista sin borrar sus registros. */
 import type { RowDataPacket } from 'mysql2/promise';
 import { databasePool } from '../config/database';
 import { withDatabaseLock } from './lock';
 
-// Función migrateAvailabilityArchive: concentra la lógica dentro de este módulo.
+/** Inspecciona la columna de archivo y aplica el cambio de esquema solo si aún no está presente. */
 export async function migrateAvailabilityArchive() {
   const connection = await databasePool.getConnection();
   try {

@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Control de formulario reutilizable; captura o valida datos ingresados en la aplicación.
-
+/**
+ * ARCHIVO: AppSelectField.tsx
+ * UBICACIÓN: mobile/src/components/forms/AppSelectField.tsx
+ * FUNCIÓN: Selector de una opción con búsqueda, carga incremental y presentación modal adaptable.
+ * RESPONSABILIDAD: Elegir elementos de catálogos cortos o remotos con etiqueta, ayuda y error.
+ * CONEXIONES: Importa: mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/hooks/useTheme.ts, mobile/src/utils/search-normalization.ts Se utiliza desde: mobile/src/app/admin/products.tsx, mobile/src/app/admin/store-banners.tsx, mobile/src/app/admin/users/[id].tsx, mobile/src/app/admin/users/index.tsx, mobile/src/app/admin/veterinarians/index.tsx, mobile/src/app/client/appointments/request.tsx, mobile/src/components/admin/SpecialtiesScreen.tsx, mobile/src/components/clinic/AgendaScreen.tsx y 5 más
+ * FUNCIONAMIENTO: Filtra localmente con normalización o usa searchValue/onSearchChange del padre; delega selección y paginación por callbacks.
+ * IMPORTANCIA: Permite seleccionar catálogos grandes sin acoplar el control al origen de datos.
+ */
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -35,7 +42,7 @@ type Props = {
 };
 
 /** Compact cross-platform select control with a scrollable, searchable option list. */
-// Función AppSelectField: concentra la lógica dentro de este módulo.
+/** Resuelve etiqueta, búsqueda y selección; el padre controla el valor elegido y la carga remota. */
 export function AppSelectField({ label, value, options, onChange, required = false, optional = false, emptyLabel = 'Sin asignar', placeholder = 'Elegir una opción', error, hint, disabled = false, searchable = true, searchValue, onSearchChange, loading = false,selectedLabel,hasMore=false,onLoadMore }: Props) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
@@ -45,7 +52,7 @@ export function AppSelectField({ label, value, options, onChange, required = fal
     const term = normalizeSearchTerm((searchValue??search).trim());
     return term ? options.filter(option => normalizeSearchTerm(option.name).includes(term)) : options;
   }, [options, search,searchValue]);
-  // Función close: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Cierra el selector y restablece su búsqueda local. */
 const close = () => { setOpen(false); setSearch(''); };
 
   return <View style={styles.container}>

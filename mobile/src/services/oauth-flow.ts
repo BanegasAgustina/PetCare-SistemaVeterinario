@@ -1,13 +1,20 @@
-// Este archivo se encarga de lo siguiente: Servicio de la app móvil; agrupa comunicación con la API o manejo de sesión y eventos.
-
+/**
+ * ARCHIVO: oauth-flow.ts
+ * UBICACIÓN: mobile/src/services/oauth-flow.ts
+ * FUNCIÓN: Valida respuestas del navegador OAuth y decisiones de compatibilidad de plataforma.
+ * RESPONSABILIDAD: Mantener el análisis de callbacks OAuth puro, separado de pantallas y módulos nativos.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/services/oauth.service.ts
+ * FUNCIONAMIENTO: Compara origen y ruta con el retorno esperado, acepta solo un ticket hexadecimal de 64 caracteres o errores permitidos.
+ * IMPORTANCIA: Reduce la superficie de callbacks aceptados antes de canjear el ticket por una sesión.
+ */
 /** Validaciones de redirect OAuth que no dependen de UI ni de módulos nativos. */
-// Dato callbackErrors: conserva un valor calculado o de configuración usado por este módulo.
+/** Errores OAuth públicos que el proveedor puede devolver de forma controlada. */
 const callbackErrors = new Set(['OAUTH_PROVIDER_DENIED','OAUTH_PROVIDER_ERROR','OAUTH_CODE_MISSING','OAUTH_CALLBACK_FAILED']);
 
-// Tipo OAuthCallbackResult: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Resultado validado del callback: ticket de un solo uso o código de error acotado. */
 export type OAuthCallbackResult = { ticket: string } | { error: string };
 
-// Función parseOAuthCallback: transforma o prepara datos dentro de este módulo.
+/** Analiza y valida el callback completo contra la URL de retorno configurada. */
 export function parseOAuthCallback(value:string,expectedReturnUrl:string):OAuthCallbackResult {
   let callback:URL,expected:URL;
   try { callback=new URL(value);expected=new URL(expectedReturnUrl); }
@@ -21,12 +28,12 @@ export function parseOAuthCallback(value:string,expectedReturnUrl:string):OAuthC
   throw new Error('INVALID_RESPONSE');
 }
 
-// Función nativeOAuthSupported: concentra la lógica dentro de este módulo.
+/** Expo Go no admite el flujo nativo; web y builds nativos sí pueden iniciarlo. */
 export function nativeOAuthSupported(platform:string,runningInExpoGo:boolean):boolean {
   return platform==='web'||!runningInExpoGo;
 }
 
-// Función oauthBrowserResultError: concentra la lógica dentro de este módulo.
+/** Convierte un resultado no exitoso del navegador en el error cancelable del flujo. */
 export function oauthBrowserResultError(resultType:string):string|null {
   return resultType==='success'?null:'OAUTH_CANCELLED';
 }

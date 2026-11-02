@@ -1,3 +1,12 @@
+/**
+ * ARCHIVO: PatientListCard.tsx
+ * UBICACIÓN: mobile/src/components/clinic/PatientListCard.tsx
+ * FUNCIÓN: Tarjeta de paciente para los listados clínicos.
+ * RESPONSABILIDAD: Mostrar datos principales, invitación del propietario, estado y acciones según permisos.
+ * CONEXIONES: Importa: mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/admin/AdminStatusBadge.tsx, mobile/src/hooks/useTheme.ts, mobile/src/components/clinic/PatientLifecycleControl.tsx, mobile/src/types/clinic.ts, mobile/src/utils/clinic-date.ts y 1 más Se utiliza desde: mobile/src/components/clinic/PatientsScreen.tsx
+ * FUNCIONAMIENTO: Formatea fecha/estado, expone acciones de ficha y compone PatientLifecycleControl.
+ * IMPORTANCIA: Resume pacientes sin sacar las reglas de activación del componente compartido.
+ */
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PetCareCard, PetImage } from '../client/PetCareUI';
@@ -10,6 +19,7 @@ import type { ClinicRow } from '../../types/clinic';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { normalizePetActiveFlag, petStatusBadge } from '../../utils/pet-status';
 
+/** Traduce estado de invitación del propietario a una etiqueta breve. */
 function invitationStateLabel(value: unknown): string {
   const labels: Record<string, string> = {
     pending: 'Pendiente de invitación', sent: 'Invitación enviada', failed: 'Invitación no enviada',
@@ -88,6 +98,7 @@ export function PatientListCard({
   </PetCareCard>;
 }
 
+/** Botón pequeño de tarjeta con etiqueta accesible y colores recibidos del tema. */
 function IconAction({ label, icon, onPress, colors }: { label: string; icon: React.ComponentProps<typeof Ionicons>['name']; onPress: () => void; colors: ReturnType<typeof useTheme>['colors'] }) {
   return <Pressable
     accessibilityRole="button"
@@ -97,6 +108,7 @@ function IconAction({ label, icon, onPress, colors }: { label: string; icon: Rea
   ><Ionicons name={icon} size={20} color={colors.primary} /></Pressable>;
 }
 
+/** Muestra un dato secundario de paciente con icono y texto asociado. */
 function DetailLine({ icon, label, value }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; value: string }) {
   const { colors } = useTheme();
   return <View style={styles.detailLine}>

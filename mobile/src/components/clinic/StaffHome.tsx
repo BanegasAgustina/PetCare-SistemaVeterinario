@@ -1,5 +1,12 @@
-// Este archivo se encarga de lo siguiente: Componente reutilizable del área clínica; permite al personal gestionar agenda, pacientes y atención.
-
+/**
+ * ARCHIVO: StaffHome.tsx
+ * UBICACIÓN: mobile/src/components/clinic/StaffHome.tsx
+ * FUNCIÓN: Inicio de veterinarios y groomers con métricas y próximos turnos.
+ * RESPONSABILIDAD: Dar una vista operativa adaptada al tipo de profesional.
+ * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useTheme.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/layout/RoleQuickAccess.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx y 2 más Se utiliza desde: mobile/src/app/professional/index.tsx, mobile/src/app/vet/index.tsx
+ * FUNCIONAMIENTO: Consulta resumen de clínica, arma métricas/accesos rápidos y presenta turnos navegables.
+ * IMPORTANCIA: Reduce pasos para entrar en el trabajo prioritario del día.
+ */
 /** Inicio profesional compartido. El servidor entrega agenda y métricas dentro del alcance efectivo del usuario. */
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +61,7 @@ export function StaffHome() {
   </PetCareScreen>;
 }
 
+/** Presenta un turno próximo y deriva a la ficha usando la base de ruta del rol. */
 function AppointmentCard({ item, roleBase, featured = false }: { item: Record<string, unknown>; roleBase: string; featured?: boolean }) {
   const id = appointmentRouteId(item.id);
   const title = appointmentDisplayValue(item.petName, 'Mascota sin nombre');
@@ -71,6 +79,7 @@ function AppointmentCard({ item, roleBase, featured = false }: { item: Record<st
   </Pressable>;
 }
 
+/** Renderiza las métricas del resumen diario proporcionadas por el backend. */
 function StaffMetricCards({ items }: { items: { label: string; value: number | null; icon: IconName }[] }) {
   const { width } = useWindowDimensions();
   const { colors } = useTheme();

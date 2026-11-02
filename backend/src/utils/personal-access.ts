@@ -1,7 +1,14 @@
-// Este archivo se encarga de lo siguiente: Funciones auxiliares reutilizables para reglas de formato, validación o navegación.
-
+/**
+ * ARCHIVO: personal-access.ts
+ * UBICACIÓN: backend/src/utils/personal-access.ts
+ * FUNCIÓN: Reglas de acceso personal por método y ruta HTTP.
+ * RESPONSABILIDAD: Resolver permisos mínimos de una ruta y separar acceso de dueño del acceso profesional/admin.
+ * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/middlewares/permission.middleware.ts
+ * FUNCIONAMIENTO: Mapea combinaciones de método/ruta a permisos, evalúa rol/permiso y considera acceso al centro de notificaciones.
+ * IMPORTANCIA: Lo consumen middlewares frontend/backend para restringir datos personales.
+ */
 /** Permisos dedicados a módulos personales; nunca se reutilizan grants laborales. */
-// Función personalPermissionsForRoute: concentra la lógica dentro de este módulo.
+/** Mapea método/ruta de cuenta personal a permisos requeridos o null si no es ruta propia. */
 export function personalPermissionsForRoute(method:string,path:string):string[]|null {
   path=path.replace(/^\/api\/client(?=\/|$)/,'')||'/';
   const verb=method.toUpperCase();
@@ -40,11 +47,12 @@ export function personalPermissionsForRoute(method:string,path:string):string[]|
 }
 
 /** Authenticated product roles may read only their own notification inbox. */
+/** Clientes y roles de clínica pueden consultar la bandeja de su propia sesión. */
 export function canAccessNotificationCenter(role:string):boolean {
   return ['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role);
 }
 
-// Función canAccessPersonalRoute: comprueba una regla o condición dentro de este módulo.
+/** Evalúa rol y permisos para decidir acceso a la ruta personal concreta. */
 export function canAccessPersonalRoute(role:string,permissions:string[]|undefined,method:string,path:string):boolean {
   if(role==='CLIENT')return true;
   const normalized=path.replace(/^\/api\/client(?=\/|$)/,'')||'/';
