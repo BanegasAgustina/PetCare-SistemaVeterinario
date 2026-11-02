@@ -207,7 +207,7 @@ async function submitRequest() {
       {Boolean(typeId)&&<>
       {specialties.length > 0 && <PetCareCard>
         <AppText muted>Podés elegir una para filtrar los servicios relacionados, o continuar sin filtro.</AppText>
-        <AppSelectField label="Especialidad" optional emptyLabel="Ver todos los servicios" value={specialtyId} options={specialties.map(specialty=>({id:specialty.id,name:specialty.name}))} disabled={action.loading} onChange={chooseSpecialty}/>
+        <AppSelectField label="Especialidad" optional emptyLabel="Ver todos los servicios" value={specialtyId} options={specialties.map(specialty=>({id:specialty.id,name:specialty.name}))} disabled={action.loading} onChange={chooseSpecialty} largeText/>
       </PetCareCard>}
       <StepHelp text={serviceId ? null : 'Elegí un servicio para continuar.'} variant="subtitle" />
       {filteredServices.length ? filteredServices.map(service => <ChoiceCard
@@ -353,7 +353,7 @@ function ChoiceCard({ title, description, detail, imageUrl, icon = 'checkmark-ci
     <View style={styles.choiceCopy}>
       <AppText variant="subtitle">{title}</AppText>
       {Boolean(description) && <AppText muted>{description}</AppText>}
-      {Boolean(detail) && <AppText variant="caption">{detail}</AppText>}
+      {Boolean(detail) && <AppText>{detail}</AppText>}
     </View>
     {selected && <Ionicons name="checkmark-circle" size={23} color={colors.primary} />}
   </Pressable>;
@@ -382,7 +382,7 @@ function PetChoiceProfessional({ name, photoUrl, specialties, selected, onPress 
 function SelectionSummary({ step, typeName, pet, serviceName, slot }: { step: number; typeName?: string; pet?: Pet; serviceName?: string; slot?: Slot }) {
   const values = [typeName, pet?.name, serviceName, slot ? clinicDateTime(slot.startsAt) : undefined].filter(Boolean);
   if (step < 2 || !values.length) return null;
-  return <AppText variant="caption" muted>Elegido: {values.join(' · ')}</AppText>;
+  return <AppText variant={step === 2 ? 'body' : 'caption'} muted>Elegido: {values.join(' · ')}</AppText>;
 }
 
 /** Muestra etiqueta y valor del resumen o una indicación para elegir opción. */

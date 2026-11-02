@@ -37,7 +37,7 @@ export function RoleBottomNavigation({items,activePath,onNavigate}:Props){
     <SafeAreaView edges={['bottom']} style={[styles.safe,{backgroundColor:colors.surface,borderTopColor:colors.border}]}>
       <View accessibilityRole="tablist" style={styles.bar}>
         {items.map(item=>{
-          const selected=activePath===item.path||Boolean(activePath?.startsWith(`${item.path}/`));
+          const selected=activePath===item.path;
           return <Pressable key={item.path} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{selected}} onPress={()=>onNavigate(item.path)} style={({pressed})=>[styles.tab,pressed&&styles.tabPressed]}>
             <View style={[styles.iconWrap,selected&&{backgroundColor:colors.accent}]}><Ionicons name={item.icon} size={21} color={selected?colors.primary:colors.muted}/></View>
             <AppText numberOfLines={1} variant="caption" style={{color:selected?colors.primary:colors.muted,fontWeight:selected?'700':'500'}}>{item.label}</AppText>

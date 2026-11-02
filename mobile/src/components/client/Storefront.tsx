@@ -29,9 +29,10 @@ type StoreProductCardProps = { product: Product; adding: boolean; cartReady: boo
 export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: StoreProductCardProps) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const [hovered, setHovered] = useState(false);
   const desktop = isWebAtLeast(Platform.OS, width, responsiveLayout.breakpoints.desktop);
   const kind = product.category || productTypeLabel(product.productType);
-  return <View style={[styles.productCard, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: colors.border }]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalles de ${product.name}`} accessibilityHint="Abre los detalles del producto" onPress={onOpen} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onFocus={() => setHovered(true)} onBlur={() => setHovered(false)} style={({ pressed }) => [styles.productCard, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderColor: hovered ? colors.primary : colors.border, opacity: pressed ? 0.96 : 1, transform: [{ translateY: hovered ? -2 : 0 }, { scale: pressed ? 0.99 : 1 }] }, Platform.OS === 'web' ? { cursor: 'pointer' } : undefined]}>
     <View style={[styles.productImageFrame, desktop && { maxHeight: responsiveLayout.store.productImageMaxHeight }, { backgroundColor: colors.accent }]}>
       {product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" accessibilityLabel={`Imagen de ${product.name}`} /> : <Ionicons name="paw-outline" size={34} color={colors.muted} accessible={false} />}
     </View>
@@ -43,14 +44,14 @@ export function StoreProductCard({ product, adding, cartReady, onOpen, onAdd }: 
       <AppText numberOfLines={1} variant="caption" muted>{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</AppText>
     </View>
     <View style={styles.cardActions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Ver producto ${product.name}`} onPress={onOpen} style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Ver producto ${product.name}`} onPress={event => { event.stopPropagation(); onOpen(); }} style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}>
         <Ionicons name="eye-outline" size={18} color={colors.primary} /><AppText numberOfLines={1} style={styles.actionLabel}>Ver</AppText>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={product.stock > 0 ? `Agregar ${product.name} al carrito` : `${product.name}, sin stock`} accessibilityState={{ disabled: product.stock <= 0 || !cartReady || adding, busy: adding }} disabled={product.stock <= 0 || !cartReady || adding} onPress={onAdd} style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: product.stock <= 0 || !cartReady || adding ? 0.62 : pressed ? 0.8 : 1 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={product.stock > 0 ? `Agregar ${product.name} al carrito` : `${product.name}, sin stock`} accessibilityState={{ disabled: product.stock <= 0 || !cartReady || adding, busy: adding }} disabled={product.stock <= 0 || !cartReady || adding} onPress={event => { event.stopPropagation(); onAdd(); }} style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: product.stock <= 0 || !cartReady || adding ? 0.62 : pressed ? 0.8 : 1 }]}>
         {adding ? <AppText numberOfLines={1} style={[styles.actionLabel, { color: colors.onPrimary }]}>Agregando…</AppText> : product.stock > 0 ? <View style={styles.cartAddIcon}><Ionicons name="cart-outline" size={18} color={colors.onPrimary} /><Ionicons name="add" size={12} color={colors.onPrimary} style={[styles.cartPlus, { backgroundColor: colors.primary }]} /></View> : <AppText numberOfLines={1} style={[styles.actionLabel, { color: colors.onPrimary }]}>Sin stock</AppText>}
       </Pressable>
     </View>
-  </View>;
+  </Pressable>;
 }
 
 /** Presenta productos destacados en el carrusel de promociones. */

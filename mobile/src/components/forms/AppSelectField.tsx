@@ -39,11 +39,12 @@ type Props = {
   selectedLabel?:string;
   hasMore?:boolean;
   onLoadMore?:()=>void;
+  largeText?:boolean;
 };
 
 /** Compact cross-platform select control with a scrollable, searchable option list. */
 /** Resuelve etiqueta, búsqueda y selección; el padre controla el valor elegido y la carga remota. */
-export function AppSelectField({ label, value, options, onChange, required = false, optional = false, emptyLabel = 'Sin asignar', placeholder = 'Elegir una opción', error, hint, disabled = false, searchable = true, searchValue, onSearchChange, loading = false,selectedLabel,hasMore=false,onLoadMore }: Props) {
+export function AppSelectField({ label, value, options, onChange, required = false, optional = false, emptyLabel = 'Sin asignar', placeholder = 'Elegir una opción', error, hint, disabled = false, searchable = true, searchValue, onSearchChange, loading = false,selectedLabel,hasMore=false,onLoadMore,largeText=false }: Props) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -56,12 +57,12 @@ export function AppSelectField({ label, value, options, onChange, required = fal
 const close = () => { setOpen(false); setSearch(''); };
 
   return <View style={styles.container}>
-    <AppText variant="caption">{label}{required ? ' *' : optional ? ' (opcional)' : ''}</AppText>
+    <AppText variant={largeText ? 'body' : 'caption'}>{label}{required ? ' *' : optional ? ' (opcional)' : ''}</AppText>
     <Pressable accessibilityRole="button" accessibilityLabel={`${label}${selected ? `: ${selected.name}` : ''}`} accessibilityHint={error ?? hint ?? 'Abrir opciones'} accessibilityState={{ disabled, expanded: open }} disabled={disabled} onPress={() => { setSearch(''); setOpen(true); }} style={[styles.control, { backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border, opacity: disabled ? .6 : 1 }]}>
       <AppText numberOfLines={1} style={{ color: selected ? colors.text : colors.muted, flex: 1 }}>{selected?.name ?? placeholder}</AppText>
       <Ionicons name="chevron-down-outline" size={19} color={colors.muted} accessible={false}/>
     </Pressable>
-    {Boolean(error || hint) && <AppText variant="caption" accessibilityLiveRegion="polite" style={{ color: error ? colors.danger : colors.muted }}>{error ?? hint}</AppText>}
+    {Boolean(error || hint) && <AppText variant={largeText ? 'body' : 'caption'} accessibilityLiveRegion="polite" style={{ color: error ? colors.danger : colors.muted }}>{error ?? hint}</AppText>}
     <AppModal visible={open} dismissible onClose={close}>
       <AppText variant="title">{label}</AppText>
       {searchable && (options.length > 0||onSearchChange) && <AppInput icon="search-outline" label={`Buscar ${label.toLocaleLowerCase()}`} placeholder={`Buscar ${label.toLocaleLowerCase()}…`} value={searchValue??search} onChangeText={value=>{if(onSearchChange)onSearchChange(value);else setSearch(value);}} autoCapitalize="none" autoCorrect={false}/>}
@@ -72,7 +73,7 @@ const close = () => { setOpen(false); setSearch(''); };
         {loading&&Boolean(visibleOptions.length)&&<AppText muted>Actualizando resultados…</AppText>}
         {hasMore&&onLoadMore&&<Pressable accessibilityRole="button" disabled={loading} onPress={onLoadMore} style={{padding:12,alignItems:'center'}}><AppText style={{color:colors.primary,fontWeight:'700'}}>{loading?'Cargando…':'Cargar más resultados'}</AppText></Pressable>}
       </View>
-      <AppText variant="caption" muted>{options.length} {options.length === 1 ? 'opción disponible' : 'opciones disponibles'}</AppText>
+      <AppText variant={largeText ? 'body' : 'caption'} muted>{options.length} {options.length === 1 ? 'opción disponible' : 'opciones disponibles'}</AppText>
     </AppModal>
   </View>;
 }
