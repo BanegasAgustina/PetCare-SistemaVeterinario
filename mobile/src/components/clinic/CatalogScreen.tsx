@@ -46,7 +46,7 @@ import type { ClinicRow } from '../../types/clinic';
 // Tipo Field: define la forma o las opciones válidas de los datos usados por este módulo.
 type Field={key:string;label:string;type:'text'|'number'|'bool'|'select'|'date';catalog?:string;optional?:boolean;permission?:string};
 // Metadatos del formulario: no son catálogos funcionales ni conceden permisos.
-// Configuración forms: reúne valores o reglas que consume el resto del módulo.
+// Esquemas de campos y permisos para cada catálogo que edita esta pantalla.
 const forms:Record<string,{title:string;permission:string;fields:Field[]}>={
  services:{title:'Servicios',permission:'services.manage',fields:[{key:'name',label:'Nombre',type:'text'},{key:'description',label:'Descripción',type:'text',optional:true},{key:'imageUrl',label:'Imagen del servicio',type:'text',optional:true},{key:'typeId',label:'Tipo profesional',type:'select',catalog:'types'},{key:'professionalId',label:'Agregar profesional al guardar',type:'select',catalog:'professionals',optional:true,permission:'professionals.manage'},{key:'specialtyId',label:'Especialidad requerida',type:'select',catalog:'specialties',optional:true},{key:'requirements',label:'Requisitos',type:'text',optional:true},{key:'durationMinutes',label:'Duración en minutos',type:'number'},{key:'priceCents',label:'Precio del servicio (ARS)',type:'number'},{key:'isActive',label:'Activo',type:'bool'}]},
  categories:{title:'Categorías',permission:'categories.manage',fields:[{key:'name',label:'Nombre',type:'text'},{key:'isActive',label:'Activa',type:'bool'}]},
@@ -55,19 +55,20 @@ const forms:Record<string,{title:string;permission:string;fields:Field[]}>={
  products:{title:'Productos',permission:'products.update',fields:[{key:'name',label:'Nombre',type:'text'},{key:'description',label:'Descripción y características',type:'text',optional:true},{key:'categoryId',label:'Categoría',type:'select',catalog:'categories',optional:true},{key:'imageUrl',label:'Imagen del producto',type:'text',optional:true},{key:'productType',label:'Tipo de producto',type:'select',catalog:'product-types'},{key:'priceCents',label:'Precio de venta (ARS)',type:'number',permission:'products.update_price'},{key:'stock',label:'Stock físico',type:'number',permission:'products.update_stock'},{key:'speciesId',label:'Especie aplicable',type:'select',catalog:'species',optional:true},{key:'requiresPrescription',label:'Requiere receta vigente',type:'bool'},{key:'isFeatured',label:'Destacado',type:'bool'},{key:'isActive',label:'Activo',type:'bool'}]},
 };
 // El backend valida todos los campos y vuelve a comprobar los permisos efectivos.
-// Función CatalogScreen: concentra la lógica dentro de este módulo.
+// Selecciona el catálogo por ruta y coordina búsqueda, edición, validación y acciones.
 export function CatalogScreen(){const {kind}=useLocalSearchParams<{kind:string}>();const form=forms[kind];const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);const {hasPermission}=useAuth();const api=useClinic();const admin=useAdmin();const action=useAsyncAction();const [search,setSearch]=useState(''),[page,setPage]=useState(1),[statusFilter,setStatusFilter]=useState<'all'|'active'|'inactive'>('all');const [editing,setEditing]=useState<ClinicRow|null>(null);const [details,setDetails]=useState<ClinicRow|null>(null);const [deleteTarget,setDeleteTarget]=useState<ClinicRow|null>(null),[statusTarget,setStatusTarget]=useState<ClinicRow|null>(null);const [scheduleService,setScheduleService]=useState(''),[scheduleName,setScheduleName]=useState('');const [values,setValues]=useState<Record<string,string|boolean>>({});const [fieldErrors,setFieldErrors]=useState<Record<string,string>>({});const [error,setError]=useState<string|null>(null);const [removePhoto,setRemovePhoto]=useState(false);const [initialValues,setInitialValues]=useState('{}');const [promotionSearch,setPromotionSearch]=useState('');const [promotionPage,setPromotionPage]=useState(1);const [promotionOptions,setPromotionOptions]=useState<{id:string;name:string}[]>([]);const [promotionMoreLoading,setPromotionMoreLoading]=useState(false);const [promotionHasMore,setPromotionHasMore]=useState<boolean|null>(null);const {confirmation:unsavedChangesPrompt,confirmBeforeExit}=useUnsavedChangesGuard(Boolean(editing)&&(JSON.stringify(values)!==initialValues||removePhoto));const {showToast}=useFeedback();const debouncedSearch=useDebouncedValue(search.trim());const debouncedPromotionSearch=useDebouncedValue(promotionSearch.trim());const query=useClientQuery(useCallback(()=>form&&hasPermission(form.permission)?api.adminList(kind,{search:debouncedSearch,page:String(page),status:statusFilter}):Promise.resolve(null),[api,kind,form,hasPermission,debouncedSearch,page,statusFilter]));const catalog=useClientQuery(api.catalog);const promotionProducts=useClientQuery(useCallback(()=>kind==='promotions'?api.promotionProducts(debouncedPromotionSearch,1):Promise.resolve(null),[api,kind,debouncedPromotionSearch]));const roles=useClientQuery(useCallback(()=>kind==='types'?admin.catalog():Promise.resolve(null),[kind,admin]));
+// Carga una página de productos candidatos y evita agregar opciones duplicadas.
 async function loadMorePromotionProducts(){if(promotionMoreLoading)return;const next=promotionPage+1;setPromotionMoreLoading(true);try{const result=await api.promotionProducts(debouncedPromotionSearch,next);setPromotionOptions(current=>[...current,...result.items.filter(item=>!current.some(existing=>existing.id===item.id))]);setPromotionPage(next);setPromotionHasMore(result.hasMore);}catch(failure){setFieldErrors(current=>({...current,productId:friendlyError(failure)}));}finally{setPromotionMoreLoading(false);}}
  if(!form||!hasPermission(form.permission))return <PetCareScreen><PetCareHeader title="Acceso restringido" back hideForAdmin/><FormNotice error message="No tenés permiso para este módulo."/></PetCareScreen>;
  // Los valores iniciales conservan los datos reales y aplican enums conocidos al crear.
- // Función begin: concentra la lógica dentro de este módulo.
+ // Inicializa el editor desde un registro existente o desde valores de alta.
 function begin(row?:ClinicRow){setEditing(row??{id:''});const initial=Object.fromEntries(form.fields.map(f=>[f.key,f.type==='bool'?(row?Boolean(row[f.key]):f.key==='isActive'):f.key==='priceCents'&&row?.[f.key]!==null&&row?.[f.key]!==undefined?(Number(row[f.key])/100).toFixed(2):f.type==='date'&&row?.[f.key]?clinicDateTime(String(row[f.key])).replace(',',''):String(row?.[f.key]??(f.key==='productType'?'MEDICINE':''))]));setInitialValues(JSON.stringify(initial));setValues(initial as Record<string,string|boolean>);setFieldErrors({});setError(null);setRemovePhoto(false);}
- // Función changeField: actualiza o guarda información dentro de este módulo.
+ // Actualiza un campo y limpia sus errores para mantener el formulario sincronizado.
 function changeField(key:string,value:string|boolean){setValues(current=>({...current,[key]:value}));setFieldErrors(current=>{const next={...current};delete next[key];return next;});setError(null);}
  // Los selectores usan enums fijos validados tambien en backend; no contienen productos de muestra.
- // Función options: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Resuelve opciones de enums, catálogos y profesionales compatibles con la selección.
 const options=(name?:string):{id:string;name:string}[]=>name==='product-types'?[{id:'MEDICINE',name:'Medicamento'},{id:'ACCESSORY',name:'Accesorio'}]:name==='roles'?(roles.data?.roles.filter(r=>['VETERINARIAN','GROOMER'].includes(r.code)).map(r=>({id:r.id,name:r.name}))??[]):name==='professionals'?(catalog.data?.professionals.filter(person=>person.typeId===values.typeId&&Boolean(person.isActive)&&(!values.specialtyId||String(person.specialtyIds??'').split(',').includes(String(values.specialtyId)))).map(person=>({id:person.id,name:String(person.name)}))??[]):name==='specialties'?(Boolean(catalog.data?.types.find(type=>type.id===values.typeId)?.isClinical)?(catalog.data?.specialties??[]).map(row=>({id:row.id,name:String(row.name)})):[]):((catalog.data as unknown as Record<string,ClinicRow[]>|null)?.[name??'']??[]).map(r=>({id:r.id,name:String(r.name)}));
- // Función renderAdminField: concentra la lógica dentro de este módulo.
+ // Renderiza cada campo según su tipo, catálogo, permisos y reglas del formulario.
 function renderAdminField(f:Field){
   if(f.permission&&!hasPermission(f.permission))return null;
   if((kind==='products'||kind==='services')&&f.key==='imageUrl')return <PetCareCard key={f.key}><ImageUploadField label={`Imagen del ${kind==='services'?'servicio':'producto'}`} kind={kind==='services'?'service':'product'} aspect={[1,1]} value={removePhoto?null:String(values.imageUrl??'')||null} disabled={action.loading} error={fieldErrors.imageUrl} onChange={value=>{changeField('imageUrl',value??'');setRemovePhoto(!value);}}/><AppInput label="URL externa alternativa (opcional)" value={String(values.imageUrl??'')} error={fieldErrors.imageUrl} keyboardType="url" editable={!action.loading} onChangeText={value=>{changeField('imageUrl',value);setRemovePhoto(false);}}/></PetCareCard>;
@@ -77,16 +78,16 @@ function renderAdminField(f:Field){
   if(f.type==='bool')return <View key={f.key}><SelectionRow label={f.optional?f.label:`${f.label} *`} checked={Boolean(values[f.key])} disabled={kind==='types'&&Boolean(editing?.id)&&f.key==='isClinical'} onPress={()=>changeField(f.key,!values[f.key])}/><FormNotice error message={fieldErrors[f.key]}/></View>;
   if(f.type==='select'){
    const fieldOptions=options(f.catalog);
-   // Función select: agrupa una operación que este módulo puede ejecutar o reutilizar.
+   // Al cambiar tipo o especialidad, invalida asignaciones profesionales incompatibles.
 const select=(id:string)=>{changeField(f.key,id);if(kind==='services'&&f.key==='typeId'&&values.typeId!==id){changeField('specialtyId','');changeField('professionalId','');}if(kind==='services'&&f.key==='specialtyId'&&values.specialtyId!==id)changeField('professionalId','');};
    if(kind==='services')return <View key={f.key} style={{gap:8}}><AppSelectField label={f.label} required={!f.optional} optional={Boolean(f.optional)} value={String(values[f.key]??'')} options={fieldOptions} error={fieldErrors[f.key]} disabled={action.loading} onChange={select} hint={f.key==='specialtyId'&&!Boolean(catalog.data?.types.find(type=>type.id===values.typeId)?.isClinical)?'Este tipo de atención no requiere especialidades veterinarias.':f.key==='professionalId'?'Agregar un profesional conserva las demás asignaciones.':''}/>{f.key==='professionalId'&&fieldOptions.length>0&&hasPermission('professionals.manage')&&<AppButton compact variant="secondary" label="Administrar profesionales" onPress={()=>router.push('/admin/professionals')} />}{f.key==='professionalId'&&!fieldOptions.length&&<AppText variant="caption" muted>No hay profesionales activos compatibles con el tipo y la especialidad seleccionados.</AppText>}</View>;
    return <AppSelectField key={f.key} label={f.label} required={!f.optional} optional={Boolean(f.optional)} value={String(values[f.key]??'')} options={fieldOptions} error={fieldErrors[f.key]} disabled={action.loading||(kind==='types'&&Boolean(editing?.id))} onChange={select}/>;
   }
   const currency=f.key==='priceCents';return <AppInput key={f.key} label={f.label} required={!f.optional} error={fieldErrors[f.key]} maxLength={kind==='services'&&f.key==='name'?20:undefined} prefix={currency?'$':undefined} placeholder={currency?'0,00':undefined} value={String(values[f.key]??'')} keyboardType={currency?'decimal-pad':f.type==='number'?'number-pad':'default'} multiline={['description','requirements'].includes(f.key)} onChangeText={v=>changeField(f.key,currency?v.replace(',','.'):v)}/>;
  }
- // Función payload: concentra la lógica dentro de este módulo.
+ // Construye el cuerpo de API, omite campos sin permiso y convierte números y fechas.
 function payload(){const result:Record<string,unknown>={};for(const field of form.fields){if(field.permission&&!hasPermission(field.permission))continue;if(kind==='services'&&field.key==='professionalId')continue;if(kind==='types'&&editing?.id&&['roleId','isClinical'].includes(field.key))continue;const value=values[field.key];if(kind==='services'&&field.key==='name'){const serviceName=String(value??'').trim();if(!serviceName||serviceName.length>20||/\d/.test(serviceName))throw new Error('Ingresá un nombre de hasta 20 caracteres y sin números.');result[field.key]=serviceName;continue;}if(kind==='products'&&field.key==='imageUrl'&&editing?.id&&value===editing.imageUrl&&!removePhoto)continue;if(kind==='products'&&field.key==='productType'&&editing?.id&&value==='')continue;if(field.type==='number'){if(value===''&&field.optional){result[field.key]=null;continue;}const valid=field.key==='priceCents'?/^\d+(?:\.\d{1,2})?$/.test(String(value))&&Number(value)<=1000000:/^\d+$/.test(String(value));if(!valid)throw new Error(`Revisá ${field.label.toLowerCase()}.`);result[field.key]=field.key==='priceCents'?Math.round(Number(value)*100):Number(value);}else if(field.type==='date'){const date=clinicInstant(String(value));if(!date)throw new Error(`Revisá ${field.label.toLowerCase()}.`);result[field.key]=date;}else if(field.type==='bool')result[field.key]=Boolean(value);else {if(!String(value??'').trim()&&!field.optional){if(kind==='products'&&field.key==='imageUrl'&&editing?.id)result[field.key]=null;else throw new Error(`Completá ${field.label.toLowerCase()}.`);}else result[field.key]=String(value??'').trim()||null;}}if(removePhoto)result.imageUrl=null;return result;}
- // Función validateAdminForm: comprueba una regla o condición dentro de este módulo.
+ // Valida coherencia específica de productos, servicios, categorías y promociones.
 function validateAdminForm(){
   if(kind!=='products'&&kind!=='categories'&&kind!=='promotions'&&kind!=='services')return false;
   const next:Record<string,string>={},name=String(values.name??'').trim(),maxName=kind==='products'?200:kind==='services'?20:100;
@@ -116,7 +117,7 @@ function validateAdminForm(){
   }
   setFieldErrors(next);return Object.keys(next).length>0;
  }
- // Función chooseProductPhoto: concentra la lógica dentro de este módulo.
+ // Persiste el registro y, para servicios, conserva las demás asignaciones profesionales.
 async function save(){setError(null);if(validateAdminForm())return;try{const body=payload();const saved=await action.run(async()=>{const result=await api.adminSave(kind,editing?.id||undefined,body) as {id?:string};if(kind==='services'&&hasPermission('professionals.manage')){const serviceId=editing?.id||result.id,professionalId=String(values.professionalId??'');if(professionalId){if(!serviceId)throw new Error('No se pudo identificar el servicio guardado.');const serviceIds=catalog.data?.assignments.filter(link=>link.professionalId===professionalId).map(link=>String(link.serviceId))??[];if(!serviceIds.includes(serviceId))await api.assignServices(professionalId,[...serviceIds,serviceId]);}}});if(saved){setEditing(null);showToast(kind==='services'?'Servicio guardado':'Cambios guardados','success');query.reload();catalog.reload();}}catch(failure){if(failure instanceof ApiError&&failure.fieldErrors.length){const next=Object.fromEntries(failure.fieldErrors.map(item=>[item.field,item.message]));const known=Object.fromEntries(Object.entries(next).filter(([key])=>form.fields.some(field=>field.key===key)));setFieldErrors(current=>({...current,...known}));setError(Object.keys(known).length?null:failure.message);}else setError((failure as Error).message);}}
  return <PetCareScreen wide>
   <PetCareHeader title={form.title} subtitle="Cambios compartidos con toda la clínica" back hideForAdmin/>
@@ -190,10 +191,10 @@ async function save(){setError(null);if(validateAdminForm())return;try{const bod
  </PetCareScreen>;
 }
 
-// Función CatalogDesktopTable: concentra la lógica dentro de este módulo.
+// Presenta catálogo en tabla web y delega las operaciones mediante callbacks.
 function CatalogDesktopTable({rows,kind,summary,onView,onEdit,onStatus,onSchedule,canSchedule}:{rows:ClinicRow[];kind:string;summary:(row:ClinicRow)=>string;onView:(row:ClinicRow)=>void;onEdit:(row?:ClinicRow)=>void;onStatus:(row:ClinicRow)=>void;onSchedule:(row:ClinicRow)=>void;canSchedule:boolean}){
  const {colors}=useTheme();
- // Función actions: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Muestra las acciones disponibles según fila y permisos recibidos.
 const actions=(row:ClinicRow)=><View style={tableStyles.actions}>
   <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${String(row.name)}`} onPress={()=>onView(row)} style={[tableStyles.action,{backgroundColor:colors.accent}]}><Ionicons name="eye-outline" size={18} color={colors.primary}/></Pressable>
   <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${String(row.name)}`} onPress={()=>onEdit(row)} style={[tableStyles.action,{backgroundColor:colors.accent}]}><Ionicons name="create-outline" size={18} color={colors.primary}/></Pressable>
@@ -216,10 +217,10 @@ const actions=(row:ClinicRow)=><View style={tableStyles.actions}>
  </View>;
 }
 
-// Dato tableStyles: conserva un valor calculado o de configuración usado por este módulo.
+// Estilos de filas, encabezados, indicadores y botones de la tabla web.
 const tableStyles=StyleSheet.create({table:{width:'100%',borderWidth:1,borderRadius:14,overflow:'hidden'},header:{minHeight:42,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:1},row:{minHeight:62,paddingHorizontal:12,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:StyleSheet.hairlineWidth},name:{flex:1.1,minWidth:110,fontWeight:'600'},summary:{flex:1.8,minWidth:150},state:{flex:0.65,minWidth:76},badge:{alignSelf:'flex-start',paddingHorizontal:9,paddingVertical:4,borderRadius:12},actionsHeader:{flex:1.15,minWidth:102},actions:{flexDirection:'row',justifyContent:'flex-end',gap:4,flexWrap:'wrap'},action:{width:34,height:34,borderRadius:10,alignItems:'center',justifyContent:'center'}});
 
-// Función ServiceScheduleModal: concentra la lógica dentro de este módulo.
+// Administra publicación y bloqueo de turnos para un servicio y profesional.
 export function ServiceScheduleModal({serviceId,serviceName,durationMinutes,initialProfessionalId,onClose}:{serviceId:string;serviceName:string;durationMinutes:number;initialProfessionalId?:string;onClose:()=>void}){
  const api=useClinic(),catalog=useClientQuery(api.catalog),{hasPermission}=useAuth(),action=useAsyncAction(),{showToast}=useFeedback(),{colors}=useTheme();
  const [professional,setProfessional]=useState(initialProfessionalId??''),[days,setDays]=useState<string[]>([]),[fromDate,setFromDate]=useState(''),[toDate,setToDate]=useState(''),[fromTime,setFromTime]=useState(''),[toTime,setToTime]=useState(''),[error,setError]=useState<string|null>(null),[disableId,setDisableId]=useState(''),[restoreId,setRestoreId]=useState(''),[archiveId,setArchiveId]=useState(''),[selectedScheduleDay,setSelectedScheduleDay]=useState(''),[blockFrom,setBlockFrom]=useState(''),[blockTo,setBlockTo]=useState(''),[blockReason,setBlockReason]=useState(''),[blockError,setBlockError]=useState<string|null>(null),[section,setSection]=useState<'publish'|'published'|'blocks'>('publish');
@@ -229,28 +230,28 @@ export function ServiceScheduleModal({serviceId,serviceName,durationMinutes,init
  const assignedProfessionals=(catalog.data?.professionals??[]).filter(person=>Boolean(person.isActive)&&catalog.data?.assignments.some(link=>link.professionalId===person.id&&link.serviceId===serviceId));
  const professionals=assignedProfessionals.filter(person=>!requiredSpecialtyId||String(person.specialtyIds??'').split(',').includes(String(requiredSpecialtyId)));
  const week=[['1','Lunes'],['2','Martes'],['3','Miércoles'],['4','Jueves'],['5','Viernes'],['6','Sábado'],['0','Domingo']];
- // Función validDate: concentra la lógica dentro de este módulo.
+ // Comprueba que una fecha del selector exista realmente en el calendario.
 function validDate(value:string){if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const parsed=new Date(`${value}T12:00:00Z`);return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===value;}
- // Función selectedDates: concentra la lógica dentro de este módulo.
+ // Expande rango y días elegidos en las fechas concretas que recibirán turnos.
 function selectedDates(){const dates:string[]=[];if(!validDate(fromDate)||!validDate(toDate)||fromDate>toDate)return dates;const cursor=new Date(`${fromDate}T12:00:00Z`),last=new Date(`${toDate}T12:00:00Z`);while(cursor<=last){const date=cursor.toISOString().slice(0,10);if(days.includes(String(cursor.getUTCDay())))dates.push(date);cursor.setUTCDate(cursor.getUTCDate()+1);}return dates;}
  const occurrences=selectedDates();
  const startMinutes=Number(fromTime.slice(0,2))*60+Number(fromTime.slice(3,5)),endMinutes=Number(toTime.slice(0,2))*60+Number(toTime.slice(3,5));
  const serviceDuration=Number.isInteger(durationMinutes)&&durationMinutes>=5&&durationMinutes<=480?durationMinutes:0,dailyMinutes=endMinutes-startMinutes;
  const completeBlocks=dailyMinutes>0&&dailyMinutes%serviceDuration===0?dailyMinutes/serviceDuration:0;
- // Función publish: concentra la lógica dentro de este módulo.
+ // Valida profesional, rango y bloques; publica cada día y reporta avances parciales.
 async function publish(){
   if(!hasPermission('schedule.manage')||!serviceDuration){setError('No pudimos confirmar la duración actual del servicio. Actualizá la lista y volvé a abrir horarios.');return;}
   if(!professional||!days.length||!validDate(fromDate)||!validDate(toDate)||fromDate>toDate||Date.parse(`${toDate}T12:00:00Z`)-Date.parse(`${fromDate}T12:00:00Z`)>62*86_400_000||!/^([01]\d|2[0-3]):[0-5]\d$/.test(fromTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(toTime)||fromTime>=toTime){setError('Elegí el profesional, los días, un período de hasta 63 días y horas válidas.');return;}
   if(!professionals.some(person=>person.id===professional)){setError(requiredSpecialtyId?'El profesional seleccionado ya no tiene activa la especialidad requerida por este servicio. Actualizá la asignación antes de publicar.':'El profesional seleccionado ya no tiene asignado este servicio. Actualizá la asignación antes de publicar.');return;}
   if(!occurrences.length){setError('No hay días seleccionados dentro del período.');return;}
   if(!completeBlocks||completeBlocks>100){setError(`El horario debe completar bloques de ${serviceDuration} minutos (hasta 100 turnos por día).`);return;}
-  // Función startAt, endAt: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Convierte las horas elegidas a instantes con el huso horario local de Argentina.
 const startAt=(date:string)=>new Date(`${date}T${fromTime}:00-03:00`),endAt=(date:string)=>new Date(`${date}T${toTime}:00-03:00`);
   if(occurrences.some(date=>startAt(date).getTime()<=Date.now())){setError('El período incluye horarios pasados. Elegí fechas futuras.');return;}
   setError(null);let savedDays=0;const saved=await action.run(async()=>{for(const date of occurrences){await api.saveAvailability({professionalId:professional,serviceId,startsAt:startAt(date).toISOString(),endsAt:endAt(date).toISOString(),block:false,reason:''});savedDays++;}});
   if(saved){showToast(`${occurrences.length*completeBlocks} turnos publicados`,'success');schedule.reload();setDays([]);setSection('published');}else if(savedDays>0){setError(`Se publicaron turnos para ${savedDays} de ${occurrences.length} días antes de un error. Revisá la lista antes de volver a publicar.`);schedule.reload();setSection('published');}
  }
- // Función saveBlock: actualiza o guarda información dentro de este módulo.
+ // Guarda un bloqueo manual de agenda con intervalo y motivo requeridos.
 async function saveBlock(){
   const start=clinicInstant(blockFrom),end=clinicInstant(blockTo);
   if(!professional||!start||!end||end<=start||blockReason.trim().length<3){setBlockError('Elegí un inicio y un fin, y escribí un motivo de al menos 3 caracteres.');return;}
@@ -319,13 +320,13 @@ async function saveBlock(){
   </AppModal><ConfirmModal visible={Boolean(disableId)} title={disablingBlock?'Finalizar bloqueo':disablingDay?'Desactivar todos los turnos del día':'Desactivar turno'} message={disablingBlock?'El bloqueo dejará de impedir la creación de nuevos turnos.':disablingDay?`Se dejarán de ofrecer ${selectedDaySlots.length} turnos de ${serviceName} para el ${clinicDate(disableTarget[1]??'')}. Las reservas existentes no se cancelan.`:'Este turno dejará de ofrecerse. Si tiene una reserva, primero habrá que reprogramarla o cancelarla.'} destructive confirmLabel={disablingBlock?'Finalizar bloqueo':disablingDay?'Desactivar todos':'Desactivar turno'} onCancel={()=>setDisableId('')} onConfirm={async()=>{const [kind,id]=disableId.split(':');if(kind==='day'){for(const slot of selectedDaySlots)await api.disableAvailability('slot',String(slot.id));}else await api.disableAvailability(kind,id);setDisableId('');showToast(kind==='block'?'Bloqueo finalizado':kind==='day'?'Turnos del día desactivados':'Turno desactivado','success');schedule.reload();}} /><ConfirmModal visible={Boolean(restoreId)} title={restoreId.startsWith('block:')?'Reactivar bloqueo':'Reactivar horario'} message={restoreId.startsWith('block:')?'El bloqueo volverá a impedir nuevas reservas en ese período. Se verificará que no haya turnos vigentes.':'El horario volverá a ofrecerse para reservas. Se verificará que el profesional y el servicio estén disponibles y que no haya conflictos.'} confirmLabel="Reactivar" onCancel={()=>setRestoreId('')} onConfirm={async()=>{const [kind,id]=restoreId.split(':');const restored=await action.run(()=>api.setAvailabilityActive(kind,id,true));if(restored){setRestoreId('');showToast(kind==='block'?'Bloqueo reactivado':'Horario reactivado','success');schedule.reload();}}} /><ConfirmModal visible={Boolean(archiveId)} title="Quitar horario desactivado" message="¿Querés quitar este horario de la lista? Se conservarán el horario y su historial asociado." confirmLabel="Quitar horario" destructive onCancel={()=>setArchiveId('')} onConfirm={async()=>{const archived=await action.run(()=>api.archiveAvailability(archiveId));if(archived){setArchiveId('');showToast('Horario quitado de la lista','success');schedule.reload();}}} /><FormNotice error message={restoreId||archiveId?action.error:null}/></>;
 }
 
-// Función isFutureAvailability: comprueba una regla o condición dentro de este módulo.
+// Determina si una disponibilidad todavía puede modificarse porque ocurre en el futuro.
 function isFutureAvailability(value:unknown){if(typeof value!=='string')return false;const parsed=new Date(value.includes('T')?value:`${value.replace(' ','T')}Z`);return !Number.isNaN(parsed.getTime())&&parsed.getTime()>Date.now();}
 
-// Función clinicDayKey: concentra la lógica dentro de este módulo.
+// Convierte una fecha de presentación local al formato de clave YYYY-MM-DD.
 function clinicDayKey(value:string){const date=clinicDate(value).split('/');return date.length===3?`${date[2]}-${date[1]}-${date[0]}`:'';}
 
-// Función PublishedScheduleCalendar: concentra la lógica dentro de este módulo.
+// Dibuja el calendario mensual con cantidad de turnos publicados por día.
 function PublishedScheduleCalendar({slots,selectedDate,onSelect}:{slots:ClinicRow[];selectedDate:string;onSelect:(date:string)=>void}){
  const {colors}=useTheme();
  const [month,setMonth]=useState(()=>clinicToday().slice(0,7));
@@ -337,7 +338,7 @@ function PublishedScheduleCalendar({slots,selectedDate,onSelect}:{slots:ClinicRo
  const dayCounts=new Map<string,number>();
  for(const slot of slots){const key=clinicDayKey(String(slot.startsAt));dayCounts.set(key,(dayCounts.get(key)??0)+1);}
  const monthLabel=new Intl.DateTimeFormat('es-AR',{month:'long',year:'numeric',timeZone:'UTC'}).format(firstDay);
- // Función shiftMonth: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Cambia el mes visible manteniendo el día seleccionado por el usuario.
 const shiftMonth=(amount:number)=>{const shifted=new Date(Date.UTC(year,monthNumber-1+amount,1));setMonth(`${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth()+1).padStart(2,'0')}`);};
  const dayNames=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
  return <PetCareCard>

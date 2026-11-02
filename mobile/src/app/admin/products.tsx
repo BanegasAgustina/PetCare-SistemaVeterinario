@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: products.tsx
  * UBICACIÓN: mobile/src/app/admin/products.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de products.
+ * FUNCIÓN: Gestión administrativa del catálogo y stock de productos.
+ * RESPONSABILIDAD: Filtra productos, abre editor, valida valores/precio/stock e imagen y envía cambios según permisos.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/admin/AdminPageHeading.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/AppSelectField.tsx, mobile/src/components/forms/ImageUploadField.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/ConfirmModal.tsx y 13 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useAdmin/useClientQuery → endpoints admin products; backend valida campos, stock y registra movimientos.
+ * IMPORTANCIA: Permite mantener el catálogo de tienda y deja la fuente de precio/stock en servidor.
  */
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -41,10 +41,10 @@ type Page = { items: Product[]; page: number; total: number; hasMore: boolean };
 type StockHistory={product:{id:string;name:string;stock:number;stockMinimum:number;reservedStock:number};items:{id:string;quantityBefore:number;quantityAfter:number;quantityDelta:number;reason:string;createdAt:string;actorName:string}[]};
 // Tipo ProductCategories: define la forma o las opciones válidas de los datos usados por este módulo.
 type ProductCategories={categories:{id:string;name:string}[]};
-// Configuración emptyValues: reúne valores o reglas que consume el resto del módulo.
+/** Valores iniciales del formulario para alta de producto. */
 const emptyValues = { name: '', description: '', imageUrl: '', categoryId: '', productType: 'MEDICINE', requiresPrescription: false, price: '', stock: '', stockMinimum:'0',stockReason:'',isActive: true };
 
-// Función AdminProducts: concentra la lógica dentro de este módulo.
+/** Carga catálogo filtrable, presenta productos y coordina edición/estado/stock. */
 export default function AdminProducts() {
   const routeParams=useLocalSearchParams<{stock?:string|string[]}>();const requestedStock=Array.isArray(routeParams.stock)?routeParams.stock[0]??'all':routeParams.stock??'all';
   const auth = useAuth();

@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: general-information.tsx
  * UBICACIÓN: mobile/src/app/admin/general-information.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de general-information.
+ * FUNCIÓN: Formulario administrativo de información pública y horarios de PetCare.
+ * RESPONSABILIDAD: Carga configuración institucional, edita identidad/contacto/horarios, conserva borrador y lo envía con feedback.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/ImageUploadField.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/SelectionRow.tsx y 8 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useAdmin → endpoint de información general → general-information.repository valida y persiste; datos se muestran en pantalla pública.
+ * IMPORTANCIA: Centraliza los datos visibles del inicio y la información de contacto de la clínica.
  */
 import { useState } from "react";
 import { View } from "react-native";
@@ -53,12 +53,12 @@ const dayNames: Record<Weekday, string> = {
   saturday: "Sábado",
   sunday: "Domingo",
 };
-// Función emptyHours: concentra una operación reutilizable de este módulo.
+/** Crea horario inicial cerrado para todos los días de la semana. */
 const emptyHours = (): OpeningHours =>
   Object.fromEntries(
     weekdays.map((day) => [day, { open: false, periods: [] }]),
   ) as unknown as OpeningHours;
-// Configuración empty: reúne valores o reglas que consume el resto del módulo.
+/** Valores iniciales del formulario cuando todavía no hay datos configurados. */
 const empty: GeneralInformation = {
   clinicName: "PetCare",
   description: null,
@@ -78,7 +78,7 @@ const empty: GeneralInformation = {
   websiteUrl: null,
   updatedAt: null,
 };
-// Función nullableFields: concentra una operación reutilizable de este módulo.
+/** Convierte cadenas vacías a null para enviar campos opcionales sin ruido de formato. */
 const nullableFields = (information: GeneralInformation) => ({
   ...information,
   description: information.description || null,
@@ -97,7 +97,7 @@ const nullableFields = (information: GeneralInformation) => ({
   websiteUrl: information.websiteUrl || null,
 });
 
-// Función GeneralInformationScreen: concentra la lógica dentro de este módulo.
+/** Carga la configuración, conserva cambios sin guardar y coordina el formulario institucional. */
 export default function GeneralInformationScreen() {
   const api = useAdmin();
   const action = useAsyncAction();

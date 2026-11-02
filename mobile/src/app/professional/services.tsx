@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: services.tsx
  * UBICACIÓN: mobile/src/app/professional/services.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de services.
+ * FUNCIÓN: Vista de servicios asignados al profesional autenticado.
+ * RESPONSABILIDAD: Lista únicamente servicios vinculados a la identidad profesional de la sesión.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useClientQuery.ts Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Carga el catálogo de clínica y cruza servicios con las asignaciones del usuario.
+ * IMPORTANCIA: Permite al profesional consultar qué atenciones tiene habilitadas.
  */
 import { useCallback } from 'react';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useClinic } from '../../hooks/useClinic';
 import { useClientQuery } from '../../hooks/useClientQuery';
 
-// Función ProfessionalServices: concentra la lógica dentro de este módulo.
+// Filtra el catálogo para mostrar los servicios asignados al profesional actual.
 export default function ProfessionalServices(){
   const {user}=useAuth();const clinic=useClinic();
   const query=useClientQuery(useCallback(()=>clinic.catalog(),[clinic]));

@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: roles.tsx
  * UBICACIÓN: mobile/src/app/admin/roles.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de roles.
+ * FUNCIÓN: Gestión administrativa de roles y permisos compartidos.
+ * RESPONSABILIDAD: Carga catálogo, edita nombre/permisos, crea o elimina roles personalizados con confirmaciones.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppModal.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/components/ui/ConfirmModal.tsx, mobile/src/components/client/PetCareUI.tsx y 9 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useAdmin → endpoints de roles/permisos; `admin.repository.ts` valida delegación y protección de roles del sistema.
+ * IMPORTANCIA: Organiza capacidades por rol sin saltarse las reglas de privilegio del backend.
  */
 /**
  * Pantalla de roles para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
@@ -31,6 +31,7 @@ import { groupPermissionsByModule } from '../../utils/admin-permissions';
 import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
 import { ConfirmNameModal } from '../../components/admin/ConfirmNameModal';
 
+/** Carga roles y permisos, administra cambios y presenta confirmación para mutaciones sensibles. */
 export default function RolesScreen() {
   const api=useAdmin();const auth=useAuth();const query=useClientQuery(api.catalog);const {showToast}=useFeedback();
   const [role,setRole]=useState<AdminRole|null>(null);const [creating,setCreating]=useState(false);const [name,setName]=useState('');const [codes,setCodes]=useState<string[]>([]);const [error,setError]=useState<string>();const [confirm,setConfirm]=useState(false);const [deleteConfirm,setDeleteConfirm]=useState(false);

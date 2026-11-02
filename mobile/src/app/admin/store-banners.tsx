@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: store-banners.tsx
  * UBICACIÓN: mobile/src/app/admin/store-banners.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de store-banners.
+ * FUNCIÓN: Gestión de banners promocionales de la tienda.
+ * RESPONSABILIDAD: Lista, crea, edita, duplica, activa, reordena y elimina banners; valida destino, fechas, colores e imágenes.
  * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/types/client.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppModal.tsx y 9 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: AuthContext/useClientQuery → endpoints de store banners y opciones de destino; backend guarda assets y permisos.
+ * IMPORTANCIA: Mantiene orden y contenido de banners presentados en la tienda pública.
  */
 import { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -33,35 +33,35 @@ type Choice={id:string;name:string};
 type BannerData={items:StoreBanner[];products:Choice[];categories:Choice[];promotions:Choice[]};
 // Tipo Draft: define la forma o las opciones válidas de los datos usados por este módulo.
 type Draft=Omit<StoreBanner,'id'|'title'|'targetProductId'|'sortOrder'|'startsAt'|'endsAt'|'isActive'>&{id?:string;title:string;sortOrder:number;isActive:boolean;startsAt:string;endsAt:string};
-// Configuración blank: reúne valores o reglas que consume el resto del módulo.
+// Borrador inicial del banner; conserva valores válidos para abrir el formulario de alta.
 const blank:Draft={title:'',subtitle:'',description:'',mobileImageUrl:'',desktopImageUrl:null,backgroundColor:'#176B52',textColor:'#FFFFFF',contentAlignment:'LEFT',darkOverlay:false,destinationType:'INFO',destinationId:null,ctaText:'Comprar ahora',sortOrder:0,isActive:false,startsAt:'',endsAt:''};
-// Configuración kinds: reúne valores o reglas que consume el resto del módulo.
+// Tipos de destino disponibles para vincular un banner con contenido de la tienda.
 const kinds:[Draft['destinationType'],string][]=[['INFO','Informativo'],['PRODUCT','Producto'],['CATEGORY','Categoría'],['PROMOTION','Promoción'],['PRODUCT_LIST','Listado de productos']];
 
-// Función StoreBannersScreen: concentra la lógica dentro de este módulo.
+/** Carga banners y opciones de destino y coordina editor, vista previa, estado y orden. */
 export default function StoreBannersScreen(){
  const auth=useAuth();const {request}=auth;const {colors}=useTheme();const {showToast}=useFeedback();const load=useCallback(()=>request<BannerData>('/clinic/store-banners/query',{method:'POST',body:{}}),[request]);const query=useClientQuery(load);
  const [draft,setDraft]=useState<Draft|null>(null);const [draftBaseline,setDraftBaseline]=useState('');const [formError,setFormError]=useState<string|null>(null);const [saving,setSaving]=useState(false);const [deleting,setDeleting]=useState<StoreBanner|null>(null);const [preview,setPreview]=useState<StoreBanner|null>(null);const [previewSize,setPreviewSize]=useState<'MOBILE'|'TABLET'|'DESKTOP'>('MOBILE');const [destinationSearch,setDestinationSearch]=useState('');const [destinationPage,setDestinationPage]=useState(1);const [destinationOptions,setDestinationOptions]=useState<Choice[]>([]);const [destinationMoreLoading,setDestinationMoreLoading]=useState(false);const [destinationHasMore,setDestinationHasMore]=useState<boolean|null>(null);const {confirmation:unsavedChangesPrompt,confirmBeforeExit}=useUnsavedChangesGuard(Boolean(draft)&&JSON.stringify(draft)!==draftBaseline);const debouncedDestinationSearch=useDebouncedValue(destinationSearch.trim());const destinationType=draft?.destinationType==='PRODUCT_LIST'?'CATEGORY':draft?.destinationType;const destinationQuery=useClientQuery(useCallback(()=>destinationType&&['PRODUCT','CATEGORY','PROMOTION'].includes(destinationType)?request<{items:Choice[];hasMore:boolean;page:number}>('/clinic/store-banners/destinations/query',{method:'POST',body:{destinationType,search:debouncedDestinationSearch,page:1}}):Promise.resolve(null),[request,destinationType,debouncedDestinationSearch]));
- // Función openNew: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Inicializa el formulario de alta y asigna el próximo lugar del orden visual.
 const openNew=()=>{const next={...blank,sortOrder:query.data?.items.length??0};setDraft(next);setDraftBaseline(JSON.stringify(next));setFormError(null);setDestinationSearch('');setDestinationOptions([]);setDestinationPage(1);setDestinationHasMore(null);};
- // Función openEdit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Copia el banner seleccionado al formulario y normaliza sus fechas para edición.
 const openEdit=(banner:StoreBanner)=>{const next={...banner,title:banner.title??'',startsAt:banner.startsAt?.slice(0,10)??'',endsAt:banner.endsAt?.slice(0,10)??''};setDraft(next);setDraftBaseline(JSON.stringify(next));setFormError(null);setDestinationSearch('');setDestinationOptions([]);setDestinationPage(1);setDestinationHasMore(null);};
   const options=[...(destinationQuery.data?.items??[]),...destinationOptions.filter(item=>!destinationQuery.data?.items.some(current=>current.id===item.id))];const bannersList=query.data?.items??[];
  async function loadMoreDestinations(){if(destinationMoreLoading||!destinationType||destinationSearch.trim()!==debouncedDestinationSearch)return;const next=destinationPage+1;setDestinationMoreLoading(true);try{const result=await request<{items:Choice[];hasMore:boolean;page:number}>('/clinic/store-banners/destinations/query',{method:'POST',body:{destinationType,search:debouncedDestinationSearch,page:next}});setDestinationOptions(current=>[...current,...result.items.filter(item=>!current.some(existing=>existing.id===item.id))]);setDestinationPage(next);setDestinationHasMore(result.hasMore);}catch{}finally{setDestinationMoreLoading(false);}}
- // Función save: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Valida contenido, destino, colores y fechas antes de crear o actualizar el banner.
 const save=async()=>{if(!draft)return;setFormError(null);if(!draft.mobileImageUrl){setFormError('Seleccioná una imagen horizontal para móvil.');return;}if(['PRODUCT','CATEGORY','PROMOTION'].includes(draft.destinationType)&&!draft.destinationId){setFormError('Seleccioná el destino del banner.');return;}if(!/^#[0-9A-Fa-f]{6}$/.test(draft.backgroundColor)||!/^#[0-9A-Fa-f]{6}$/.test(draft.textColor)){setFormError('Los colores deben tener formato #RRGGBB.');return;}if(draft.startsAt&&!/^\d{4}-\d{2}-\d{2}$/.test(draft.startsAt)||draft.endsAt&&!/^\d{4}-\d{2}-\d{2}$/.test(draft.endsAt)){setFormError('Usá el formato AAAA-MM-DD en las fechas.');return;}if(draft.startsAt&&draft.endsAt&&draft.endsAt<draft.startsAt){setFormError('La fecha de finalización debe ser posterior al inicio.');return;}
   const body={title:draft.title.trim()||null,subtitle:draft.subtitle?.trim()||null,description:draft.description?.trim()||null,mobileImageUrl:draft.mobileImageUrl,desktopImageUrl:draft.desktopImageUrl,backgroundColor:draft.backgroundColor,textColor:draft.textColor,contentAlignment:draft.contentAlignment,darkOverlay:draft.darkOverlay,destinationType:draft.destinationType,destinationId:draft.destinationId,ctaText:draft.destinationType==='INFO'?null:draft.ctaText?.trim()||null,sortOrder:draft.sortOrder,isActive:draft.isActive,startsAt:draft.startsAt?`${draft.startsAt}T00:00:00-03:00`:null,endsAt:draft.endsAt?`${draft.endsAt}T23:59:59-03:00`:null};
   setSaving(true);try{await auth.request(draft.id?`/clinic/store-banners/${encodeURIComponent(draft.id)}`:'/clinic/store-banners',{method:draft.id?'PATCH':'POST',body});setDraft(null);query.reload();showToast('Banner guardado','success');}catch(error){setFormError(error instanceof Error?error.message:'No se pudo guardar el banner.');}finally{setSaving(false);}
  };
- // Función toggle: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Cambia el estado de publicación conservando la configuración existente.
 const toggle=async(banner:StoreBanner)=>{try{await auth.request(`/clinic/store-banners/${encodeURIComponent(banner.id)}`,{method:'PATCH',body:{...banner,isActive:!banner.isActive,startsAt:banner.startsAt?new Date(banner.startsAt).toISOString():null,endsAt:banner.endsAt?new Date(banner.endsAt).toISOString():null}});query.reload();showToast(banner.isActive?'Banner desactivado':'Banner activado','success');}catch(error){showToast(error instanceof Error?error.message:'No se pudo cambiar el estado.','error');}};
- // Función duplicate: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Prepara una copia sin identificador, inactiva y con el siguiente orden disponible.
 const duplicate=(banner:StoreBanner)=>{const copy={...banner,id:undefined,title:banner.title?`${banner.title} (copia)`:'',isActive:false,sortOrder:(query.data?.items.length??0),startsAt:banner.startsAt?.slice(0,10)??'',endsAt:banner.endsAt?.slice(0,10)??''};setDraft(copy);setDraftBaseline(JSON.stringify(copy));setFormError(null);setDestinationSearch('');setDestinationOptions([]);setDestinationPage(1);setDestinationHasMore(null);};
- // Función remove: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Elimina el banner pendiente de confirmación y vuelve a cargar la lista.
 const remove=async()=>{if(!deleting)return;try{await auth.request(`/clinic/store-banners/${encodeURIComponent(deleting.id)}`,{method:'DELETE'});setDeleting(null);query.reload();showToast('Banner eliminado','success');}catch(error){showToast(error instanceof Error?error.message:'No se pudo eliminar el banner.','error');}};
- // Función move: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Intercambia posiciones adyacentes y persiste el orden completo en el servidor.
 const move=async(index:number,offset:-1|1)=>{const items=query.data?.items;if(!items)return;const target=index+offset;if(target<0||target>=items.length)return;const next=[...items];[next[index],next[target]]=[next[target],next[index]];try{await auth.request('/clinic/store-banners/order',{method:'PUT',body:{ids:next.map(item=>item.id)}});query.reload();}catch(error){showToast(error instanceof Error?error.message:'No se pudo guardar el orden.','error');}};
- // Función pickDestination: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ // Actualiza el identificador del destino seleccionado en el borrador.
 const pickDestination=(value:string)=>setDraft(current=>current?{...current,destinationId:value||null}:current);
  return <PetCareScreen wide><PetCareHeader title="Banners y slider" subtitle="Publicá imágenes y mensajes independientes de las promociones" back hideForAdmin/>
   <AppButton label="Nuevo banner" onPress={openNew}/>
@@ -100,5 +100,5 @@ const pickDestination=(value:string)=>setDraft(current=>current?{...current,dest
  </PetCareScreen>;
 }
 
-// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
+// Estilos de las tarjetas, acciones, editor y vista previa adaptable del banner.
 const styles=StyleSheet.create({bannerRow:{flexDirection:'row',gap:12,alignItems:'center'},thumbnail:{width:116,height:68,borderRadius:12},bannerInfo:{flex:1,minWidth:0,gap:3},actions:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},row:{flexDirection:'row',gap:10},flex:{flex:1,minWidth:0},formImage:{width:'100%',height:180,borderRadius:14},previewModes:{flexDirection:'row',gap:8},mode:{flex:1,minHeight:40,alignItems:'center',justifyContent:'center',borderWidth:1,borderRadius:10},preview:{height:230,borderRadius:14,overflow:'hidden',justifyContent:'center',padding:18}});

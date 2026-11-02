@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: [id].tsx
  * UBICACIÓN: mobile/src/app/admin/veterinarians/[id].tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de [id].
+ * FUNCIÓN: Alta y edición de perfiles veterinarios.
+ * RESPONSABILIDAD: Mantiene los datos de identidad y práctica, las especialidades, servicios y estado del profesional.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/ProfilePhotoInput.tsx, mobile/src/components/forms/SearchableMultiSelect.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/ui/ConfirmModal.tsx y 9 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Carga catálogos y ficha según la ruta y envía cambios a la API autenticada.
+ * IMPORTANCIA: Mantiene los datos profesionales usados para encontrar y habilitar veterinarios en la plataforma.
  */
 /** Un formulario compartido para crear y editar; catálogos y herencia provienen del backend. */
 import { useEffect, useState } from "react";
@@ -40,7 +40,7 @@ import type {
   VetValues,
 } from "../../../types/veterinarian";
 
-// Configuración empty: reúne valores o reglas que consume el resto del módulo.
+// Valores iniciales del perfil veterinario para el formulario de alta.
 const empty: VetValues = {
   firstName: "",
   lastName: "",
@@ -50,7 +50,7 @@ const empty: VetValues = {
   isActive: true,
   specialtyIds: [],
 };
-// Función VeterinarianEditor: concentra la lógica dentro de este módulo.
+// Crea o edita identidad, matrícula, especialidades, servicios y estado profesional.
 export default function VeterinarianEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const creating = id === "new";
@@ -73,7 +73,7 @@ export default function VeterinarianEditor() {
   const [removePhoto, setRemovePhoto] = useState(false);
   const canEdit = auth.hasPermission("veterinarians.manage");
   const canChangeStatus = auth.hasRole("SUPER_ADMIN");
-  // Función fill: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Carga la ficha en el formulario y conserva campos gestionados por el servidor.
   const fill = (vet: VetDetail) => {
     setDetail(vet);
     setValues({
@@ -114,13 +114,13 @@ export default function VeterinarianEditor() {
       active = false;
     };
   }, [request, id, creating, retry]);
-  // Función change: actualiza o guarda información dentro de este módulo.
+  // Cambia un campo del borrador con el tipo definido para ese dato.
   function change<K extends keyof VetValues>(key: K, value: VetValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
     setReview(false);
   }
-  // Función prepare: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Valida identidad y prepara los errores del formulario antes del envío.
   const prepare = () => {
     const identity = validateIdentityForm(values);
     const next: Partial<Record<keyof VetValues, string>> = {
@@ -136,7 +136,7 @@ export default function VeterinarianEditor() {
     setErrors(next);
     if (!Object.values(next).some(Boolean)) setReview(true);
   };
-  // Función save: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Crea o actualiza el perfil veterinario mediante el endpoint autenticado.
   const save = async () => {
     if (creating) {
       const result = await auth.request<{
@@ -457,7 +457,7 @@ export default function VeterinarianEditor() {
     </ScreenContainer>
   );
 }
-// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
+// Estilos para las secciones de identidad, datos profesionales y acciones del editor.
 const styles = StyleSheet.create({
   section: { gap: 10 },
   state: {

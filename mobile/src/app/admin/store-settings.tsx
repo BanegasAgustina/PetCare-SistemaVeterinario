@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: store-settings.tsx
  * UBICACIÓN: mobile/src/app/admin/store-settings.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de store-settings.
+ * FUNCIÓN: Configuración administrativa de fulfillment de la tienda.
+ * RESPONSABILIDAD: Edita retiro, envío, umbrales, tarifas, datos bancarios y zonas; valida errores por campo y evita doble envío.
  * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/types/client.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx y 8 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useClinic/query → API de configuración storefront; backend vuelve a validar datos, permisos y zonas.
+ * IMPORTANCIA: Provee opciones y cotización que consume checkout cliente.
  */
 import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -27,14 +27,14 @@ import { parseArsToCents, validatePostalCodePrefix, validateStoreFulfillment, ty
 import { createSubmissionGate } from '../../utils/submission-gate';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
-// Configuración blank: reúne valores o reglas que consume el resto del módulo.
+// Valores seguros para mostrar el formulario mientras todavía no hay configuración cargada.
 const blank: FulfillmentSettings = { demoModeEnabled: false, pickupEnabled: false, pickupAddress: null, pickupHours: null, pickupInstructions: null, deliveryEnabled: false, deliveryBaseFeeCents: 0, freeDeliveryThresholdCents: null, deliveryHours: null, deliveryDays: null, deliveryInformation: null, bankName: null, bankAccountHolder: null, bankCbuCvu: null, bankAlias: null, zones: [] };
-// Función formatCents: concentra una operación reutilizable de este módulo.
+/** Convierte centavos enteros a texto decimal con dos posiciones para los campos de precio. */
 const formatCents = (cents: number | null) => cents === null ? '' : (cents / 100).toFixed(2);
-// Función zoneKey: concentra una operación reutilizable de este módulo.
+/** Genera la clave que vincula el texto de tarifa pendiente con su zona de entrega. */
 const zoneKey = (index: number) => `zone-${index}`;
 
-// Función StoreSettings: concentra la lógica dentro de este módulo.
+/** Carga configuración y coordina edición de entrega/retiro, zonas y datos de transferencia. */
 export default function StoreSettings() {
   const api = useClinic();
   const auth = useAuth();
@@ -63,17 +63,17 @@ export default function StoreSettings() {
   const inputRefs = useRef<Record<string, ComponentRef<typeof TextInput> | null>>({});
   const canManage = auth.hasPermission('store.settings.manage');
 
-  // Función updateSettings: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Aplica una actualización sobre el borrador actual o sobre la configuración recién cargada.
 const updateSettings = (update: (current: FulfillmentSettings) => FulfillmentSettings) => setEdited(current => update(current ?? query.data ?? blank));
-  // Función clearError: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Quita el error de validación de un campo cuando se corrige su valor.
 const clearError = (field: string) => setFieldErrors(current => { if (!current[field]) return current; const next = { ...current }; delete next[field]; return next; });
-  // Función changeField: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Actualiza un campo y limpia su error y el mensaje general del formulario.
 const changeField = (field: string, update: (current: FulfillmentSettings) => FulfillmentSettings) => { updateSettings(update); clearError(field); setError(null); };
-  // Función updateZone: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Modifica una zona por índice sin reemplazar los datos de las demás zonas.
 const updateZone = (index: number, patch: Partial<FulfillmentSettings['zones'][number]>) => updateSettings(current => ({ ...current, zones: current.zones.map((zone, position) => position === index ? { ...zone, ...patch } : zone) }));
-  // Función feeDraft: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Devuelve el texto aún no confirmado del precio o lo deriva del importe guardado.
 const feeDraft = (key: string, stored: number | null) => feeDrafts[key] ?? formatCents(stored);
-  // Función changeFeeDraft: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Conserva el texto ingresado, valida el importe y actualiza el estado solo si es válido.
 const changeFeeDraft = (key: string, field: string, label: string, value: string, optional: boolean, onValid: (cents: number | null) => void) => {
     setFeeDrafts(current => ({ ...current, [key]: value })); setError(null);
     const parsed = parseArsToCents(value, label, optional);
@@ -85,13 +85,13 @@ const changeFeeDraft = (key: string, field: string, label: string, value: string
     });
     if (!parsed.error) onValid(parsed.cents);
   };
-  // Función firstError: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Lleva el foco al primer campo inválido para facilitar la corrección.
 const firstError = (issues: StoreFulfillmentFieldErrors) => {
     const first = Object.keys(issues)[0];
     if (first) inputRefs.current[first]?.focus();
   };
 
-  // Función addZone: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Valida los datos de una zona nueva, la agrega al borrador y limpia el formulario.
 const addZone = () => {
     const issues: StoreFulfillmentFieldErrors = {};
     if (!newZone.name.trim()) issues['newZone.name'] = 'Ingresá el nombre de la zona.';
@@ -109,7 +109,7 @@ const addZone = () => {
     setError(null);
   };
 
-  // Función save: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  // Valida y guarda tarifas, zonas, métodos de entrega y datos bancarios una sola vez.
 const save = () => saveGate.current.run(async () => {
     setDidSubmit(true);
     const baseFeeText = feeDraft('base', settings.deliveryBaseFeeCents);
@@ -194,5 +194,5 @@ const save = () => saveGate.current.run(async () => {
   </PetCareScreen>;
 }
 
-// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
+// Estilos para agrupar encabezados, campos y filas adaptables del formulario.
 const styles = StyleSheet.create({ heading: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', gap: 10 }, flex: { flex: 1, minWidth: 0 } });

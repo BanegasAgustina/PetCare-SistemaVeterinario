@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: index.tsx
  * UBICACIÓN: mobile/src/app/admin/users/index.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de index.
+ * FUNCIÓN: Listado y administración de cuentas de usuario.
+ * RESPONSABILIDAD: Busca usuarios, permite crearlos, cambiar su estado y abrir su ficha administrativa.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/AppSelectField.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/admin/AdminPersonRow.tsx, mobile/src/hooks/useAdmin.ts y 20 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Consulta el catálogo y las páginas filtradas mediante useAdmin; los formularios envían las acciones autenticadas.
+ * IMPORTANCIA: Da al personal autorizado una vista operativa de las cuentas de PetCare.
  */
 /**
  * Pantalla de usuarios para ADMIN/SUPER_ADMIN con los permisos exigidos.
@@ -54,7 +54,7 @@ import type { AdminUserDetail } from "../../../types/admin";
 import { AdminPageHeading } from "../../../components/admin/AdminPageHeading";
 import { ConfirmNameModal } from "../../../components/admin/ConfirmNameModal";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
-// Configuración empty: reúne valores o reglas que consume el resto del módulo.
+// Valores iniciales del formulario de alta de usuario antes de elegir rol y completar identidad.
 const empty = {
   firstName: "",
   lastName: "",
@@ -63,7 +63,7 @@ const empty = {
   roleId: "",
   isActive: true,
 };
-// Función UsersScreen: concentra la lógica dentro de este módulo.
+// Busca y pagina usuarios, y coordina altas, cambios de estado y acceso a sus fichas.
 export default function UsersScreen() {
   const { width } = useWindowDimensions();
   const desktopTable = Platform.OS === "web" && width >= 1024;
@@ -130,13 +130,13 @@ export default function UsersScreen() {
     selectedRole?.code ?? "",
   );
   const canCreate = auth.hasPermission("roles.manage");
-  // Función openVeterinarianCreation: concentra la lógica dentro de este módulo.
+  // Abre la creación de veterinario con el rol correspondiente ya seleccionado.
   function openVeterinarianCreation() {
     router.setParams({ create: undefined });
     setCreateOpen(false);
     router.push({ pathname: "/admin/veterinarians", params: { create: "1" } });
   }
-  // Función changeCreate: actualiza o guarda información dentro de este módulo.
+  // Actualiza un campo del borrador de alta manteniendo el tipo asociado a su clave.
   function changeCreate<K extends keyof typeof empty>(
     key: K,
     value: (typeof empty)[K],
@@ -144,14 +144,14 @@ export default function UsersScreen() {
     setCreateValues((current) => ({ ...current, [key]: value }));
     setCreateErrors((current) => ({ ...current, [key]: undefined }));
   }
-  // Función openUserDetails: concentra la lógica dentro de este módulo.
+  // Navega a la ficha del usuario seleccionado.
   function openUserDetails(id: string) {
     setSelectedUserId(id);
     setSelectedUser(null);
     setDetailError(null);
     setDetailLoading(true);
   }
-  // Función saveUserStatus: actualiza o guarda información dentro de este módulo.
+  // Aplica la activación o desactivación solicitada y actualiza el resultado paginado.
   async function saveUserStatus() {
     if (!statusUser || statusTarget === null) return;
     if (!statusTarget && auth.hasRole("SUPER_ADMIN")) {
@@ -184,7 +184,7 @@ export default function UsersScreen() {
       "success",
     );
   }
-  // Función createUser: crea un registro o inicia una operación dentro de este módulo.
+  // Valida identidad y permisos antes de crear la cuenta y mostrar el resultado.
   function createUser() {
     const identity = validateIdentityForm(createValues);
     const errors = {

@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: index.tsx
  * UBICACIÓN: mobile/src/app/admin/index.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de index.
+ * FUNCIÓN: Panel de inicio ADMIN/SUPER_ADMIN con métricas y accesos de trabajo.
+ * RESPONSABILIDAD: Consulta home, turnos pendientes/próximos y banners según permisos; adapta tarjetas y listas al tamaño de pantalla.
  * CONEXIONES: Importa: mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClinic.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/components/ui/AppText.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/hooks/useTheme.ts, mobile/src/utils/clinic-date.ts, mobile/src/components/ui/AppButton.tsx y 3 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useClinic/useClientQuery y request autenticado → endpoints administrativos/clínicos; tarjetas navegan a rutas permitidas.
+ * IMPORTANCIA: Resume operaciones sin solicitar datos que el actor no puede consultar.
  */
 // Panel compartido de ADMIN y SUPER_ADMIN; muestra datos y destinos autorizados por el backend.
 import { useCallback } from 'react';
@@ -24,8 +24,11 @@ import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { RoleQuickAccess } from '../../components/layout/RoleQuickAccess';
 import { appointmentRouteId } from '../../utils/appointment-display';
 
+/** Contrato de una métrica, su destino y texto auxiliar del panel. */
 type Metric = { label:string;value:number;icon:IconName;path:string;params?:Record<string,string>;hint:string };
+/** Respuesta mínima usada para presentar banners activos en el panel. */
 type BannersResult={items:{id:string;title:string|null;mobileImageUrl:string;isActive:boolean;endsAt?:string|null}[]};
+/** Presenta métrica y permite navegar al destino asociado. */
 function MetricCard({ label,value,icon,path,params,hint,desktop=false }:Metric&{desktop?:boolean}) {
   const {colors}=useTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={()=>router.push({pathname:path as never,params} as never)} style={({pressed})=>[styles.metric,desktop&&styles.metricDesktop,{backgroundColor:colors.surface,borderColor:colors.border,opacity:pressed?0.78:1}]}>
@@ -36,6 +39,7 @@ function MetricCard({ label,value,icon,path,params,hint,desktop=false }:Metric&{
   </Pressable>;
 }
 
+/** Resume turno y navega a su detalle cuando el ID se puede resolver. */
 function AppointmentRow({appointment,desktop,basePath}:{appointment:Record<string,unknown>;desktop:boolean;basePath:string}) {
   const {colors}=useTheme();
   const id=appointmentRouteId(appointment.id);
@@ -49,6 +53,7 @@ function AppointmentRow({appointment,desktop,basePath}:{appointment:Record<strin
   </Pressable>;
 }
 
+/** Compone indicadores, turnos y accesos, y consulta cada grupo solo si existe permiso. */
 export default function AdminHome() {
   const auth=useAuth();const {request}=auth;const clinic=useClinic();
   const {colors}=useTheme();const {width}=useWindowDimensions();const desktop=isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);

@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: permissions.tsx
  * UBICACIÓN: mobile/src/app/admin/permissions.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de permissions.
+ * FUNCIÓN: Vista de permisos disponibles y accesos de gestión administrativa.
+ * RESPONSABILIDAD: Agrupa permisos por módulo y muestra acciones de roles/excepciones según permisos actuales del actor.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/hooks/useAdmin.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/utils/admin-permissions.ts y 1 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useAdmin/useAuth → catálogo backend; groupPermissionsByModule prepara categorías de presentación.
+ * IMPORTANCIA: Ayuda a entender permisos efectivos; la autorización real sigue en middleware/backend.
  */
 /**
  * Pantalla de permisos efectivos para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
@@ -21,7 +21,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useClientQuery } from '../../hooks/useClientQuery';
 import { groupPermissionsByModule } from '../../utils/admin-permissions';
 import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
-// Función PermissionsScreen: concentra la lógica dentro de este módulo.
+/** Carga catálogo de permisos, agrupa su presentación y muestra acciones según capacidades del usuario. */
 export default function PermissionsScreen(){const api=useAdmin();const auth=useAuth();const query=useClientQuery(api.catalog);
   return <ScreenContainer wide><AdminPageHeading title="Permisos"/>
 <QueryState {...query}/>

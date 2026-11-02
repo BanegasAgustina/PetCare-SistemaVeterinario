@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: request.tsx
  * UBICACIÓN: mobile/src/app/client/appointments/request.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de request.
+ * FUNCIÓN: Asistente guiado de solicitud de turnos para una mascota propia.
+ * RESPONSABILIDAD: Consulta catálogo de clínica, mascotas activas y slots; permite elegir tipo, servicio, profesional, fecha y hora en cinco pasos.
  * CONEXIONES: Importa: mobile/src/hooks/useClient.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/hooks/useAsyncAction.ts, mobile/src/hooks/useTheme.ts, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/FormNotice.tsx y 7 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useClient/useClientQuery → appointment catalog/slots → selección local → requestAppointment(petId, slotId); la API vuelve a validar slot y propiedad.
+ * IMPORTANCIA: Reduce selecciones incompatibles y preserva borrador/errores mientras el servidor controla disponibilidad y confirmación final.
  */
 /** Asistente de solicitud de turnos. Solo presenta servicios, mascotas y slots reales del backend. */
 import { useCallback, useState } from 'react';
@@ -28,9 +28,9 @@ import { clinicDate, clinicDateFilterToApi, clinicDateTime } from '../../../util
 import { normalizePetActiveFlag } from '../../../utils/pet-status';
 import type { AppointmentCatalog, Pet, Slot } from '../../../types/client';
 
-// Configuración stepTitles: reúne valores o reglas que consume el resto del módulo.
+/** Etiquetas que conectan cada número de paso con mascota, servicio, profesional, horario y confirmación. */
 const stepTitles = ['Mascota', 'Servicio', 'Profesional', 'Fecha y horario', 'Confirmación'];
-// Tipo Submission: define la forma o las opciones válidas de los datos usados por este módulo.
+/** Respuesta mínima que conserva identificador y estado real devueltos al crear solicitud. */
 type Submission = { id: string; status: 'REQUESTED' | 'CONFIRMED' };
 
 /** Asistente de cinco pasos que combina mascota, servicio, profesional y horario disponibles antes de crear la solicitud. */
@@ -277,7 +277,7 @@ async function submitRequest() {
   </PetCareScreen>;
 }
 
-// Función MonthCalendar: concentra la lógica dentro de este módulo.
+/** Dibuja un calendario accesible y habilita únicamente las fechas para las que existen slots. */
 function MonthCalendar({dates,selectedDate,disabled,onSelect}:{dates:string[];selectedDate:string;disabled:boolean;onSelect:(date:string)=>void}){
   const {colors}=useTheme();
   const [month,setMonth]=useState(()=>new Date());
@@ -304,7 +304,7 @@ function MonthCalendar({dates,selectedDate,disabled,onSelect}:{dates:string[];se
   </PetCareCard>;
 }
 
-// Función canContinue: comprueba una regla o condición dentro de este módulo.
+/** Calcula si la selección actual satisface el requisito del paso y coincide con la opción cargada. */
 function canContinue(step: number, petId: string, pets: Pet[], serviceId: string, services: AppointmentCatalog['services'], slotId: string, slot?: Slot) {
   if (step === 1) return pets.some(pet => pet.id === petId);
   if (step === 2) return services.some(service => service.id === serviceId);
@@ -313,28 +313,28 @@ function canContinue(step: number, petId: string, pets: Pet[], serviceId: string
   return false;
 }
 
-// Función typeDescription: concentra la lógica dentro de este módulo.
+/** Devuelve texto auxiliar de presentación según el tipo de atención configurado. */
 function typeDescription(type: AppointmentCatalog['types'][number]) {
   if (Boolean(type.isClinical)) return 'Consultas médicas, controles y atención de salud.';
   if (/peluquer|groom/i.test(type.name)) return 'Baño, corte y cuidado del pelo.';
   return `Servicios disponibles del área ${type.name}.`;
 }
 
-// Función typeIcon: concentra la lógica dentro de este módulo.
+/** Elige icono de tipo según atención clínica, peluquería u otra categoría. */
 function typeIcon(type: AppointmentCatalog['types'][number]): IconName {
   if (Boolean(type.isClinical)) return 'medkit-outline';
   if (/peluquer|groom/i.test(type.name)) return 'cut-outline';
   return 'calendar-outline';
 }
 
-// Función weekday: concentra la lógica dentro de este módulo.
+/** Formatea el nombre del día en la zona horaria de la clínica. */
 function weekday(date: string) {
   const normalized = clinicDateFilterToApi(date);
   const value = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', weekday: 'long' }).format(new Date(`${normalized}T12:00:00-03:00`));
   return value.charAt(0).toLocaleUpperCase('es-AR') + value.slice(1);
 }
 
-// Función StepProgress: concentra la lógica dentro de este módulo.
+/** Muestra paso actual, título y barra de progreso del asistente. */
 function StepProgress({ step }: { step: number }) {
   const { colors } = useTheme();
   return <PetCareCard>
@@ -345,7 +345,7 @@ function StepProgress({ step }: { step: number }) {
   </PetCareCard>;
 }
 
-// Función ChoiceCard: concentra la lógica dentro de este módulo.
+/** Presenta una opción seleccionable con descripción, detalle, imagen/icono y estado. */
 function ChoiceCard({ title, description, detail, imageUrl, icon = 'checkmark-circle-outline', selected, onPress }: { title: string; description?: string; detail?: string; imageUrl?: string; icon?: IconName; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityLabel={title} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.choice, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }]}>
@@ -359,7 +359,7 @@ function ChoiceCard({ title, description, detail, imageUrl, icon = 'checkmark-ci
   </Pressable>;
 }
 
-// Función PetChoice: concentra la lógica dentro de este módulo.
+/** Presenta mascota elegible con especie/raza y selección accesible. */
 function PetChoice({ pet, selected, onPress }: { pet: Pet; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return <Pressable accessibilityRole="radio" accessibilityLabel={pet.name} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.petChoice, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }]}>
@@ -369,7 +369,7 @@ function PetChoice({ pet, selected, onPress }: { pet: Pet; selected: boolean; on
   </Pressable>;
 }
 
-// Función PetChoiceProfessional: concentra la lógica dentro de este módulo.
+/** Presenta profesional y especialidades como opción de selección. */
 function PetChoiceProfessional({ name, photoUrl, specialties, selected, onPress }: { name: string; photoUrl: string | null | undefined; specialties?: string | null; selected: boolean; onPress: () => void }) {
   return <Pressable accessibilityRole="radio" accessibilityLabel={name} accessibilityState={{ checked: selected }} onPress={onPress} style={styles.professionalChoice}>
     <PetImage uri={photoUrl ?? null} size={48} />
@@ -378,25 +378,25 @@ function PetChoiceProfessional({ name, photoUrl, specialties, selected, onPress 
   </Pressable>;
 }
 
-// Función SelectionSummary: concentra la lógica dentro de este módulo.
+/** Resume las elecciones confirmadas a partir del segundo paso. */
 function SelectionSummary({ step, typeName, pet, serviceName, slot }: { step: number; typeName?: string; pet?: Pet; serviceName?: string; slot?: Slot }) {
   const values = [typeName, pet?.name, serviceName, slot ? clinicDateTime(slot.startsAt) : undefined].filter(Boolean);
   if (step < 2 || !values.length) return null;
   return <AppText variant="caption" muted>Elegido: {values.join(' · ')}</AppText>;
 }
 
-// Función SummaryLine: concentra la lógica dentro de este módulo.
+/** Muestra etiqueta y valor del resumen o una indicación para elegir opción. */
 function SummaryLine({ label, value }: { label: string; value?: string }) {
   return <View style={styles.summaryLine}><AppText muted>{label}</AppText><AppText>{value || 'Elegí una opción'}</AppText></View>;
 }
 
-// Función StepHelp: concentra la lógica dentro de este módulo.
+/** Renderiza texto auxiliar solo cuando existe para el paso activo. */
 function StepHelp({ text }: { text: string | null }) {
   if (!text) return null;
   return <AppText variant="caption" muted>{text}</AppText>;
 }
 
-// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
+/** Estilos de componentes, calendario, opciones y botones del asistente; no contienen reglas de reserva. */
 const styles = StyleSheet.create({
   progressHeader: { gap: 4 },
   progressTrack: { flexDirection: 'row', gap: 6, minHeight: 8 },

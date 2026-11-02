@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: index.tsx
  * UBICACIÓN: mobile/src/app/admin/veterinarians/index.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de index.
+ * FUNCIÓN: Listado y administración de profesionales veterinarios.
+ * RESPONSABILIDAD: Filtra y pagina perfiles profesionales, abre fichas, crea cuentas y permite gestionar estados.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/AppSelectField.tsx, mobile/src/components/forms/SearchableMultiSelect.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/ui/SelectionRow.tsx, mobile/src/hooks/useAuth.ts y 18 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Consulta profesionales y catálogos por la API autenticada; la creación y cambios de estado se guardan en backend.
+ * IMPORTANCIA: Mantiene el directorio de profesionales que prestan servicios dentro de PetCare.
  */
 /** Listado paginado: búsqueda/filtros consultan MySQL mediante la API. */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -50,7 +50,7 @@ import {
 import { AdminPageHeading } from "../../../components/admin/AdminPageHeading";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { invitationLabel } from "../../../utils/invitation-label";
-// Configuración emptyVet: reúne valores o reglas que consume el resto del módulo.
+// Datos iniciales del formulario para dar de alta a un profesional veterinario.
 const emptyVet: VetValues = {
   firstName: "",
   lastName: "",
@@ -60,7 +60,7 @@ const emptyVet: VetValues = {
   isActive: true,
   specialtyIds: [],
 };
-// Función VeterinariansScreen: concentra la lógica dentro de este módulo.
+// Busca y pagina profesionales, y coordina el alta, los cambios de estado y sus fichas.
 export default function VeterinariansScreen() {
   const { width } = useWindowDimensions();
   const { create } = useLocalSearchParams<{ create?: string }>();
@@ -150,7 +150,7 @@ export default function VeterinariansScreen() {
       sequence.current++;
     };
   }, [request, submittedSearch, status, sort, page, specialty]);
-  // Función changeCreate: actualiza o guarda información dentro de este módulo.
+  // Actualiza un campo del borrador del nuevo veterinario.
   function changeCreate<K extends keyof VetValues>(
     key: K,
     value: VetValues[K],
@@ -158,14 +158,14 @@ export default function VeterinariansScreen() {
     setCreateValues((current) => ({ ...current, [key]: value }));
     setCreateErrors((current) => ({ ...current, [key]: undefined }));
   }
-  // Función openVetDetails: concentra la lógica dentro de este módulo.
+  // Abre la ficha del profesional seleccionado.
   function openVetDetails(id: string) {
     setSelectedVetId(id);
     setSelectedVet(null);
     setDetailError(null);
     setDetailLoading(true);
   }
-  // Función saveVetStatus: actualiza o guarda información dentro de este módulo.
+  // Persiste el estado profesional elegido y refresca el listado.
   async function saveVetStatus() {
     if (!selectedVet || statusTarget === null) return;
     const updated = await request<VetDetail>(
@@ -180,7 +180,7 @@ export default function VeterinariansScreen() {
       "success",
     );
   }
-  // Función createVeterinarian: crea un registro o inicia una operación dentro de este módulo.
+  // Valida identidad y datos profesionales antes de crear la cuenta del veterinario.
   function createVeterinarian() {
     const identity = validateIdentityForm(createValues);
     const errors: Partial<Record<keyof VetValues, string>> = {

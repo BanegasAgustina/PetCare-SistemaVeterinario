@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: [id].tsx
  * UBICACIÓN: mobile/src/app/admin/users/[id].tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de [id].
+ * FUNCIÓN: Alta y edición de una cuenta de usuario.
+ * RESPONSABILIDAD: Edita identidad y rol, y expone operaciones permitidas de invitación, estado y permisos.
  * CONEXIONES: Importa: mobile/src/components/layout/ScreenContainer.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/ui/AppButton.tsx, mobile/src/components/forms/AppInput.tsx, mobile/src/components/forms/AppSelectField.tsx, mobile/src/components/forms/ProfilePhotoInput.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/ui/ConfirmModal.tsx y 13 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: Usa los catálogos y endpoints administrativos para cargar la ficha y enviar cambios.
+ * IMPORTANCIA: Centraliza el mantenimiento de cuentas y conserva controles de rol/permisos en el servidor.
  */
 /**
  * Pantalla de detalle de usuario  con los permisos exigidos.
@@ -43,7 +43,7 @@ import { roleLabel } from "../../../utils/role-label";
 import { groupPermissionsByModule } from "../../../utils/admin-permissions";
 import { invitationLabel } from "../../../utils/invitation-label";
 import { ConfirmNameModal } from "../../../components/admin/ConfirmNameModal";
-// Configuración empty: reúne valores o reglas que consume el resto del módulo.
+// Borrador inicial de identidad y datos del usuario para el formulario de creación.
 const empty = {
   firstName: "",
   lastName: "",
@@ -52,7 +52,7 @@ const empty = {
   roleId: "",
   isActive: true,
 };
-// Función UserEditor: concentra la lógica dentro de este módulo.
+// Crea o edita una cuenta y, según permisos, administra estado, invitación y permisos.
 export default function UserEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const creating = id === "new";
@@ -72,7 +72,7 @@ export default function UserEditor() {
   const [confirm, setConfirm] = useState<
     "identity" | "permissions" | "deactivate" | null
   >(null);
-  // Función fill: concentra la lógica dentro de este módulo.
+  // Copia los datos de la ficha cargada al estado editable del formulario.
   function fill(user: AdminUserDetail) {
     setValues({
       firstName: user.firstName,
@@ -109,7 +109,7 @@ export default function UserEditor() {
   const photoRole = ["VETERINARIAN", "GROOMER"].includes(
     user?.role ?? selectedRole?.code ?? "",
   );
-  // Función change: actualiza o guarda información dentro de este módulo.
+  // Actualiza un campo del borrador sin perder la relación entre clave y tipo.
   function change<K extends keyof typeof empty>(
     key: K,
     value: (typeof empty)[K],
@@ -117,7 +117,7 @@ export default function UserEditor() {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   }
-  // Función prepare: concentra la lógica dentro de este módulo.
+  // Valida identidad y prepara los mensajes de error asociados a cada campo.
   function prepare() {
     const validation = validateIdentityForm(values);
     const next = {
@@ -127,7 +127,7 @@ export default function UserEditor() {
     setErrors(next);
     if (!Object.values(next).some(Boolean)) setConfirm("identity");
   }
-  // Función save: actualiza o guarda información dentro de este módulo.
+  // Crea o actualiza el usuario y gestiona el resultado de invitación de la cuenta.
   async function save() {
     if (creating) {
       const result = await api.createUser({
@@ -196,7 +196,7 @@ export default function UserEditor() {
       );
     }
   }
-  // Función resendInvitation: concentra la lógica dentro de este módulo.
+  // Solicita y presenta una nueva invitación para el usuario existente.
   async function resendInvitation() {
     const sent = await action.run(async () => {
       const result = await api.invitation(id);
@@ -210,6 +210,7 @@ export default function UserEditor() {
     });
     return sent;
   }
+  // Desactiva la cuenta actual después de validar las restricciones de seguridad.
   async function deactivateUser() {
     const result = await api.deactivateUser(id);
     setConfirm(null);

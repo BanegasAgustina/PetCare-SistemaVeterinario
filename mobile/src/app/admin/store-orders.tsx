@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: store-orders.tsx
  * UBICACIÓN: mobile/src/app/admin/store-orders.tsx
- * FUNCIÓN: Pantalla o ruta de la aplicación.
- * RESPONSABILIDAD: Pantalla o ruta de la aplicación dentro de PetCare; agrupa las declaraciones de store-orders.
+ * FUNCIÓN: Gestión administrativa de pedidos y revisión de pagos de tienda.
+ * RESPONSABILIDAD: Filtra pedidos, muestra detalle, cambia estados de pedido/pago, abre comprobantes y prepara revisión con motivo.
  * CONEXIONES: Importa: mobile/src/hooks/useClinic.ts, mobile/src/hooks/useAuth.ts, mobile/src/hooks/useClientQuery.ts, mobile/src/contexts/FeedbackContext.tsx, mobile/src/components/client/PetCareUI.tsx, mobile/src/components/ui/FormNotice.tsx, mobile/src/components/ui/AppText.tsx, mobile/src/components/forms/AppInput.tsx y 11 más Se utiliza desde: No se detectaron importadores estáticos; puede ser una entrada por convención o una herramienta invocada desde package.json.
- * FUNCIONAMIENTO: Recibe estado de navegación, contexto y/o parámetros; construye la interfaz y conecta acciones del usuario con hooks y servicios.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
+ * FUNCIONAMIENTO: useClinic/query → endpoints store orders/payment; backend valida transiciones, permiso y evidencia.
+ * IMPORTANCIA: Centraliza seguimiento y decisiones de fulfillment/pago auditables.
  */
 import { useCallback, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -31,9 +31,10 @@ import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import type { StoreOrderDetail } from '../../services/clinic.service';
 import { deliveryStatusLabel, historyStatusLabel, historyTypeLabel, orderStatusLabel, paymentMethodLabel, paymentStatusLabel } from '../../utils/display-labels';
 
-// Configuración statuses: reúne valores o reglas que consume el resto del módulo.
+/** Estados de pedido que el panel puede presentar como filtro/opción. */
+// Estados operativos que el administrador puede asignar a un pedido.
 const statuses=['PLACED','CONFIRMED','PROCESSING','READY','IN_TRANSIT','DELIVERED','PICKED_UP','CANCELLED'];
-// Función StoreOrders: concentra la lógica dentro de este módulo.
+/** Consulta pedidos filtrados y coordina detalle, comprobantes y cambios de estado. */
 export default function StoreOrders(){
  const routeFilters=useLocalSearchParams<{status?:string|string[];fulfillmentMethod?:string|string[];paymentStatus?:string|string[];from?:string|string[];to?:string|string[]}>();
  const api=useClinic();const auth=useAuth();const {colors}=useTheme();const {showToast}=useFeedback();
@@ -44,12 +45,16 @@ export default function StoreOrders(){
  const loadDetail=useCallback(async()=>{if(!selected){setDetail(null);return null;}const row=await api.storeOrder(selected);setDetail(row);return row;},[api,selected]);const detailQuery=useClientQuery(loadDetail);
  const canManage=auth.hasPermission('orders.manage');const canManagePayment=auth.hasPermission('orders.payment.manage');const canReviewPayment=auth.hasRole('SUPER_ADMIN')&&canManagePayment;
  // Función applyFilters: agrupa una operación que este módulo puede ejecutar o reutilizar.
+// Aplica filtros solo si el rango de fechas tiene un orden válido.
 const applyFilters=()=>{if(draft.from&&draft.to&&draft.from>draft.to){setFilterError('La fecha inicial no puede ser posterior a la fecha final.');return;}setFilterError(null);setFilters({...draft});};
  // Función commit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+// Confirma la revisión del pago o el cambio de estado del pedido y refresca sus consultas.
 const commit=async()=>{if(!pending)return;setError(null);try{if(pending.reviewPaymentStatus)await api.reviewStorePayment(pending.id,{paymentStatus:pending.reviewPaymentStatus,reason:reviewReason.trim()});else await api.updateStoreOrder(pending.id,{...(pending.orderStatus?{orderStatus:pending.orderStatus}:{}),...(pending.paymentStatus?{paymentStatus:pending.paymentStatus}:{})});setPending(null);setReviewReason('');query.reload();detailQuery.reload();showToast('Pedido actualizado','success');}catch(e){setError(e instanceof Error?e.message:'No se pudo actualizar el pedido.');}};
  // Función openProof: agrupa una operación que este módulo puede ejecutar o reutilizar.
+// Obtiene el comprobante asociado al pedido y abre su URL fuera de la app.
 const openProof=async(id:string)=>{setLoadingProof(true);setError(null);try{const result=await api.storeOrderProof(id);await Linking.openURL(result.url);}catch(e){setError(e instanceof Error?e.message:'No se pudo abrir el comprobante.');}finally{setLoadingProof(false);}};
  // Función requestPaymentReview: agrupa una operación que este módulo puede ejecutar o reutilizar.
+// Exige una justificación y prepara la confirmación de aprobación o rechazo del pago.
 const requestPaymentReview=(id:string,status:'PAID'|'FAILED',label:string)=>{if(reviewReason.trim().length<3){setError('Escribí el motivo de aprobación o rechazo antes de continuar.');return;}setError(null);setPending({id,reviewPaymentStatus:status,reason:reviewReason.trim(),label});};
  return <PetCareScreen wide><PetCareHeader title="Pedidos de tienda" subtitle="Preparación, retiro, entregas y pagos" back hideForAdmin/>
  <AdminListToolbar search={<AppInput label="Buscar pedido" placeholder="Número, cliente o email" value={draft.search} onChangeText={search=>setDraft(current=>({...current,search}))} returnKeyType="search" onSubmitEditing={applyFilters}/>} filters={<>
@@ -83,5 +88,5 @@ const requestPaymentReview=(id:string,status:'PAID'|'FAILED',label:string)=>{if(
  <ConfirmModal visible={pending!==null} title={pending?.label??'Actualizar pedido'} message={pending?.reviewPaymentStatus?`Se registrará el motivo indicado y la verificación del pedido #${pending?.id}.`:pending?.paymentStatus?'La confirmación del pago se registra por separado del retiro o la entrega.':`Se registrará el cambio de estado del pedido #${pending?.id}.`} destructive={pending?.orderStatus==='CANCELLED'||pending?.reviewPaymentStatus==='FAILED'} confirmLabel="Confirmar" onCancel={()=>setPending(null)} onConfirm={commit}/>
  </PetCareScreen>;
 }
-// Dato styles: conserva un valor calculado o de configuración usado por este módulo.
+// Estilos para filtros, chips de estado, acciones y totales de los pedidos.
 const styles=StyleSheet.create({heading:{flexDirection:'row',alignItems:'center',gap:8},row:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8},flex:{flex:1,minWidth:0},chips:{flexDirection:'row',flexWrap:'wrap',gap:6},chip:{paddingHorizontal:10,paddingVertical:7,borderWidth:1,borderRadius:16},orderActions:{gap:9},orderActionsDesktop:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:8},totals:{gap:7,borderTopWidth:StyleSheet.hairlineWidth,borderColor:'#789',paddingTop:10}});
