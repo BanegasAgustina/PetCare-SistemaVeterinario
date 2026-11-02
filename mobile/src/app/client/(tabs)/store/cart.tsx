@@ -27,12 +27,12 @@ import { useStoreCheckout } from '../../../../contexts/StoreCheckoutContext';
 export default function CartScreen() {
   const api = useClient();
   const cart = useClientQuery(api.cart);
+  const replaceCart = cart.replaceData;
   const cartData = cart.data;
-  const reloadCart = cart.reload;
   const { showToast } = useFeedback();
   const { colors } = useTheme();
   const flow = useStoreCheckout();
-  const shippingQuoted = flow.fulfillment === 'delivery' && Boolean(flow.quote?.available) && flow.quotedSubtotalCents===cart.data?.totalCents;
+  const shippingQuoted = flow.fulfillment === 'delivery' && Boolean(flow.quote?.available) && flow.quotedSubtotalCents===cartData?.totalCents;
   const shipping = shippingQuoted ? flow.quote!.feeCents : 0;
   const [pending, setPending] = useState<string | null>(null);
   const pendingRef = useRef(false);
@@ -45,18 +45,17 @@ export default function CartScreen() {
     setPending(productId);
     setError(null);
     try {
-      await api.updateCart(productId, quantity);
+      const updatedCart = await api.updateCart(productId, quantity);
+      replaceCart(updatedCart);
       setDrafts(current => { const next = { ...current }; delete next[productId]; return next; });
-      reloadCart();
       if (quantity === 0) showToast('Producto eliminado del carrito', 'success');
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'No se pudo actualizar el carrito.');
-      reloadCart();
     } finally {
       pendingRef.current = false;
       setPending(null);
     }
-  }, [api, reloadCart, showToast]);
+  }, [api, replaceCart, showToast]);
 
   const commitQuantity = useCallback((productId: string, currentQuantity: number, stock: number) => {
     const raw = drafts[productId] ?? String(currentQuantity);
@@ -77,7 +76,7 @@ export default function CartScreen() {
   return <PetCareScreen wide tabbed>
     <PetCareHeader title="Carrito" subtitle={`${totalItems} ${totalItems === 1 ? 'artículo' : 'artículos'}`} right={<Pressable accessibilityRole="button" accessibilityLabel="Seguir comprando" onPress={() => router.navigate('/client/store')} style={[styles.continueButton, { backgroundColor: colors.accent }]}><Ionicons name="bag-handle-outline" size={21} color={colors.text} /></Pressable>} />
     
-<QueryState {...cart} />
+<QueryState loading={cart.loading} error={cart.error} reload={cart.reload} />
     <FormNotice error message={error} />
     {cartData && cartData.items.length === 0 && <PetCareEmptyState title="Tu carrito está vacío" message="Explorá los productos disponibles para encontrar lo que necesita tu mascota." icon="cart-outline" action={() => router.navigate('/client/store')} label="Ir a la tienda" />}
 

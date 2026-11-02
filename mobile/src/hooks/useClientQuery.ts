@@ -13,12 +13,13 @@
 import { useCallback,useRef,useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { friendlyError } from '../services/api';
-/** Ejecuta load al enfocar la pantalla y expone data/error/loading/reload; invalida respuestas de intentos anteriores. */
+/** Ejecuta load al enfocar, expone estados y permite reemplazar datos locales sin recargar; invalida respuestas antiguas. */
 export function useClientQuery<T>(load:()=>Promise<T>){
   const [data,setData]=useState<T|null>(null);const [error,setError]=useState<string|null>(null);const [loading,setLoading]=useState(true);const sequence=useRef(0);
   const reload=useCallback(()=>{const attempt=++sequence.current;setLoading(true);setError(null);setData(null);
     void load().then(value=>{if(attempt===sequence.current)setData(value);}).catch(failure=>{if(attempt===sequence.current)setError(friendlyError(failure));}).finally(()=>{if(attempt===sequence.current)setLoading(false);});
   },[load]);
+  const replaceData=useCallback((value:T)=>{sequence.current++;setData(value);setError(null);setLoading(false);},[]);
   useFocusEffect(useCallback(()=>{reload();return()=>{sequence.current++;};},[reload]));
-  return {data,error,loading,reload};
+  return {data,error,loading,reload,replaceData};
 }
