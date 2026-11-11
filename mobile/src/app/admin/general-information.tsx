@@ -148,6 +148,9 @@ async function save() {
       <AppText muted>
         Estos datos aparecen en el inicio público de la aplicación.
       </AppText>
+      <AppText variant="caption" muted>
+        Todos los campos son opcionales. Si dejás el nombre vacío, se mostrará PetCare.
+      </AppText>
       
 <QueryState {...query} />
       {query.data && (
@@ -162,7 +165,6 @@ async function save() {
           >
             <AppInput
               label="Nombre de PetCare"
-              required
               maxLength={120}
               value={values.clinicName}
               onChangeText={(value) => change("clinicName", value)}
@@ -198,6 +200,8 @@ async function save() {
             <AppInput
               label="Teléfono"
               keyboardType="phone-pad"
+              placeholder="+54 11 4567-8900"
+              hint="Incluí el código de país y de área. Ej.: +54 11 4567-8900."
               maxLength={40}
               value={values.phone ?? ""}
               onChangeText={(value) => change("phone", value)}
@@ -205,6 +209,8 @@ async function save() {
             <AppInput
               label="WhatsApp"
               keyboardType="phone-pad"
+              placeholder="+54 9 11 2345-6789"
+              hint="Incluí el código de país y de área. Ej.: +54 9 11 2345-6789."
               maxLength={40}
               value={values.whatsapp ?? ""}
               onChangeText={(value) => change("whatsapp", value)}

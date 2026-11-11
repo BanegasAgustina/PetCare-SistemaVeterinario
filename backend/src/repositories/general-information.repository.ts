@@ -79,13 +79,12 @@ export function validateGeneralInformation(value:unknown):GeneralInformation {
     const max=key==='clinicName'?120:key==='description'?2000:key==='welcomeMessage'?500:key==='phone'||key==='whatsapp'?40:key==='publicEmail'?254:key==='address'?200:key==='city'||key==='province'?100:2048;
     let parsed:string|null;
     if(['logoUrl','mapUrl','instagramUrl','facebookUrl','xUrl','websiteUrl'].includes(key))parsed=url(input[key],key,key==='logoUrl'?'El logo':key==='mapUrl'?'La ubicación':`El enlace de ${key.replace('Url','')}`);
-    else parsed=text(input[key],key,key==='clinicName'?'el nombre de PetCare':key==='publicEmail'?'el correo público':key==='welcomeMessage'?'el mensaje de bienvenida':key==='description'?'la descripción':key==='phone'?'el teléfono':key==='whatsapp'?'el WhatsApp':key==='address'?'la dirección':key==='city'?'la ciudad':'la provincia',max,key==='clinicName');
+    else parsed=text(input[key],key,key==='clinicName'?'el nombre de PetCare':key==='publicEmail'?'el correo público':key==='welcomeMessage'?'el mensaje de bienvenida':key==='description'?'la descripción':key==='phone'?'el teléfono':key==='whatsapp'?'el WhatsApp':key==='address'?'la dirección':key==='city'?'la ciudad':'la provincia',max);
     if(key==='publicEmail'&&parsed&&!isEmail(parsed,{allow_display_name:false}))fieldError(key,'Ingresá un correo electrónico público válido.');
-    if(key==='clinicName')out[key]=parsed!;
+    if(key==='clinicName')out[key]=parsed??'PetCare';
     else out[key]=parsed;
   }
-  if(!input.openingHours)fieldError('openingHours','Configurá los horarios de atención.');
-  return {...out,openingHours:openingHours(input.openingHours),updatedAt:null};
+  return {...out,openingHours:input.openingHours?openingHours(input.openingHours):blankHours(),updatedAt:null};
 }
 /** Convierte la fila SQL y su JSON de horarios al contrato de respuesta. */
 function map(row:RowDataPacket):GeneralInformation {
