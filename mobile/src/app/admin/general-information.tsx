@@ -79,23 +79,26 @@ const empty: GeneralInformation = {
   updatedAt: null,
 };
 /** Convierte cadenas vacías a null para enviar campos opcionales sin ruido de formato. */
-const nullableFields = (information: GeneralInformation) => ({
-  ...information,
-  description: information.description || null,
-  logoUrl: information.logoUrl || null,
-  welcomeMessage: information.welcomeMessage || null,
-  phone: information.phone || null,
-  whatsapp: information.whatsapp || null,
-  publicEmail: information.publicEmail || null,
-  address: information.address || null,
-  city: information.city || null,
-  province: information.province || null,
-  mapUrl: information.mapUrl || null,
-  instagramUrl: information.instagramUrl || null,
-  facebookUrl: information.facebookUrl || null,
-  xUrl: information.xUrl || null,
-  websiteUrl: information.websiteUrl || null,
-});
+const nullableFields = (information: GeneralInformation): Omit<GeneralInformation, "updatedAt"> => {
+  const { updatedAt: _updatedAt, ...editable } = information;
+  return {
+    ...editable,
+    description: information.description || null,
+    logoUrl: information.logoUrl || null,
+    welcomeMessage: information.welcomeMessage || null,
+    phone: information.phone || null,
+    whatsapp: information.whatsapp || null,
+    publicEmail: information.publicEmail || null,
+    address: information.address || null,
+    city: information.city || null,
+    province: information.province || null,
+    mapUrl: information.mapUrl || null,
+    instagramUrl: information.instagramUrl || null,
+    facebookUrl: information.facebookUrl || null,
+    xUrl: information.xUrl || null,
+    websiteUrl: information.websiteUrl || null,
+  };
+};
 
 /** Carga la configuración, conserva cambios sin guardar y coordina el formulario institucional. */
 export default function GeneralInformationScreen() {

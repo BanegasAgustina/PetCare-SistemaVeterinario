@@ -27,7 +27,7 @@ export function adminService(request:ClientRequest) {
     invitation:(id:string)=>request<{delivery:string}>(`/admin/users/${encodeURIComponent(id)}/invitation`,{method:'POST'}),
     // Información institucional y mantenimiento de roles reutilizables.
     generalInformation:()=>request<{information:GeneralInformation;configured:boolean}>('/admin/general-information',{method:'POST',body:{}}),
-    saveGeneralInformation:(body:GeneralInformation)=>request<GeneralInformation>('/admin/general-information',{method:'PUT',body}),
+    saveGeneralInformation:(body:Omit<GeneralInformation,'updatedAt'>)=>request<GeneralInformation>('/admin/general-information',{method:'PUT',body}),
     updateRole:(id:string,name:string,permissionCodes:string[])=>request<AdminCatalog>(`/admin/roles/${encodeURIComponent(id)}`,{method:'PUT',body:{name,permissionCodes}}),
     deleteRole:(id:string)=>request<{deleted:boolean}>(`/admin/roles/${encodeURIComponent(id)}`,{method:'DELETE'}),
     createRole:(name:string,permissionCodes:string[])=>request<AdminCatalog>('/admin/roles',{method:'POST',body:{name,permissionCodes}}),
