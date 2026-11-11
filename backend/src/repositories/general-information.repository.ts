@@ -72,7 +72,7 @@ function openingHours(value:unknown):OpeningHours {
 /** Valida forma, campos permitidos, URLs y horarios del formulario público/administrativo. */
 export function validateGeneralInformation(value:unknown):GeneralInformation {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá la información de PetCare.');
-  const input=value as Record<string,unknown>;const allowed=[...Object.keys(fields),'openingHours'];
+  const input=value as Record<string,unknown>;const allowed=[...fields,'openingHours'];
   const extraFields=Object.keys(input).filter(key=>!allowed.includes(key));
   if(extraFields.length)throw new AppError('VALIDATION_ERROR',400,`La solicitud contiene campos no admitidos: ${extraFields.join(', ')}.`);
   const out={} as Omit<GeneralInformation,'openingHours'|'updatedAt'>;
