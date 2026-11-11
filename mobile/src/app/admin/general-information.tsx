@@ -80,9 +80,8 @@ const empty: GeneralInformation = {
 };
 /** Convierte cadenas vacías a null para enviar campos opcionales sin ruido de formato. */
 const nullableFields = (information: GeneralInformation): Omit<GeneralInformation, "updatedAt"> => {
-  const { updatedAt: _updatedAt, ...editable } = information;
   return {
-    ...editable,
+    clinicName: information.clinicName || "PetCare",
     description: information.description || null,
     logoUrl: information.logoUrl || null,
     welcomeMessage: information.welcomeMessage || null,
@@ -93,6 +92,7 @@ const nullableFields = (information: GeneralInformation): Omit<GeneralInformatio
     city: information.city || null,
     province: information.province || null,
     mapUrl: information.mapUrl || null,
+    openingHours: information.openingHours,
     instagramUrl: information.instagramUrl || null,
     facebookUrl: information.facebookUrl || null,
     xUrl: information.xUrl || null,

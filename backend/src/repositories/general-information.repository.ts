@@ -73,7 +73,8 @@ function openingHours(value:unknown):OpeningHours {
 export function validateGeneralInformation(value:unknown):GeneralInformation {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá la información de PetCare.');
   const input=value as Record<string,unknown>;const allowed=[...Object.keys(fields),'openingHours'];
-  if(Object.keys(input).some(key=>!allowed.includes(key)))throw new AppError('VALIDATION_ERROR',400,'La solicitud contiene campos no admitidos.');
+  const extraFields=Object.keys(input).filter(key=>!allowed.includes(key));
+  if(extraFields.length)throw new AppError('VALIDATION_ERROR',400,`La solicitud contiene campos no admitidos: ${extraFields.join(', ')}.`);
   const out={} as Omit<GeneralInformation,'openingHours'|'updatedAt'>;
   for(const key of fields) {
     const max=key==='clinicName'?120:key==='description'?2000:key==='welcomeMessage'?500:key==='phone'||key==='whatsapp'?40:key==='publicEmail'?254:key==='address'?200:key==='city'||key==='province'?100:2048;
