@@ -52,47 +52,47 @@ adminRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next
 // adminRouter.use: Aplica los controles compartidos a las rutas siguientes.
 adminRouter.use(authenticate);
 // adminRouter.post('/home'): Devuelve el resumen del panel administrativo Controles: roles: ADMIN, SUPER_ADMIN.
-adminRouter.post('/home',requireRole('ADMIN','SUPER_ADMIN'),handle(async(_req,res)=>repository.adminHome(actor(res))));
+adminRouter.post('/home',handle(async(_req,res)=>repository.adminHome(actor(res))));
 // adminRouter.post('/general-information'): Consulta la información general de la clínica Controles: roles: ADMIN, SUPER_ADMIN; permisos: settings.general.manage.
-adminRouter.post('/general-information',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('settings.general.manage'),handle(async(_req,res)=>generalInformation.adminGeneralInformation(actor(res))));
+adminRouter.post('/general-information',requirePermission('settings.general.manage'),handle(async(_req,res)=>generalInformation.adminGeneralInformation(actor(res))));
 // adminRouter.put('/general-information'): Consulta la información general de la clínica Controles: roles: ADMIN, SUPER_ADMIN; permisos: settings.general.manage.
-adminRouter.put('/general-information',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('settings.general.manage'),handle(async(req,res)=>generalInformation.saveGeneralInformation(actor(res),req.body)));
+adminRouter.put('/general-information',requirePermission('settings.general.manage'),handle(async(req,res)=>generalInformation.saveGeneralInformation(actor(res),req.body)));
 // adminRouter.put('/account'): Actualiza el perfil del administrador autenticado Controles: roles: ADMIN, SUPER_ADMIN.
-adminRouter.put('/account',requireRole('ADMIN','SUPER_ADMIN'),handle(async(req,res)=>account.updateOwnProfile(actor(res).id,req.body)));
+adminRouter.put('/account',handle(async(req,res)=>account.updateOwnProfile(actor(res).id,req.body)));
 // adminRouter.put('/account/password'): Cambia la contraseña del administrador autenticado Controles: roles: ADMIN, SUPER_ADMIN; límite de solicitudes.
-adminRouter.put('/account/password',requireRole('ADMIN','SUPER_ADMIN'),createAuthRateLimiter(),handle(async(req,res)=>account.changeOwnPassword(actor(res).id,req.body)));
+adminRouter.put('/account/password',createAuthRateLimiter(),handle(async(req,res)=>account.changeOwnPassword(actor(res).id,req.body)));
 // adminRouter.post('/catalog'): Consulta catálogos administrativos Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage, roles.manage, permissions.manage.
-adminRouter.post('/catalog',requireRole('ADMIN','SUPER_ADMIN'),requireAnyPermission('users.manage','roles.manage','permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
+adminRouter.post('/catalog',requireAnyPermission('users.manage','roles.manage','permissions.manage','professional_types.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 // adminRouter.post('/users/query'): Lista usuarios Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage.
-adminRouter.post('/users/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(async req=>repository.adminUsers(req.body)));
+adminRouter.post('/users/query',requirePermission('users.manage'),handle(async req=>repository.adminUsers(req.body)));
 // adminRouter.post('/users/:id'): Consulta un usuario por identificador Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage.
-adminRouter.post('/users/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(async req=>repository.adminUser(identifier(req.params.id))));
+adminRouter.post('/users/:id',requirePermission('users.manage'),handle(async req=>repository.adminUser(identifier(req.params.id))));
 // adminRouter.delete('/users/:id'): Consulta un usuario por identificador Controles: roles: SUPER_ADMIN; permisos: users.manage.
 adminRouter.delete('/users/:id',requireRole('SUPER_ADMIN'),requirePermission('users.manage'),handle(async(req,res)=>repository.deactivateAdminUser(actor(res),identifier(req.params.id))));
 // adminRouter.post('/users'): Crea un usuario administrativo Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage, roles.manage; límite de solicitudes.
-adminRouter.post('/users',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage','roles.manage'),createAuthRateLimiter(),handle(async(req,res)=>repository.createAdminUser(actor(res),req.body),201));
+adminRouter.post('/users',requirePermission('users.manage','roles.manage'),createAuthRateLimiter(),handle(async(req,res)=>repository.createAdminUser(actor(res),req.body),201));
 // adminRouter.post('/users/:id/invitation'): Reenvía la invitación al usuario Controles: roles: SUPER_ADMIN; límite de solicitudes.
 adminRouter.post('/users/:id/invitation',requireRole('SUPER_ADMIN'),createAuthRateLimiter(4),handle(async(req,res)=>repository.resendAdminInvitation(actor(res),identifier(req.params.id))));
 // adminRouter.put('/users/:id'): Consulta un usuario por identificador Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage.
-adminRouter.put('/users/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(async(req,res)=>repository.updateAdminUser(actor(res),identifier(req.params.id),req.body)));
+adminRouter.put('/users/:id',requirePermission('users.manage'),handle(async(req,res)=>repository.updateAdminUser(actor(res),identifier(req.params.id),req.body)));
 // adminRouter.put('/users/:id/photo'): Actualiza la foto del usuario Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage.
-adminRouter.put('/users/:id/photo',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage'),handle(updateUserPhoto));
+adminRouter.put('/users/:id/photo',requirePermission('users.manage'),handle(updateUserPhoto));
 // adminRouter.put('/users/:id/permissions'): Actualiza permisos del usuario Controles: roles: ADMIN, SUPER_ADMIN; permisos: users.manage, permissions.manage.
-adminRouter.put('/users/:id/permissions',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('users.manage','permissions.manage'),handle(async(req,res)=>repository.updateUserPermissions(actor(res),identifier(req.params.id),req.body)));
+adminRouter.put('/users/:id/permissions',requirePermission('users.manage','permissions.manage'),handle(async(req,res)=>repository.updateUserPermissions(actor(res),identifier(req.params.id),req.body)));
 // adminRouter.post('/roles/query'): Lista roles Controles: roles: ADMIN, SUPER_ADMIN; permisos: roles.manage.
-adminRouter.post('/roles/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('roles.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
+adminRouter.post('/roles/query',requirePermission('roles.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 // adminRouter.post('/roles'): Crea un rol Controles: roles: SUPER_ADMIN; permisos: roles.manage, permissions.manage; límite de solicitudes.
 adminRouter.post('/roles',requireRole('SUPER_ADMIN'),requirePermission('roles.manage','permissions.manage'),createAuthRateLimiter(),handle(async(req,res)=>repository.createRole(actor(res),req.body),201));
 // adminRouter.put('/roles/:id'): Actualiza un rol Controles: roles: ADMIN, SUPER_ADMIN; permisos: roles.manage, permissions.manage.
-adminRouter.put('/roles/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.updateRole(actor(res),identifier(req.params.id),req.body)));
+adminRouter.put('/roles/:id',requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.updateRole(actor(res),identifier(req.params.id),req.body)));
 // adminRouter.delete('/roles/:id'): Actualiza un rol Controles: roles: ADMIN, SUPER_ADMIN; permisos: roles.manage, permissions.manage.
-adminRouter.delete('/roles/:id',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.deleteCustomRole(actor(res),identifier(req.params.id))));
+adminRouter.delete('/roles/:id',requirePermission('roles.manage','permissions.manage'),handle(async(req,res)=>repository.deleteCustomRole(actor(res),identifier(req.params.id))));
 // adminRouter.post('/permissions/query'): Lista permisos Controles: roles: ADMIN, SUPER_ADMIN; permisos: permissions.manage.
-adminRouter.post('/permissions/query',requireRole('ADMIN','SUPER_ADMIN'),requirePermission('permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
+adminRouter.post('/permissions/query',requirePermission('permissions.manage'),handle(async(_req,res)=>repository.adminCatalog(actor(res))));
 // adminRouter.post('/products/query'): Lista productos administrativos Controles: permisos: products.update, products.update_stock, products.update_price.
-adminRouter.post('/products/query',requireAnyPermission('products.update','products.update_stock','products.update_price'),handle(async req=>presentProductImages(await repository.adminProducts(req.body))));
+adminRouter.post('/products/query',requireAnyPermission('products.view','products.update','products.update_stock','products.update_price'),handle(async req=>presentProductImages(await repository.adminProducts(req.body))));
 // adminRouter.post('/products/catalog'): Consulta categorías de productos Controles: permisos: products.update, products.update_stock, products.update_price.
-adminRouter.post('/products/catalog',requireAnyPermission('products.update','products.update_stock','products.update_price'),handle(async(_req,res)=>repository.adminProductCategories(actor(res))));
+adminRouter.post('/products/catalog',requireAnyPermission('products.view','products.update','products.update_stock','products.update_price'),handle(async(_req,res)=>repository.adminProductCategories(actor(res))));
 // adminRouter.post('/products/:id/stock-movements'): Consulta movimientos de stock del producto Controles: permisos: products.update_stock.
 adminRouter.post('/products/:id/stock-movements',requirePermission('products.update_stock'),handle(async(req,res)=>repository.adminProductStockMovements(actor(res),identifier(req.params.id))));
 // adminRouter.patch('/products/:id'): Actualiza un producto Controles: permisos: products.update, products.update_stock, products.update_price.

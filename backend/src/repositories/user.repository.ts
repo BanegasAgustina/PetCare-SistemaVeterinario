@@ -29,7 +29,7 @@ function mapUser(row: UserRow): StoredUser {
 /** Busca cuenta por email normalizado y carga campos privados necesarios para autenticar. */
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
   return runDatabaseOperation(async () => {
-    const [rows] = await databasePool.execute<UserRow[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id = u.role_id WHERE u.email = ? LIMIT 1`, [email]);
+    const [rows] = await databasePool.execute<UserRow[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id = u.role_id AND r.is_active=1 WHERE u.email = ? LIMIT 1`, [email]);
     return rows[0] ? mapUser(rows[0]) : null;
   });
 }
@@ -37,7 +37,7 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
 /** Carga cuenta actual por ID para middleware y sesión. */
 export async function findUserById(id: string): Promise<StoredUser | null> {
   return runDatabaseOperation(async () => {
-    const [rows] = await databasePool.execute<UserRow[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1`, [id]);
+    const [rows] = await databasePool.execute<UserRow[]>(`SELECT ${userColumns} FROM users u JOIN roles r ON r.id = u.role_id AND r.is_active=1 WHERE u.id = ? LIMIT 1`, [id]);
     return rows[0] ? mapUser(rows[0]) : null;
   });
 }
@@ -59,7 +59,7 @@ export async function createClientUser(input: RegisterInput, passwordHash: strin
       try {
         await connection.beginTransaction();
         registerStage('client_role_resolution');
-        const [roles] = await connection.execute<RowDataPacket[]>('SELECT id,name FROM roles WHERE code = ?', ['CLIENT']);
+        const [roles] = await connection.execute<RowDataPacket[]>('SELECT id,name FROM roles WHERE code = ? AND is_active=1', ['CLIENT']);
         if (!roles[0]) throw new AppError('AUTH_UNAVAILABLE', 503, 'El registro no está disponible. Intentá más tarde.');
         registerStage('client_role_resolved');
         registerStage('creating_user');

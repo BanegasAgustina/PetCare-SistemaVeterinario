@@ -11,7 +11,7 @@
 import { Router, type RequestHandler, type Request, type Response } from 'express';
 import type { RowDataPacket } from 'mysql2/promise';
 import { authenticate } from '../middlewares/auth.middleware';
-import { requireRole,requirePermission } from '../middlewares/permission.middleware';
+import { requirePermission,requireProfessionalIdentity } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { vetCatalog,vetList,vetDetail,createVet,updateVet,updateVetStatus,updateOwnProfessionalPhoto } from '../repositories/veterinarian.repository';
 import { identifier,validateVet,objectBody,textField } from '../validators/veterinarian.validator';
@@ -47,7 +47,7 @@ export const veterinarianAdminRouter = Router();
 // veterinarianAdminRouter.use: Evita que se almacenen en caché las respuestas de este router.
 veterinarianAdminRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 // veterinarianAdminRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: ADMIN, SUPER_ADMIN; permisos: veterinarians.manage.
-veterinarianAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('veterinarians.manage'));
+veterinarianAdminRouter.use(authenticate,requirePermission('veterinarians.manage'));
 // veterinarianAdminRouter.post('/catalog'): Consulta el catálogo de profesionales
 veterinarianAdminRouter.post('/catalog',handler(async ()=>vetCatalog()));
 // veterinarianAdminRouter.post('/query'): Lista veterinarios
@@ -83,7 +83,7 @@ invitationRouter.post('/accept',createAuthRateLimiter(),handler(async req=> { aw
 // Dato specialtiesAdminRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const specialtiesAdminRouter = Router();
 // specialtiesAdminRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: ADMIN, SUPER_ADMIN; permisos: specialties.manage.
-specialtiesAdminRouter.use(authenticate,requireRole('ADMIN','SUPER_ADMIN'),requirePermission('specialties.manage'));
+specialtiesAdminRouter.use(authenticate,requirePermission('specialties.manage'));
 // specialtiesAdminRouter.post('/query'): Lista especialidades
 specialtiesAdminRouter.post('/query',handler(async ()=>runDatabaseOperation(async()=>{
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM specialties ORDER BY name');
@@ -129,7 +129,7 @@ export const veterinarianPanelRouter = Router();
 // veterinarianPanelRouter.use: Evita que se almacenen en caché las respuestas de este router.
 veterinarianPanelRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 // veterinarianPanelRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: VETERINARIAN.
-veterinarianPanelRouter.use(authenticate,requireRole('VETERINARIAN'));
+veterinarianPanelRouter.use(authenticate,requireProfessionalIdentity(true));
 // veterinarianPanelRouter.post('/profile'): Consulta el perfil profesional autenticado
 veterinarianPanelRouter.post('/profile',handler(async(_req,res)=>{const user=res.locals.authenticatedUser as AuthUser;return {user,professional:user.professional,veterinarian:user.veterinarian};}));
 // veterinarianPanelRouter.patch('/profile'): Consulta el perfil profesional autenticado
@@ -139,7 +139,7 @@ veterinarianPanelRouter.put('/profile/password',createAuthRateLimiter(5),handler
 // Dato professionalPhotoRouter: conserva un valor calculado o de configuración usado por este módulo.
 export const professionalPhotoRouter=Router();
 // professionalPhotoRouter.use: Aplica los controles compartidos a las rutas siguientes. Controles: roles: VETERINARIAN, GROOMER.
-professionalPhotoRouter.use(authenticate,requireRole('VETERINARIAN','GROOMER'));
+professionalPhotoRouter.use(authenticate,requireProfessionalIdentity());
 // professionalPhotoRouter.put('/'): Actualiza la foto del profesional autenticado Controles: límite de solicitudes.
 professionalPhotoRouter.put('/',createAuthRateLimiter(),handler(async(req,res)=>{
   const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body as Record<string,unknown>:{};

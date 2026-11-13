@@ -322,7 +322,6 @@ export default function UserEditor() {
               disabled={
                 blocked ||
                 self ||
-                user?.role === "VETERINARIAN" ||
                 action.loading
               }
               onChange={(roleId) => {

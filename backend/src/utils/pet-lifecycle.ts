@@ -10,8 +10,6 @@
 import { AppError } from './app-error';
 import type { AuthUser } from '../types/auth';
 
-// Roles profesionales/admin que pueden gestionar ciclo de vida de pacientes.
-const patientLifecycleRoles = new Set(['ADMIN','SUPER_ADMIN','VETERINARIAN','GROOMER']);
 
 /** Normalize MySQL/API boolean representations without relying on JavaScript truthiness. */
 /** Acepta representaciones válidas de activo/inactivo y devuelve null si no se reconoce. */
@@ -49,9 +47,9 @@ export function assertNoFuturePatientAppointments(statuses: readonly unknown[]):
   if (statuses.length) throw new AppError('PET_HAS_APPOINTMENTS', 409, 'No se puede desactivar la mascota porque tiene turnos futuros pendientes. No se modificó ningún turno.');
 }
 
-/** Exige rol profesional/admin o permiso explícito de gestión de pacientes. */
-export function assertCanManagePetLifecycle(actor: Pick<AuthUser,'role'|'permissions'>): void {
-  if (!patientLifecycleRoles.has(actor.role) || !actor.permissions?.includes('pets.update')) {
+/** Exige permiso explícito; el repository conserva el alcance y la identidad profesional. */
+export function assertCanManagePetLifecycle(actor: Pick<AuthUser,'permissions'>): void {
+  if (!actor.permissions?.includes('pets.update')) {
     throw new AppError('FORBIDDEN', 403, 'No tenés permiso para cambiar el estado de este paciente.');
   }
 }

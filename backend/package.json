@@ -7,6 +7,7 @@
     "oauth:callbacks": "tsx src/database/oauth-callbacks.ts",
     "db:bootstrap": "tsx src/database/bootstrap.ts",
     "db:migrate:auth": "tsx src/database/auth-migrate.ts",
+    "db:migrate:role-status": "tsx src/database/role-status-migrate.ts",
     "admin:promote": "tsx src/database/promote-super-admin.ts",
     "create:super-admin": "tsx src/database/create-super-admin.ts",
     "dev": "tsx watch src/server.ts",

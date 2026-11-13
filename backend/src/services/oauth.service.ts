@@ -76,7 +76,7 @@ export async function registerOAuth(value:unknown){
   assertOAuthRegistrationEmailAvailable(Boolean(await findUserByEmail(input.email)));
   const hash=await hashPassword(input.password),proof=randomBytes(32).toString('hex');
   await repo.withTicket(body.ticket,body.proof,async(c,a)=>{
-    if(a.link_user_id)throw new AppError('VALIDATION_ERROR',400,'Esta solicitud es de vinculación.');const [roles]=await c.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='CLIENT'");if(!roles[0])throw new AppError('AUTH_UNAVAILABLE',503,'El rol cliente no está configurado.');
+    if(a.link_user_id)throw new AppError('VALIDATION_ERROR',400,'Esta solicitud es de vinculación.');const [roles]=await c.execute<RowDataPacket[]>("SELECT id FROM roles WHERE code='CLIENT' AND is_active=1");if(!roles[0])throw new AppError('AUTH_UNAVAILABLE',503,'El rol cliente no está configurado.');
     await c.execute('INSERT INTO users(role_id,email,password_hash,first_name,last_name,phone) VALUES (?,?,?,?,?,?)',[roles[0].id,input.email,hash,input.firstName,input.lastName,input.phone]);const [ids]=await c.execute<RowDataPacket[]>('SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id');const id=ids[0].id;
     await c.execute('INSERT INTO oauth_accounts(provider,subject,user_id) VALUES (?,?,?)',[a.provider,a.identity_json.subject,id]);
     await c.execute("INSERT INTO email_verifications(user_id,token_hash,proof_expires_at,send_window_started_at,next_send_at,delivery) VALUES (?,?,TIMESTAMPADD(HOUR,24,UTC_TIMESTAMP(3)),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3),'failed')",[id,hashVerificationToken(proof)]);await repo.consume(c,body.ticket as string);

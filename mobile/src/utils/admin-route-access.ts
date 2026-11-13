@@ -15,6 +15,7 @@
 export type PermissionCheck = (code: string) => boolean;
 
 const anyPermissionRoutes: { matches: (path: string) => boolean; permissions: string[] }[] = [
+  { matches: path => /^\/admin\/(?:agenda|appointment)$/.test(path), permissions: ['appointments.view_all','appointments.view_own','appointments.manage'] },
   { matches: path => path === '/admin/store-settings', permissions: ['store.settings.view', 'store.settings.manage'] },
   { matches: path => path === '/admin/specialties' || path === '/admin/veterinarians/specialties', permissions: ['specialties.manage', 'professional_types.manage'] },
   { matches: path => path === '/admin/products', permissions: ['products.update', 'products.update_stock', 'products.update_price'] },
@@ -25,7 +26,6 @@ const anyPermissionRoutes: { matches: (path: string) => boolean; permissions: st
 ];
 
 const singlePermissionRoutes: { matches: (path: string) => boolean; permission: string }[] = [
-  { matches: path => /^\/admin\/(?:agenda|appointment)$/.test(path), permission: 'appointments.view_all' },
   { matches: path => path === '/admin/availability', permission: 'schedule.manage' },
   { matches: path => path === '/admin/store-orders', permission: 'orders.view_all' },
   { matches: path => path === '/admin/store-banners', permission: 'store.banners.manage' },
@@ -46,7 +46,8 @@ export function canAccessAdminPath(pathname: string, hasPermission: PermissionCh
   // This screen is specifically the global patient list; use the effective
   // all-patients grant configured on the user's role.
   if (/^\/admin\/(?:patients|patient)$/.test(path)) {
-    return hasPermission('pets.view_all');
+    return ['pets.view_all','pets.view_information','pets.view_assigned','medical_records.view','medical_records.create','vaccines.view','vaccines.create','prescriptions.view','prescriptions.create','recommendations.create']
+      .some(permission=>hasPermission(permission));
   }
 
   const anyRoute = anyPermissionRoutes.find(route => route.matches(path));

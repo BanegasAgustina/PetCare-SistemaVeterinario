@@ -12,7 +12,7 @@
  */
 import type { AuthUser } from './auth';
 /** Rol disponible en administración junto con grants, delegabilidad y cantidad de cuentas asignadas. */
-export type AdminRole={id:string;code:AuthUser['role'];name:string;permissions:string[];canAssign:boolean;assignedUsers:number};
+export type AdminRole={id:string;code:AuthUser['role'];name:string;permissions:string[];canAssign:boolean;assignedUsers:number;isActive:boolean};
 /** Catálogo de permiso: código, descripción, módulo y restricciones para delegarlo. */
 export type AdminPermission={id:string;code:string;name:string;description:string;module:string;moduleName:string;critical:boolean;canDelegate:boolean};
 /** Catálogos de roles y permisos que alimentan sus pantallas de administración. */

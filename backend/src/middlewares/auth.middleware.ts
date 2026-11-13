@@ -32,7 +32,7 @@ export const authenticate: RequestHandler = async (request, response, next) => {
     if (user.mustChangePassword) throw new AppError('PASSWORD_CHANGE_REQUIRED',403,'Tenés que cambiar la contraseña inicial para continuar.');
     response.locals.authenticatedRoleId=user.roleId??null;
     response.locals.authenticatedAccountActive=user.isActive;
-    response.locals.authenticatedUser = { ...publicUser(user), ...await authorizationData(user.id,user.role) };
+    response.locals.authenticatedUser = { ...publicUser(user), ...await authorizationData(user.id) };
     next();
   } catch (error) { next(error); }
 };

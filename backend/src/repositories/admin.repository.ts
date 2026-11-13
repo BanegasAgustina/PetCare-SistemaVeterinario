@@ -29,7 +29,7 @@ import { assertAccountDeactivationAllowed,assertCustomRoleDeletable } from '../u
 
 /** Vuelve a leer al actor bajo bloqueo y exige uno de los roles indicados antes de una mutación administrativa. */
 export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
-  const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
+  const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id AND r.is_active=1 WHERE u.id=? FOR UPDATE',[identity.id]);
   if(!rows[0]?.is_active||!rows[0].email_verified_at)forbidden();
   const permissions=await readPermissions(identity.id,c);
   const actor={...identity,role:rows[0].role as RoleCode,permissions:permissions.filter(p=>p.effective).map(p=>p.code)};
@@ -37,7 +37,7 @@ export async function freshAdmin(c:PoolConnection,identity:AuthUser,...codes:str
 }
 /** Vuelve a consultar permisos delegables del actor en la transacción para evitar autorizar con un estado anterior. */
 async function freshPermissionActor(c:PoolConnection,identity:AuthUser,...codes:string[]):Promise<AuthUser> {
-  const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE',[identity.id]);
+  const [rows]=await c.execute<RowDataPacket[]>('SELECT u.id,r.code AS role,u.is_active,u.email_verified_at FROM users u JOIN roles r ON r.id=u.role_id AND r.is_active=1 WHERE u.id=? FOR UPDATE',[identity.id]);
   if(!rows[0]?.is_active||!rows[0].email_verified_at)forbidden();
   const permissions=await readPermissions(identity.id,c);
   const actor={...identity,role:String(rows[0].role),permissions:permissions.filter(p=>p.effective).map(p=>p.code)};
@@ -57,7 +57,7 @@ const mapUser=(row:RowDataPacket)=>({...row,id:String(row.id),roleId:String(row.
 /** Construye contadores y accesos del inicio administrativo usando módulos permitidos y datos actuales. */
 export async function adminHome(actor:AuthUser) {
   // Este mapa describe rutas implementadas, no otorga permisos ni contiene datos de negocio.
-  const paths:Record<string,string>={'pets.view_all':'/admin/patients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders','store.banners.manage':'/admin/store-banners','settings.general.manage':'/admin/general-information'};
+  const paths:Record<string,string>={'pets.view_all':'/admin/patients','pets.view_information':'/admin/patients','pets.view_assigned':'/admin/patients','pets.update':'/admin/patients','users.view_basic':'/admin/clients','users.manage':'/admin/users','roles.manage':'/admin/roles','permissions.manage':'/admin/permissions','veterinarians.manage':'/admin/veterinarians','specialties.manage':'/admin/specialties','professionals.manage':'/admin/professionals','services.manage':'/admin/catalog/services','appointments.view_all':'/admin/agenda','appointments.view_own':'/admin/agenda','appointments.manage':'/admin/agenda','appointments.update_own':'/admin/agenda','schedule.manage':'/admin/availability','medical_records.view':'/admin/patients','medical_records.create':'/admin/patients','vaccines.view':'/admin/patients','vaccines.create':'/admin/patients','prescriptions.view':'/admin/patients','prescriptions.create':'/admin/patients','recommendations.create':'/admin/patients','products.view':'/admin/products','products.create':'/admin/catalog/products','professional_types.manage':'/admin/specialties','products.update':'/admin/catalog/products','products.update_stock':'/admin/products','products.update_price':'/admin/products','categories.manage':'/admin/catalog/categories','promotions.manage':'/admin/catalog/promotions','store.settings.view':'/admin/store-settings','store.settings.manage':'/admin/store-settings','orders.view_all':'/admin/store-orders','orders.manage':'/admin/store-orders','store.banners.manage':'/admin/store-banners','settings.general.manage':'/admin/general-information'};
   const [rows]=await databasePool.execute<RowDataPacket[]>('SELECT p.code,p.name,m.name AS moduleName FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
   const seen=new Set<string>();const modules: {code:string;name:string;path:string}[]=[];
   for(const row of rows){const path=paths[row.code];if(path==='/admin/catalog/products'&&!actor.permissions?.includes('products.update'))continue;if(path&&actor.permissions?.includes(row.code)&&!seen.has(path)){seen.add(path);modules.push({code:row.code,name:permissionName(row.code,row.name),path});}}
@@ -94,12 +94,12 @@ export async function adminHome(actor:AuthUser) {
 }
 /** Devuelve catálogos necesarios para formularios, filtrando opciones según permisos del actor. */
 export async function adminCatalog(actor:AuthUser) {
-  const [roles]=await databasePool.execute<RowDataPacket[]>('SELECT r.id,r.code,r.name,(SELECT COUNT(*) FROM users u WHERE u.role_id=r.id) AS assignedUsers FROM roles r ORDER BY r.name');
+  const [roles]=await databasePool.execute<RowDataPacket[]>('SELECT r.id,r.code,r.name,r.is_active AS isActive,(SELECT COUNT(*) FROM users u WHERE u.role_id=r.id) AS assignedUsers FROM roles r ORDER BY r.name');
   const [permissions]=await databasePool.execute<RowDataPacket[]>('SELECT p.id,p.code,p.name,p.description,p.module_code AS module,m.name AS moduleName,p.is_critical AS critical FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
   const [grants]=await databasePool.execute<RowDataPacket[]>('SELECT rp.role_id AS roleId,p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id');
   // Hide the retired database row from role management until the manual migration removes it.
   return {roles:roles.filter(r=>r.code!=='SECRETARY').map(r=>{const permissions=grants.filter(g=>String(g.roleId)===String(r.id)).map(g=>g.code as string);return {id:String(r.id),code:r.code,name:roleName(r.code,r.name),permissions,assignedUsers:Number(r.assignedUsers??0),
-      canAssign:r.code!=='VETERINARIAN'&&r.code!=='SECRETARY'&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&permissions.every(code=>actor.permissions?.includes(code))};}),
+      isActive:Boolean(r.isActive),canAssign:Boolean(r.isActive)&&r.code!=='VETERINARIAN'&&r.code!=='SECRETARY'&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&permissions.every(code=>actor.permissions?.includes(code))};}),
     permissions:permissions.map(p=>({...p,id:String(p.id),name:permissionName(p.code,p.name),description:permissionDescription(p.code,p.description),moduleName:permissionModuleName(p.module,p.moduleName),critical:Boolean(p.critical),canDelegate:actor.permissions?.includes(p.code)??false}))};
 }
 /** Lista usuarios con búsqueda, estado y paginación; transforma IDs y datos públicos. */
@@ -128,10 +128,10 @@ export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:strin
   let previous:unknown=null;
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'users.manage');
-    const [rows]=await c.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS profilePhotoUrl,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE",[id]);
+    const [rows]=await c.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS profilePhotoUrl,r.code AS role,pt.id AS professionalTypeId FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) WHERE u.id=? FOR UPDATE",[id]);
     if(!rows[0])throw new AppError('NOT_FOUND',404,'Usuario no encontrado.');
-    assertTarget(actor,{id,role:rows[0].role});
-    if(!['VETERINARIAN','GROOMER'].includes(String(rows[0].role)))throw new AppError('VALIDATION_ERROR',400,'La foto de perfil solo está habilitada para el personal de la clínica.');
+    assertTarget(actor,{id,role:String(rows[0].role)});
+    if(!rows[0].professionalTypeId)throw new AppError('VALIDATION_ERROR',400,'La foto de perfil profesional requiere una identidad profesional activa.');
     previous=rows[0].profilePhotoUrl;
     if(key!==null&&!isProfilePhotoKey(key))throw new AppError('VALIDATION_ERROR',400,'La referencia de la foto no es válida.');
     await c.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,id]);
@@ -140,9 +140,9 @@ export async function updateAdminUserPhoto(identity:AuthUser,id:string,key:strin
 }
 /** Lee los permisos efectivos/delegables del rol dentro de la conexión y bloqueo actuales. */
 async function roleGrants(c:PoolConnection,id:string) {
-  const [roles]=await c.execute<RowDataPacket[]>('SELECT id,code FROM roles WHERE id=?',[id]);if(!roles[0])throw new AppError('VALIDATION_ERROR',400,'El rol no existe.');
+  const [roles]=await c.execute<RowDataPacket[]>('SELECT id,code,is_active AS isActive FROM roles WHERE id=?',[id]);if(!roles[0])throw new AppError('VALIDATION_ERROR',400,'El rol no existe.');
   const [permissions]=await c.execute<RowDataPacket[]>('SELECT p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?',[id]);
-  return {role:roles[0].code as string,permissions:permissions.map(p=>p.code as string)};
+  return {role:roles[0].code as string,isActive:Boolean(roles[0].isActive),permissions:permissions.map(p=>p.code as string)};
 }
 /** Valida datos y rol, crea cuenta con credencial no utilizable, genera invitación y devuelve el resultado de entrega. */
 export async function createAdminUser(identity:AuthUser,value:unknown) {
@@ -150,7 +150,7 @@ export async function createAdminUser(identity:AuthUser,value:unknown) {
   const input={firstName:readName(body.firstName,'El nombre'),lastName:readName(body.lastName,'El apellido'),email:normalizeEmail(body.email),phone:readPhone(body.phone),roleId:identifier(body.roleId)};
   const unusablePasswordHash=await hashPassword(randomBytes(32).toString('hex'));
   const saved=await transaction(async c=>{
-    const actor=await freshAdmin(c,identity,'users.manage');const role=await roleGrants(c,input.roleId);
+    const actor=await freshAdmin(c,identity,'users.manage');const role=await roleGrants(c,input.roleId);if(!role.isActive)forbidden('No se puede asignar un rol desactivado.');
     assertRoleAssignment(actor,role.role,role.permissions);
     const [matches]=await c.execute<RowDataPacket[]>('SELECT u.id,u.role_id AS roleId,u.is_active,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.email=? FOR UPDATE',[input.email]);
     let id:string;
@@ -194,7 +194,7 @@ export async function updateAdminUser(identity:AuthUser,id:string,value:unknown)
     const roleChanged=requestedRole!==undefined&&requestedRole!==String(target.roleId);const statusChanged=Boolean(target.is_active)!==body.isActive;
     if(statusChanged&&body.isActive&&Number(target.must_change_password)===1&&!target.email_verified_at)throw new AppError('INVITATION_REQUIRED',409,'La cuenta debe activarse desde el enlace de invitación enviado al correo.');
     if(id===actor.id&&(roleChanged||statusChanged))forbidden('No podés cambiar tu propio rol ni desactivar tu propia cuenta.');
-    if(roleChanged){if(target.role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'No se cambia el rol de un usuario con perfil veterinario.');const role=await roleGrants(c,requestedRole!);assertRoleAssignment(actor,role.role,role.permissions);}
+    if(roleChanged){const role=await roleGrants(c,requestedRole!);if(!role.isActive)forbidden('No se puede asignar un rol desactivado.');assertRoleAssignment(actor,role.role,role.permissions);}
     if(statusChanged&&!body.isActive){const [others]=await c.execute<RowDataPacket[]>("SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='SUPER_ADMIN' AND u.is_active=1 AND u.email_verified_at IS NOT NULL AND u.id<>?",[id]);assertAccountDeactivationAllowed({actorId:actor.id,targetId:id,targetRole:String(target.role),activeVerifiedSuperAdmins:Number(others[0]?.total??0)+1});}
     await c.execute('UPDATE users SET first_name=?,last_name=?,phone=?,is_active=?,deleted_at=CASE WHEN ?=1 THEN NULL ELSE deleted_at END,role_id=?,session_version=session_version+? WHERE id=?',[firstName,lastName,phone,body.isActive,body.isActive,requestedRole??target.roleId,roleChanged||statusChanged?1:0,id]);
     if(statusChanged)await c.execute('INSERT INTO admin_sensitive_action_audit (actor_user_id,action_code,entity_type,entity_id,entity_label,result_code) VALUES (?,?,?,?,?,?)',[actor.id,body.isActive?'USER_ACTIVATED':'USER_DEACTIVATED','USER',id,`${target.firstName} ${target.lastName}`.trim(),'SUCCESS']);
@@ -243,15 +243,19 @@ export async function updateUserPermissions(identity:AuthUser,id:string,value:un
 }
 /** Actualiza nombre y permisos de un rol editable respetando asignaciones y límites de delegación. */
 export async function updateRole(identity:AuthUser,id:string,value:unknown) {
-  const body=objectBody(value,['name','permissionCodes']);const name=textField(body.name,'El nombre del rol',60);
-  if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>100||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
+  const body=objectBody(value,['name','permissionCodes','isActive']);const name=textField(body.name,'El nombre del rol',60);
+  if(body.isActive!==undefined&&typeof body.isActive!=='boolean')throw new AppError('VALIDATION_ERROR',400,'El estado del rol no es válido.');
+  if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>1000||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
   const codes=body.permissionCodes as string[];
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');const role=await roleGrants(c,id);
+    const isActive=body.isActive===undefined?role.isActive:body.isActive;
+    if(!isActive&&['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role.role))forbidden('No se puede desactivar un rol del sistema.');
+    if(!isActive&&actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede desactivar un rol.');
     assertTarget(actor,{id,role:role.role});const changed=[...new Set([...role.permissions,...codes])].filter(code=>role.permissions.includes(code)!==codes.includes(code));assertDelegation(actor,changed);
     const [catalog]=await c.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
     for(const code of codes){const p=catalog.find(p=>p.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');if(p.is_critical&&!['ADMIN','SUPER_ADMIN'].includes(role.role))forbidden('Este rol no admite permisos administrativos.');}
-    await c.execute('UPDATE roles SET name=? WHERE id=?',[name,id]);await c.execute('DELETE FROM role_permissions WHERE role_id=?',[id]);
+    await c.execute('UPDATE roles SET name=?,is_active=? WHERE id=?',[name,isActive?1:0,id]);await c.execute('DELETE FROM role_permissions WHERE role_id=?',[id]);
     for(const code of codes)await c.execute('INSERT INTO role_permissions (role_id,permission_id) VALUES (?,?)',[id,catalog.find(p=>p.code===code)!.id]);
     const remaining=await readPermissions(actor.id,c);if(!remaining.some(p=>p.code==='roles.manage'&&p.effective)||!remaining.some(p=>p.code==='permissions.manage'&&p.effective))forbidden('El cambio quitaría tu acceso a la gestión de roles o permisos.');
   });return adminCatalog(identity);
@@ -274,7 +278,7 @@ export async function deleteCustomRole(identity:AuthUser,id:string) {
 export async function createRole(identity:AuthUser,value:unknown) {
   const body=objectBody(value,['name','permissionCodes']);
   const name=textField(body.name,'El nombre del rol',60);
-  if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>100||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
+  if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>1000||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
   const codes=body.permissionCodes as string[];const code=roleCodeFromName(name);
   // Keep the retired code reserved so it cannot be recreated as a custom role.
   if(!/^[A-Z][A-Z0-9_]{0,31}$/.test(code)||['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN','SECRETARY'].includes(code))throw new AppError('VALIDATION_ERROR',400,'El nombre debe producir un código de rol nuevo y válido.');

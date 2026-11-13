@@ -1,14 +1,4 @@
-/**
- * ARCHIVO: capability-modules.ts
- * UBICACIÓN: mobile/src/utils/capability-modules.ts
- * FUNCIÓN: Regla auxiliar de la interfaz.
- * RESPONSABILIDAD: Regla auxiliar de la interfaz dentro de PetCare; agrupa las declaraciones de capability-modules.
- * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: mobile/src/app/_layout.tsx, mobile/src/app/workspace.tsx, mobile/src/components/layout/GlobalNavigation.tsx, mobile/src/utils/role-home.ts
- * FUNCIONAMIENTO: Expone reglas o transformaciones auxiliares; cada función especifica entradas, resultado y condiciones en su implementación.
- * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
- */
-/** Rutas disponibles para roles personalizados. Las rutas vienen de esta lista local cerrada. */
-// Dato personalCapabilityModules: conserva un valor calculado o de configuración usado por este módulo.
+/** Screen catalog: routes stay in the app; effective permission codes come from the API. */
 export const personalCapabilityModules = [
   { code: 'personal.pets.view', name: 'Mis mascotas', path: '/client/pets', permissions: ['personal.pets.view','personal.pets.manage'] },
   { code: 'personal.appointments.view', name: 'Mis turnos', path: '/client/appointments', permissions: ['personal.appointments.view','personal.appointments.create'] },
@@ -16,33 +6,48 @@ export const personalCapabilityModules = [
   { code: 'personal.orders.view', name: 'Mis pedidos', path: '/client/orders', permissions: ['personal.orders.view'] },
   { code: 'personal.profile.manage', name: 'Mi perfil personal', path: '/client/profile', permissions: ['personal.profile.manage'] },
 ] as const;
-// Dato administrativeCapabilityModules: conserva un valor calculado o de configuración usado por este módulo.
+
+/** Permission-to-screen mapping only; this does not grant permissions or classify roles. */
 export const administrativeCapabilityModules = [
-  { code: 'products.update_stock', name: 'Inventario y stock', path: '/admin/products', permissions: ['products.update_stock','products.update','products.update_price'] },
-  { code: 'categories.manage', name: 'Categorías', path: '/admin/catalog/categories', permissions: ['categories.manage'] },
-  { code: 'promotions.manage', name: 'Promociones y descuentos', path: '/admin/catalog/promotions', permissions: ['promotions.manage'] },
+  { code: 'pets.view_all', name: 'Pacientes', path: '/admin/patients', permissions: ['pets.view_all','pets.view_information','pets.view_assigned'] },
+  { code: 'appointments.view_all', name: 'Turnos', path: '/admin/agenda', permissions: ['appointments.view_all','appointments.view_own','appointments.manage'] },
+  { code: 'schedule.manage', name: 'Horarios', path: '/admin/availability', permissions: ['schedule.manage'] },
+  { code: 'users.view_basic', name: 'Clientes', path: '/admin/clients', permissions: ['users.view_basic'] },
+  { code: 'professionals.manage', name: 'Profesionales', path: '/admin/professionals', permissions: ['professionals.manage'] },
+  { code: 'veterinarians.manage', name: 'Veterinarios', path: '/admin/veterinarians', permissions: ['veterinarians.manage'] },
   { code: 'services.manage', name: 'Servicios', path: '/admin/catalog/services', permissions: ['services.manage'] },
-  { code: 'products.update', name: 'Inventario y productos', path: '/admin/products', permissions: ['products.update'] },
+  { code: 'products.view', name: 'Productos', path: '/admin/products', permissions: ['products.view','products.update','products.update_stock','products.update_price'] },
+  { code: 'categories.manage', name: 'Categorías', path: '/admin/catalog/categories', permissions: ['categories.manage'] },
+  { code: 'promotions.manage', name: 'Promociones', path: '/admin/catalog/promotions', permissions: ['promotions.manage'] },
+  { code: 'store.settings.view', name: 'Envíos y entregas', path: '/admin/store-settings', permissions: ['store.settings.view','store.settings.manage'] },
+  { code: 'orders.view_all', name: 'Pedidos', path: '/admin/store-orders', permissions: ['orders.view_all','orders.manage'] },
+  { code: 'store.banners.manage', name: 'Banners y slider', path: '/admin/store-banners', permissions: ['store.banners.manage'] },
+  { code: 'roles.manage', name: 'Roles', path: '/admin/roles', permissions: ['roles.manage'] },
+  { code: 'permissions.manage', name: 'Permisos', path: '/admin/permissions', permissions: ['permissions.manage'] },
+  { code: 'users.manage', name: 'Usuarios', path: '/admin/users', permissions: ['users.manage'] },
+  { code: 'specialties.manage', name: 'Especialidades', path: '/admin/specialties', permissions: ['specialties.manage','professional_types.manage'] },
+  { code: 'settings.general.manage', name: 'Información de PetCare', path: '/admin/general-information', permissions: ['settings.general.manage'] },
 ] as const;
-// Configuración capabilityModules: reúne valores o reglas que consume el resto del módulo.
+
 export const capabilityModules = [...personalCapabilityModules,...administrativeCapabilityModules];
-/** Indica si algún permiso administrativo reconocido habilita el espacio de capacidades de administración. */
+
 export function hasCapabilityModule(permissions: string[] | undefined) {
   return administrativeCapabilityModules.some(module => module.permissions.some(code => permissions?.includes(code)));
 }
-/** Indica si algún permiso personal reconocido habilita módulos personales para un rol personalizado. */
+/** Permission set that warrants the administration shell; own-work tools stay in the professional shell. */
+export function hasAdministrativeShellCapability(permissions:string[]|undefined) {
+  const professionalOnly=new Set(['appointments.view_own','appointments.update_own','pets.view_information','pets.view_assigned','products.view']);
+  return administrativeCapabilityModules.some(module=>module.permissions.some(code=>!professionalOnly.has(code)&&permissions?.includes(code)));
+}
 export function hasPersonalCapabilityModule(permissions: string[] | undefined) {
   return personalCapabilityModules.some(module => module.permissions.some(code => permissions?.includes(code)));
 }
-/** Envía a formulario de solicitud a quien puede crear turnos personales, pero no tiene permiso de lectura. */
 function capabilityPath(code:string,path:string,permissions:string[]|undefined):string {
   return code==='personal.appointments.view'&&permissions?.includes('personal.appointments.create')&&!permissions.includes('personal.appointments.view')?'/client/appointments/request':path;
 }
-/** Filtra los módulos personales habilitados y ajusta la ruta de creación de turnos según sus grants. */
 export function personalModulesForCapabilities(permissions: string[] | undefined) {
   return personalCapabilityModules.filter(module => module.permissions.some(code => permissions?.includes(code))).map(({code,name,path})=>({code,name,path:capabilityPath(code,path,permissions)}));
 }
-/** Reúne módulos personales y administrativos permitidos y quita rutas repetidas para el menú. */
 export function modulesForCapabilities(permissions: string[] | undefined) {
   const byPath=new Map<string,{code:string;name:string;path:string}>();
   for(const module of capabilityModules){const path=capabilityPath(module.code,module.path,permissions);if(module.permissions.some(code=>permissions?.includes(code))&&!byPath.has(path))byPath.set(path,{code:module.code,name:module.name,path});}

@@ -16,7 +16,7 @@ import { env, isVercelRuntime } from './config/env';
 import { apiRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { authenticate } from './middlewares/auth.middleware';
-import { requireRole,requirePermission,requirePersonalAccess } from './middlewares/permission.middleware';
+import { requirePermission,requireProfessionalIdentity,requirePersonalAccess } from './middlewares/permission.middleware';
 import { createAuthRateLimiter } from './middlewares/auth-rate-limit.middleware';
 import { configureProxyTrust } from './middlewares/proxy-trust.middleware';
 import { pet } from './repositories/client.repository';
@@ -47,11 +47,11 @@ app.use(/^\/api\/client\/payment-intents\/\d+\/proof$/, (req,res,next)=>{
 });
 app.use('/api/vet/profile/photo',(req,res,next)=>{
   if(req.method!=='PUT')return next();
-  authenticate(req,res,error=>{if(error)return next(error);requireRole('VETERINARIAN','GROOMER')(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+  authenticate(req,res,error=>{if(error)return next(error);requireProfessionalIdentity()(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(/^\/api\/(?:admin\/(?:products\/\d+|users\/\d+\/photo)|admin\/veterinarians\/\d+\/photo|clinic\/admin\/(?:products|services)(?:\/\d+)?)$/, (req,res,next)=> {
   if(!['POST','PATCH','PUT'].includes(req.method))return next();
-  authenticate(req,res,error=>{if(error)return next(error);const authorize=/^\/api\/(?:admin\/products\/\d+|clinic\/admin\/products(?:\/\d+)?)$/.test(req.path)?requirePermission('products.update'):/^\/api\/clinic\/admin\/services(?:\/\d+)?$/.test(req.path)?requirePermission('services.manage'):requireRole('ADMIN','SUPER_ADMIN');authorize(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
+  authenticate(req,res,error=>{if(error)return next(error);const authorize=/^\/api\/(?:admin\/products\/\d+|clinic\/admin\/products(?:\/\d+)?)$/.test(req.path)?requirePermission('products.update'):/^\/api\/clinic\/admin\/services(?:\/\d+)?$/.test(req.path)?requirePermission('services.manage'):/^\/api\/admin\/veterinarians\/\d+\/photo$/.test(req.path)?requirePermission('veterinarians.manage'):requirePermission('users.manage');authorize(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(express.json({ limit: '100kb' }));
 app.use('/api/cron/notifications', notificationJobsRouter);

@@ -19,7 +19,7 @@ import { AppError } from '../utils/app-error';
 export async function sessionForUser(user: StoredUser, refreshToken?: string): Promise<AccessSession> {
   if (!user.isActive || !user.emailVerifiedAt) throw new AppError('INVALID_TOKEN',401,'La cuenta no está habilitada.');
   getJwtConfiguration();
-  const authorization=await authorizationData(user.id,user.role);
+  const authorization=await authorizationData(user.id);
   const refresh=refreshToken??await issueRefresh(user.id,user.sessionVersion);
   const access=createAccessToken(user.id,user.sessionVersion,await refreshFamily(refresh));
   return {user:{...publicUser(user),...authorization},...access,tokenType:'Bearer',refreshToken:refresh};

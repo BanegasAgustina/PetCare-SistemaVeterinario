@@ -46,12 +46,10 @@ export async function readVetProfile(userId: string): Promise<VetProfile | null>
   });
 }
 /** Construye los datos actuales de autorización, rol y perfil que requiere middleware/sesión. */
-export async function authorizationData(userId: string,role?:string) {
+export async function authorizationData(userId: string) {
   const [permissions, veterinarian] = await Promise.all([readPermissions(userId),readVetProfile(userId)]);
   let professional:null|{typeId:string;name:string;isClinical:boolean;serviceIds:string[]}=null;
-  if(role==='VETERINARIAN'||role==='GROOMER') {
-    const [types]=await databasePool.execute<RowDataPacket[]>('SELECT pt.id,pt.name,pt.is_clinical FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) WHERE u.id=?',[userId]);
-    if(types[0]){const [services]=await databasePool.execute<RowDataPacket[]>('SELECT service_id FROM professional_services WHERE user_id=?',[userId]);professional={typeId:String(types[0].id),name:catalogName(types[0].name),isClinical:Boolean(types[0].is_clinical),serviceIds:services.map(s=>String(s.service_id))};}
-  }
+  const [types]=await databasePool.execute<RowDataPacket[]>('SELECT pt.id,pt.name,pt.is_clinical FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) WHERE u.id=?',[userId]);
+  if(types[0]){const [services]=await databasePool.execute<RowDataPacket[]>('SELECT service_id FROM professional_services WHERE user_id=?',[userId]);professional={typeId:String(types[0].id),name:catalogName(types[0].name),isClinical:Boolean(types[0].is_clinical),serviceIds:services.map(s=>String(s.service_id))};}
   return { permissions: permissions.filter(p => p.effective).map(p => p.code), veterinarian,professional };
 }

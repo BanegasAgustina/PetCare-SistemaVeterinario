@@ -42,12 +42,12 @@ function ThemedNavigation() {
     <Stack.Protected guard={!auth.user}><Stack.Screen name="login" /><Stack.Screen name="register" /></Stack.Protected>
     <Stack.Screen name="reset-password" />
     <Stack.Screen name="change-initial-password" />
-    <Stack.Protected guard={Boolean(auth.user)&&auth.user?.role!=='CLIENT'}><Stack.Screen name="account" /></Stack.Protected>
+    <Stack.Protected guard={Boolean(auth.user)}><Stack.Screen name="account" /></Stack.Protected>
     <Stack.Protected guard={Boolean(auth.user)}><Stack.Screen name="notifications" /></Stack.Protected>
     <Stack.Protected guard={canEnterClientRoot(auth.user)}><Stack.Screen name="client" /></Stack.Protected>
-    <Stack.Protected guard={auth.user?.role==='VETERINARIAN'}><Stack.Screen name="vet" /></Stack.Protected>
-    <Stack.Protected guard={auth.user?.role==='GROOMER'}><Stack.Screen name="professional" /></Stack.Protected>
-    <Stack.Protected guard={auth.user?.role==='SUPER_ADMIN' || auth.user?.role==='ADMIN' || hasCapabilityModule(auth.user?.permissions)}><Stack.Screen name="admin" /></Stack.Protected>
+    <Stack.Protected guard={Boolean(auth.user?.professional?.isClinical)}><Stack.Screen name="vet" /></Stack.Protected>
+    <Stack.Protected guard={Boolean(auth.user?.professional&&!auth.user.professional.isClinical)}><Stack.Screen name="professional" /></Stack.Protected>
+    <Stack.Protected guard={hasCapabilityModule(auth.user?.permissions)}><Stack.Screen name="admin" /></Stack.Protected>
     <Stack.Protected guard={canEnterWorkspace(auth.user)}><Stack.Screen name="workspace" /></Stack.Protected>
   </Stack>;
   return <><WebScrollStyles/><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{auth.user ? <GlobalNavigation>{content}</GlobalNavigation> : content}

@@ -11,25 +11,23 @@
  * Selecciona el panel usando el rol de /auth/me. No deduce privilegios por email ni ID.
  */
 import type { AuthUser } from '../types/auth';
-import { hasPersonalCapabilityModule } from './capability-modules';
+import { hasAdministrativeShellCapability, hasCapabilityModule, hasPersonalCapabilityModule } from './capability-modules';
 import { canAccessNotificationCenter } from './personal-route-access';
-/** El rol es el contrato de navegación; la identidad nunca se decide por email o ID. */
-/** Devuelve inicio por rol conocido; cuentas personalizadas usan workspace y una sesión nula vuelve a login. */
+/** Elige un shell compatible con las capacidades recibidas del backend. */
 export function roleHome(user: AuthUser | null): '/login' | '/client' | '/vet' | '/admin' | '/professional' | '/workspace' {
   if (!user) return '/login';
-  if (user.role==='CLIENT') return '/client';
-  if (user.role==='VETERINARIAN') return '/vet';
-  if (user.role==='GROOMER') return '/professional';
-  if (user.role==='SUPER_ADMIN' || user.role==='ADMIN') return '/admin';
+  if (hasAdministrativeShellCapability(user.permissions)) return '/admin';
+  if (user.professional) return user.professional.isClinical ? '/vet' : '/professional';
+  if (hasPersonalCapabilityModule(user.permissions)) return '/client';
   return '/workspace';
 }
 
 /** Mantener el destino de entrada y los guards del árbol raíz bajo la misma regla. */
 /** Permite el espacio personal a CLIENT, roles con módulos personales o roles de producto con acceso a notificaciones. */
 export function canEnterClientRoot(user:AuthUser|null):boolean {
-  return user?.role==='CLIENT'||hasPersonalCapabilityModule(user?.permissions)||canAccessNotificationCenter(user?.role??'');
+  return hasPersonalCapabilityModule(user?.permissions)||canAccessNotificationCenter(user?.role??'');
 }
-/** Reconoce workspace para una sesión cuyo rol no sea uno de los cinco roles estándar. */
+/** Permite el workspace a quien tenga permisos, para mostrar sus accesos autorizados. */
 export function canEnterWorkspace(user:AuthUser|null):boolean {
-  return Boolean(user&&!['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(user.role));
+  return Boolean(user&&!hasPersonalCapabilityModule(user.permissions)&&!hasCapabilityModule(user.permissions)&&!user.professional);
 }

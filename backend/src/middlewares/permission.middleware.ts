@@ -37,6 +37,14 @@ export function requirePermission(...codes: string[]): RequestHandler {
 export function requireAnyPermission(...codes:string[]):RequestHandler {
   return (_req,res,next)=>{const user=res.locals.authenticatedUser as AuthUser|undefined;next(user&&codes.some(code=>user.permissions?.includes(code))?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para esta acción.'));};
 }
+/** Professional identity is supplied by the persisted professional type, separately from role grants. */
+export function requireProfessionalIdentity(clinical?:boolean):RequestHandler {
+  return (_request,response,next)=>{
+    const user=response.locals.authenticatedUser as AuthUser|undefined;
+    const professional=user?.professional;
+    next(user&&professional&&(clinical===undefined||professional.isClinical===clinical)?undefined:new AppError('FORBIDDEN',403,'Esta operación requiere una identidad profesional habilitada.'));
+  };
+}
 /** Logs only non-PII authorization facts for a denied patient-list request; never logs request data or credentials. */
 /** Conserva el orden de rol, permiso y autorización de repositorio para consultas de pacientes. */
 export function patientQueryAuthorizationGuard(stage:'role'|'permission'|'repository',guard:RequestHandler):RequestHandler {
@@ -71,9 +79,8 @@ export function requirePatientScope(parameter = 'petId'): RequestHandler {
   return async (request,response,next) => {
     try {
       const user = response.locals.authenticatedUser as AuthUser;
-      if (!['VETERINARIAN','ADMIN','SUPER_ADMIN'].includes(user.role)) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
       if (user.permissions?.includes('pets.view_all')) { next(); return; }
-      if (user.role !== 'VETERINARIAN') throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
+      if (!user.professional?.isClinical) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
       if (!user.permissions?.includes('pets.view_assigned')) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');
       const id = request.params[parameter];
       if (typeof id !== 'string' || !/^[1-9]\d{0,19}$/.test(id)) throw new AppError('FORBIDDEN',403,'No tenés acceso a este paciente.');

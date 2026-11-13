@@ -73,8 +73,8 @@ export async function notify(
 
 /** Comprueba que el usuario sea un profesional activo, verificado y habilitado para recibir notificaciones de turnos. */
 async function canReceiveProfessionalAppointmentNotification(userId:string,c:PoolConnection):Promise<boolean> {
- const [users]=await c.execute<RowDataPacket[]>(`SELECT r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.is_active=1 AND u.email_verified_at IS NOT NULL`,[userId]);
- if(!users[0]||!['VETERINARIAN','GROOMER'].includes(String(users[0].role)))return false;
+ const [users]=await c.execute<RowDataPacket[]>(`SELECT pt.id FROM users u LEFT JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) WHERE u.id=? AND u.is_active=1 AND u.email_verified_at IS NOT NULL`,[userId]);
+ if(!users[0]?.id)return false;
  const permissions=(await readPermissions(userId,c)).filter(permission=>permission.effective).map(permission=>permission.code);
  return permissions.includes('appointments.view_own')||permissions.includes('appointments.view_all');
 }
@@ -106,7 +106,7 @@ const patientLifecycleFields=`p.is_active AS isActive,
 export async function professionals(activeOnly=false) {const result=await rows(`SELECT u.id,CONCAT(u.first_name,' ',u.last_name) AS name,u.profile_photo_url AS profilePhotoUrl,u.created_at AS createdAt,u.is_active AS isActive,u.email_verified_at IS NOT NULL AS emailVerified,pt.id AS typeId,pt.name AS typeName,pt.is_clinical AS isClinical,v.id AS veterinarianId,(SELECT GROUP_CONCAT(sp.name ORDER BY sp.name SEPARATOR ' · ') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialties,(SELECT GROUP_CONCAT(vs.specialty_id ORDER BY vs.specialty_id SEPARATOR ',') FROM veterinarian_specialties vs JOIN specialties sp ON sp.id=vs.specialty_id WHERE vs.veterinarian_id=v.id AND sp.is_active=1) AS specialtyIds FROM users u JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) LEFT JOIN veterinarians v ON v.user_id=u.id WHERE u.deleted_at IS NULL ${activeOnly?'AND u.is_active=1 AND u.email_verified_at IS NOT NULL':''} ORDER BY u.created_at DESC,u.last_name,u.first_name`);return Promise.all(result.map(async person=>({...person,profilePhotoUrl:await profilePhotoUrl(person.profilePhotoUrl)})));}
 /** Construye catálogos de clínica permitidos para el actor y presentación pública. */
 export async function catalog(actor?:AuthUser) {
- const admin=actor&&['ADMIN','SUPER_ADMIN'].includes(actor.role);
+ const admin=actor&&Boolean(actor.permissions?.some(code=>['services.manage','products.update','products.update_stock','categories.manage','promotions.manage','store.banners.manage'].includes(code)));
  /** Añade a cada elemento del catálogo el nombre de presentación normalizado. */
 const presentNames=(items:Data[])=>items.map(item=>({...item,name:catalogName(String(item.name))}));
  return {types:presentNames(await rows('SELECT pt.id,pt.name,pt.role_id AS roleId,pt.is_clinical AS isClinical FROM professional_types pt ORDER BY pt.name')),
@@ -150,22 +150,22 @@ const appointmentSelect=`SELECT a.id,a.owner_id AS ownerId,a.pet_id AS petId,a.s
 /** Lista turnos con alcance de actor, búsqueda, filtros, orden y paginación. */
 export async function appointments(actor:AuthUser,query:Record<string,unknown>={}) {
  const params:unknown[]=[];const clauses:string[]=[];
- if(actor.role==='CLIENT'){clauses.push('a.owner_id=?');params.push(actor.id);}else if(actor.role==='GROOMER'||!actor.permissions?.includes('appointments.view_all')){permit(actor,'appointments.view_own');clauses.push('s.professional_user_id=?');params.push(actor.id);}
+ if(actor.role==='CLIENT'){clauses.push('a.owner_id=?');params.push(actor.id);}else if(!actor.permissions?.includes('appointments.view_all')){permit(actor,'appointments.view_own');clauses.push('s.professional_user_id=?');params.push(actor.id);}
  for(const [key,column] of Object.entries({id:'a.id',petId:'a.pet_id',professionalId:'s.professional_user_id',serviceId:'sv.id',typeId:'pt.id',status:'a.status'})){if(query[key]){clauses.push(`${column}=?`);params.push(key==='status'?v.text(query[key],20):v.id(query[key]));}}
- if(query.search){const search=v.text(query.search,100)!;const searchOwner=actor.role==='VETERINARIAN'&&actor.permissions?.includes('users.view_basic');clauses.push(`(p.name LIKE ? OR sv.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?${searchOwner?' OR owner.first_name LIKE ? OR owner.last_name LIKE ?':''})`);params.push(...Array(searchOwner?6:4).fill(`%${search}%`));}
+ if(query.search){const search=v.text(query.search,100)!;const searchOwner=Boolean(actor.professional?.isClinical&&actor.permissions?.includes('users.view_basic'));clauses.push(`(p.name LIKE ? OR sv.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?${searchOwner?' OR owner.first_name LIKE ? OR owner.last_name LIKE ?':''})`);params.push(...Array(searchOwner?6:4).fill(`%${search}%`));}
  if(query.date){const date=v.text(query.date,10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push("DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=?");params.push(date);}
  for(const [key,operator] of [['fromDate','>=' ],['toDate','<=']] as const)if(query[key]){const date=v.text(query[key],10)!;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))v.invalid();clauses.push(`DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))${operator}?`);params.push(date);}
  if(query.upcomingOnly==='true'){clauses.push('s.starts_at>=UTC_TIMESTAMP()');clauses.push("a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS')");}
- const admin=actor.role==='ADMIN'||actor.role==='SUPER_ADMIN';
+ const admin=Boolean(actor.permissions?.includes('appointments.view_all')||actor.permissions?.includes('appointments.manage'));
  const requestedSort=admin&&typeof query.sort==='string'&&['priority','date_asc','date_desc'].includes(query.sort)?query.sort as AdminAppointmentSort:'priority';
- const ordering=admin?adminAppointmentOrderSql(requestedSort):`s.starts_at ${['VETERINARIAN','GROOMER'].includes(actor.role)?'ASC':'DESC'},a.id ASC`;
+ const ordering=admin?adminAppointmentOrderSql(requestedSort):`s.starts_at ${actor.professional?'ASC':'DESC'},a.id ASC`;
  const result=await rows(`${appointmentSelect} ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY ${ordering} LIMIT 201 OFFSET ${(v.queryPage(query)-1)*200}`,params);
  return await Promise.all(result.map(async appointment=>{
   const presented:Data={...appointment,petPhotoUrl:await petPhotoUrl(String(appointment.ownerId),appointment.petPhotoUrl)};
   // Las notas internas del turno nunca forman parte de la API consumida por CLIENT.
   if(actor.role==='CLIENT'){delete presented.observations;delete presented.ownerName;delete presented.ownerPhone;}
-  if(actor.role==='VETERINARIAN')delete presented.observations;
-  if(['VETERINARIAN','GROOMER'].includes(actor.role)&&!actor.permissions?.includes('users.view_basic')){delete presented.ownerName;delete presented.ownerPhone;}
+  if(actor.professional?.isClinical)delete presented.observations;
+  if(actor.professional&&!actor.permissions?.includes('users.view_basic')){delete presented.ownerName;delete presented.ownerPhone;}
   return presented;
  })) as Data[];
 }
@@ -173,19 +173,19 @@ export async function appointments(actor:AuthUser,query:Record<string,unknown>={
 export async function changeAppointment(actor:AuthUser,id:string,value:unknown) {
  const body=v.body(value,['status','slotId','observations','cancellationReason']);return transaction(actor,async(c,fresh)=>{
   const a=await one(`${appointmentSelect} WHERE a.id=? FOR UPDATE`,[id],c);
-  const manage=fresh.role!=='GROOMER'&&fresh.permissions?.includes('appointments.manage');
-  if(fresh.role==='GROOMER'&&(a.professionalId!==fresh.id||String(a.typeId)!==String(fresh.professional?.typeId)))forbidden();
+  const manage=fresh.permissions?.includes('appointments.manage');
+  if(fresh.professional&&!fresh.professional.isClinical&&(a.professionalId!==fresh.id||String(a.typeId)!==String(fresh.professional.typeId)))forbidden();
   if(!manage){permit(fresh,'appointments.update_own');if(a.professionalId!==fresh.id)forbidden();}
-  if(fresh.role==='VETERINARIAN'&&body.observations!==undefined)forbidden();
-  if(fresh.role==='GROOMER'&&body.observations!==undefined)forbidden('Usá el registro de peluquería para guardar observaciones del servicio.');
+  if(fresh.professional?.isClinical&&body.observations!==undefined)forbidden();
+  if(fresh.professional&&!fresh.professional.isClinical&&body.observations!==undefined)forbidden('Usá el registro del servicio para guardar observaciones.');
   if(['COMPLETED','CANCELLED','REJECTED'].includes(String(a.status))&&(body.status!==undefined||body.slotId!==undefined))throw new AppError('INVALID_TRANSITION',409,'El turno se encuentra cerrado.');
   let slotId=String(a.slotId);let status=String(a.status);
   if(body.slotId!==undefined){if(!manage)forbidden();slotId=v.id(body.slotId);if(slotId!==a.slotId){const next=await one('SELECT service_id AS serviceId,professional_user_id AS professionalId FROM client_appointment_slots WHERE id=?',[slotId],c);if(next.serviceId!==a.serviceId)v.invalid('El nuevo horario debe corresponder al mismo servicio.');
    await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[next.professionalId]);const available=await slots(String(next.serviceId),String(next.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
    await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[a.petId,next.professionalId]);
   }}
-  if(body.status!==undefined){status=v.text(body.status,20)!;const respondingToOwnRequest=['VETERINARIAN','GROOMER'].includes(fresh.role)&&fresh.permissions?.includes('appointments.update_own')&&String(a.status)==='REQUESTED'&&['CONFIRMED','REJECTED'].includes(status);if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status)&&!respondingToOwnRequest)forbidden();assertTransition(String(a.status),status);}
-   if(fresh.role==='VETERINARIAN'&&status==='COMPLETED'){
+  if(body.status!==undefined){status=v.text(body.status,20)!;const respondingToOwnRequest=Boolean(fresh.professional)&&fresh.permissions?.includes('appointments.update_own')&&String(a.status)==='REQUESTED'&&['CONFIRMED','REJECTED'].includes(status);if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status)&&!respondingToOwnRequest)forbidden();assertTransition(String(a.status),status);}
+   if(fresh.professional?.isClinical&&status==='COMPLETED'){
     permit(fresh,'medical_records.create','medical_records.view');
     const consultation=await rows("SELECT id FROM client_clinical_records WHERE appointment_id=? AND pet_id=? AND veterinarian_id=(SELECT id FROM veterinarians WHERE user_id=?) AND kind='medical-history' LIMIT 1",[id,a.petId,fresh.id],c);
     if(!consultation.length)throw new AppError('CONSULTATION_REQUIRED',409,'Guardá la consulta vinculada a este turno antes de finalizar la atención.');
@@ -253,18 +253,17 @@ export async function cancelClientAppointment(ownerId:string,id:string,reason:un
 }
 /** Calcula el alcance de pacientes que un actor puede consultar. */
 export async function patientScope(actor:AuthUser,petId:string,c:Connection=databasePool) {
- if(actor.role!=='VETERINARIAN'&&!['ADMIN','SUPER_ADMIN'].includes(actor.role))forbidden();
  if(actor.permissions?.includes('pets.view_all'))return one('SELECT id,owner_id AS ownerId FROM pets WHERE id=?',[petId],c);
+ if(!actor.professional?.isClinical)forbidden();
  permit(actor,'pets.view_assigned');return one('SELECT p.id,p.owner_id AS ownerId FROM pets p JOIN veterinarian_patients vp ON vp.pet_id=p.id JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE p.id=? AND vt.user_id=?',[petId,actor.id],c);
 }
 /** Calcula si un peluquero puede consultar un paciente por relación de agenda. */
 async function groomerPatientScope(actor:AuthUser,petId:string,c:Connection=databasePool) {
- if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
+ if(!actor.professional||actor.professional.isClinical)forbidden();permit(actor,'appointments.view_own');
  return one(`SELECT p.id,p.owner_id AS ownerId FROM pets p WHERE p.id=? AND EXISTS(
   SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id
-  JOIN professional_types pt ON pt.id=slot.professional_type_id JOIN roles r ON r.id=pt.role_id
-  WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER'
- )`,[petId,actor.id],c);
+  WHERE a.pet_id=p.id AND slot.professional_user_id=? AND slot.professional_type_id=?
+ )`,[petId,actor.id,actor.professional.typeId],c);
 }
 // Configuración patientListOrdering: reúne valores o reglas que consume el resto del módulo.
 export const patientListOrdering:Record<string,string>={recent:'p.created_at DESC',oldest:'p.created_at ASC',az:'p.name ASC',za:'p.name DESC',weight_high:'d.weight_kg DESC,p.name ASC',weight_low:'d.weight_kg ASC,p.name ASC',birth_recent:'p.birth_date DESC,p.name ASC',birth_oldest:'p.birth_date ASC,p.name ASC'};
@@ -274,17 +273,17 @@ export const patientNextAppointmentExpression="(SELECT MIN(slot.starts_at) FROM 
 export async function patients(actor:AuthUser,search='',sort='recent',speciesId?:string,status='active') {
  if(!['active','inactive','all'].includes(status))v.invalid('El estado de los pacientes no es válido.');
  const activeFilter=status==='all'?'':status==='inactive'?'p.is_active=0 AND ':'p.is_active=1 AND ';
- if(actor.role==='GROOMER'){
+ if(actor.professional&&!actor.professional.isClinical){
   permit(actor,'appointments.view_own');
   const result=await rows(`SELECT p.id,p.owner_id AS ownerId,p.name,p.photo_url AS photoUrl,sp.name AS species,COALESCE(d.breed_name,b.name) AS breed,
-   (SELECT MAX(hist.ends_at) FROM client_appointments done JOIN client_appointment_slots hist ON hist.id=done.slot_id JOIN professional_types hpt ON hpt.id=hist.professional_type_id JOIN roles hr ON hr.id=hpt.role_id WHERE done.pet_id=p.id AND hist.professional_user_id=? AND hr.code='GROOMER' AND done.status='COMPLETED') AS lastServiceAt,
-   (SELECT MIN(future.starts_at) FROM client_appointments next JOIN client_appointment_slots future ON future.id=next.slot_id JOIN professional_types npt ON npt.id=future.professional_type_id JOIN roles nr ON nr.id=npt.role_id WHERE next.pet_id=p.id AND future.professional_user_id=? AND nr.code='GROOMER' AND next.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND future.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt
+   (SELECT MAX(hist.ends_at) FROM client_appointments done JOIN client_appointment_slots hist ON hist.id=done.slot_id WHERE done.pet_id=p.id AND hist.professional_user_id=? AND hist.professional_type_id=? AND done.status='COMPLETED') AS lastServiceAt,
+   (SELECT MIN(future.starts_at) FROM client_appointments next JOIN client_appointment_slots future ON future.id=next.slot_id WHERE next.pet_id=p.id AND future.professional_user_id=? AND future.professional_type_id=? AND next.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND future.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt
    ,${patientLifecycleFields} FROM pets p JOIN species sp ON sp.id=p.species_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id
-   WHERE ${activeFilter}p.name LIKE ? AND EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id JOIN professional_types pt ON pt.id=slot.professional_type_id JOIN roles r ON r.id=pt.role_id WHERE a.pet_id=p.id AND slot.professional_user_id=? AND r.code='GROOMER')
-   ORDER BY COALESCE(lastServiceAt,'1000-01-01') DESC,p.name LIMIT 200`,[actor.id,actor.id,`%${search}%`,actor.id]);
+   WHERE ${activeFilter}p.name LIKE ? AND EXISTS(SELECT 1 FROM client_appointments a JOIN client_appointment_slots slot ON slot.id=a.slot_id WHERE a.pet_id=p.id AND slot.professional_user_id=? AND slot.professional_type_id=?)
+   ORDER BY COALESCE(lastServiceAt,'1000-01-01') DESC,p.name LIMIT 200`,[actor.id,actor.professional.typeId,actor.id,actor.professional.typeId,`%${search}%`,actor.id,actor.professional.typeId]);
   return Promise.all(result.map(async pet=>{const ownerId=String(pet.ownerId);const visible={...pet};delete visible.ownerId;return {...visible,isActive:requirePetActiveFlag(pet.isActive),photoUrl:await petPhotoUrl(ownerId,pet.photoUrl)};}));
  }
- const all=actor.permissions?.includes('pets.view_all');const administrator=['ADMIN','SUPER_ADMIN'].includes(actor.role);if(!(administrator&&all))permit(actor,'pets.view_information');if(!all)permit(actor,'pets.view_assigned');if(actor.role!=='VETERINARIAN'&&!administrator)forbidden();
+ const all=actor.permissions?.includes('pets.view_all');if(!all)permit(actor,'pets.view_information');if(!all)permit(actor,'pets.view_assigned');if(!all&&!actor.professional?.isClinical)forbidden();
  if(!['recent','oldest','az','za','weight_high','weight_low','birth_recent','birth_oldest'].includes(sort))v.invalid('Criterio de orden no válido.');
  const owner=actor.permissions?.includes('users.view_basic');const params:unknown[]=[`%${search}%`];if(owner)params.push(`%${search}%`);if(speciesId)params.push(v.id(speciesId));if(!all)params.push(actor.id);
  const ordering=patientListOrdering;
@@ -360,7 +359,7 @@ export async function clinical(actor:AuthUser,petId:string,kind:string,page?:num
  const paginated=page!==undefined;const pageSize=20;
  const result=await rows(`SELECT r.id,r.pet_id AS petId,r.kind,r.title,r.content,r.occurred_at AS occurredAt,r.next_due_at AS nextDueAt,r.product_id AS productId,p.name AS productName,r.consultation_id AS consultationId,r.valid_until AS validUntil,r.reason,r.diagnosis,r.treatment,r.weight_kg AS weightKg,r.internal_notes AS internalNotes,r.appointment_id AS appointmentId,r.dose,r.frequency,r.duration,CONCAT(u.first_name,' ',u.last_name) AS veterinarian FROM client_clinical_records r JOIN veterinarians vt ON vt.id=r.veterinarian_id JOIN users u ON u.id=vt.user_id LEFT JOIN client_products p ON p.id=r.product_id WHERE r.pet_id=? AND r.kind=? ORDER BY r.occurred_at DESC,r.id DESC${paginated?' LIMIT ? OFFSET ?':''}`,[petId,kind,...(paginated?[pageSize+1,(page!-1)*pageSize]:[])]);
  // Los informes del veterinario conservan el detalle profesional. El propietario recibe solo el contenido destinado a él.
- const presented=['VETERINARIAN','ADMIN','SUPER_ADMIN'].includes(actor.role)?result:result.map(clientClinicalRecord);
+ const presented=actor.permissions?.includes('medical_records.view')?result:result.map(clientClinicalRecord);
  if(!paginated)return presented;
  const hasMore=presented.length>pageSize;return {items:hasMore?presented.slice(0,pageSize):presented,nextPage:hasMore?page!+1:null};
 }
@@ -370,7 +369,7 @@ export async function saveClinical(actor:AuthUser,petId:string,kind:string,value
  const body=v.body(value,['title','content','occurredAt','nextDueAt','productId','consultationId','validUntil','weightKg','reason','diagnosis','treatment','internalNotes','appointmentId','dose','frequency','duration']);
  const title=v.text(body.title,200)!,content=v.text(body.content,20000,true)??'',occurred=v.instant(body.occurredAt),next=body.nextDueAt?v.instant(body.nextDueAt):null;
  if(!content.trim()&&!String(body.internalNotes??'').trim()&&!String(body.reason??'').trim()&&!String(body.diagnosis??'').trim()&&!String(body.treatment??'').trim())v.invalid('Ingresá indicaciones o una observación clínica.');
- return transaction(actor,async(c,fresh)=>{if(fresh.role!=='VETERINARIAN')forbidden();permit(fresh,codes[kind]);await patientScope(fresh,petId,c);
+ return transaction(actor,async(c,fresh)=>{if(!fresh.professional?.isClinical||!fresh.veterinarian)forbidden('Esta operación requiere un veterinario habilitado.');permit(fresh,codes[kind]);await patientScope(fresh,petId,c);
   if(body.diagnosis)permit(fresh,'medical_records.diagnose');if(body.treatment)permit(fresh,'medical_records.treat');
   const productId=v.optionalId(body.productId),consultationId=v.optionalId(body.consultationId),validUntil=body.validUntil?v.instant(body.validUntil):null;
   if(kind!=='prescriptions'&&validUntil||!['prescriptions','recommendations'].includes(kind)&&productId)v.invalid();if(validUntil&&validUntil<=occurred)v.invalid('El vencimiento debe ser posterior a la emisión.');
@@ -403,14 +402,14 @@ export async function saveClinical(actor:AuthUser,petId:string,kind:string,value
 }
 /** Lista clientes dentro del alcance del actor profesional. */
 export async function clients(actor:AuthUser,search='') {
- const vet=actor.role==='VETERINARIAN';if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else permit(actor,'users.view_basic');
- const contact=!vet||actor.permissions?.includes('users.view_basic');
+ const vet=Boolean(actor.professional?.isClinical);if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else permit(actor,'users.view_basic');
+ const contact=actor.permissions?.includes('users.view_basic');
  return rows(`SELECT DISTINCT u.id,u.first_name AS firstName,u.last_name AS lastName${contact?',u.phone,u.email':''} FROM users u JOIN roles r ON r.id=u.role_id JOIN pets p ON p.owner_id=u.id AND p.is_active=1 ${vet?"LEFT JOIN veterinarian_patients vp ON vp.pet_id=p.id LEFT JOIN veterinarians vt ON vt.id=vp.veterinarian_id":""} WHERE r.code='CLIENT' AND (u.first_name LIKE ? OR u.last_name LIKE ?${contact?' OR u.email LIKE ?':''}) ${vet&& !actor.permissions?.includes('pets.view_all')?'AND vt.user_id=?':''} ORDER BY u.last_name,u.first_name LIMIT 100`,contact?[`%${search}%`,`%${search}%`,`%${search}%`,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]:[`%${search}%`,`%${search}%`,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]);
 }
 /** Devuelve datos resumidos de un cliente y mascotas/turnos que el actor puede ver. */
 export async function clientDetails(actor:AuthUser,id:string) {
- const vet=actor.role==='VETERINARIAN';if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else{permit(actor,'users.view_basic');permit(actor,'appointments.view_all');}
- const contact=!vet||actor.permissions?.includes('users.view_basic');
+ const vet=Boolean(actor.professional?.isClinical);if(vet){permit(actor,'pets.view_information');if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_assigned');}else{permit(actor,'users.view_basic');permit(actor,'appointments.view_all');}
+ const contact=actor.permissions?.includes('users.view_basic');
  const client=await one(`SELECT u.id,u.first_name AS firstName,u.last_name AS lastName${contact?',u.phone,u.email':''} FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND r.code='CLIENT'`,[id]);
  const petRows=await rows(`SELECT p.id,p.name,p.photo_url AS photoUrl,p.owner_id AS ownerId FROM pets p WHERE p.owner_id=? AND p.is_active=1 ${vet&& !actor.permissions?.includes('pets.view_all')?'AND EXISTS(SELECT 1 FROM veterinarian_patients vp JOIN veterinarians vt ON vt.id=vp.veterinarian_id WHERE vp.pet_id=p.id AND vt.user_id=?)':''}`,[id,...(vet&&!actor.permissions?.includes('pets.view_all')?[actor.id]:[])]);
  if(vet&&!petRows.length)forbidden();
@@ -420,27 +419,27 @@ export async function clientDetails(actor:AuthUser,id:string) {
 }
 /** Construye resumen e indicadores del espacio clínico restringidos por alcance. */
 export async function home(actor:AuthUser) {
- const all=actor.role!=='GROOMER'&&actor.permissions?.includes('appointments.view_all'),own=actor.permissions?.includes('appointments.view_own');
+ const all=actor.permissions?.includes('appointments.view_all'),own=actor.permissions?.includes('appointments.view_own');
  let stats:Data|null=null,next:Data|null=null,upcoming:Data[]|null=null;
  if(all||own){const scope=all?'':' AND s.professional_user_id=?';const params=all?[]:[actor.id];
   stats=await one(`SELECT SUM(DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00')) AND a.status<>'CANCELLED') AS todayCount,SUM(a.status='REQUESTED') AS pendingCount,SUM(a.status='IN_PROGRESS') AS attentionCount,SUM(a.status='CONFIRMED' AND DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS confirmedTodayCount,SUM(a.status='CANCELLED' AND DATE(CONVERT_TZ(s.starts_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS cancelledTodayCount,SUM(a.status='COMPLETED' AND DATE(CONVERT_TZ(s.ends_at,'+00:00','-03:00'))=DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','-03:00'))) AS completedTodayCount FROM client_appointments a JOIN client_appointment_slots s ON s.id=a.slot_id WHERE 1=1${scope}`,params);
   // Los profesionales usan el mismo conjunto de turnos para el indicador de próximo turno y la lista.
-  if(['VETERINARIAN','GROOMER'].includes(actor.role)){
+  if(actor.professional){
    const assigned=await appointments(actor,{upcomingOnly:'true'});
    upcoming=professionalUpcomingAppointments(assigned);
    next=upcoming[0]??null;
   }else{
    const r=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.ends_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 1`,params);next=r[0]??null;
   }
-  if(all&&!['VETERINARIAN','GROOMER'].includes(actor.role))upcoming=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt,a.status FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 5`,params);
+  if(all&&!actor.professional)upcoming=await rows(`SELECT p.name AS petName,sv.name AS service,s.starts_at AS startsAt,a.status FROM client_appointments a JOIN pets p ON p.id=a.pet_id JOIN client_appointment_slots s ON s.id=a.slot_id JOIN client_services sv ON sv.id=s.service_id WHERE a.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND s.starts_at>UTC_TIMESTAMP()${scope} ORDER BY s.starts_at LIMIT 5`,params);
  }
  const clinicToday=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(part=>[part.type,part.value]));
- const todayAppointments=['VETERINARIAN','GROOMER'].includes(actor.role)&&(all||own)?await appointments(actor,{date:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
+ const todayAppointments=Boolean(actor.professional)&&(all||own)?await appointments(actor,{date:`${clinicToday.year}-${clinicToday.month}-${clinicToday.day}`}):undefined;
  return {nextAppointment:next,todayCount:stats?Number(stats.todayCount??0):null,pendingCount:stats?Number(stats.pendingCount??0):null,attentionCount:stats?Number(stats.attentionCount??0):null,confirmedTodayCount:stats?Number(stats.confirmedTodayCount??0):null,cancelledTodayCount:stats?Number(stats.cancelledTodayCount??0):null,completedTodayCount:stats?Number(stats.completedTodayCount??0):null,...(todayAppointments?{todayAppointments}: {}),...(upcoming?{upcomingAppointments:upcoming}:{})};
 }
 
 /** Carga ficha de paciente con estado, historial de ciclo de vida y foto presentada. */
-export async function patient(actor:AuthUser,id:string) {if(actor.role==='GROOMER')return groomerPatient(actor,id);if(!(['ADMIN','SUPER_ADMIN'].includes(actor.role)&&actor.permissions?.includes('pets.view_all')))permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
+export async function patient(actor:AuthUser,id:string) {if(actor.professional&&!actor.professional.isClinical)return groomerPatient(actor,id);if(!actor.permissions?.includes('pets.view_all'))permit(actor,'pets.view_information');const scope=await patientScope(actor,id);
  const owner=actor.permissions?.includes('users.view_basic');const result=await one(`SELECT p.id,p.name,p.sex,p.species_id AS speciesId,p.breed_id AS breedId,p.birth_date AS birthDate,p.microchip_number AS microchipNumber,p.photo_url AS photoUrl,s.name AS species,COALESCE(d.breed_name,b.name) AS breed,d.weight_kg AS weightKg,${patientLifecycleFields},
  (SELECT MAX(r.occurred_at) FROM client_clinical_records r WHERE r.pet_id=p.id AND r.kind='medical-history') AS lastConsultationAt,
  (SELECT MIN(slot.starts_at) FROM client_appointments appt JOIN client_appointment_slots slot ON slot.id=appt.slot_id WHERE appt.pet_id=p.id AND appt.status IN ('REQUESTED','CONFIRMED','IN_PROGRESS') AND slot.starts_at>=UTC_TIMESTAMP()) AS nextAppointmentAt ${owner?",u.id AS ownerId,CONCAT(u.first_name,' ',u.last_name) AS ownerName,u.email AS ownerEmail,u.phone AS ownerPhone":''} FROM pets p JOIN species s ON s.id=p.species_id JOIN users u ON u.id=p.owner_id LEFT JOIN breeds b ON b.id=p.breed_id LEFT JOIN client_pet_details d ON d.pet_id=p.id WHERE p.id=?`,[id]);
@@ -460,8 +459,8 @@ export async function groomerPatient(actor:AuthUser,id:string) {
 }
 /** Carga una cita de peluquería solo si existe relación accesible con ese actor. */
 async function groomerAppointment(actor:AuthUser,appointmentId:string,c:Connection=databasePool,lock=false) {
- if(actor.role!=='GROOMER')forbidden();permit(actor,'appointments.view_own');
- return one(`${appointmentSelect} JOIN roles grooming_role ON grooming_role.id=pt.role_id WHERE a.id=? AND s.professional_user_id=? AND grooming_role.code='GROOMER'${lock?' FOR UPDATE':''}`,[appointmentId,actor.id],c);
+ if(!actor.professional||actor.professional.isClinical)forbidden();permit(actor,'appointments.view_own');
+ return one(`${appointmentSelect} WHERE a.id=? AND s.professional_user_id=? AND s.professional_type_id=?${lock?' FOR UPDATE':''}`,[appointmentId,actor.id,actor.professional.typeId],c);
 }
 /** Lee registro de peluquería asociado a una cita autorizada. */
 export async function groomingRecord(actor:AuthUser,appointmentId:string) {
@@ -509,7 +508,7 @@ export async function updatePatient(actor:AuthUser,id:string,value:unknown) {
 async function changePatientActive(actor:AuthUser,id:string,nextIsActive:boolean,reason:string) {
  return transaction(actor,async(c,fresh)=>{
   assertCanManagePetLifecycle(fresh);
-  const scope=fresh.role==='GROOMER'?await groomerPatientScope(fresh,id,c):await patientScope(fresh,id,c);
+  const scope=fresh.professional&&!fresh.professional.isClinical?await groomerPatientScope(fresh,id,c):await patientScope(fresh,id,c);
   const [pets]=await c.execute<RowDataPacket[]>('SELECT id,name,is_active AS isActive FROM pets WHERE id=? AND owner_id=? FOR UPDATE',[id,scope.ownerId]);
   if(!pets[0])throw new AppError('NOT_FOUND',404,'Paciente no encontrado.');
   const currentIsActive=requirePetActiveFlag(pets[0].isActive);assertPetLifecycleTransition(currentIsActive,nextIsActive);

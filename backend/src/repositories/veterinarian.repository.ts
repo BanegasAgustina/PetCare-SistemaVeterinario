@@ -43,7 +43,8 @@ export async function vetDetail(id: string) {
     const [rows] = await databasePool.execute<RowDataPacket[]>(`SELECT u.id AS user_id,u.first_name,u.last_name,u.email,u.phone,u.profile_photo_url AS profilePhotoUrl,u.is_active,u.email_verified_at,
       i.consumed_at,i.delivery,i.expires_at>UTC_TIMESTAMP(3) AS invitation_valid
       FROM veterinarians v JOIN users u ON u.id=v.user_id JOIN roles r ON r.id=u.role_id
-      LEFT JOIN veterinarian_invitations i ON i.user_id=u.id WHERE v.id=? AND r.code='VETERINARIAN'`,[id]);
+      JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) AND pt.is_clinical=1
+      LEFT JOIN veterinarian_invitations i ON i.user_id=u.id WHERE v.id=?`,[id]);
     if (!rows[0]) throw new AppError('NOT_FOUND',404,'Veterinario no encontrado.');
     const row = rows[0];
     const profile = await readVetProfile(String(row.user_id));
@@ -64,7 +65,7 @@ export async function vetList(query: Record<string, unknown>) {
   }
   const page = Number(pageText); const limit = 20;
   return runDatabaseOperation(async () => {
-    const filters = ["r.code='VETERINARIAN'",'u.deleted_at IS NULL']; const parameters: (string | number)[] = [];
+    const filters = ['EXISTS (SELECT 1 FROM professional_types clinical_type WHERE clinical_type.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) AND clinical_type.is_clinical=1)','u.deleted_at IS NULL']; const parameters: (string | number)[] = [];
     if (search) { filters.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR v.license_number LIKE ?)'); parameters.push(...Array<string>(4).fill(`%${search}%`)); }
     if (status !== 'all') { filters.push('u.is_active=?');parameters.push(status==='active'?1:0); }
     if (query.specialtyId) { filters.push('EXISTS (SELECT 1 FROM veterinarian_specialties vs WHERE vs.veterinarian_id=v.id AND vs.specialty_id=?)');parameters.push(query.specialtyId as string); }
@@ -102,8 +103,8 @@ export async function updateVetPhoto(id:string,key:string|null,identity:AuthUser
 export async function updateOwnProfessionalPhoto(userId:string,key:string|null) {
   let previous:string|null=null;
   await transaction(async connection=>{
-    const [rows]=await connection.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS previous,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? FOR UPDATE",[userId]);
-    if(!rows[0]||!['VETERINARIAN','GROOMER'].includes(String(rows[0].role)))throw new AppError('FORBIDDEN',403,'Solo un profesional puede actualizar su foto de perfil.');
+    const [rows]=await connection.execute<RowDataPacket[]>("SELECT u.profile_photo_url AS previous,pt.id AS professionalTypeId FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) WHERE u.id=? FOR UPDATE",[userId]);
+    if(!rows[0]?.professionalTypeId)throw new AppError('FORBIDDEN',403,'Solo un profesional puede actualizar su foto de perfil.');
     previous=rows[0].previous as string|null;
     await connection.execute('UPDATE users SET profile_photo_url=? WHERE id=?',[key,userId]);
   });
@@ -120,7 +121,7 @@ async function replaceSpecialties(connection: PoolConnection,vetId: string,ids: 
 /** Carga y bloquea la ficha profesional para serializar cambios concurrentes. */
 async function lockVet(connection: PoolConnection,id: string) {
   const [rows] = await connection.execute<RowDataPacket[]>(`SELECT u.id,u.email,u.is_active,u.email_verified_at,u.must_change_password FROM users u JOIN veterinarians v ON v.user_id=u.id
-    JOIN roles r ON r.id=u.role_id WHERE v.id=? AND r.code='VETERINARIAN' FOR UPDATE`,[id]);
+    JOIN roles r ON r.id=u.role_id JOIN professional_types pt ON pt.id=COALESCE((SELECT chosen.id FROM professional_types chosen WHERE chosen.id=u.professional_type_id AND chosen.role_id=u.role_id),(SELECT default_role.professional_type_id FROM roles default_role WHERE default_role.id=u.role_id)) AND pt.is_clinical=1 WHERE v.id=? FOR UPDATE`,[id]);
   if (!rows[0]) throw new AppError('NOT_FOUND',404,'Veterinario no encontrado.');
   return rows[0];
 }

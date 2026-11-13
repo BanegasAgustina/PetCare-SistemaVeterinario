@@ -36,16 +36,15 @@ function parseKind(value:unknown):ImageKind{
 /** Comprueba rol, permisos y propietario; devuelve el identificador que determina la carpeta de almacenamiento. */
 function assertAccess(user:AuthUser,kind:ImageKind,targetUserId?:string){
   const permissions=user.permissions??[];
-  if(kind==='pet'&&user.role==='CLIENT')return user.id;
+  if(kind==='pet'&&(user.role==='CLIENT'||permissions.includes('personal.pets.manage')))return user.id;
   if(kind==='profile'&&(!targetUserId||targetUserId===user.id)){
-    if(['CLIENT','VETERINARIAN','GROOMER'].includes(user.role))return user.id;
-    if(['ADMIN','SUPER_ADMIN'].includes(user.role)&&permissions.some(permission=>permission==='users.manage'||permission==='veterinarians.manage'))return user.id;
+    if(user.professional||user.role==='CLIENT'||permissions.some(permission=>permission==='users.manage'||permission==='veterinarians.manage'))return user.id;
   }
-  if(!['ADMIN','SUPER_ADMIN'].includes(user.role))throw new AppError('FORBIDDEN',403,'No tenés permiso para subir esta imagen.');
   const grant:Record<ImageKind,string>={banner:'store.banners.manage',product:'products.update',service:'services.manage',pet:'pets.update',profile:'users.manage'};
   if(kind==='profile'&&!permissions.some(permission=>permission==='users.manage'||permission==='veterinarians.manage'))throw new AppError('FORBIDDEN',403,'No tenés permiso para subir esta imagen.');
   if(kind==='banner'&&!permissions.some(permission=>permission==='store.banners.manage'||permission==='promotions.manage'||permission==='settings.general.manage'))throw new AppError('FORBIDDEN',403,'No tenés permiso para subir esta imagen.');
   if(kind!=='profile'&&kind!=='banner'&&!permissions.includes(grant[kind]))throw new AppError('FORBIDDEN',403,'No tenés permiso para subir esta imagen.');
+  if(kind==='profile'&&!permissions.some(permission=>permission==='users.manage'||permission==='veterinarians.manage'))throw new AppError('FORBIDDEN',403,'No tenés permiso para subir esta imagen.');
   if(targetUserId&&kind==='profile')return targetUserId;
   return user.id;
 }
@@ -58,7 +57,7 @@ export function signDirectImageUpload(user:AuthUser,body:unknown){
   const target=values.targetUserId===undefined?undefined:String(values.targetUserId);
   if(target&&!/^[1-9]\d{0,19}$/.test(target))throw new AppError('VALIDATION_ERROR',400,'El usuario de destino no es válido.');
   const owner=assertAccess(user,kind,target);
-  if(kind==='pet'&&user.role!=='CLIENT')throw new AppError('FORBIDDEN',403,'Solo podés subir fotos de tus mascotas.');
+  if(kind==='pet'&&user.role!=='CLIENT'&&!user.permissions?.includes('personal.pets.manage'))throw new AppError('FORBIDDEN',403,'Solo podés subir fotos de tus mascotas.');
   const {cloud_name,api_key,api_secret}=configure();
   const timestamp=Math.floor(Date.now()/1000);
   const folder=folderFor(kind,owner);

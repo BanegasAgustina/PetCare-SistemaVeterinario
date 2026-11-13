@@ -14,7 +14,7 @@ import { AppError } from './app-error';
 export function forbidden(message='No tenés permiso para esta operación.'):never {throw new AppError('FORBIDDEN',403,message);}
 // Requiere rol administrativo y los permisos indicados para el actor.
 export function assertAdminPermission(actor:AuthUser,...codes:string[]) {
-  if(!['ADMIN','SUPER_ADMIN'].includes(actor.role)||!codes.every(code=>actor.permissions?.includes(code)))forbidden();
+  if(!codes.every(code=>actor.permissions?.includes(code)))forbidden();
 }
 /** Autoriza módulos operativos por grant efectivo aunque el actor tenga un rol personalizado. */
 // Comprueba permisos de capacidad sin asumir que el usuario es superadmin.
@@ -27,7 +27,7 @@ export function assertDelegation(actor:AuthUser,codes:string[]) {
 }
 // Valida si el actor tiene autoridad sobre el usuario objetivo.
 export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
-  if(actor.role==='ADMIN'&&target.role==='SUPER_ADMIN')forbidden('Un ADMIN no puede modificar una cuenta SUPER_ADMIN.');
+  if(actor.role!=='SUPER_ADMIN'&&target.role==='SUPER_ADMIN')forbidden('Solo el administrador principal puede modificar otra cuenta principal.');
 }
 // Comprueba que el rol y los permisos asignados no excedan la autoridad del actor.
 export function assertRoleAssignment(actor:AuthUser,role:string,permissions:string[]) {

@@ -11,7 +11,7 @@
 import type { AuthUser } from '../types/auth';
 import * as db from './clinic.repository';
 import * as v from '../validators/clinic.validator';
-import { assertCapabilityPermission,forbidden } from '../utils/admin-authorization';
+import { assertCapabilityPermission } from '../utils/admin-authorization';
 import { catalogName } from '../utils/catalog-presentation';
 import { availabilityReactivationError } from '../utils/availability-lifecycle';
 /** Lista blanca de tablas, permisos y columnas que puede editar este repository. */
@@ -39,7 +39,7 @@ export async function save(actor:AuthUser,name:Entity,id:string|undefined,value:
   if(current){previousImage=current.imageUrl;if(body.stock!==undefined&&Number(body.stock)<Number(current.reservedStock))v.invalid('El stock físico no puede ser menor al reservado.');}}
   let currentService:db.Data|null=null;if(id){const current=await db.one(`SELECT id${name==='services'?' ,image_url AS imageUrl,specialty_id AS specialtyId':''} FROM ${config.table} WHERE id=? FOR UPDATE`,[id],c);if(name==='services'){previousImage=current.imageUrl;currentService=current;}}
   if(name==='services'){if(body.name!==undefined&&/\d/u.test(String(body.name)))v.invalid('El nombre del servicio no puede incluir números.');if((!id||body.typeId!==undefined)&&!converted.typeId)v.invalid('Seleccioná el tipo profesional.');if(converted.typeId){const type=await db.one('SELECT id,is_clinical AS isClinical FROM professional_types WHERE id=?',[converted.typeId],c);if(!type.isClinical&&converted.specialtyId)v.invalid('Un servicio no clínico no requiere especialidad veterinaria.');}const specialtyId=body.specialtyId!==undefined?converted.specialtyId:currentService?.specialtyId;if(converted.specialtyId)await db.one('SELECT id FROM specialties WHERE id=? AND is_active=1',[converted.specialtyId],c);if(body.isActive===true&&specialtyId)await db.one('SELECT id FROM specialties WHERE id=? AND is_active=1',[specialtyId],c);}
-  if(name==='types'){if(!id){const role=await db.one('SELECT code FROM roles WHERE id=?',[converted.roleId],c);if(!['VETERINARIAN','GROOMER'].includes(String(role.code)))v.invalid('Este rol no es profesional.');if(Boolean(converted.isClinical)!==(role.code==='VETERINARIAN'))v.invalid('El acceso clínico corresponde exclusivamente al rol veterinario.');}else if(body.roleId!==undefined||body.isClinical!==undefined)v.invalid('No se cambia el rol ni acceso clínico de un tipo utilizado.');}
+  if(name==='types'){if(!id){const role=await db.one('SELECT id FROM roles WHERE id=? AND is_active=1',[converted.roleId],c);if(!role)v.invalid('Seleccioná un rol activo para asociar al tipo profesional.');}else if(body.roleId!==undefined||body.isClinical!==undefined)v.invalid('No se cambia el rol ni acceso clínico de un tipo utilizado.');}
   if(name==='promotions'&&converted.startsAt&&converted.endsAt&&String(converted.endsAt)<=String(converted.startsAt))v.invalid('La promoción debe terminar después de comenzar.');
   // La autoría de edición se toma de la sesión verificada y nunca del cuerpo enviado por el cliente.
   if(id&&name==='products')await c.execute(`UPDATE ${config.table} SET ${names.map(key=>`${fields[key]}=?`).join(',')},updated_by=? WHERE id=?`,[...names.map(key=>converted[key]),fresh.id,id]);
@@ -147,7 +147,7 @@ export async function setAvailabilityActive(actor:AuthUser,kind:string,id:string
  });
 }
 /** Indica si el actor tiene una capacidad administrativa de clínica aplicable al recurso. */
-export function administrative(actor:AuthUser){if(!['ADMIN','SUPER_ADMIN'].includes(actor.role))forbidden();}
+export function administrative(actor:AuthUser){assertCapabilityPermission(actor,'professionals.manage');}
 
 /** Asigna tipo profesional comprobando rol, ocupación y permisos delegables. */
 export async function assignType(actor:AuthUser,id:string,value:unknown) {const body=v.body(value,['typeId']);const typeId=v.id(body.typeId);return db.transaction(actor,async(c,fresh)=>{assertCapabilityPermission(fresh,'professionals.manage');const user=await db.one('SELECT id,role_id AS roleId FROM users WHERE id=? FOR UPDATE',[id],c);const type=await db.one('SELECT id,role_id AS roleId FROM professional_types WHERE id=?',[typeId],c);if(user.roleId!==type.roleId)v.invalid('El tipo debe corresponder al rol profesional de la cuenta.');

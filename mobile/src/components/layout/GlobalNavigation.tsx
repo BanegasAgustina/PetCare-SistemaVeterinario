@@ -21,7 +21,7 @@ import { softSurfaceShadow } from '../../constants/surface';
 import { AppText } from '../ui/AppText';
 import type { IconName } from '../client/PetCareUI';
 import { PetCareLogo } from './PetCareLogo';
-import { modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
+import { hasAdministrativeShellCapability, hasPersonalCapabilityModule, modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
 import { RoleBottomNavigation } from './RoleBottomNavigation';
 import { BackButton } from './BackButton';
 import { useBackNavigation } from '../../hooks/useBackNavigation';
@@ -69,23 +69,16 @@ function adminLabel(module: AdminModule) {
 }
 // Configuración clientItems: reúne valores o reglas que consume el resto del módulo.
 const clientItems: MenuItem[] = [
-  { label: 'Inicio', path: '/client', icon: 'home-outline' },
-  { label: 'Mis mascotas', path: '/client/pets', icon: 'paw-outline' },
-  { label: 'Turnos', path: '/client/appointments', icon: 'calendar-outline' },
-  { label: 'Tienda', path: '/client/store', icon: 'bag-handle-outline' },
-  { label: 'Mi perfil', path: '/client/profile', icon: 'person-outline' },
-  { label: 'Mis pedidos', path: '/client/orders', icon: 'receipt-outline', group: 'Cuenta' },
-  { label: 'Historial médico', path: '/client/medical-history', icon: 'medical-outline', group: 'Salud' },
-  { label: 'Vacunas', path: '/client/vaccines', icon: 'shield-checkmark-outline', group: 'Salud' },
-  { label: 'Recetas', path: '/client/prescriptions', icon: 'document-text-outline', group: 'Salud' },
-  { label: 'Recomendaciones', path: '/client/recommendations', icon: 'heart-outline', group: 'Salud' },
-];
-// Configuración staffItems: reúne valores o reglas que consume el resto del módulo.
-const staffItems: MenuItem[] = [
-  { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_own' },
-  { label: 'Agenda', path: 'agenda', icon: 'calendar-outline', permission: 'appointments.view_all' },
-  { label: 'Productos', path: 'products', icon: 'pricetags-outline', permission: 'products.view', group: 'Tienda' },
-  { label: 'Clientes', path: 'clients', icon: 'people-outline', permission: 'users.view_basic' },
+  { label: 'Inicio', path: '/client', icon: 'home-outline',permission:'personal.pets.view' },
+  { label: 'Mis mascotas', path: '/client/pets', icon: 'paw-outline',permission:'personal.pets.view' },
+  { label: 'Turnos', path: '/client/appointments', icon: 'calendar-outline',permission:'personal.appointments.view' },
+  { label: 'Tienda', path: '/client/store', icon: 'bag-handle-outline',permission:'personal.store.view' },
+  { label: 'Mi perfil', path: '/client/profile', icon: 'person-outline',permission:'personal.profile.manage' },
+  { label: 'Mis pedidos', path: '/client/orders', icon: 'receipt-outline', group: 'Cuenta',permission:'personal.orders.view' },
+  { label: 'Historial médico', path: '/client/medical-history', icon: 'medical-outline', group: 'Salud',permission:'personal.pets.view' },
+  { label: 'Vacunas', path: '/client/vaccines', icon: 'shield-checkmark-outline', group: 'Salud',permission:'personal.pets.view' },
+  { label: 'Recetas', path: '/client/prescriptions', icon: 'document-text-outline', group: 'Salud',permission:'personal.pets.view' },
+  { label: 'Recomendaciones', path: '/client/recommendations', icon: 'heart-outline', group: 'Salud',permission:'personal.pets.view' },
 ];
 // Configuración veterinarianItems: reúne valores o reglas que consume el resto del módulo.
 const veterinarianItems: MenuItem[] = [
@@ -136,11 +129,10 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const { backPlacement } = useBackNavigation();
   const { request, hasPermission, user } = auth;
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const isCustomRole = Boolean(user && !['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(user.role));
-  const isClient = user?.role === 'CLIENT';
-  const isVeterinarian = user?.role === 'VETERINARIAN';
-  const isProfessional = isVeterinarian || user?.role === 'GROOMER';
+  const isAdmin = hasAdministrativeShellCapability(user?.permissions);
+  const isClient = hasPersonalCapabilityModule(user?.permissions);
+  const isVeterinarian = Boolean(user?.professional?.isClinical);
+  const isProfessional = Boolean(user?.professional);
   const notificationsEnabled=canAccessNotificationCenter(user?.role??'');
   const [adminModulesResult, setAdminModulesResult] = useState<{ userId: string | null; modules: AdminModule[] }>({ userId: null, modules: [] });
   const adminModules = adminModulesResult.userId === user?.id ? adminModulesResult.modules : noAdminModules;
@@ -148,7 +140,7 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const visibleAdminModules = useMemo(() => isAdmin && hasPermission('schedule.manage') && !adminModules.some(module => module.path === scheduleAdminModule.path) ? [...adminModules, scheduleAdminModule] : adminModules, [adminModules, hasPermission, isAdmin]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const desktop = isWebAtLeast(Platform.OS, Math.min(width, containerWidth), responsiveLayout.breakpoints.desktop);
-  const base = user?.role === 'VETERINARIAN' ? '/vet' : user?.role === 'GROOMER' ? '/professional' : '/admin';
+  const base = isVeterinarian ? '/vet' : isProfessional ? '/professional' : '/workspace';
   useEffect(() => {
     let active = true;
     if (!isAdmin || !user?.id) return () => { active = false; };
@@ -166,33 +158,29 @@ const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCente
   }, [request, user?.id, notificationsEnabled]);
   const items = useMemo<MenuItem[]>(() => {
     if (!user) return [];
-  if (user.role === 'CLIENT') return clientItems;
+    if (isClient&&!isAdmin&&!isProfessional) return clientItems.filter(item => !item.permission || hasPermission(item.permission));
     const personalItems: MenuItem[]=personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}));
     if (isAdmin) return [
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
       ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
       ...(hasPermission('users.view_basic')?[{label:'Clientes',path:'/admin/clients',icon:'people-outline' as const,group:'Clínica'}]:[]),
+      ...(isProfessional?(isVeterinarian?veterinarianItems:groomerItems).filter(item=>!item.permission||hasPermission(item.permission)):[]),
       ...personalItems,
     ];
-    if (isCustomRole) return [
-      { label: 'Inicio', path: '/workspace', icon: 'home-outline' },
-      ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
-      { label:'Perfil',path:'/account',icon:'person-outline' },
-    ];
-    if (user.role === 'VETERINARIAN') return [...new Map([
+    if (isProfessional && isVeterinarian) return [...new Map([
       ...veterinarianItems.filter(item => (!item.permission || hasPermission(item.permission) || (item.path === '/vet/products' && hasPermission('prescriptions.create')))
         && (!['/vet/patients','/vet/clients'].includes(item.path) || hasPermission('pets.view_all') || hasPermission('pets.view_assigned'))),
       ...personalItems,
     ].map(item => [item.path,item])).values()];
-    if (user.role === 'GROOMER') return [...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)), ...personalItems];
+    if (isProfessional) return [...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)), ...personalItems];
     const permitted: MenuItem[] = [
       { label: 'Inicio', path: base, icon: 'home-outline' },
-      ...staffItems.filter(item => item.permission && hasPermission(item.permission)).map(item => ({ ...item, path: `${base}/${item.path}` })),
+      ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
       ...personalItems,
       { label:'Perfil',path:'/account',icon:'person-outline' },
     ];
     return [...new Map(permitted.map(item => [item.path, item])).values()];
-  }, [visibleAdminModules, hasPermission, user, base, isAdmin, isCustomRole]);
+  }, [visibleAdminModules, hasPermission, user, base, isAdmin, isProfessional, isVeterinarian, isClient]);
   const primaryItems = useMemo<MenuItem[]>(() => isAdmin
     ? adminTabs.filter(tab=>tab.path==='/admin'||items.some(item=>item.group===tab.label))
     : selectPrimaryNavigation(user?.role??'',items), [isAdmin,items,user?.role]);
@@ -328,7 +316,7 @@ const navItem=(item:MenuItem)=><Pressable key={item.path} accessibilityRole="but
       </View>:null;}):items.map(navItem)}
       {groups&&items.filter(item=>!item.group).map(navItem)}
       <View style={[styles.desktopAccount,{borderColor:colors.border}]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Abrir mi perfil" onPress={()=>onNavigate(user?.role==='CLIENT'?'/client/profile':'/account')} style={styles.desktopIdentity}><View style={[styles.desktopAvatar,{backgroundColor:colors.accent}]}><AppText style={{color:colors.primary,fontWeight:'700'}}>{initials||'•'}</AppText></View><View style={styles.desktopUserCopy}><AppText numberOfLines={1} style={styles.desktopUserName}>{[user?.firstName,user?.lastName].filter(Boolean).join(' ')||roleLabel(user!.role,user!.roleName??user!.role)}</AppText><AppText numberOfLines={1} variant="caption" muted>{user?.email}</AppText></View></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir mi perfil" onPress={()=>onNavigate(user?.permissions?.includes('personal.profile.manage')?'/client/profile':'/account')} style={styles.desktopIdentity}><View style={[styles.desktopAvatar,{backgroundColor:colors.accent}]}><AppText style={{color:colors.primary,fontWeight:'700'}}>{initials||'•'}</AppText></View><View style={styles.desktopUserCopy}><AppText numberOfLines={1} style={styles.desktopUserName}>{[user?.firstName,user?.lastName].filter(Boolean).join(' ')||roleLabel(user!.role,user!.roleName??user!.role)}</AppText><AppText numberOfLines={1} variant="caption" muted>{user?.email}</AppText></View></Pressable>
         <AppText numberOfLines={1} variant="caption" muted>{roleLabel(user!.role,user!.roleName??user!.role)}</AppText>
         <Pressable accessibilityRole="button" accessibilityLabel={mode==='dark'?'Usar modo claro':'Usar modo oscuro'} onPress={()=>setPreference(mode==='dark'?'light':'dark')} style={styles.desktopAction}><Ionicons name={mode==='dark'?'sunny-outline':'moon-outline'} size={19} color={colors.muted}/><AppText style={styles.itemText}>{mode==='dark'?'Modo claro':'Modo oscuro'}</AppText></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={()=>setConfirmLogout(true)} style={styles.desktopAction}><Ionicons name="log-out-outline" size={19} color={colors.muted}/><AppText style={styles.itemText}>Cerrar sesión</AppText></Pressable>
