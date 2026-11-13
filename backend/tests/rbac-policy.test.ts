@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AuthUser } from '../src/types/auth';
-import { assertAdminPermission, assertCapabilityPermission, assertTarget, assertDelegation, assertRolePermissionDelegation, canDelegatePermission, assertRoleAssignment } from '../src/utils/admin-authorization';
+import { assertAdminPermission, assertCapabilityPermission, assertTarget, assertDelegation, assertRolePermissionDelegation, assertNoNewCriticalCustomRolePermissions, canDelegatePermission, assertRoleAssignment } from '../src/utils/admin-authorization';
 import { effectiveRolePermission } from '../src/types/authorization';
 
 const actor=(role:string,permissions:string[]):AuthUser=>({
@@ -55,6 +55,13 @@ test('SUPER_ADMIN puede asignar permisos funcionales delegados en roles personal
   const superAdmin=actor('SUPER_ADMIN',['roles.manage']);
   assert.doesNotThrow(()=>assertRoleAssignment(superAdmin,'RECEPCIONISTA',['products.create','orders.manage']));
   assert.throws(()=>assertRoleAssignment(actor('ADMIN',['roles.manage']),'RECEPCIONISTA',['products.create']),{status:403});
+});
+
+test('un rol personalizado conserva permisos críticos existentes y rechaza nuevos',()=>{
+  const legacyCritical={code:'products.create',critical:true};
+  assert.doesNotThrow(()=>assertNoNewCriticalCustomRolePermissions('ENCARGADO',['products.create'],[legacyCritical]));
+  assert.throws(()=>assertNoNewCriticalCustomRolePermissions('ENCARGADO',[],[legacyCritical]),{status:403});
+  assert.doesNotThrow(()=>assertNoNewCriticalCustomRolePermissions('SUPER_ADMIN',[],[legacyCritical]));
 });
 
 test('crear productos requiere permisos funcionales efectivos sin depender del nombre del rol',()=>{

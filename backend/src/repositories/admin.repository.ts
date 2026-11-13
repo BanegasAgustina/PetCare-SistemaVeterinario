@@ -15,7 +15,7 @@ import { withDatabaseLock } from '../database/lock';
 import { readPermissions } from './authorization.repository';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
-import { assertAdminPermission,assertDelegation,assertRolePermissionDelegation,canDelegatePermission,assertTarget,assertRoleAssignment,forbidden } from '../utils/admin-authorization';
+import { assertAdminPermission,assertDelegation,assertRolePermissionDelegation,assertNoNewCriticalCustomRolePermissions,canDelegatePermission,assertTarget,assertRoleAssignment,forbidden } from '../utils/admin-authorization';
 import { objectBody,identifier,textField,permissionOverrides } from '../validators/veterinarian.validator';
 import { readName,readPhone,normalizeEmail } from '../validators/auth.validator';
 import * as clinicValidation from '../validators/clinic.validator';
@@ -262,7 +262,10 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
     if(!isActive&&actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede desactivar un rol.');
     assertTarget(actor,{id,role:role.role});const changed=[...new Set([...role.permissions,...codes])].filter(code=>role.permissions.includes(code)!==codes.includes(code));
     const [catalog]=await c.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
-    for(const code of codes){const p=catalog.find(p=>p.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');if(p.is_critical&&!['ADMIN','SUPER_ADMIN'].includes(role.role))forbidden('Este rol no admite permisos administrativos.');}
+    for(const code of codes)if(!catalog.some(p=>p.code===code))throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');
+    // Existing critical grants may be preserved while editing unrelated role settings,
+    // but they cannot be newly added to a custom role.
+    assertNoNewCriticalCustomRolePermissions(role.role,role.permissions,codes.map(code=>({code,critical:Boolean(catalog.find(item=>item.code===code)?.is_critical)})));
     assertRolePermissionDelegation(actor,changed.map(code=>{const p=catalog.find(item=>item.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');return {code,critical:Boolean(p.is_critical)};}));
     await c.execute('UPDATE roles SET name=?,is_active=? WHERE id=?',[name,isActive?1:0,id]);await c.execute('DELETE FROM role_permissions WHERE role_id=?',[id]);
     for(const code of codes)await c.execute('INSERT INTO role_permissions (role_id,permission_id) VALUES (?,?)',[id,catalog.find(p=>p.code===code)!.id]);

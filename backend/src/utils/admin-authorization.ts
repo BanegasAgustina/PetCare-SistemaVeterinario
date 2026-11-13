@@ -33,6 +33,11 @@ export function canDelegatePermission(actor:AuthUser,permission:{code:string;cri
 export function assertRolePermissionDelegation(actor:AuthUser,permissions:{code:string;critical:boolean}[]) {
   if(permissions.some(permission=>!canDelegatePermission(actor,permission)))forbidden('No podés conceder ni modificar este permiso según la política de delegación.');
 }
+/** Keeps legacy critical grants intact on custom roles without allowing new critical grants. */
+export function assertNoNewCriticalCustomRolePermissions(role:string,currentCodes:string[],requested:{code:string;critical:boolean}[]) {
+  if(['ADMIN','SUPER_ADMIN'].includes(role))return;
+  if(requested.some(permission=>permission.critical&&!currentCodes.includes(permission.code)))forbidden('Este rol no admite nuevos permisos protegidos.');
+}
 // Valida si el actor tiene autoridad sobre el usuario objetivo.
 export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
   if(actor.role!=='SUPER_ADMIN'&&target.role==='SUPER_ADMIN')forbidden('Solo el administrador principal puede modificar otra cuenta principal.');
