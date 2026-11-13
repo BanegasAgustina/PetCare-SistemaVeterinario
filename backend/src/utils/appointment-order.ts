@@ -24,6 +24,7 @@ export function compareAdminAppointments<T extends AppointmentOrderFields>(sort:
     if (priorityDifference) return priorityDifference;
   }
   const leftTime = timestamp(left.startsAt); const rightTime = timestamp(right.startsAt);
+  /** Indica si el estado del turno ya es terminal y no admite cambios de ciclo de vida. */
   const closed = (status: string) => ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(status);
   const direction = sort === 'date_desc' || (sort === 'priority' && closed(left.status) && closed(right.status)) ? -1 : 1;
   const dateDifference = (leftTime - rightTime) * direction;

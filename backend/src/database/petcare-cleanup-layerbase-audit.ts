@@ -80,7 +80,7 @@ async function main(): Promise<void> {
     }
 
     const aggregates: Record<string, unknown> = {};
-    // Función countByColumn: agrupa una operación que este módulo puede ejecutar o reutilizar.
+    /** Cuenta los registros agrupados por el valor de una columna validada, como parte del informe de auditoría. */
 const countByColumn = async (table: string, column: string, key: string) => {
       if (!columnsByTable.get(table)?.has(column)) return;
       const t = `\`${table}\``;

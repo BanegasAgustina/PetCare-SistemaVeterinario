@@ -331,7 +331,7 @@ function requiredText(value: unknown, label: string, maxLength: number): string 
 
 /** Compara direcciones tras normalizar acentos, espacios y mayúsculas. */
 function sameAddress(first: string, second: string) {
-  // Función normalize: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Quita diacríticos, recorta espacios y pasa el texto a minúsculas para comparar términos. */
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es');
   return normalize(first) === normalize(second);
 }

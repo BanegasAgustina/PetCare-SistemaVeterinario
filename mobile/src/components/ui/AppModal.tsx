@@ -17,12 +17,12 @@ import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 // Tipo AppModalProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type AppModalProps = PropsWithChildren<{ visible: boolean; dismissible?: boolean; onClose?: () => void; size?: 'default' | 'wide'; footer?: ReactNode }>;
-// Función AppModal: concentra la lógica dentro de este módulo.
+/** Muestra contenido en un modal adaptado a pantalla y tema, con cierre controlado. */
 export function AppModal({ visible, dismissible = false, onClose, size = 'default', footer, children }: AppModalProps) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const desktop = isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
-  // Función close: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Cierra el modal solo cuando la propiedad dismissible lo permite. */
 const close = () => { if (dismissible) onClose?.(); };
   return <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={close}>
     <SafeAreaView style={styles.overlay}>

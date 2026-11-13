@@ -11,6 +11,7 @@
 import { AppError } from './app-error';
 /** Error normalizado de almacenamiento con código seguro, estado HTTP y causa interna. */
 export class DatabaseError extends Error {
+  /** Crea un error de base de datos con estado HTTP y causa original para el manejo centralizado. */
   constructor(public readonly code: string, public readonly status: number, message: string, cause?: unknown) {
     super(message, { cause });
     this.name = 'DatabaseError';

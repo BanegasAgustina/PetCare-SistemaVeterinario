@@ -9,7 +9,7 @@
  */
 /** Shared read-only clinic product catalog for roles allowed by the route and backend grant. */
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useClinic } from '../../hooks/useClinic';
 import { useAuth } from '../../hooks/useAuth';
@@ -27,15 +27,28 @@ import type { Product } from '../../types/client';
 /** Consulta el catálogo de productos y aplica búsqueda para uso clínico. */
 export function ClinicProductsScreen() {
   const clinic = useClinic();
+  const { height } = useWindowDimensions();
   const { hasPermission, user } = useAuth();
   const canRecommend=user?.role==='VETERINARIAN'&&hasPermission('recommendations.create')&&hasPermission('products.view')&&hasPermission('pets.view_information')&&(hasPermission('pets.view_all')||hasPermission('pets.view_assigned'));
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [selectedPatientId, setSelectedPatientId] = useState('');
   const catalog = useClientQuery(clinic.catalog);
   const query = useClientQuery(useCallback(() => clinic.products(submittedSearch, categoryId), [clinic, submittedSearch, categoryId]));
   const patientSelection = useClientQuery(useCallback(() => selectedProduct&&canRecommend ? clinic.patients() : Promise.resolve(null), [clinic, selectedProduct, canRecommend]));
+  const normalizeSearch = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
+  const visiblePatients = (patientSelection.data ?? []).filter(patient => normalizeSearch(String(patient.name)).includes(normalizeSearch(patientSearch)));
+  const selectedPatient = patientSelection.data?.find(patient => String(patient.id) === selectedPatientId);
+  const patientListMaxHeight = Math.min(232, Math.max(144, height * 0.34));
+
+  function openProduct(product: Product) {
+    setPatientSearch('');
+    setSelectedPatientId('');
+    setSelectedProduct(product);
+  }
 
   return <PetCareScreen wide>
     <PetCareHeader title="Productos" subtitle="Catálogo de PetCare" back />
@@ -54,23 +67,29 @@ export function ClinicProductsScreen() {
     {query.data && (query.data.length
       ? query.data.map(product => <PetCareCard key={product.id}>
         <PressableProduct product={product} />
-        <AppButton label="Ver detalle" variant="secondary" onPress={() => setSelectedProduct(product)} />
-        {canRecommend && <AppButton label="Recomendar a un paciente" onPress={() => setSelectedProduct(product)} />}
+        <AppButton label="Ver detalle" variant="secondary" onPress={() => openProduct(product)} />
+        {canRecommend && <AppButton label="Recomendar a un paciente" onPress={() => openProduct(product)} />}
       </PetCareCard>)
       : <PetCareEmptyState title="No hay productos" message="No encontramos productos para esta búsqueda." />)}
-    <AppModal size="wide" visible={Boolean(selectedProduct)} dismissible onClose={() => setSelectedProduct(null)}>
+    <AppModal size="wide" visible={Boolean(selectedProduct)} dismissible onClose={() => setSelectedProduct(null)} footer={selectedProduct?<AppButton label="Cerrar" variant="secondary" onPress={() => setSelectedProduct(null)}/>:undefined}>
       {selectedProduct && <>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><PetImage uri={selectedProduct.imageUrl} size={72} /><View style={{ flex: 1, minWidth: 0, gap: 4 }}><AppText variant="title">{selectedProduct.name}</AppText><AppText muted>{selectedProduct.category ?? 'Sin categoría'}</AppText></View></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><PetImage uri={selectedProduct.imageUrl} size={72} /><View style={{ flex: 1, minWidth: 0, gap: 4 }}><AppText variant="title" numberOfLines={3}>{selectedProduct.name}</AppText><AppText muted>{selectedProduct.category ?? 'Sin categoría'}</AppText></View></View>
         {selectedProduct.description && <AppText>{selectedProduct.description}</AppText>}
         <AppText>{money(selectedProduct.priceCents)}</AppText>
         <AppText muted>{selectedProduct.stock > 0 ? `${selectedProduct.stock} disponibles` : 'Sin stock disponible'}</AppText>
         {canRecommend && <>
           <AppText variant="subtitle">Recomendar a un paciente autorizado</AppText>
           <QueryState {...patientSelection} />
-          {patientSelection.data?.map(patient => <SelectionRow key={patient.id} label={String(patient.name)} hint={String(patient.species)} checked={false} onPress={() => { const productId = selectedProduct.id; setSelectedProduct(null); router.push({ pathname: '/vet/record' as never, params: { id: String(patient.id), kind: 'recommendations', productId } }); }} />)}
+          {patientSelection.data&&patientSelection.data.length>0&&<>
+            <AppInput icon="search-outline" label="Buscar paciente" placeholder="Buscar paciente por nombre" value={patientSearch} onChangeText={setPatientSearch}/>
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} style={{maxHeight:patientListMaxHeight,flexGrow:0}} contentContainerStyle={{gap:8}}>
+              {visiblePatients.map(patient => <SelectionRow key={patient.id} label={String(patient.name)} hint={String(patient.species)} checked={selectedPatientId===String(patient.id)} onPress={() => setSelectedPatientId(current=>current===String(patient.id)?'':String(patient.id))} />)}
+              {visiblePatients.length===0&&<AppText muted>No se encontraron pacientes</AppText>}
+            </ScrollView>
+            {selectedPatient&&<AppButton label={`Recomendar a ${String(selectedPatient.name)}`} onPress={() => { const productId = selectedProduct.id; setSelectedProduct(null); router.push({ pathname: '/vet/record' as never, params: { id: String(selectedPatient.id), kind: 'recommendations', productId } }); }}/ >}
+          </>}
           {patientSelection.data?.length === 0 && <AppText muted>No hay pacientes autorizados disponibles para recomendar.</AppText>}
         </>}
-        <AppButton label="Cerrar" variant="secondary" onPress={() => setSelectedProduct(null)} />
       </>}
     </AppModal>
   </PetCareScreen>;

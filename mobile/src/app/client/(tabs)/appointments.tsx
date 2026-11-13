@@ -28,7 +28,7 @@ export default function AppointmentsScreen(){
  const api=useClient();const query=useClientQuery(api.appointments);const [past,setPast]=useState(false),[selectedId,setSelectedId]=useState(''),[confirmingCancel,setConfirmingCancel]=useState(false),[reason,setReason]=useState(''),[reasonError,setReasonError]=useState('');const action=useAsyncAction();const {showToast}=useFeedback();
  const detail=useClientQuery(useCallback(()=>selectedId?api.appointment(selectedId):Promise.resolve(null),[api,selectedId]));
  const items=query.data?.filter(a=>past?!a.isUpcoming:a.isUpcoming);
- // Función cancel: elimina, revoca o cancela una operación dentro de este módulo.
+ /** Valida el motivo y solicita cancelar el turno seleccionado; si se confirma, limpia la selección y actualiza la lista. */
 async function cancel(){const clean=reason.trim();if(clean.length<3){setReasonError('Escribí un motivo de al menos 3 caracteres.');return;}setReasonError('');const saved=await action.run(()=>api.cancelAppointment(selectedId,clean));if(saved){setConfirmingCancel(false);setSelectedId('');setReason('');query.reload();showToast('Turno cancelado','success');}}
  const canCancel=Boolean(detail.data&&detail.data.isUpcoming&&['REQUESTED','CONFIRMED'].includes(detail.data.status));
  return <PetCareScreen><PetCareHeader title="Turnos" subtitle="Tiempo para su bienestar"/><AppButton label="Solicitar turno" onPress={()=>router.push('/client/appointments/request')}/><AppButton label={past?'Ver próximos':'Ver anteriores'} variant="secondary" onPress={()=>setPast(!past)}/>

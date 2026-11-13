@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { AppText } from './AppText';
 
-// Función CompactPagination: concentra la lógica dentro de este módulo.
+/** Presenta el resumen y los controles compactos para recorrer páginas de resultados. */
 export function CompactPagination({ page, canPrevious, canNext, onPrevious, onNext, summary }: { page: number; canPrevious: boolean; canNext: boolean; onPrevious: () => void; onNext: () => void; summary?: string }) {
   const { colors } = useTheme();
   if (page <= 1 && !canNext) return null;

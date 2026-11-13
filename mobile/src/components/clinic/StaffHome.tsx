@@ -22,6 +22,7 @@ import { AppButton } from '../ui/AppButton';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { appointmentDisplayValue, appointmentRouteId } from '../../utils/appointment-display';
 
+/** Carga y presenta el inicio del personal con datos y próximos turnos según el rol. */
 export function StaffHome() {
   const { user } = useAuth();
   const clinic = useClinic();

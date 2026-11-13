@@ -42,6 +42,7 @@ type PatientListCardProps = {
   onChanged: () => void;
 };
 
+/** Presenta el resumen del paciente, su tutor y estado, junto con las acciones autorizadas. */
 export function PatientListCard({
   patient, veterinarian, groomer, canEdit, canManageLifecycle,
   canResendInvitation, invitationLoading, onView, onEdit,

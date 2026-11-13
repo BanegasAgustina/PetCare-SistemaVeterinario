@@ -50,12 +50,12 @@ export default function NotificationsScreen(){
     const unsubscribe=subscribeToNotificationChanges(query.reload);
     return unsubscribe;
   },[query.reload]);
-  // Función readAll: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Marca todas las notificaciones como leídas y publica el cambio para actualizar las vistas. */
 const readAll=()=>void action.run(async()=>{
     await api.readAllNotifications();
     publishNotificationChange();
   });
-  // Función loadMore: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Solicita la página siguiente de notificaciones y la añade a la lista actual. */
 const loadMore=()=>void action.run(async()=>{
     if(!pageCursor||!firstId)return;
     const page=await api.notifications(pageCursor);

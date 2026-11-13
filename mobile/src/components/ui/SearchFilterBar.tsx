@@ -12,7 +12,7 @@ import { Children, isValidElement, type PropsWithChildren, type ReactNode } from
 import { FilterDisclosure } from './FilterDisclosure';
 import { AdminListToolbar } from '../admin/AdminListToolbar';
 
-// Función SearchFilterBar: obtiene o consulta información dentro de este módulo.
+/** Organiza el campo de búsqueda, filtros y acciones en una barra adaptable. */
 export function SearchFilterBar({children,sort}:PropsWithChildren<{sort?:ReactNode}>){
   const items=Children.toArray(children);
   const first=items[0];

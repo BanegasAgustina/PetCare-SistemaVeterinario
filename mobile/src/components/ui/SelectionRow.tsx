@@ -12,7 +12,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { useTheme } from '../../hooks/useTheme';
-// Función SelectionRow: concentra la lógica dentro de este módulo.
+/** Muestra una opción accesible de selección única o múltiple con estado, ayuda y deshabilitado. */
 export function SelectionRow({ label,hint,checked,disabled=false,onPress,radio=false }: { label:string;hint?:string;checked:boolean;disabled?:boolean;onPress:()=>void;radio?:boolean }) {
   const { colors }=useTheme();
   return <Pressable accessibilityRole={radio?'radio':'checkbox'} accessibilityLabel={label} accessibilityState={{checked,disabled}} disabled={disabled} onPress={onPress}

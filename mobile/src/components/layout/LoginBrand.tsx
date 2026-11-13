@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../ui/AppText';
 import { useTheme } from '../../hooks/useTheme';
 import { PetCareLogo } from './PetCareLogo';
-// Función LoginBrand: concentra la lógica dentro de este módulo.
+/** Muestra la identidad visual de PetCare y adapta la composición de marca al tamaño de pantalla y tema. */
 export function LoginBrand({ title = 'Bienvenido/a a PetCare', subtitle = 'Cuidamos a quienes más querés', compactLayout = false }: { title?: string; subtitle?: string; compactLayout?: boolean }) {
   const { colors, mode, setPreference } = useTheme();
   const { height, width } = useWindowDimensions();

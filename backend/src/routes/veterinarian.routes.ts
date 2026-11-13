@@ -26,6 +26,7 @@ import { isProfilePhotoKey,removeProfilePhoto,storeProfilePhoto } from '../servi
 import { updateVetPhoto } from '../repositories/veterinarian.repository';
 import { changeOwnPassword,updateOwnProfile } from '../services/veterinarian-account.service';
 
+/** Valida las claves y combinaciones permitidas para cambiar o quitar la foto de perfil profesional. */
 async function profilePhotoInput(body:Record<string,unknown>){
   if(Object.keys(body).some(key=>!['photoBase64','photoUrl','removePhoto'].includes(key))||body.removePhoto!==undefined&&typeof body.removePhoto!=='boolean'||body.removePhoto===true&&(body.photoBase64!==undefined||body.photoUrl!==undefined)||body.photoBase64!==undefined&&body.photoUrl!==undefined)throw new AppError('VALIDATION_ERROR',400,'La solicitud de foto no es válida.');
   if(body.removePhoto===true)return null;

@@ -71,6 +71,7 @@ export async function notify(
   });
 }
 
+/** Comprueba que el usuario sea un profesional activo, verificado y habilitado para recibir notificaciones de turnos. */
 async function canReceiveProfessionalAppointmentNotification(userId:string,c:PoolConnection):Promise<boolean> {
  const [users]=await c.execute<RowDataPacket[]>(`SELECT r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.is_active=1 AND u.email_verified_at IS NOT NULL`,[userId]);
  if(!users[0]||!['VETERINARIAN','GROOMER'].includes(String(users[0].role)))return false;
@@ -106,7 +107,7 @@ export async function professionals(activeOnly=false) {const result=await rows(`
 /** Construye catálogos de clínica permitidos para el actor y presentación pública. */
 export async function catalog(actor?:AuthUser) {
  const admin=actor&&['ADMIN','SUPER_ADMIN'].includes(actor.role);
- // Función presentNames: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Añade a cada elemento del catálogo el nombre de presentación normalizado. */
 const presentNames=(items:Data[])=>items.map(item=>({...item,name:catalogName(String(item.name))}));
  return {types:presentNames(await rows('SELECT pt.id,pt.name,pt.role_id AS roleId,pt.is_clinical AS isClinical FROM professional_types pt ORDER BY pt.name')),
  services:await rows(`SELECT id,name,description,image_url AS imageUrl,specialty_id AS specialtyId,professional_type_id AS typeId,duration_minutes AS durationMinutes,price_cents AS priceCents,requirements,is_active AS isActive FROM client_services ${admin?'':'WHERE is_active=1'} ORDER BY name`),

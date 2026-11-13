@@ -40,11 +40,17 @@ export default function RolesScreen() {
   const editable=canManageRoles&&canManagePermissions&&(creating?auth.hasRole('SUPER_ADMIN'):Boolean(role)&&(role?.code!=='SUPER_ADMIN'||auth.hasRole('SUPER_ADMIN')));
   const deletable=Boolean(role&&!creating&&canManageRoles&&canManagePermissions&&role.assignedUsers===0&&!['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role.code));
 
+  /** Abre el alta de rol con nombre y permisos vacíos. */
   function startCreate(){setRole(null);setCreating(true);setName('');setCodes([]);setError(undefined);}
+  /** Descarta el borrador de rol y cierra el modo de creación. */
   function cancelCreate(){setCreating(false);setName('');setCodes([]);setError(undefined);}
+  /** Valida que el rol tenga nombre y abre la confirmación antes de crearlo. */
   function reviewCreate(){if(!name.trim()){setError('Ingresá el nombre del rol.');return;}setConfirm(true);}
+  /** Carga el rol seleccionado en el formulario de edición. */
   function selectRole(item:AdminRole){setRole(item);setCreating(false);setName(roleLabel(item.code,item.name));setCodes(item.permissions);setError(undefined);}
+  /** Elimina el rol seleccionado, actualiza permisos/perfil y muestra el resultado. */
   async function deleteRole(){if(!role)return;const deleted=role;await api.deleteRole(deleted.id);setDeleteConfirm(false);setRole(null);setCreating(false);query.reload();await auth.refreshProfile();showToast(`Rol “${deleted.name}” eliminado`,'success');}
+  /** Crea o actualiza el rol, refresca los datos y confirma el resultado al usuario. */
   async function saveRole(){
     if(creating){await api.createRole(name.trim(),codes);cancelCreate();}
     else if(role){await api.updateRole(role.id,name.trim(),codes);setRole(null);}

@@ -42,6 +42,7 @@ export function OAuthSignInOptions({ onLoadingChange }: { onLoadingChange?: (loa
   }, [requiresDevelopmentBuild]);
 
   const providers = availableOAuthProviders(availability ?? {});
+  /** Inicia la autenticación del proveedor elegido y comunica los estados de carga y error. */
   const startSocial = async (provider: OAuthProvider) => {
     setActiveProvider(provider === 'x' ? 'X' : provider === 'google' ? 'Google' : 'Facebook');
     onLoadingChange?.(true);

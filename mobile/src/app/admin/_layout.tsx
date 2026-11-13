@@ -15,6 +15,7 @@ import { PetCareScreen } from '../../components/client/PetCareUI';
 import { AppText } from '../../components/ui/AppText';
 import { AppButton } from '../../components/ui/AppButton';
 
+/** Comprueba acceso a la ruta administrativa y muestra el contenido o el aviso de acceso restringido. */
 export default function AdminLayout() {
   const { hasPermission } = useAuth();
   const pathname = usePathname();

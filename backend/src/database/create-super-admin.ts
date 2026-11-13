@@ -26,9 +26,10 @@ async function readInput():Promise<unknown> {
   if(args.length||!stdin.isTTY||!stdout.isTTY)throw new AppError('CLI_INPUT_REQUIRED',400,'Ejecutá en una terminal interactiva, o usá --stdin con una entrada segura. No se aceptan credenciales como argumentos.');
   let hidden=false;
   const output=new Writable({// Función write: implementa esta operación de la clase o del objeto.
+/** Escribe los caracteres en la terminal y los oculta cuando se solicita una contraseña. */
 write(chunk,_encoding,done){if(!hidden)stdout.write(chunk);done();}});
   const reader=createInterface({input:stdin,output,terminal:true,historySize:0});
-  // Función ask: concentra la lógica dentro de este módulo.
+  /** Solicita datos al operador y oculta la entrada cuando se introduce un secreto. */
 async function ask(label:string,secret=false) {
     hidden=secret;if(secret)stdout.write(label);
     try{return await reader.question(secret?'':label);}finally{if(secret)stdout.write('\n');hidden=false;}

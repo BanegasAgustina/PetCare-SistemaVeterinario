@@ -81,7 +81,7 @@ export function isBannerPhotoKey(value:unknown):value is string {return typeof v
 /** Crea cliente S3 compatible validando bucket, endpoint, región, credenciales y estilo de URL. */
 export function photoStorage() {
   const bucket=process.env.BUCKET?.trim(),accessKeyId=process.env.ACCESS_KEY_ID?.trim(),secretAccessKey=process.env.SECRET_ACCESS_KEY?.trim(),region=process.env.REGION?.trim(),endpoint=process.env.ENDPOINT?.trim();
-  // Función unavailable: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Crea el error que indica que el almacenamiento de fotos no está configurado. */
 const unavailable=()=>new AppError('PHOTO_STORAGE_UNAVAILABLE',503,'El almacenamiento de fotos todavía no está configurado.');
   if(!bucket||!accessKeyId||!secretAccessKey||!region||!endpoint)throw unavailable();
   try {const url=new URL(endpoint);if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw unavailable();}catch {throw unavailable();}

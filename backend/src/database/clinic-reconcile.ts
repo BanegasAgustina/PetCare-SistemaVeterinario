@@ -76,7 +76,7 @@ async function assertPreflight(connection: Queryable, expectedDatabase: string):
 
   const columns = await rows<RowDataPacket & { TABLE_NAME: string; COLUMN_NAME: string; COLUMN_TYPE: string; IS_NULLABLE: string; EXTRA: string }>(connection,
     "SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND ((TABLE_NAME='client_appointment_slots' AND COLUMN_NAME IN ('id','veterinarian_id','professional_user_id','starts_at','active_start')) OR (TABLE_NAME='client_appointments' AND COLUMN_NAME IN ('slot_id','occupied_slot_id')) OR (TABLE_NAME='veterinarians' AND COLUMN_NAME='id'))");
-  // Función column: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Busca la descripción de una columna por nombre de tabla y columna en el esquema inspeccionado. */
 const column = (table: string, name: string) => columns.find((item) => item.TABLE_NAME === table && item.COLUMN_NAME === name);
   const checks: Array<[string, string, (item: typeof columns[number]) => boolean]> = [
     ['client_appointment_slots', 'veterinarian_id', (item) => item.COLUMN_TYPE === 'bigint unsigned'],
@@ -123,7 +123,7 @@ const column = (table: string, name: string) => columns.find((item) => item.TABL
     found.columns[Number(row.SEQ_IN_INDEX) - 1] = row.COLUMN_NAME;
     appointmentIndexes.set(row.INDEX_NAME, found);
   }
-  // Función hasEquivalent: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Comprueba si ya existe un índice equivalente con la misma unicidad y lista de columnas. */
 const hasEquivalent = (unique: boolean, columnName: string) => [...appointmentIndexes.values()].some((index) => index.unique === unique && index.columns.join(',') === columnName);
   if (!hasEquivalent(true, 'occupied_slot_id') || !hasEquivalent(false, 'slot_id')) {
     throw new Error('client_appointments no conserva los índices funcionales esperados (occupied_slot_id y slot_id).');

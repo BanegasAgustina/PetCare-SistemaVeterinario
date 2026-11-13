@@ -28,7 +28,7 @@ export async function list(owner: string) {
 export async function save(owner: string, value: unknown, rawId?: unknown) {
   return withAddressSchema(async()=>{
   const body = clientBody(value, ['label','recipientName','phone','street','streetNumber','unit','city','province','postalCode','reference']);
-  // Función required: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Valida que el campo de dirección tenga texto y no exceda el límite indicado. */
 const required = (key: string, label: string, max: number) => { const result = text(body[key], max); if (!result) invalid(`Ingresá ${label.toLocaleLowerCase('es')}.`); return result.trim(); };
   const label = text(body.label, 80, true)?.trim() || 'Casa';
   const recipientName = required('recipientName','nombre del destinatario',160);

@@ -11,7 +11,7 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText } from './AppText';
 import { useTheme } from '../../hooks/useTheme';
-// Función LoadingIndicator: obtiene o consulta información dentro de este módulo.
+/** Muestra un indicador accesible de progreso con el texto proporcionado. */
 export function LoadingIndicator({ label = 'Cargando…' }: { label?: string }) {
   const { colors } = useTheme();
   return <View style={styles.container} accessibilityRole="progressbar" accessibilityLabel={label}><ActivityIndicator size="large" color={colors.primary} /><AppText muted>{label}</AppText></View>;

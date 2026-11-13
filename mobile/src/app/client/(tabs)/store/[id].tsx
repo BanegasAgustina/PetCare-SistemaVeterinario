@@ -39,7 +39,7 @@ export default function ProductDetail() {
   const amount = Number(quantity);
   const quantityInvalid = !Number.isInteger(amount) || amount < 1 || amount > maxAdditional;
 
-  // Función addToCart: crea un registro o inicia una operación dentro de este módulo.
+  /** Envía al carrito la cantidad elegida del producto y muestra el resultado de la operación. */
 async function addToCart() {
     const existing = cart.data?.items.find(item => item.id === id)?.quantity ?? 0;
     if (!cart.data || !query.data || !Number.isInteger(amount) || amount < 1 || amount > 99 || amount + existing > 99 || amount + existing > query.data.stock) {

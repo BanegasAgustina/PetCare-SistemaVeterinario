@@ -44,16 +44,16 @@ export default function StoreOrders(){
  const load=useCallback(()=>api.storeOrders(Object.fromEntries(Object.entries(filters).filter(([,value])=>value))),[api,filters]);const query=useClientQuery(load);
  const loadDetail=useCallback(async()=>{if(!selected){setDetail(null);return null;}const row=await api.storeOrder(selected);setDetail(row);return row;},[api,selected]);const detailQuery=useClientQuery(loadDetail);
  const canManage=auth.hasPermission('orders.manage');const canManagePayment=auth.hasPermission('orders.payment.manage');const canReviewPayment=auth.hasRole('SUPER_ADMIN')&&canManagePayment;
- // Función applyFilters: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Valida el rango de fechas y aplica los filtros del listado de pedidos. */
 // Aplica filtros solo si el rango de fechas tiene un orden válido.
 const applyFilters=()=>{if(draft.from&&draft.to&&draft.from>draft.to){setFilterError('La fecha inicial no puede ser posterior a la fecha final.');return;}setFilterError(null);setFilters({...draft});};
- // Función commit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Confirma la revisión del pago o el cambio de estado y actualiza el detalle y el listado. */
 // Confirma la revisión del pago o el cambio de estado del pedido y refresca sus consultas.
 const commit=async()=>{if(!pending)return;setError(null);try{if(pending.reviewPaymentStatus)await api.reviewStorePayment(pending.id,{paymentStatus:pending.reviewPaymentStatus,reason:reviewReason.trim()});else await api.updateStoreOrder(pending.id,{...(pending.orderStatus?{orderStatus:pending.orderStatus}:{}),...(pending.paymentStatus?{paymentStatus:pending.paymentStatus}:{})});setPending(null);setReviewReason('');query.reload();detailQuery.reload();showToast('Pedido actualizado','success');}catch(e){setError(e instanceof Error?e.message:'No se pudo actualizar el pedido.');}};
- // Función openProof: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Obtiene el enlace privado del comprobante de pago y lo abre. */
 // Obtiene el comprobante asociado al pedido y abre su URL fuera de la app.
 const openProof=async(id:string)=>{setLoadingProof(true);setError(null);try{const result=await api.storeOrderProof(id);await Linking.openURL(result.url);}catch(e){setError(e instanceof Error?e.message:'No se pudo abrir el comprobante.');}finally{setLoadingProof(false);}};
- // Función requestPaymentReview: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Exige un motivo y prepara la confirmación de aprobación o rechazo del pago. */
 // Exige una justificación y prepara la confirmación de aprobación o rechazo del pago.
 const requestPaymentReview=(id:string,status:'PAID'|'FAILED',label:string)=>{if(reviewReason.trim().length<3){setError('Escribí el motivo de aprobación o rechazo antes de continuar.');return;}setError(null);setPending({id,reviewPaymentStatus:status,reason:reviewReason.trim(),label});};
  return <PetCareScreen wide><PetCareHeader title="Pedidos de tienda" subtitle="Preparación, retiro, entregas y pagos" back hideForAdmin/>

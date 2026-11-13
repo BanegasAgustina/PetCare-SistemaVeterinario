@@ -23,7 +23,7 @@ type Props={visible:boolean;title:string;message:string;expectedName:string;iden
 /** Mantiene la confirmación bloqueada hasta validar el nombre requerido. */
 export function ConfirmNameModal({visible,title,message,expectedName,identityHint,confirmLabel,onCancel,onConfirm}:Props){
   const action=useAsyncAction();
-  // Función cancel: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Limpia el error de la acción y cierra el diálogo de confirmación. */
 const cancel=()=>{action.clearError();onCancel();};
   return <AppModal visible={visible} dismissible={!action.loading} onClose={cancel}>
     {visible&&<ConfirmNameContent key={expectedName} title={title} message={message} expectedName={expectedName} identityHint={identityHint} confirmLabel={confirmLabel} loading={action.loading} error={action.error} onCancel={cancel} onConfirm={()=>void action.run(onConfirm)}/>}

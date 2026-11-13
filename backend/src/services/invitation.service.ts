@@ -94,7 +94,7 @@ export async function acceptInvitation(value: unknown): Promise<void> {
     try {
       await connection.beginTransaction();
       const [lookup] = await connection.execute<RowDataPacket[]>('SELECT user_id FROM veterinarian_invitations WHERE token_hash=?',[tokenHash(input.token)]);
-      // Función invalid: agrupa una operación que este módulo puede ejecutar o reutilizar.
+      /** Crea el error público para una invitación inválida o vencida. */
 const invalid = () => new AppError('INVALID_INVITATION',400,'La invitación no es válida o venció.');
       if (!lookup[0]) throw invalid();
       // Orden de locks consistente con edición/reenviar: primero users, después invitation.

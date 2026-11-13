@@ -14,7 +14,7 @@ import { softSurfaceShadow } from '../../constants/surface';
 
 // Tipo AppButtonProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type AppButtonProps = Omit<PressableProps, 'children' | 'style'> & { label: string; loading?: boolean; variant?: 'primary' | 'secondary' | 'accent'; compact?: boolean; centered?: boolean; destructive?: boolean };
-// Función AppButton: concentra la lógica dentro de este módulo.
+/** Renderiza un botón accesible con variantes visuales y estados de carga o deshabilitado. */
 export function AppButton({ label, disabled, loading = false, variant = 'primary', compact = false, centered = false, destructive = false, ...props }: AppButtonProps) {
   const { colors } = useTheme();
   const inactive = Boolean(disabled || loading);

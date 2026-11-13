@@ -71,15 +71,15 @@ export default function AdminProducts() {
   const query = useClientQuery(load);
   const loadHistory=useCallback(()=>historyProductId?request<StockHistory>(`/admin/products/${encodeURIComponent(historyProductId)}/stock-movements`,{method:'POST',body:{}}):Promise.resolve(null),[request,historyProductId]);
   const stockHistory=useClientQuery(loadHistory);
-  // Función updateFilter: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Cambia un filtro de productos y vuelve a la primera página de resultados. */
 const updateFilter = (key: keyof typeof filters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
-  // Función changeField: actualiza o guarda información dentro de este módulo.
+  /** Actualiza un campo del borrador del producto y limpia el error de ese campo. */
 function changeField<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues(current => ({ ...current, [key]: value }));
     setErrors(current => { const next = { ...current }; delete next[key as keyof typeof errors]; return next; });
   }
 
-  // Función openEditor: concentra la lógica dentro de este módulo.
+  /** Carga el producto elegido en el formulario de edición y cierra otros modos del editor. */
 function openEditor(product: Product) {
     setDetail(null);
     setCreating(false);
@@ -87,6 +87,7 @@ function openEditor(product: Product) {
     setValues({ name: product.name, description: product.description ?? '', imageUrl: product.imageUrl ?? '', categoryId: product.categoryId ?? '', productType: emptyValues.productType, requiresPrescription: false, price: (product.priceCents / 100).toFixed(2), stock: String(product.physicalStock),stockMinimum:String(product.stockMinimum),stockReason:'', isActive: product.isActive });
     setErrors({});
   }
+  /** Limpia la selección y los errores, y abre el formulario para crear un producto. */
   function openCreateForm() {
     setDetail(null);
     setEditing(null);
@@ -94,7 +95,7 @@ function openEditor(product: Product) {
     setValues(emptyValues);
     setErrors({});
   }
-  // Función review: concentra la lógica dentro de este módulo.
+  /** Valida el borrador de producto y prepara la confirmación antes de guardarlo. */
 function review() {
     if (!editing && !creating) return;
     const next: typeof errors = {};

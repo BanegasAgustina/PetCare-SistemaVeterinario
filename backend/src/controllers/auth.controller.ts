@@ -29,7 +29,7 @@ export const login: RequestHandler = async (request, response, next) => {
 export const getCurrentUser: RequestHandler = (_request, response) => {
   const user = response.locals.authenticatedUser as AuthUser;
   response.status(200).json({ success: true, data: { user } });
-};
+};//solicita el usuario autenticado y revalidado por authenticate, sin volver a confiar en claims del token.
 /** Solicita recuperación y responde de forma uniforme; el servicio oculta si el correo existe. */
 export const requestPasswordReset: RequestHandler = async (request,response,next) => {
   try { await requestReset(request.body); response.status(200).json({success:true,data:{accepted:true}}); } catch(error) { next(error); }

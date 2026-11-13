@@ -1,5 +1,6 @@
 /**
  * ARCHIVO: oauth.ts
+ * proceso  oauth
  * UBICACIÓN: backend/src/config/oauth.ts
  * FUNCIÓN: Valida proveedores OAuth, origen público, credenciales y URLs de retorno permitidas.
  * RESPONSABILIDAD: Restringir callbacks y destinos OAuth para evitar redirecciones arbitrarias o configuración local en producción.

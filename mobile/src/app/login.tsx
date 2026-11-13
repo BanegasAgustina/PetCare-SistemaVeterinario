@@ -37,7 +37,7 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const [recoveryVisible, setRecoveryVisible] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
-  // Función submitLogin: concentra la lógica dentro de este módulo.
+  /** Envía las credenciales; si la cuenta requiere cambio inicial de contraseña, deriva a ese formulario. */
 async function submitLogin(values:LoginValues){try{await auth.signIn(values);}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_REQUIRED'){router.push({pathname:'/change-initial-password',params:{email:values.email}});return;}throw error;}}
   return <LoginLayout showDesktopImage petArtwork="login">
     <LoginBrand />

@@ -26,6 +26,7 @@ export function buildPublicFrontendUrl(
   nodeEnvironment: string,
   backendUrl?: string,
 ): URL {
+  /** Construye el error público de servicio no disponible según el flujo que falló. */
   const unavailable = () => new AppError(kind === 'password-reset' ? 'PASSWORD_RESET_UNAVAILABLE' : 'INVITATION_UNAVAILABLE', 503,
     kind === 'password-reset' ? 'La recuperación de contraseña no está configurada.' : 'Configurá la URL pública segura del frontend.');
   try {

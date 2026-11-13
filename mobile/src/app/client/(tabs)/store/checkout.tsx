@@ -41,17 +41,17 @@ export default function StoreCheckout(){
  const transferConfigured=Boolean(fulfillment.data?.bankName&&fulfillment.data.bankAccountHolder&&fulfillment.data.bankCbuCvu&&fulfillment.data.bankAlias);
  const demoEnabled=Boolean(fulfillment.data?.demoModeEnabled);
  const deliveryAvailable=hasDeliveryCoverage(fulfillment.data);
- // Función setAddress: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Actualiza parte de la dirección de entrega, invalida el cálculo de envío y limpia errores asociados. */
 const setAddress=(patch:Partial<typeof flow.address>)=>{flow.setAddress({...flow.address,...patch});flow.setQuote(null);setAddressErrors(current=>{const next={...current};for(const field of Object.keys(patch))delete next[field];return next;});};
- // Función setBuyerField: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Actualiza el dato del comprador elegido y limpia el error de ese dato. */
 const setBuyerField=(field:'buyerName'|'buyerEmail'|'buyerDni',value:string)=>{if(field==='buyerName')setBuyerName(value);else if(field==='buyerEmail')setBuyerEmail(value);else setBuyerDni(value);setBuyerErrors(current=>{const next={...current};delete next[field];return next;});};
- // Función selectAddress: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Carga una dirección guardada en el formulario y actualiza su identificador seleccionado. */
 const selectAddress=(a:DeliveryAddress)=>{flow.setAddressId(a.id);setAddress({recipientName:a.recipientName,phone:a.phone,street:a.street,streetNumber:a.streetNumber,unit:a.unit??'',city:a.city,province:a.province,postalCode:a.postalCode,reference:a.reference??''});};
- // Función askQuote: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Valida ciudad y provincia y solicita una cotización de entrega para la dirección actual. */
 const askQuote=async()=>{const a=flow.address;const issues:Record<string,string>={};if(!a.city.trim())issues.city='Ingresá la ciudad para consultar cobertura.';if(!a.province.trim())issues.province='Ingresá la provincia para consultar cobertura.';if(!a.postalCode.trim())issues.postalCode='Ingresá el código postal para consultar cobertura.';setAddressErrors(current=>({...current,...issues}));if(Object.keys(issues).length)return;setError(null);try{const quote=await api.deliveryQuote({city:a.city,province:a.province,postalCode:a.postalCode,subtotalCents:subtotal});flow.setQuote(quote,subtotal);if(!quote.available)setError(quote.reason==='outside_zone'?'La dirección está fuera de las zonas configuradas.':'El envío a domicilio no está habilitado.');}catch(e){setError(e instanceof Error?e.message:'No se pudo consultar la cobertura.');}};
- // Función saveAddress: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Valida y guarda la dirección del formulario, con bloqueo contra envíos duplicados. */
 const saveAddress=()=>addressSaveGate.current.run(async()=>{const a=flow.address;const issues=validateCheckoutAddress(a);setAddressErrors(issues);if(Object.keys(issues).length)return;setSavingAddress(true);setError(null);try{const body={...a,label:'Casa'};if(flow.addressId)await api.updateDeliveryAddress(flow.addressId,body);else{const saved=await api.saveDeliveryAddress(body);flow.setAddressId(saved.id);}addresses.reload();}catch(e){if(e instanceof ApiError&&e.fieldErrors.length){const mapped=mapCheckoutFieldErrors(e.fieldErrors);const allowed=['recipientName','phone','street','streetNumber','unit','city','province','postalCode','reference'];const visible=Object.fromEntries(Object.entries(mapped).filter(([field])=>allowed.includes(field)));setAddressErrors(visible);setError(Object.keys(visible).length?null:e.message);}else setError(e instanceof Error?e.message:'No se pudo guardar la dirección.');}finally{setSavingAddress(false);}});
- // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Valida carrito y datos de compra y envía la solicitud de checkout al backend. */
 const submit=async()=>{
   if(!cart.data||!products.length){setError('El carrito está vacío.');return;}
   if(products.some(i=>!i.isActive||i.quantity<1||i.quantity>i.stock)){setError('Revisá la disponibilidad y las cantidades antes de continuar.');return;}

@@ -145,7 +145,7 @@ export default function StoreScreen() {
   const categoryChips: CatalogItem[] = catalog.data ?? [];
   const sortCount = sort === 'name-asc' ? 0 : 1;
   const activeFilterCount = (category ? 1 : 0) + (productType ? 1 : 0) + sortCount + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (availableOnly ? 1 : 0) + (promotionOnly ? 1 : 0);
-  // Función applyFilters: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Valida los precios ingresados y aplica los filtros de catálogo seleccionados. */
 const applyFilters = () => {
     const minCents = toPriceCents(draftMinPrice);
     const maxCents = toPriceCents(draftMaxPrice);
@@ -167,7 +167,7 @@ const applyFilters = () => {
     setPromotionOnly(draftPromotionOnly);
     return true;
   };
-  // Función clearFilters: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Limpia filtros, orden y errores y vuelve al catálogo sin restricciones. */
 const clearFilters = () => {
     setFilterError(null);
     setDraftCategory(''); setCategory('');

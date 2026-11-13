@@ -13,6 +13,7 @@ import type { VerificationChallenge } from '../types/verification';
 export type ApiFieldError = { field: string; message: string };
 /** Excepción controlada que el middleware convierte en status/código JSON. */
 export class AppError extends Error {
+  /** Crea un error de aplicación con código HTTP y, opcionalmente, datos de verificación o errores de campos. */
   constructor(public readonly code: string, public readonly status: number, message: string, public readonly verification?: VerificationChallenge, public readonly fieldErrors?: ApiFieldError[]) {
     super(message);
     this.name = 'AppError';

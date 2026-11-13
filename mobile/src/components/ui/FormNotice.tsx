@@ -12,7 +12,7 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { useTheme } from '../../hooks/useTheme';
-// Función FormNotice: concentra la lógica dentro de este módulo.
+/** Muestra un aviso accesible de error o información y no renderiza nada si está vacío. */
 export function FormNotice({ message, error = false }: { message: string | null; error?: boolean }) {
   const { colors } = useTheme();
   if (!message) return null;

@@ -10,6 +10,7 @@
 /** Cliente HTTP con timeout y errores públicos: nunca imprime credenciales ni tokens. */
 /** Error de dominio HTTP con código estable, estado, verificación opcional y errores por campo. */
 export class ApiError extends Error {
+  /** Construye el error HTTP tipado con código, estado y datos opcionales de verificación o campos. */
   constructor(public readonly code: string, message: string, public readonly status = 0, public readonly verification?: unknown, public readonly fieldErrors: readonly ApiFieldError[] = []) { super(message); this.name = 'ApiError'; }
 }
 /** Error de validación público asociado a un campo del formulario. */

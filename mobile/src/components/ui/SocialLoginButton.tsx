@@ -16,7 +16,7 @@ import { useTheme } from '../../hooks/useTheme';
 type Provider = 'Google' | 'Facebook' | 'X';
 // Dato icons: conserva un valor calculado o de configuración usado por este módulo.
 const icons = { Google: 'google', Facebook: 'facebook-f', X: 'x-twitter' } as const;
-// Función SocialLoginButton: concentra la lógica dentro de este módulo.
+/** Renderiza el botón accesible del proveedor social y comunica su estado disponible. */
 export function SocialLoginButton({ provider, onPress,disabled=false }: { provider: Provider; onPress?: () => void;disabled?:boolean }) {
   const { colors } = useTheme();
   const unavailable = !onPress||disabled;

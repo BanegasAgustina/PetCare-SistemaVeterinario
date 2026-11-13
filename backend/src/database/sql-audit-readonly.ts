@@ -68,7 +68,7 @@ function extractSqlLikeStrings(filePath: string): string[] {
   if (content === undefined) return [];
   const source = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const strings: string[] = [];
-  // Función visit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Recorre el árbol sintáctico y reúne literales de texto SQL que deben analizarse. */
 const visit = (node: ts.Node): void => {
     if (ts.isStringLiteralLike(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       strings.push(node.text);
@@ -154,7 +154,7 @@ async function audit(): Promise<Record<string, unknown>> {
       return result;
     }
 
-    // Función runMetadata: agrupa una operación que este módulo puede ejecutar o reutilizar.
+    /** Consulta metadatos de una etapa de auditoría y guarda el resultado o el estado de error. */
 const runMetadata = async (stage: string, query: string): Promise<MetadataRow[] | undefined> => {
       try {
         const [rows] = await connection!.execute<MetadataRow[]>(query, [schemaName]);

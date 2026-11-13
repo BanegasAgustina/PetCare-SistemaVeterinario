@@ -267,6 +267,7 @@ const navigate = (path: string) => router.navigate(path as never);
   </View></AdminModulesLoadingContext.Provider></AdminModulesContext.Provider>;
 }
 
+/** Muestra el acceso accesible al centro de notificaciones y su cantidad pendiente. */
 function NotificationCenterButton({count,onPress}:{count:number;onPress:()=>void}) {
   const {colors}=useTheme();
   const label=count>0?`Notificaciones, ${count} sin leer`:'Notificaciones';
@@ -276,6 +277,7 @@ function NotificationCenterButton({count,onPress}:{count:number;onPress:()=>void
   </Pressable>;
 }
 
+/** Renderiza la barra superior de profesionales con navegación y acceso a notificaciones. */
 function ProfessionalTopBar({count}:{count:number}) {
   const {colors}=useTheme();
   return <SafeAreaView edges={Platform.OS==='web'?[]:['top']} style={[styles.professionalTopSafe,softSurfaceShadow(colors.primary),{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>

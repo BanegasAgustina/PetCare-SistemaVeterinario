@@ -13,7 +13,7 @@ import { useTheme } from '../../hooks/useTheme';
 
 // Tipo AppTextProps: define la forma o las opciones válidas de los datos usados por este módulo.
 type AppTextProps = TextProps & { variant?: 'title' | 'subtitle' | 'body' | 'caption'; muted?: boolean };
-// Función AppText: concentra la lógica dentro de este módulo.
+/** Aplica la tipografía PetCare y el color de texto del tema al componente Text. */
 export function AppText({ variant = 'body', muted = false, style, ...props }: AppTextProps) {
   const { colors } = useTheme();
   return <Text {...props} style={[styles[variant], { color: muted ? colors.muted : colors.text }, style]} />;

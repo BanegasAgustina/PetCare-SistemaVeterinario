@@ -15,7 +15,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { AppText } from './AppText';
 import { AppButton } from './AppButton';
 import { FormNotice } from './FormNotice';
-// Función OAuthLinks: concentra la lógica dentro de este módulo.
+/** Muestra y administra las acciones para vincular o desvincular proveedores de acceso OAuth. */
 export function OAuthLinks(){
   const auth=useAuth(),action=useAsyncAction(),feedback=useFeedback();
   return <View style={{gap:12}}><AppText variant="subtitle">Vincular inicio de sesión</AppText><AppText muted>Autorizá tu propia cuenta del proveedor para usarla al ingresar a PetCare.</AppText><FormNotice message={action.error} error/>

@@ -13,6 +13,7 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { requireNotificationAccess } from '../middlewares/permission.middleware';
 import { clientHandler } from '../controllers/client.controller';
 
+/** Registra en el router las rutas de consulta y actualización de notificaciones para clientes. */
 function registerOperations(router:Router) {
   // router.post('/'): Lista notificaciones del usuario
   router.post('/',clientHandler('notifications'));

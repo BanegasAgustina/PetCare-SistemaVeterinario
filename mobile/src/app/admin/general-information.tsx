@@ -114,14 +114,14 @@ export default function GeneralInformationScreen() {
       JSON.stringify(values) !==
         JSON.stringify(baseline ?? query.data?.information),
   );
-  // Función change: actualiza o guarda información dentro de este módulo.
+  /** Actualiza en el borrador el valor del campo de información indicado. */
 function change<K extends keyof GeneralInformation>(
     key: K,
     value: GeneralInformation[K],
   ) {
     setValues({ ...values, [key]: value });
   }
-  // Función updateHours: actualiza o guarda información dentro de este módulo.
+  /** Actualiza la configuración de apertura y franjas de un día sin modificar los demás días. */
 function updateHours(
     day: Weekday,
     update: (current: OpeningHours[Weekday]) => OpeningHours[Weekday],
@@ -134,7 +134,7 @@ function updateHours(
       },
     });
   }
-  // Función save: actualiza o guarda información dentro de este módulo.
+  /** Envía los campos editables, actualiza la base local del formulario y muestra confirmación al guardar. */
 async function save() {
     const saved = await api.saveGeneralInformation(nullableFields(values));
     setValues(saved);

@@ -2,7 +2,8 @@
  * ARCHIVO: verification.service.ts
  * UBICACIÓN: backend/src/services/verification.service.ts
  * FUNCIÓN: Emisión, reenvío y comprobación de códigos de verificación de correo.
- * RESPONSABILIDAD: Genera desafíos con expiración y límites persistidos, almacena hashes/HMAC, envía por SMTP y consume la prueba antes de habilitar la sesión aplicable.
+ * RESPONSABILIDAD: Genera desafíos con expiración y límites persistidos, almacena hashes/HMAC, 
+ * envía por SMTP y consume la prueba antes de habilitar la sesión aplicable.
  * CONEXIONES: Importa: backend/src/config/database.ts, backend/src/config/mail.ts, backend/src/repositories/verification.repository.ts, backend/src/types/verification.ts, backend/src/utils/app-error.ts, backend/src/utils/database-error.ts, backend/src/utils/mask-email.ts, backend/src/validators/verification.validator.ts y 6 más Se utiliza desde: backend/src/controllers/verification.controller.ts, backend/src/services/auth.service.ts, backend/src/services/oauth.service.ts
  * FUNCIONAMIENTO: auth/oauth services y verification.controller → este servicio → verification.repository, mail.service, session.service y oauth-policy.
  * IMPORTANCIA: Confirma posesión del correo con códigos de un solo uso sin guardar el código en claro.

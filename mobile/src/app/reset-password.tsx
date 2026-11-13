@@ -31,6 +31,7 @@ export default function ResetPasswordScreen(){
   const action=useAsyncAction();
   useEffect(()=>{
     let active=true;
+    /** Lee el token de restablecimiento desde el enlace entrante y actualiza el estado del formulario. */
     const receive=(incoming:string|null)=>{
       if(!active)return;
       const fragment=Platform.OS==='web'&&typeof window!=='undefined'?window.location.hash:incoming?.split('#')[1]??'';
@@ -43,7 +44,7 @@ export default function ResetPasswordScreen(){
     const subscription=Linking.addEventListener('url',event=>receive(event.url));
     return ()=>{active=false;subscription.remove();};
   },[]);
-  // Función submit: agrupa una operación que este módulo puede ejecutar o reutilizar.
+  /** Valida el token y las reglas de contraseña antes de confirmar el restablecimiento. */
 const submit=()=>{
     if(!isValidPasswordResetToken(token)){setValidationError('El enlace no es válido. Solicitá uno nuevo desde el inicio de sesión.');return;}
     if([...password].length<8||!/\p{Lu}/u.test(password)||!/\p{Ll}/u.test(password)||!/\d/.test(password)||!/[^\p{L}\p{N}\s]/u.test(password)){setValidationError('Usá al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.');return;}

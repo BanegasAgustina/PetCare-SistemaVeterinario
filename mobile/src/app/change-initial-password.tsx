@@ -22,7 +22,7 @@ import { ApiError } from '../services/api';
 /** Mantiene el estado de credenciales y aviso, y envía el cambio obligatorio al confirmar. */
 export default function ChangeInitialPasswordScreen(){
   const {email:emailParam}=useLocalSearchParams<{email?:string}>();const [email,setEmail]=useState(emailParam??'');const [currentPassword,setCurrentPassword]=useState('');const [password,setPassword]=useState('');const [confirmation,setConfirmation]=useState('');const [message,setMessage]=useState<string|null>(null);const action=useAsyncAction();
-  // Función submit: concentra la lógica dentro de este módulo.
+  /** Valida la nueva contraseña y confirmación, luego solicita al servicio el cambio de contraseña inicial. */
 async function submit(){setMessage(null);if(password!==confirmation){setMessage('Las contraseñas nuevas no coinciden.');return;}if(password===currentPassword){setMessage('Elegí una contraseña distinta a la inicial.');return;}await action.run(async()=>{try{await changeInitialPassword(email,currentPassword,password);setMessage('Contraseña actualizada. Ya podés iniciar sesión con tu nueva contraseña.');}catch(error){if(error instanceof ApiError&&error.code==='PASSWORD_CHANGE_NOT_REQUIRED'){router.replace('/login');return;}throw error;}});}
   return <ScreenContainer keyboardAvoiding><AppText variant="title">Cambiá tu contraseña</AppText><AppText muted>Verificaste tu correo. Para proteger tu cuenta, elegí una contraseña propia antes de continuar.</AppText>
     <AppInput label="Correo electrónico" value={email} keyboardType="email-address" autoCapitalize="none" editable={!emailParam} onChangeText={setEmail}/>

@@ -32,18 +32,18 @@ export default function PaymentIntentScreen(){
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
  const order=orderQuery.data;const remaining=order?.paymentExpiresAt?Math.max(0,Math.ceil((new Date(order.paymentExpiresAt).getTime()-now)/1000)):0;const expired=now>0&&Boolean(order?.paymentExpiresAt)&&remaining===0;
  useEffect(()=>{if(expired&&order?.paymentIntentStatus==='ACTIVE'&&!expiryRefresh.current){expiryRefresh.current=true;orderQuery.reload();}},[expired,order?.paymentIntentStatus,orderQuery]);
- // Función copyAlias: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Copia el alias bancario al portapapeles y comunica si la copia salió bien. */
 const copyAlias=async()=>{const alias=bankQuery.data?.bankAlias;if(!alias)return;try{await Clipboard.setStringAsync(alias);setAliasCopied(true);}catch{setError('No pudimos copiar el alias.');}};
- // Función renew: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Inicia otro plazo de transferencia para el pedido y actualiza su estado. */
 const renew=async()=>{if(!order)return;setRenewing(true);setError(null);try{await api.renewTransferIntent(order.id);expiryRefresh.current=false;setNow(0);orderQuery.reload();}catch(e){setError(e instanceof Error?e.message:'No pudimos iniciar un nuevo plazo.');}finally{setRenewing(false);}};
- // Función upload: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Permite elegir el comprobante, valida archivo y referencia y lo envía para revisión. */
 const upload=async()=>{if(!order?.paymentIntentId)return;setError(null);try{
    const result=await DocumentPicker.getDocumentAsync({type:['application/pdf','image/jpeg','image/png','image/webp'],copyToCacheDirectory:true,multiple:false});if(result.canceled)return;const asset=result.assets[0];if(!asset)return;
    if(!asset.size||asset.size<8||asset.size>5*1024*1024){setError('El comprobante debe pesar hasta 5 MB.');return;}
    const contentType=asset.mimeType??(asset.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');if(!['application/pdf','image/jpeg','image/png','image/webp'].includes(contentType)){setError('Elegí un PDF, JPG, PNG o WebP.');return;}
    setUploading(true);const blob=Platform.OS==='web'&&asset.file?asset.file:new Blob([await new File(asset.uri).arrayBuffer()],{type:contentType});await api.uploadPaymentProof(order.paymentIntentId,blob,contentType,transferReference.trim());setSuccess(true);orderQuery.reload();
   }catch(e){setError(e instanceof Error?e.message:'No pudimos enviar el comprobante. Intentá nuevamente.');}finally{setUploading(false);}};
- // Función openOrder: agrupa una operación que este módulo puede ejecutar o reutilizar.
+ /** Navega al detalle del pedido asociado al pago. */
 const openOrder=()=>router.replace({pathname:'/client/orders/[id]',params:{id:order?.id??id??''}});
  return <PetCareScreen wide tabbed><PetCareHeader title="Transferencia bancaria" subtitle={order?`Pedido #${order.id}`:'Cargando pedido'} back/>
 <QueryState {...orderQuery}/>

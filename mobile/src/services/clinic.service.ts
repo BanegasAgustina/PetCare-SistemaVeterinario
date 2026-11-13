@@ -18,7 +18,11 @@ export type StoreOrder={id:string;ownerId:string;clientName:string;clientEmail:s
 /** Detalle ampliado con pago, artículos e historial de cambios del pedido. */
 export type StoreOrderDetail=StoreOrder&{orderType:string;allowedOrderStatuses:string[];buyerName:string|null;buyerEmail:string|null;transferReference:string|null;paymentExpiresAt:string|null;paymentIntentStatus:'ACTIVE'|'EXPIRED'|null;proofSubmittedAt:string|null;paymentProofLate:boolean;paymentReviewStatus:string|null;paymentReviewReason:string|null;paymentVerifiedAt:string|null;verifiedBy:string|null;items:{productId:string;name:string;quantity:number;priceCents:number;subtotalCents:number}[];history:{stateType:string;previousStatus:string|null;newStatus:string;occurredAt:string;reason:string|null;actorName:string|null}[]};
 /** Construye las operaciones de clínica a partir del transporte autenticado inyectado. */
-export function clinicService(request:ClientRequest){const read=<T>(path:string,body:Record<string,string>={})=>request<T>(`/clinic${path}`,{method:'POST',body});const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/clinic${path}`,{method,body});return {
+export function clinicService(request:ClientRequest){
+/** Envía una consulta POST al endpoint clínico y devuelve su respuesta tipada. */
+const read=<T>(path:string,body:Record<string,string>={})=>request<T>(`/clinic${path}`,{method:'POST',body});
+/** Envía una mutación clínica con el método, ruta y cuerpo indicados. */
+const send=<T>(path:string,method:'POST'|'PUT'|'PATCH',body:unknown)=>request<T>(`/clinic${path}`,{method,body});return {
  // Catálogos de productos, turnos y promociones consultados con permisos aplicados por el servidor.
  products:(search='',categoryId='')=>read<Product[]>('/products/query',{search,...(categoryId?{categoryId}:{})}),slots:(serviceId:string,professionalId?:string)=>read<Slot[]>('/slots',{serviceId,...(professionalId?{professionalId}:{})}),
  promotionProducts:(search='',page=1)=>read<{items:{id:string;name:string}[];hasMore:boolean;page:number}>('/promotion-products/query',{search,page:String(page)}),

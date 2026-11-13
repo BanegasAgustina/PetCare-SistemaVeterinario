@@ -11,6 +11,7 @@
 // Tipo PetActiveValue: define la forma o las opciones válidas de los datos usados por este módulo.
 export type PetActiveValue = boolean | number | string | null | undefined;
 
+/** Normaliza valores booleanos, 0/1 y texto a activo/inactivo; devuelve null si no reconoce el valor. */
 export function normalizePetActiveFlag(value: PetActiveValue): boolean | null {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') {

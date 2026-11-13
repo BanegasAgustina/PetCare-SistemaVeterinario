@@ -1,4 +1,4 @@
-/**
+/**CONFIGURACIÓN DE CORREO SMTP
  * ARCHIVO: mail.ts
  * UBICACIÓN: backend/src/config/mail.ts
  * FUNCIÓN: Valida parámetros SMTP y el secreto HMAC de verificación de correo.
