@@ -210,7 +210,7 @@ const navigate = (path: string) => router.navigate(path as never);
 
   if (isAdmin) return <AdminModulesContext.Provider value={adminModules}><AdminModulesLoadingContext.Provider value={adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={() => router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable></View>
+      <View style={styles.adminTopBar}><PetCareLogo style={styles.adminTopLogo}/><ProfileButton size={27}/></View>
     </SafeAreaView>}
     {!desktop&&backPlacement==='shell'&&<View style={[styles.adminPageBar,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
       <BackButton/>
@@ -245,7 +245,7 @@ const navigate = (path: string) => router.navigate(path as never);
       <View style={styles.topBar}>
         {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {notificationsEnabled&&<NotificationCenterButton count={unreadNotifications} onPress={()=>router.push(notificationCenterPath as never)}/>}
-        {!isClient&&<Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={25} color={colors.primary}/></Pressable>}
+        <ProfileButton size={25}/>
       </View>
     </SafeAreaView>}
     {desktop ? <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot,{backgroundColor:colors.background}]}>
@@ -268,6 +268,15 @@ function NotificationCenterButton({count,onPress}:{count:number;onPress:()=>void
   </Pressable>;
 }
 
+/** Shares the authenticated user's own profile entry across every mobile header variant. */
+function ProfileButton({size=27}:{size?:number}) {
+  const {colors}=useTheme();
+  const pathname=usePathname();
+  return <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" accessibilityHint="Abre tu perfil personal" onPress={()=>{if(pathname!=='/account')router.push('/account');}} style={styles.profileButton}>
+    <Ionicons name="person-circle-outline" size={size} color={colors.primary}/>
+  </Pressable>;
+}
+
 /** Renderiza la barra superior de profesionales con navegación y acceso a notificaciones. */
 function ProfessionalTopBar({count}:{count:number}) {
   const {colors}=useTheme();
@@ -275,7 +284,7 @@ function ProfessionalTopBar({count}:{count:number}) {
     <View style={styles.professionalTopBar}>
       <NotificationCenterButton count={count} onPress={()=>router.push(notificationCenterPath as never)}/>
       <View pointerEvents="none" style={styles.professionalLogoCenter}><PetCareLogo style={styles.professionalTopLogo}/></View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Mi perfil" onPress={()=>router.push('/account')} style={styles.profileButton}><Ionicons name="person-circle-outline" size={27} color={colors.primary}/></Pressable>
+      <ProfileButton size={27}/>
     </View>
   </SafeAreaView>;
 }
