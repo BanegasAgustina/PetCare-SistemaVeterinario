@@ -15,7 +15,7 @@ import { withDatabaseLock } from '../database/lock';
 import { readPermissions } from './authorization.repository';
 import { runDatabaseOperation } from '../utils/database-error';
 import { AppError } from '../utils/app-error';
-import { assertAdminPermission,assertDelegation,assertTarget,assertRoleAssignment,forbidden } from '../utils/admin-authorization';
+import { assertAdminPermission,assertDelegation,assertRolePermissionDelegation,canDelegatePermission,assertTarget,assertRoleAssignment,forbidden } from '../utils/admin-authorization';
 import { objectBody,identifier,textField,permissionOverrides } from '../validators/veterinarian.validator';
 import { readName,readPhone,normalizeEmail } from '../validators/auth.validator';
 import * as clinicValidation from '../validators/clinic.validator';
@@ -98,9 +98,17 @@ export async function adminCatalog(actor:AuthUser) {
   const [permissions]=await databasePool.execute<RowDataPacket[]>('SELECT p.id,p.code,p.name,p.description,p.module_code AS module,m.name AS moduleName,p.is_critical AS critical FROM permissions p JOIN permission_modules m ON m.code=p.module_code ORDER BY m.sort_order,p.id');
   const [grants]=await databasePool.execute<RowDataPacket[]>('SELECT rp.role_id AS roleId,p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id');
   // Hide the retired database row from role management until the manual migration removes it.
-  return {roles:roles.filter(r=>r.code!=='SECRETARY').map(r=>{const permissions=grants.filter(g=>String(g.roleId)===String(r.id)).map(g=>g.code as string);return {id:String(r.id),code:r.code,name:roleName(r.code,r.name),permissions,assignedUsers:Number(r.assignedUsers??0),
-      isActive:Boolean(r.isActive),canAssign:Boolean(r.isActive)&&r.code!=='VETERINARIAN'&&r.code!=='SECRETARY'&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&permissions.every(code=>actor.permissions?.includes(code))};}),
-    permissions:permissions.map(p=>({...p,id:String(p.id),name:permissionName(p.code,p.name),description:permissionDescription(p.code,p.description),moduleName:permissionModuleName(p.module,p.moduleName),critical:Boolean(p.critical),canDelegate:actor.permissions?.includes(p.code)??false}))};
+  return {
+    roles:roles.filter(r=>r.code!=='SECRETARY').map(r=>{
+      const rolePermissions=grants.filter(g=>String(g.roleId)===String(r.id)).map(g=>g.code as string);
+      return {id:String(r.id),code:r.code,name:roleName(r.code,r.name),permissions:rolePermissions,assignedUsers:Number(r.assignedUsers??0),
+        isActive:Boolean(r.isActive),canAssign:Boolean(r.isActive)&&r.code!=='VETERINARIAN'&&r.code!=='SECRETARY'&&(r.code!=='SUPER_ADMIN'||actor.role==='SUPER_ADMIN')&&Boolean(actor.permissions?.includes('roles.manage'))&&(actor.role==='SUPER_ADMIN'||rolePermissions.every(code=>actor.permissions?.includes(code)))};
+    }),
+    permissions:permissions.map(p=>{
+      const critical=Boolean(p.critical);
+      return {...p,id:String(p.id),name:permissionName(p.code,p.name),description:permissionDescription(p.code,p.description),moduleName:permissionModuleName(p.module,p.moduleName),critical,canDelegate:canDelegatePermission(actor,{code:p.code,critical})};
+    }),
+  };
 }
 /** Lista usuarios con búsqueda, estado y paginación; transforma IDs y datos públicos. */
 export async function adminUsers(query:Record<string,unknown>) {
@@ -252,9 +260,10 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
     const isActive=body.isActive===undefined?role.isActive:body.isActive;
     if(!isActive&&['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role.role))forbidden('No se puede desactivar un rol del sistema.');
     if(!isActive&&actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede desactivar un rol.');
-    assertTarget(actor,{id,role:role.role});const changed=[...new Set([...role.permissions,...codes])].filter(code=>role.permissions.includes(code)!==codes.includes(code));assertDelegation(actor,changed);
+    assertTarget(actor,{id,role:role.role});const changed=[...new Set([...role.permissions,...codes])].filter(code=>role.permissions.includes(code)!==codes.includes(code));
     const [catalog]=await c.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
     for(const code of codes){const p=catalog.find(p=>p.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');if(p.is_critical&&!['ADMIN','SUPER_ADMIN'].includes(role.role))forbidden('Este rol no admite permisos administrativos.');}
+    assertRolePermissionDelegation(actor,changed.map(code=>{const p=catalog.find(item=>item.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');return {code,critical:Boolean(p.is_critical)};}));
     await c.execute('UPDATE roles SET name=?,is_active=? WHERE id=?',[name,isActive?1:0,id]);await c.execute('DELETE FROM role_permissions WHERE role_id=?',[id]);
     for(const code of codes)await c.execute('INSERT INTO role_permissions (role_id,permission_id) VALUES (?,?)',[id,catalog.find(p=>p.code===code)!.id]);
     const remaining=await readPermissions(actor.id,c);if(!remaining.some(p=>p.code==='roles.manage'&&p.effective)||!remaining.some(p=>p.code==='permissions.manage'&&p.effective))forbidden('El cambio quitaría tu acceso a la gestión de roles o permisos.');
@@ -285,13 +294,13 @@ export async function createRole(identity:AuthUser,value:unknown) {
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');
     if(actor.role!=='SUPER_ADMIN')forbidden('Solo el administrador principal puede crear roles personalizados.');
-    assertDelegation(actor,codes);
     const [catalog]=await c.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
     for(const permissionCode of codes){
       const permission=catalog.find(item=>item.code===permissionCode);
       if(!permission)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');
       if(permission.is_critical)forbidden('Un rol personalizado no puede recibir permisos críticos del administrador principal.');
     }
+    assertRolePermissionDelegation(actor,codes.map(permissionCode=>({code:permissionCode,critical:Boolean(catalog.find(item=>item.code===permissionCode)?.is_critical)})));
     const [existing]=await c.execute<RowDataPacket[]>('SELECT id FROM roles WHERE code=? OR name=? LIMIT 1 FOR UPDATE',[code,name]);
     if(existing.length)throw new AppError('ROLE_ALREADY_EXISTS',409,'Ya existe un rol con ese código o nombre.');
     await c.execute('INSERT INTO roles (code,name) VALUES (?,?)',[code,name]);

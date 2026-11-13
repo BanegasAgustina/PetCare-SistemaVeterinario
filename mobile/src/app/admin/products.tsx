@@ -32,6 +32,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { AdminFormActions, AdminFormSection } from '../../components/admin/AdminFormLayout';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { ApiError } from '../../services/api';
+import { canCreateProduct } from '../../utils/product-access';
 
 // Tipo Product: define la forma o las opciones válidas de los datos usados por este módulo.
 type Product = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string | null; category: string | null; priceCents: number; stock: number; physicalStock: number; reservedStock: number; stockMinimum:number; isActive: boolean };
@@ -142,7 +143,8 @@ function review() {
   return <ScreenContainer wide>
     <AdminPageHeading title="Productos y stock"/>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      {auth.hasPermission('products.update') && auth.hasPermission('products.create') && auth.hasPermission('products.update_price') && auth.hasPermission('products.update_stock') && <AppButton compact label="Crear producto" onPress={openCreateForm}/>}
+      {canCreateProduct(auth.user?.permissions) && <AppButton compact label="Crear producto" onPress={openCreateForm}/>}
+      {auth.hasPermission('products.update')&&!canCreateProduct(auth.user?.permissions)&&<AppText variant="caption" muted>Para crear productos se requieren products.update, products.create, products.update_price y products.update_stock.</AppText>}
       {auth.hasPermission('categories.manage') && <AppButton compact variant="secondary" label="Gestionar categorías" onPress={() => router.push('/admin/catalog/categories')}/>}
     </View>
     <AdminListToolbar search={<AppInput label="Buscar producto" placeholder="Nombre del producto" value={search} onChangeText={setSearch} returnKeyType="search" onSubmitEditing={() => { setSubmittedSearch(search.trim()); setPage(1); }}/>}

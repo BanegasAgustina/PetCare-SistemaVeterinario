@@ -30,6 +30,7 @@ import { AppBreadcrumbs } from './AppBreadcrumbs';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 import { activePrimaryNavigationPath, selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
+import { uniqueNavigationDestinations } from '../../utils/navigation-dedupe';
 import { canAccessNotificationCenter } from '../../utils/personal-route-access';
 import { notificationCenterPath } from '../../services/notification-path';
 
@@ -160,26 +161,26 @@ const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCente
     if (!user) return [];
     if (isClient&&!isAdmin&&!isProfessional) return clientItems.filter(item => !item.permission || hasPermission(item.permission));
     const personalItems: MenuItem[]=personalModulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)}));
-    if (isAdmin) return [
+    if (isAdmin) return uniqueNavigationDestinations([
       { label: 'Panel principal', path: '/admin', icon: 'grid-outline', group: adminGroup('/admin') },
       ...[...new Map(visibleAdminModules.filter(module=>!['/admin/catalog/types','/admin/catalog/specialties'].includes(module.path)).map(module=>[module.path,module])).values()].map((module): MenuItem => ({ label: adminLabel(module), path: module.path, icon: iconFor(module.code), group: adminGroup(module.path) })),
       ...(hasPermission('users.view_basic')?[{label:'Clientes',path:'/admin/clients',icon:'people-outline' as const,group:'Clínica'}]:[]),
       ...(isProfessional?(isVeterinarian?veterinarianItems:groomerItems).filter(item=>!item.permission||hasPermission(item.permission)):[]),
       ...personalItems,
-    ];
-    if (isProfessional && isVeterinarian) return [...new Map([
+    ]);
+    if (isProfessional && isVeterinarian) return uniqueNavigationDestinations([
       ...veterinarianItems.filter(item => (!item.permission || hasPermission(item.permission) || (item.path === '/vet/products' && hasPermission('prescriptions.create')))
         && (!['/vet/patients','/vet/clients'].includes(item.path) || hasPermission('pets.view_all') || hasPermission('pets.view_assigned'))),
       ...personalItems,
-    ].map(item => [item.path,item])).values()];
-    if (isProfessional) return [...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)), ...personalItems];
+    ]);
+    if (isProfessional) return uniqueNavigationDestinations([...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)), ...personalItems]);
     const permitted: MenuItem[] = [
       { label: 'Inicio', path: base, icon: 'home-outline' },
       ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
       ...personalItems,
       { label:'Perfil',path:'/account',icon:'person-outline' },
     ];
-    return [...new Map(permitted.map(item => [item.path, item])).values()];
+    return uniqueNavigationDestinations(permitted);
   }, [visibleAdminModules, hasPermission, user, base, isAdmin, isProfessional, isVeterinarian, isClient]);
   const primaryItems = useMemo<MenuItem[]>(() => isAdmin
     ? adminTabs.filter(tab=>tab.path==='/admin'||items.some(item=>item.group===tab.label))

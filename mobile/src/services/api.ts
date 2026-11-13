@@ -115,14 +115,20 @@ export function requestTimeoutMs(path: string): number {
     : DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
-/** Registra código, método, ruta saneada y estado solamente en builds de desarrollo. */
-function reportApiFailure(code: string, status: number, method: string, endpoint: string, cause?: string): void {
-  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status, ...(cause?{cause:cause.slice(0,180)}:{}) }));
+/** Clasifica el rechazo de fetch con la señal local, sin inferir causas DNS/TLS a partir de un timeout. */
+export function requestFailureCode(timedOut:boolean):'REQUEST_TIMEOUT'|'NETWORK_ERROR'{
+  return timedOut?'REQUEST_TIMEOUT':'NETWORK_ERROR';
+}
+
+/** Registra diagnóstico de red sin incluir URL completa, cuerpos ni credenciales. */
+type ApiDiagnosticMeta={durationMs?:number;requestId?:string;timedOut?:boolean;errorType?:string};
+function reportApiFailure(code: string, status: number, method: string, endpoint: string, meta:ApiDiagnosticMeta={}): void {
+  if (__DEV__) console.warn('[PetCare API]', JSON.stringify({ method, endpoint: safeEndpoint(endpoint), code, status, ...meta }));
 }
 
 /** Registra éxitos sin incluir URL completa, encabezados ni datos de respuesta. */
-function reportApiSuccess(method:string,endpoint:string,status:number):void {
-  if(__DEV__)console.info('[PetCare API]',JSON.stringify({method,endpoint:safeEndpoint(endpoint),status,success:true}));
+function reportApiSuccess(method:string,endpoint:string,status:number,meta:ApiDiagnosticMeta={}):void {
+  if(__DEV__)console.info('[PetCare API]',JSON.stringify({method,endpoint:safeEndpoint(endpoint),status,success:true,...meta}));
 }
 
 /** En desarrollo, deriva el host del teléfono/emulador desde el host LAN que Expo usa para Metro. */
@@ -194,7 +200,7 @@ export function getApiUrl(): string {
     const configuredValue=developmentApiUrl(process.env.EXPO_PUBLIC_API_URL,expoHostUri,process.env.EXPO_PUBLIC_API_PORT,__DEV__,explicitDevelopmentUrl);
     return resolveApiUrl(configuredValue, process.env.EXPO_PUBLIC_APP_ENV, __DEV__, Boolean(explicitDevelopmentUrl));
   } catch {
-    if(__DEV__)reportApiFailure('API_NOT_CONFIGURED',0,'CONFIG','/api','Development API URL rejected or Expo hostUri unavailable');
+    if(__DEV__)reportApiFailure('API_NOT_CONFIGURED',0,'CONFIG','/api',{errorType:'CONFIGURATION'});
     throw new ApiError('API_NOT_CONFIGURED', 'PetCare no está disponible en este momento. Intentá más tarde.');
   }
 }
@@ -224,30 +230,37 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   const endpoint=`${requestUrl.origin}${safeEndpoint(requestUrl.pathname)}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs(cleanPath));
+  const startedAt=Date.now();
+  const authEndpoint=/^\/auth\/(?:login|refresh)$/.test(cleanPath.split('?')[0]);
+  const requestId=authEndpoint?`pc-${startedAt.toString(36)}-${Math.random().toString(36).slice(2,10)}`:undefined;
+  const diagnostic=():ApiDiagnosticMeta=>({durationMs:Date.now()-startedAt,...(requestId?{requestId}:{})});
+  let receivedHttpStatus=0;
   try {
     let response: Response;const rawBody=options.body instanceof Blob||options.body instanceof ArrayBuffer||ArrayBuffer.isView(options.body);
     try {
       response = await fetch(url, {
         method, signal: controller.signal,
-        headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': options.contentType??(rawBody?'application/octet-stream':'application/json') }), ...(options.headers??{}), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
+        headers: { Accept: 'application/json', ...(options.body === undefined ? {} : { 'Content-Type': options.contentType??(rawBody?'application/octet-stream':'application/json') }), ...(options.headers??{}), ...(requestId?{'X-Request-ID':requestId}:{}), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
         body: options.body === undefined ? undefined : rawBody?options.body as BodyInit:JSON.stringify(options.body),
       });
+      receivedHttpStatus=response.status;
     } catch (error) {
       const timedOut=controller.signal.aborted;
-      const cause=error instanceof Error?`${error.name}: ${error.message}`:String(error);
-      reportApiFailure(timedOut?'REQUEST_TIMEOUT':'NETWORK_ERROR', 0, method, endpoint, cause);
-      throw new ApiError(timedOut?'REQUEST_TIMEOUT':'NETWORK_ERROR', timedOut?messages.REQUEST_TIMEOUT:'No se pudo conectar con el servidor. Revisá la red y la configuración de la API e intentá nuevamente.');
+      const code=requestFailureCode(timedOut);
+      reportApiFailure(code, 0, method, endpoint,{...diagnostic(),timedOut,errorType:error instanceof Error?error.name:typeof error});
+      throw new ApiError(code, timedOut?messages.REQUEST_TIMEOUT:'No se pudo conectar con el servidor. Revisá la red y la configuración de la API e intentá nuevamente.');
     }
     let result: any;
     try { result = await response.json(); }
-    catch {
+    catch (error) {
+      if(controller.signal.aborted){reportApiFailure('REQUEST_TIMEOUT',response.status,method,endpoint,{...diagnostic(),timedOut:true,errorType:error instanceof Error?error.name:typeof error});throw new ApiError('REQUEST_TIMEOUT',messages.REQUEST_TIMEOUT);}
       const code = response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR';
-      reportApiFailure(code, response.status, method, endpoint,'Response body was not valid JSON');
+      reportApiFailure(code, response.status, method, endpoint,{...diagnostic(),errorType:'INVALID_JSON'});
       throw new ApiError(code, response.status>=500?messages.SERVICE_UNAVAILABLE:'No se pudo interpretar la respuesta del servidor. Intentá nuevamente.', response.status);
     }
     if (!response.ok || result?.success !== true) {
       const code = typeof result?.error?.code === 'string' ? result.error.code : 'SERVER_ERROR';
-      reportApiFailure(code, response.status, method, endpoint);
+      reportApiFailure(code, response.status, method, endpoint,diagnostic());
       const isStoreConfigurationRead = (options.method ?? 'GET') === 'POST' && /^\/client\/(?:cart|store\/(?:categories|fulfillment|promotions|banners|delivery-quote|addresses\/query|products(?:\/.*)?))$/.test(cleanPath.split('?')[0]);
       const serverMessage=typeof result?.error?.message==='string'?publicMessage(result.error.message):null;
       const message = response.status===503||response.status===502||response.status===504
@@ -263,11 +276,12 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
       }):[];
       throw new ApiError(code, message, response.status, result?.error?.verification,fieldErrors);
     }
-    reportApiSuccess(method,endpoint,response.status);
+    reportApiSuccess(method,endpoint,response.status,diagnostic());
     return result.data as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    reportApiFailure('CLIENT_ERROR', 0, method, endpoint,error instanceof Error?`${error.name}: ${error.message}`:String(error));
+    if(controller.signal.aborted){reportApiFailure('REQUEST_TIMEOUT',receivedHttpStatus,method,endpoint,{...diagnostic(),timedOut:true,errorType:error instanceof Error?error.name:typeof error});throw new ApiError('REQUEST_TIMEOUT',messages.REQUEST_TIMEOUT);}
+    reportApiFailure('CLIENT_ERROR', 0, method, endpoint,{...diagnostic(),errorType:error instanceof Error?error.name:typeof error});
     throw new ApiError('CLIENT_ERROR', 'No pudimos completar la operación. Intentá nuevamente.');
   } finally { clearTimeout(timeout); }
 }

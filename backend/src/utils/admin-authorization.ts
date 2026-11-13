@@ -25,6 +25,14 @@ export function assertCapabilityPermission(actor:AuthUser,...codes:string[]) {
 export function assertDelegation(actor:AuthUser,codes:string[]) {
   if(codes.some(code=>!actor.permissions?.includes(code)))forbidden('No podés conceder ni modificar permisos que no tenés.');
 }
+/** SUPER_ADMIN puede delegar permisos funcionales; los críticos siguen exigiendo un grant explícito. */
+export function canDelegatePermission(actor:AuthUser,permission:{code:string;critical:boolean}):boolean {
+  return permission.critical?Boolean(actor.permissions?.includes(permission.code)):actor.role==='SUPER_ADMIN'||Boolean(actor.permissions?.includes(permission.code));
+}
+/** Comprueba los permisos que van a cambiar contra la política dinámica de criticidad. */
+export function assertRolePermissionDelegation(actor:AuthUser,permissions:{code:string;critical:boolean}[]) {
+  if(permissions.some(permission=>!canDelegatePermission(actor,permission)))forbidden('No podés conceder ni modificar este permiso según la política de delegación.');
+}
 // Valida si el actor tiene autoridad sobre el usuario objetivo.
 export function assertTarget(actor:AuthUser,target:{id:string;role:string}) {
   if(actor.role!=='SUPER_ADMIN'&&target.role==='SUPER_ADMIN')forbidden('Solo el administrador principal puede modificar otra cuenta principal.');
@@ -35,5 +43,5 @@ export function assertRoleAssignment(actor:AuthUser,role:string,permissions:stri
   if(role==='SECRETARY')throw new AppError('ROLE_RETIRED',409,'El rol de Secretaría fue retirado; las cuentas existentes deben migrarse a ADMIN.');
   if(role==='SUPER_ADMIN'&&actor.role!=='SUPER_ADMIN')forbidden('Un ADMIN no puede asignar el rol SUPER_ADMIN.');
   if(role==='VETERINARIAN')throw new AppError('VET_PROFILE_REQUIRED',400,'Creá o editá veterinarios desde el módulo profesional para conservar matrícula y especialidades.');
-  assertDelegation(actor,permissions);
+  if(actor.role!=='SUPER_ADMIN')assertDelegation(actor,permissions);
 }

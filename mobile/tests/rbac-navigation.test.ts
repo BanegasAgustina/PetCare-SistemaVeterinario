@@ -4,6 +4,7 @@ import { readAccessSession } from '../src/services/auth.service';
 import { hasAdministrativeShellCapability, hasCapabilityModule, modulesForCapabilities } from '../src/utils/capability-modules';
 import { roleHome } from '../src/utils/role-home';
 import { selectPrimaryNavigation } from '../src/utils/navigation-tabs';
+import { uniqueNavigationDestinations } from '../src/utils/navigation-dedupe';
 
 const session=(role:string,permissions:string[],professional?:{typeId:string;name:string;isClinical:boolean;serviceIds:string[]})=>({
   accessToken:'access-token',tokenType:'Bearer' as const,expiresIn:900,refreshToken:'a'.repeat(64),
@@ -45,4 +46,21 @@ test('mantiene el panel profesional para permisos de trabajo propio y permite co
   const mixed={...clinical,permissions:[...(clinical.permissions??[]),'products.update_stock']};
   assert.equal(roleHome(mixed),'/admin');
   assert.equal(hasAdministrativeShellCapability(mixed.permissions),true);
+});
+
+test('deduplica el mismo destino por ruta y conserva destinos distintos aunque compartan etiqueta',()=>{
+  const items=[
+    {label:'Clientes',path:'/admin/clients',icon:'people-outline'},
+    {label:'Clientes',path:'/admin/clients',icon:'people-outline'},
+    {label:'Mis clientes',path:'/vet/clients',icon:'people-outline'},
+  ];
+  assert.deepEqual(uniqueNavigationDestinations(items).map(item=>item.path),['/admin/clients','/vet/clients']);
+});
+
+test('combina módulos de un rol personalizado y elimina accesos repetidos del panel administrativo',()=>{
+  const permissions=['users.view_basic','products.view','products.update_stock','appointments.view_all'];
+  const modules=modulesForCapabilities(permissions).map(module=>({label:module.name,path:module.path,icon:'settings-outline'}));
+  const merged=uniqueNavigationDestinations([...modules,{label:'Clientes',path:'/admin/clients',icon:'people-outline'}]);
+  assert.equal(merged.filter(item=>item.path==='/admin/clients').length,1);
+  assert.deepEqual(merged.map(item=>item.path),['/admin/agenda','/admin/clients','/admin/products']);
 });

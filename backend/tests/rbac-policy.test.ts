@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AuthUser } from '../src/types/auth';
-import { assertAdminPermission, assertTarget, assertDelegation } from '../src/utils/admin-authorization';
+import { assertAdminPermission, assertCapabilityPermission, assertTarget, assertDelegation, assertRolePermissionDelegation, canDelegatePermission, assertRoleAssignment } from '../src/utils/admin-authorization';
 import { effectiveRolePermission } from '../src/types/authorization';
 
 const actor=(role:string,permissions:string[]):AuthUser=>({
@@ -31,6 +31,36 @@ test('los permisos personalizados se pueden delegar solo si el actor ya los tien
   const receptionist=actor('RECEPCIONISTA',['appointments.view_all']);
   assert.doesNotThrow(()=>assertDelegation(receptionist,['appointments.view_all']));
   assert.throws(()=>assertDelegation(receptionist,['orders.manage']),{status:403});
+});
+
+test('SUPER_ADMIN puede delegar permisos funcionales sin tenerlos y no puede delegar críticos implícitamente',()=>{
+  const superAdmin=actor('SUPER_ADMIN',['roles.manage','permissions.manage']);
+  const createProducts={code:'products.create',critical:false};
+  const critical={code:'roles.manage',critical:true};
+  assert.equal(canDelegatePermission(superAdmin,createProducts),true);
+  assert.doesNotThrow(()=>assertRolePermissionDelegation(superAdmin,[createProducts]));
+  assert.equal(canDelegatePermission(superAdmin,critical),true,'un permiso crítico requiere un grant explícito');
+  assert.doesNotThrow(()=>assertRolePermissionDelegation(superAdmin,[critical]));
+  assert.equal(canDelegatePermission(actor('SUPER_ADMIN',[]),critical),false);
+  assert.throws(()=>assertRolePermissionDelegation(actor('SUPER_ADMIN',[]),[critical]),{status:403});
+});
+
+test('un ADMIN conserva delegación acotada a sus grants efectivos',()=>{
+  const admin=actor('ADMIN',['roles.manage','products.update']);
+  assert.doesNotThrow(()=>assertRolePermissionDelegation(admin,[{code:'products.update',critical:false}]));
+  assert.throws(()=>assertRolePermissionDelegation(admin,[{code:'products.create',critical:false}]),{status:403});
+});
+
+test('SUPER_ADMIN puede asignar permisos funcionales delegados en roles personalizados',()=>{
+  const superAdmin=actor('SUPER_ADMIN',['roles.manage']);
+  assert.doesNotThrow(()=>assertRoleAssignment(superAdmin,'RECEPCIONISTA',['products.create','orders.manage']));
+  assert.throws(()=>assertRoleAssignment(actor('ADMIN',['roles.manage']),'RECEPCIONISTA',['products.create']),{status:403});
+});
+
+test('crear productos requiere permisos funcionales efectivos sin depender del nombre del rol',()=>{
+  const grants=['products.update','products.create','products.update_price','products.update_stock'];
+  assert.doesNotThrow(()=>assertCapabilityPermission(actor('RECEPCIONISTA',grants),...grants));
+  assert.throws(()=>assertCapabilityPermission(actor('RECEPCIONISTA',grants.filter(code=>code!=='products.create')),...grants),{status:403});
 });
 
 test('un rol personalizado no puede editar la cuenta exclusiva SUPER_ADMIN',()=>{

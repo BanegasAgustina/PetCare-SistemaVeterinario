@@ -19,6 +19,7 @@ import { authenticate } from './middlewares/auth.middleware';
 import { requirePermission,requireProfessionalIdentity,requirePersonalAccess } from './middlewares/permission.middleware';
 import { createAuthRateLimiter } from './middlewares/auth-rate-limit.middleware';
 import { configureProxyTrust } from './middlewares/proxy-trust.middleware';
+import { authRequestDiagnostics } from './middlewares/auth-diagnostics.middleware';
 import { pet } from './repositories/client.repository';
 import { petPhotoUrl } from './services/pet-photo.service';
 import { clientId } from './validators/client.validator';
@@ -31,7 +32,7 @@ export default app;
 configureProxyTrust(app, isVercelRuntime);
 app.disable('x-powered-by');
 // Solo se habilitan la web oficial y sus previews de Vercel; el cliente nativo no necesita CORS.
-app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization','X-Payment-Reference'] }));
+app.use(cors({ origin: (origin, callback) => callback(null, env.isCorsOriginAllowed(origin)), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization','X-Payment-Reference','X-Request-ID'] }));
 app.use(helmet({strictTransportSecurity:env.nodeEnvironment==='production'?undefined:false,contentSecurityPolicy:false}));
 // Dato photoUploadLimiter: conserva un valor calculado o de configuración usado por este módulo.
 const photoUploadLimiter=createAuthRateLimiter();
@@ -54,6 +55,7 @@ app.use(/^\/api\/(?:admin\/(?:products\/\d+|users\/\d+\/photo)|admin\/veterinari
   authenticate(req,res,error=>{if(error)return next(error);const authorize=/^\/api\/(?:admin\/products\/\d+|clinic\/admin\/products(?:\/\d+)?)$/.test(req.path)?requirePermission('products.update'):/^\/api\/clinic\/admin\/services(?:\/\d+)?$/.test(req.path)?requirePermission('services.manage'):/^\/api\/admin\/veterinarians\/\d+\/photo$/.test(req.path)?requirePermission('veterinarians.manage'):requirePermission('users.manage');authorize(req,res,roleError=>{if(roleError)return next(roleError);photoUploadLimiter(req,res,limitError=>{if(limitError)return next(limitError);express.json({limit:'8mb'})(req,res,next);});});});
 });
 app.use(express.json({ limit: '100kb' }));
+app.use('/api/auth',authRequestDiagnostics);
 app.use('/api/cron/notifications', notificationJobsRouter);
 // Lectura privada por ID de mascota; nunca aceptar una clave arbitraria del cliente.
 app.get('/media/pets/:id',authenticate,requirePersonalAccess,createAuthRateLimiter(120),async(req,res,next)=>{
