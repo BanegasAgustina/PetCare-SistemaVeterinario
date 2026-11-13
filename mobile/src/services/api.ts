@@ -98,8 +98,21 @@ export const PRODUCTION_API_URL = 'https://pet-care-sistema-veterinario.vercel.a
 /** Registra solo código y estado; nunca URL, encabezados, tokens ni cuerpo de la respuesta. */
 /** Redacta IDs de rutas antes de registrar diagnósticos en la consola de desarrollo. */
 function safeEndpoint(path: string): string {
-  const pathname = path.split('?')[0].replace(/^\/api(?=\/|$)/i, '');
+  const pathname = path.split('?')[0];
   return pathname.replace(/\/(products|pets|orders|addresses|notifications|cart)\/[^/]+/g, '/$1/:id').slice(0, 140) || '/';
+}
+
+/** Login y refresh pueden atravesar el arranque de Vercel, bcrypt y varias consultas Layerbase. */
+export const AUTH_REQUEST_TIMEOUT_MS = 30000;
+/** Límite predeterminado para solicitudes que no crean ni renuevan una sesión. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 12000;
+
+/** Aplica margen de arranque solo al login/refresh; no reintenta solicitudes canceladas. */
+export function requestTimeoutMs(path: string): number {
+  const pathname = path.split('?')[0].replace(/^\/api(?=\/|$)/i, '').replace(/\/$/, '').toLowerCase();
+  return pathname === '/auth/login' || pathname === '/auth/refresh'
+    ? AUTH_REQUEST_TIMEOUT_MS
+    : DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
 /** Registra código, método, ruta saneada y estado solamente en builds de desarrollo. */
@@ -207,9 +220,10 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   const cleanPath = normalizeApiPath(path);
   const url = buildApiEndpoint(getApiUrl(), cleanPath);
   const method=options.method??'GET';
-  const endpoint=`${new URL(url).origin}${safeEndpoint(cleanPath)}`;
+  const requestUrl = new URL(url);
+  const endpoint=`${requestUrl.origin}${safeEndpoint(requestUrl.pathname)}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs(cleanPath));
   try {
     let response: Response;const rawBody=options.body instanceof Blob||options.body instanceof ArrayBuffer||ArrayBuffer.isView(options.body);
     try {
