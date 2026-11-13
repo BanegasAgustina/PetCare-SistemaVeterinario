@@ -21,10 +21,11 @@ import { softSurfaceShadow } from '../../constants/surface';
 import { AppText } from '../ui/AppText';
 import type { IconName } from '../client/PetCareUI';
 import { PetCareLogo } from './PetCareLogo';
-import { hasAdministrativeShellCapability, hasPersonalCapabilityModule, modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
+import { hasAdministrativeShellCapability, modulesForCapabilities, personalModulesForCapabilities } from '../../utils/capability-modules';
 import { RoleBottomNavigation } from './RoleBottomNavigation';
 import { BackButton } from './BackButton';
 import { useBackNavigation } from '../../hooks/useBackNavigation';
+import { isClientAccount } from '../../utils/role-home';
 import { RoleQuickAccessProvider } from './RoleNavigationContext';
 import { AppBreadcrumbs } from './AppBreadcrumbs';
 import { ConfirmModal } from '../ui/ConfirmModal';
@@ -131,7 +132,8 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const { backPlacement } = useBackNavigation();
   const { request, hasPermission, user } = auth;
   const isAdmin = hasAdministrativeShellCapability(user?.permissions);
-  const isClient = hasPersonalCapabilityModule(user?.permissions);
+  // Personal permissions can be delegated to staff; only CLIENT gets the client-specific shell.
+  const isClient = isClientAccount(user);
   const isVeterinarian = Boolean(user?.professional?.isClinical);
   const isProfessional = Boolean(user?.professional);
   const notificationsEnabled=canAccessNotificationCenter(user?.role??'');

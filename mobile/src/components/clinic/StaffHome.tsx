@@ -21,6 +21,7 @@ import { AppText } from '../ui/AppText';
 import { AppButton } from '../ui/AppButton';
 import { clinicDateTime } from '../../utils/clinic-date';
 import { appointmentDisplayValue, appointmentRouteId } from '../../utils/appointment-display';
+import { isClinicalProfessional } from '../../utils/role-home';
 
 /** Carga y presenta el inicio del personal con datos y próximos turnos según el rol. */
 export function StaffHome() {
@@ -28,7 +29,7 @@ export function StaffHome() {
   const clinic = useClinic();
   const query = useClientQuery(clinic.home);
   const upcoming = query.data?.upcomingAppointments ?? [];
-  const isVeterinarian = user?.role === 'VETERINARIAN';
+  const isVeterinarian = isClinicalProfessional(user);
   const roleBase = isVeterinarian ? '/vet' : '/professional';
   const professionalName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
   const specialty = user?.veterinarian?.specialties.map(item => item.name).filter(Boolean).join(' · ');

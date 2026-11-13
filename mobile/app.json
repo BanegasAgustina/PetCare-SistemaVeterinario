@@ -42,7 +42,8 @@
           "imageWidth": 260,
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "extra": {
       "router": {

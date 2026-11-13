@@ -13,11 +13,19 @@
 import type { AuthUser } from '../types/auth';
 import { hasAdministrativeShellCapability, hasCapabilityModule, hasPersonalCapabilityModule } from './capability-modules';
 import { canAccessNotificationCenter } from './personal-route-access';
+/** Derives the clinical workspace from the persisted professional profile, including custom role codes. */
+export function isClinicalProfessional(user:Pick<AuthUser,'professional'>|null):boolean {
+  return Boolean(user?.professional?.isClinical);
+}
+/** Personal capabilities do not turn a staff account into a CLIENT account. */
+export function isClientAccount(user:Pick<AuthUser,'role'>|null):boolean {
+  return user?.role==='CLIENT';
+}
 /** Elige un shell compatible con las capacidades recibidas del backend. */
 export function roleHome(user: AuthUser | null): '/login' | '/client' | '/vet' | '/admin' | '/professional' | '/workspace' {
   if (!user) return '/login';
   if (hasAdministrativeShellCapability(user.permissions)) return '/admin';
-  if (user.professional) return user.professional.isClinical ? '/vet' : '/professional';
+  if (user.professional) return isClinicalProfessional(user) ? '/vet' : '/professional';
   if (hasPersonalCapabilityModule(user.permissions)) return '/client';
   return '/workspace';
 }

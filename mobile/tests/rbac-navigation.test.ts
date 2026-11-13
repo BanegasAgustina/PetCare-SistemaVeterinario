@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readAccessSession } from '../src/services/auth.service';
 import { hasAdministrativeShellCapability, hasCapabilityModule, modulesForCapabilities } from '../src/utils/capability-modules';
-import { roleHome } from '../src/utils/role-home';
+import { isClientAccount,isClinicalProfessional,roleHome } from '../src/utils/role-home';
 import { selectPrimaryNavigation } from '../src/utils/navigation-tabs';
 import { uniqueNavigationDestinations } from '../src/utils/navigation-dedupe';
 
@@ -37,6 +37,23 @@ test('elige el navbar inferior de los destinos efectivos sin clasificar por cód
 test('detecta una identidad profesional desde el perfil persistido, no por el nombre del rol',()=>{
   const user=readAccessSession(session('VETERINARIO_ESPECIALISTA',[],{typeId:'3',name:'Clínico',isClinical:true,serviceIds:[]})).user;
   assert.equal(roleHome(user),'/vet');
+  assert.equal(isClinicalProfessional(user),true);
+});
+
+test('un rol personalizado con perfil profesional clínico usa la base de rutas veterinarias',()=>{
+  const clinical=readAccessSession(session('CLINICO_PERSONALIZADO',['appointments.view_own'],{typeId:'3',name:'Clínico',isClinical:true,serviceIds:[]})).user;
+  assert.equal(roleHome(clinical),'/vet');
+  assert.equal(isClinicalProfessional(clinical),true);
+  const nonClinical=readAccessSession(session('PROFESIONAL_PERSONALIZADO',['appointments.view_own'],{typeId:'5',name:'Peluquería',isClinical:false,serviceIds:[]})).user;
+  assert.equal(roleHome(nonClinical),'/professional');
+  assert.equal(isClinicalProfessional(nonClinical),false);
+});
+
+test('un permiso personal no cambia la navegación de una cuenta de empleado a la de cliente',()=>{
+  const staff=readAccessSession(session('RECEPCIONISTA',['personal.profile.manage','personal.pets.view'])).user;
+  const client=readAccessSession(session('CLIENT',['personal.profile.manage','personal.pets.view'])).user;
+  assert.equal(isClientAccount(staff),false);
+  assert.equal(isClientAccount(client),true);
 });
 
 test('mantiene el panel profesional para permisos de trabajo propio y permite combinar administración',()=>{
