@@ -33,6 +33,14 @@ import { ConfirmNameModal } from '../../components/admin/ConfirmNameModal';
 
 /** Normaliza texto para filtrar permisos sin distinguir mayúsculas ni acentos. */
 function normalizePermissionText(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');}
+/** Explica los límites de asignación que el backend volverá a validar. */
+function permissionHint(permission:{code:string;description:string;critical:boolean;canDelegate:boolean},customRole:boolean){
+  const constraints:string[]=[];
+  if(permission.critical&&customRole)constraints.push('Permiso crítico: solo se asigna a ADMIN o SUPER_ADMIN.');
+  else if(!permission.canDelegate)constraints.push('No tenés este permiso para delegarlo.');
+  if(permission.code==='recommendations.create')constraints.push('Requiere perfil profesional clínico habilitado, acceso al paciente y products.view.');
+  return [permission.description,...constraints].filter(Boolean).join(' · ');
+}
 
 /** Carga roles y permisos, administra cambios y presenta confirmación para mutaciones sensibles. */
 export default function RolesScreen() {
@@ -57,9 +65,14 @@ export default function RolesScreen() {
   async function deleteRole(){if(!role)return;const deleted=role;await api.deleteRole(deleted.id);setDeleteConfirm(false);setRole(null);setCreating(false);query.reload();await auth.refreshProfile();showToast(`Rol “${deleted.name}” eliminado`,'success');}
   /** Crea o actualiza el rol, refresca los datos y confirma el resultado al usuario. */
   async function saveRole(){
-    if(creating){await api.createRole(name.trim(),codes);cancelCreate();}
-    else if(role){await api.updateRole(role.id,name.trim(),codes,isActive);setRole(null);}
-    setConfirm(false);query.reload();await auth.refreshProfile();showToast(creating?'Rol creado':'Rol actualizado','success');
+    const wasCreating=creating;
+    const saved=wasCreating?await api.createRole(name.trim(),codes):role?await api.updateRole(role.id,name.trim(),codes,isActive):null;
+    if(!saved)return;
+    query.replaceData(saved);
+    const persistedRole=wasCreating?saved.roles.find(item=>item.name===name.trim()):saved.roles.find(item=>item.id===role?.id);
+    if(persistedRole){setRole(persistedRole);setCreating(false);setName(roleLabel(persistedRole.code,persistedRole.name));setCodes(persistedRole.permissions);setIsActive(persistedRole.isActive);}
+    else {setRole(null);setCreating(false);setCodes([]);}
+    setConfirm(false);await auth.refreshProfile();showToast(wasCreating?'Rol creado':'Rol actualizado','success');
   }
 
   return <ScreenContainer wide>
@@ -78,7 +91,7 @@ export default function RolesScreen() {
         <AppInput icon="search-outline" label="Buscar permisos" placeholder="Ej.: recomendar productos o aceptar turnos" value={permissionSearch} onChangeText={setPermissionSearch}/>
         {permissionGroups.length?permissionGroups.map(group=><View key={group.name} style={{gap:8}}>
           <AppText variant="subtitle">{group.name}</AppText>
-          {group.permissions.map(permission=><SelectionRow key={permission.code} label={permission.name} hint={permission.description} checked={codes.includes(permission.code)} disabled={!editable||!permission.canDelegate||permission.critical&&!['ADMIN','SUPER_ADMIN'].includes(role.code)} onPress={()=>setCodes(current=>current.includes(permission.code)?current.filter(code=>code!==permission.code):[...current,permission.code])}/>)}
+          {group.permissions.map(permission=><SelectionRow key={permission.code} label={permission.name} hint={permissionHint(permission,!['ADMIN','SUPER_ADMIN'].includes(role.code))} checked={codes.includes(permission.code)} disabled={!editable||!permission.canDelegate||permission.critical&&!['ADMIN','SUPER_ADMIN'].includes(role.code)} onPress={()=>setCodes(current=>current.includes(permission.code)?current.filter(code=>code!==permission.code):[...current,permission.code])}/>)}
         </View>):<AppText muted>No se encontraron permisos con esa búsqueda.</AppText>}
         {editable&&<AppButton compact label="Revisar y guardar rol" onPress={()=>{if(!name.trim()){setError('Ingresá el nombre del rol.');return;}setConfirm(true);}}/>}
         {deletable&&<AppButton compact variant="secondary" destructive label="Eliminar rol" onPress={()=>setDeleteConfirm(true)}/>}
@@ -95,7 +108,7 @@ export default function RolesScreen() {
       <AppInput icon="search-outline" label="Buscar permisos" placeholder="Ej.: recomendar productos o aceptar turnos" value={permissionSearch} onChangeText={setPermissionSearch}/>
       {permissionGroups.length?permissionGroups.map(group=><View key={group.name} style={{gap:8}}>
         <AppText variant="subtitle">{group.name}</AppText>
-        {group.permissions.map(permission=><SelectionRow key={permission.code} label={permission.name} hint={permission.description} checked={codes.includes(permission.code)} disabled={!editable||!permission.canDelegate||permission.critical} onPress={()=>setCodes(current=>current.includes(permission.code)?current.filter(code=>code!==permission.code):[...current,permission.code])}/>)}
+        {group.permissions.map(permission=><SelectionRow key={permission.code} label={permission.name} hint={permissionHint(permission,true)} checked={codes.includes(permission.code)} disabled={!editable||!permission.canDelegate||permission.critical} onPress={()=>setCodes(current=>current.includes(permission.code)?current.filter(code=>code!==permission.code):[...current,permission.code])}/>)}
       </View>):<AppText muted>No se encontraron permisos con esa búsqueda.</AppText>}
     </AppModal>
 

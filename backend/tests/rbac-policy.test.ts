@@ -18,6 +18,13 @@ test('las capacidades críticas siguen limitadas a roles de sistema autorizados'
   assert.equal(effectiveRolePermission('ENCARGADO_TIENDA',true,true,null),false);
   assert.equal(effectiveRolePermission('ADMIN',true,true,null),true);
   assert.equal(effectiveRolePermission('ENCARGADO_TIENDA',false,true,null),true);
+  assert.equal(effectiveRolePermission('ENCARGADO_TIENDA',true,false,true),false,'un override de usuario no debe saltar una restricción crítica');
+});
+
+test('los grants personalizados efectivos siguen la herencia y los overrides explícitos',()=>{
+  assert.equal(effectiveRolePermission('RECEPCIONISTA',false,true,null),true);
+  assert.equal(effectiveRolePermission('RECEPCIONISTA',false,true,false),false);
+  assert.equal(effectiveRolePermission('RECEPCIONISTA',false,false,true),true);
 });
 
 test('los permisos personalizados se pueden delegar solo si el actor ya los tiene',()=>{
