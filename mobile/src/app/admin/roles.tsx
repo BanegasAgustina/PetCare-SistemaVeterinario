@@ -31,23 +31,28 @@ import { groupPermissionsByModule } from '../../utils/admin-permissions';
 import { AdminPageHeading } from '../../components/admin/AdminPageHeading';
 import { ConfirmNameModal } from '../../components/admin/ConfirmNameModal';
 
+/** Normaliza texto para filtrar permisos sin distinguir mayúsculas ni acentos. */
+function normalizePermissionText(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');}
+
 /** Carga roles y permisos, administra cambios y presenta confirmación para mutaciones sensibles. */
 export default function RolesScreen() {
   const api=useAdmin();const auth=useAuth();const query=useClientQuery(api.catalog);const {showToast}=useFeedback();
-  const [role,setRole]=useState<AdminRole|null>(null);const [creating,setCreating]=useState(false);const [name,setName]=useState('');const [codes,setCodes]=useState<string[]>([]);const [error,setError]=useState<string>();const [confirm,setConfirm]=useState(false);const [deleteConfirm,setDeleteConfirm]=useState(false);
+  const [role,setRole]=useState<AdminRole|null>(null);const [creating,setCreating]=useState(false);const [name,setName]=useState('');const [codes,setCodes]=useState<string[]>([]);const [permissionSearch,setPermissionSearch]=useState('');const [error,setError]=useState<string>();const [confirm,setConfirm]=useState(false);const [deleteConfirm,setDeleteConfirm]=useState(false);
   const canManageRoles=auth.hasPermission('roles.manage');const canManagePermissions=auth.hasPermission('permissions.manage');
   const canCreateRole=auth.hasRole('SUPER_ADMIN')&&canManageRoles&&canManagePermissions;
   const editable=canManageRoles&&canManagePermissions&&(creating?auth.hasRole('SUPER_ADMIN'):Boolean(role)&&(role?.code!=='SUPER_ADMIN'||auth.hasRole('SUPER_ADMIN')));
   const deletable=Boolean(role&&!creating&&canManageRoles&&canManagePermissions&&role.assignedUsers===0&&!['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN'].includes(role.code));
+  const searchTerm=normalizePermissionText(permissionSearch.trim());
+  const permissionGroups=query.data?groupPermissionsByModule(query.data.permissions.filter(permission=>!searchTerm||[permission.name,permission.description,permission.code,permission.moduleName].some(value=>normalizePermissionText(String(value)).includes(searchTerm)))):[];
 
   /** Abre el alta de rol con nombre y permisos vacíos. */
-  function startCreate(){setRole(null);setCreating(true);setName('');setCodes([]);setError(undefined);}
+  function startCreate(){setRole(null);setCreating(true);setName('');setCodes([]);setPermissionSearch('');setError(undefined);}
   /** Descarta el borrador de rol y cierra el modo de creación. */
-  function cancelCreate(){setCreating(false);setName('');setCodes([]);setError(undefined);}
+  function cancelCreate(){setCreating(false);setName('');setCodes([]);setPermissionSearch('');setError(undefined);}
   /** Valida que el rol tenga nombre y abre la confirmación antes de crearlo. */
   function reviewCreate(){if(!name.trim()){setError('Ingresá el nombre del rol.');return;}setConfirm(true);}
   /** Carga el rol seleccionado en el formulario de edición. */
-  function selectRole(item:AdminRole){setRole(item);setCreating(false);setName(roleLabel(item.code,item.name));setCodes(item.permissions);setError(undefined);}
+  function selectRole(item:AdminRole){setRole(item);setCreating(false);setName(roleLabel(item.code,item.name));setCodes(item.permissions);setPermissionSearch('');setError(undefined);}
   /** Elimina el rol seleccionado, actualiza permisos/perfil y muestra el resultado. */
   async function deleteRole(){if(!role)return;const deleted=role;await api.deleteRole(deleted.id);setDeleteConfirm(false);setRole(null);setCreating(false);query.reload();await auth.refreshProfile();showToast(`Rol “${deleted.name}” eliminado`,'success');}
   /** Crea o actualiza el rol, refresca los datos y confirma el resultado al usuario. */
@@ -69,10 +74,11 @@ export default function RolesScreen() {
       {role&&<PetCareCard>
         <AppInput label="Nombre del rol" value={name} maxLength={60} editable={editable} error={error} onChangeText={value=>{setName(value);setError(undefined);}}/>
         <AppText muted>Los permisos afectan a todas las cuentas que usan este rol.</AppText>
-        {groupPermissionsByModule(query.data.permissions).map(group=><View key={group.name} style={{gap:8}}>
+        <AppInput icon="search-outline" label="Buscar permisos" placeholder="Ej.: recomendar productos o aceptar turnos" value={permissionSearch} onChangeText={setPermissionSearch}/>
+        {permissionGroups.length?permissionGroups.map(group=><View key={group.name} style={{gap:8}}>
           <AppText variant="subtitle">{group.name}</AppText>
           {group.permissions.map(permission=><SelectionRow key={permission.code} label={permission.name} hint={permission.description} checked={codes.includes(permission.code)} disabled={!editable||!permission.canDelegate||permission.critical&&!['ADMIN','SUPER_ADMIN'].includes(role.code)} onPress={()=>setCodes(current=>current.includes(permission.code)?current.filter(code=>code!==permission.code):[...current,permission.code])}/>)}
-        </View>)}
+        </View>):<AppText muted>No se encontraron permisos con esa búsqueda.</AppText>}
         {editable&&<AppButton compact label="Revisar y guardar rol" onPress={()=>{if(!name.trim()){setError('Ingresá el nombre del rol.');return;}setConfirm(true);}}/>}
         {deletable&&<AppButton compact variant="secondary" destructive label="Eliminar rol" onPress={()=>setDeleteConfirm(true)}/>}
       </PetCareCard>}
@@ -85,10 +91,11 @@ export default function RolesScreen() {
       <AppText variant="subtitle" accessibilityRole="header">Crear rol personalizado</AppText>
       <AppText muted>El nuevo rol quedará disponible para asignarlo a usuarios. Elegí los permisos que correspondan.</AppText>
       <AppInput label="Nombre del rol" required value={name} maxLength={60} editable={editable} error={error} onChangeText={value=>{setName(value);setError(undefined);}}/>
-      {query.data&&groupPermissionsByModule(query.data.permissions).map(group=><View key={group.name} style={{gap:8}}>
+      <AppInput icon="search-outline" label="Buscar permisos" placeholder="Ej.: recomendar productos o aceptar turnos" value={permissionSearch} onChangeText={setPermissionSearch}/>
+      {permissionGroups.length?permissionGroups.map(group=><View key={group.name} style={{gap:8}}>
         <AppText variant="subtitle">{group.name}</AppText>
         {group.permissions.map(permission=><SelectionRow key={permission.code} label={permission.name} hint={permission.description} checked={codes.includes(permission.code)} disabled={!editable||!permission.canDelegate||permission.critical} onPress={()=>setCodes(current=>current.includes(permission.code)?current.filter(code=>code!==permission.code):[...current,permission.code])}/>)}
-      </View>)}
+      </View>):<AppText muted>No se encontraron permisos con esa búsqueda.</AppText>}
     </AppModal>
 
     <ConfirmModal visible={confirm} title={creating?'Crear rol personalizado':'Actualizar rol y permisos'} message={creating?'¿Querés crear este rol con los permisos seleccionados?':'Los permisos cambiarán los accesos de todas las personas con este rol. Las excepciones individuales se conservarán. ¿Querés guardar los cambios?'} confirmLabel={creating?'Crear rol':'Guardar cambios'} onCancel={()=>setConfirm(false)} onConfirm={saveRole}/>

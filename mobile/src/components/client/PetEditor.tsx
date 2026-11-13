@@ -94,7 +94,7 @@ async function save() {
         {preview?<Image source={{uri:preview}} style={styles.photo} accessibilityLabel="Foto de la mascota" onError={()=>setErrors(e=>({...e,photoUrl:'No pudimos mostrar la foto. Podés elegir otra imagen.'}))}/>:<Ionicons name="paw-outline" size={54} color={colors.primary} accessible={false}/>}
       </View></View>
       
-      <ImageUploadField label="Elegir foto desde la galería o archivos" kind="pet" aspect={[1,1]} value={values.photoUrl||null} disabled={action.loading} error={errors.photoUrl} onUploadingChange={setPicking} onChange={value=>change('photoUrl',value??'')}/><FormNotice error message={errors.photoUrl??null}/></PetCareCard></View>
+      <ImageUploadField label="Elegir foto desde la galería o archivos" kind="pet" aspect={[1,1]} value={values.photoUrl||null} showPreview={false} disabled={action.loading} error={errors.photoUrl} onUploadingChange={setPicking} onChange={value=>change('photoUrl',value??'')}/></PetCareCard></View>
       <View style={desktop?styles.fieldsPanel:undefined}><PetCareCard>
 <AdminFormSection title="Datos de la mascota" columns={2}>
       <AdminFormField fullWidth><AppInput ref={input=>{inputRefs.current.name=input;}} label="Nombre" required value={values.name} error={errors.name} maxLength={100} editable={!disabled} onChangeText={v=>change('name',v)}/></AdminFormField>

@@ -184,7 +184,7 @@ export async function changeAppointment(actor:AuthUser,id:string,value:unknown) 
    await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[next.professionalId]);const available=await slots(String(next.serviceId),String(next.professionalId),c);if(!available.some(s=>s.id===slotId))throw new AppError('SLOT_UNAVAILABLE',409,'El horario ya no está disponible.');
    await c.execute('INSERT IGNORE INTO veterinarian_patients(veterinarian_id,pet_id) SELECT id,? FROM veterinarians WHERE user_id=?',[a.petId,next.professionalId]);
   }}
-  if(body.status!==undefined){status=v.text(body.status,20)!;if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status))forbidden();assertTransition(String(a.status),status);}
+  if(body.status!==undefined){status=v.text(body.status,20)!;const respondingToOwnRequest=['VETERINARIAN','GROOMER'].includes(fresh.role)&&fresh.permissions?.includes('appointments.update_own')&&String(a.status)==='REQUESTED'&&['CONFIRMED','REJECTED'].includes(status);if(!manage&&!['IN_PROGRESS','COMPLETED','CANCELLED'].includes(status)&&!respondingToOwnRequest)forbidden();assertTransition(String(a.status),status);}
    if(fresh.role==='VETERINARIAN'&&status==='COMPLETED'){
     permit(fresh,'medical_records.create','medical_records.view');
     const consultation=await rows("SELECT id FROM client_clinical_records WHERE appointment_id=? AND pet_id=? AND veterinarian_id=(SELECT id FROM veterinarians WHERE user_id=?) AND kind='medical-history' LIMIT 1",[id,a.petId,fresh.id],c);

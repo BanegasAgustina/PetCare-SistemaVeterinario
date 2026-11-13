@@ -16,6 +16,8 @@ const permissionNames: Record<string, string> = {
   'pets.view_information': 'Ver información de mascotas',
   'users.update_client': 'Editar información del cliente',
   'categories.manage': 'Gestionar categorías',
+  'appointments.update_own': 'Gestionar mis turnos',
+  'recommendations.create': 'Recomendar productos a pacientes',
 };
 
 // Descripciones breves para permisos que ve el administrador.
@@ -30,6 +32,8 @@ const permissionDescriptions: Record<string, string> = {
   'services.manage': 'Configurar servicios ofrecidos por la clínica',
   'products.create': 'Dar de alta productos del catálogo',
   'categories.manage': 'Administrar categorías de tienda',
+  'appointments.update_own': 'Aceptar o rechazar solicitudes y actualizar el estado de los turnos asignados a este profesional',
+  'recommendations.create': 'Crear recomendaciones de productos para pacientes autorizados',
 };
 
 // Etiquetas traducidas para módulos del panel.

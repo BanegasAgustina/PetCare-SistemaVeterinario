@@ -20,7 +20,7 @@ import { FormNotice } from '../ui/FormNotice';
 
 type Kind='banner'|'product'|'service'|'pet'|'profile';
 type Signature={uploadUrl:string;cloudName:string;apiKey:string;signature:string;params:Record<string,string|number|boolean>;maxBytes:number;maxPixels:number};
-type Props={label:string;kind:Kind;value:string|null;onChange:(value:string|null)=>void;aspect?:[number,number];previewSize?:number;targetUserId?:string;disabled?:boolean;error?:string;showProgress?:boolean;onUploadingChange?:(busy:boolean)=>void};
+type Props={label:string;kind:Kind;value:string|null;onChange:(value:string|null)=>void;aspect?:[number,number];previewSize?:number;showPreview?:boolean;targetUserId?:string;disabled?:boolean;error?:string;showProgress?:boolean;onUploadingChange?:(busy:boolean)=>void};
 const MAX_SOURCE_BYTES=30*1024*1024;
 
 /** Calcula un recorte centrado que ajusta la imagen a la proporción solicitada. */
@@ -48,7 +48,7 @@ function uploadFile(signature:Signature,uri:string,onProgress:(value:number)=>vo
 }
 
 /** Selecciona, encuadra y comprime una imagen local, la carga directamente a Cloudinary y devuelve solo la URL verificada. */
-export function ImageUploadField({label,kind,value,onChange,aspect=[4,3],previewSize=104,targetUserId,disabled=false,error,showProgress=true,onUploadingChange}:Props){
+export function ImageUploadField({label,kind,value,onChange,aspect=[4,3],previewSize=104,showPreview=true,targetUserId,disabled=false,error,showProgress=true,onUploadingChange}:Props){
   const auth=useAuth();const {colors}=useTheme();const [progress,setProgress]=useState<number|null>(null);const [message,setMessage]=useState<string|null>(null);const [busy,setBusy]=useState(false);const [retryUri,setRetryUri]=useState<string|null>(null);
   /** Solicita la firma, carga la imagen y confirma la URL final con la API. */
   async function uploadPrepared(uri:string){const signature=await auth.request<Signature>('/media/uploads/sign',{method:'POST',body:{kind,...(targetUserId?{targetUserId}:{})}});setProgress(0);const uploaded=await uploadFile(signature,uri,setProgress);const verified=await auth.request<{url:string}>('/media/uploads/complete',{method:'POST',body:{kind,publicId:uploaded.public_id,...(targetUserId?{targetUserId}:{})}});onChange(verified.url);setRetryUri(null);setMessage(null);}
@@ -73,7 +73,7 @@ export function ImageUploadField({label,kind,value,onChange,aspect=[4,3],preview
   const avatar=kind==='pet'||kind==='profile';
   return <View style={{gap:8,alignItems:avatar?'center':undefined}}>
     <AppText variant="caption">{label}</AppText>
-    {value?<Image source={{uri:value}} accessibilityLabel={`Vista previa: ${label}`} resizeMode="cover" style={avatar?{width:previewSize,height:previewSize,borderRadius:previewSize/2,backgroundColor:colors.accent}:{width:'100%',maxWidth:kind==='product'?240:480,height:kind==='product'?160:150,borderRadius:14,backgroundColor:colors.accent}}/>:<View accessibilityLabel={avatar?'Imagen predeterminada':'Sin imagen seleccionada'} style={avatar?{width:previewSize,height:previewSize,borderRadius:previewSize/2,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'}:{width:'100%',maxWidth:kind==='product'?240:480,height:kind==='product'?160:92,borderRadius:14,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'}}>{avatar?<Ionicons name={kind==='pet'?'paw-outline':'person-outline'} size={Math.round(previewSize*.46)} color={colors.primary}/>:<AppText variant="caption" muted>Aún no hay una imagen seleccionada.</AppText>}</View>}
+    {showPreview&&(value?<Image source={{uri:value}} accessibilityLabel={`Vista previa: ${label}`} resizeMode="cover" style={avatar?{width:previewSize,height:previewSize,borderRadius:previewSize/2,backgroundColor:colors.accent}:{width:'100%',maxWidth:kind==='product'?240:480,height:kind==='product'?160:150,borderRadius:14,backgroundColor:colors.accent}}/>:<View accessibilityLabel={avatar?'Imagen predeterminada':'Sin imagen seleccionada'} style={avatar?{width:previewSize,height:previewSize,borderRadius:previewSize/2,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'}:{width:'100%',maxWidth:kind==='product'?240:480,height:kind==='product'?160:92,borderRadius:14,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'}}>{avatar?<Ionicons name={kind==='pet'?'paw-outline':'person-outline'} size={Math.round(previewSize*.46)} color={colors.primary}/>:<AppText variant="caption" muted>Aún no hay una imagen seleccionada.</AppText>}</View>)}
     <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:avatar?'center':undefined,gap:8}}><AppButton compact variant="secondary" label={busy?'Subiendo imagen…':value?'Cambiar imagen':'Seleccionar imagen'} loading={busy} disabled={disabled} onPress={()=>void choose()}/>{retryUri&&message&&<AppButton compact variant="secondary" label="Reintentar subida" disabled={disabled||busy} onPress={()=>void retry()}/ >}{Boolean(value)&&<AppButton compact variant="secondary" label="Quitar imagen" disabled={disabled||busy} onPress={()=>{onChange(null);setMessage(null);}}/>}</View>
     {showProgress&&progress!==null&&<AppText variant="caption" accessibilityLiveRegion="polite">Subiendo imagen: {progress}%</AppText>}
     <FormNotice error message={error??message}/>
