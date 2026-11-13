@@ -30,7 +30,7 @@ import { RoleQuickAccessProvider } from './RoleNavigationContext';
 import { AppBreadcrumbs } from './AppBreadcrumbs';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { desktopSidebarWidth, isWebAtLeast, responsiveLayout } from '../../constants/responsive';
-import { activePrimaryNavigationPath, selectPrimaryNavigation, selectSecondaryNavigation } from '../../utils/navigation-tabs';
+import { activePrimaryNavigationPath, selectPrimaryNavigation, selectProfessionalQuickAccess, selectSecondaryNavigation } from '../../utils/navigation-tabs';
 import { uniqueNavigationDestinations } from '../../utils/navigation-dedupe';
 import { canAccessNotificationCenter } from '../../utils/personal-route-access';
 import { notificationCenterPath } from '../../services/notification-path';
@@ -131,11 +131,12 @@ export function GlobalNavigation({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const { backPlacement } = useBackNavigation();
   const { request, hasPermission, user } = auth;
-  const isAdmin = hasAdministrativeShellCapability(user?.permissions);
-  // Personal permissions can be delegated to staff; only CLIENT gets the client-specific shell.
-  const isClient = isClientAccount(user);
   const isVeterinarian = Boolean(user?.professional?.isClinical);
   const isProfessional = Boolean(user?.professional);
+  // Professional profile selects its workspace; permissions still decide each available module.
+  const isAdmin = !isProfessional && hasAdministrativeShellCapability(user?.permissions);
+  // Personal permissions can be delegated to staff; only CLIENT gets the client-specific shell.
+  const isClient = isClientAccount(user);
   const notificationsEnabled=canAccessNotificationCenter(user?.role??'');
   const [adminModulesResult, setAdminModulesResult] = useState<{ userId: string | null; modules: AdminModule[] }>({ userId: null, modules: [] });
   const adminModules = adminModulesResult.userId === user?.id ? adminModulesResult.modules : noAdminModules;
@@ -172,10 +173,17 @@ const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCente
     ]);
     if (isProfessional && isVeterinarian) return uniqueNavigationDestinations([
       ...veterinarianItems.filter(item => (!item.permission || hasPermission(item.permission) || (item.path === '/vet/products' && hasPermission('prescriptions.create')))
-        && (!['/vet/patients','/vet/clients'].includes(item.path) || hasPermission('pets.view_all') || hasPermission('pets.view_assigned'))),
+        && (item.path === '/vet/patients'
+          ? hasPermission('pets.view_all') || (hasPermission('pets.view_information') && hasPermission('pets.view_assigned'))
+          : item.path !== '/vet/clients' || (hasPermission('pets.view_information') && (hasPermission('pets.view_all') || hasPermission('pets.view_assigned'))))),
+      ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
       ...personalItems,
     ]);
-    if (isProfessional) return uniqueNavigationDestinations([...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)), ...personalItems]);
+    if (isProfessional) return uniqueNavigationDestinations([
+      ...groomerItems.filter(item=>!item.permission||hasPermission(item.permission)),
+      ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
+      ...personalItems,
+    ]);
     const permitted: MenuItem[] = [
       { label: 'Inicio', path: base, icon: 'home-outline' },
       ...modulesForCapabilities(user.permissions).map(module=>({label:module.name,path:module.path,icon:iconFor(module.code)})),
@@ -187,7 +195,11 @@ const refreshUnread=()=>void request<{ unreadCount?: number }>(notificationCente
   const primaryItems = useMemo<MenuItem[]>(() => isAdmin
     ? adminTabs.filter(tab=>tab.path==='/admin'||items.some(item=>item.group===tab.label))
     : selectPrimaryNavigation(user?.role??'',items), [isAdmin,items,user?.role]);
-  const quickAccessItems = useMemo<MenuItem[]>(() => selectSecondaryNavigation(user?.role??'',items,primaryItems), [items,primaryItems,user?.role]);
+  const quickAccessItems = useMemo<MenuItem[]>(() => {
+    const secondary=selectSecondaryNavigation(user?.role??'',items,primaryItems);
+    if(!isProfessional)return secondary;
+    return selectProfessionalQuickAccess(isVeterinarian?'/vet':'/professional',items,primaryItems);
+  }, [items,primaryItems,user?.role,isProfessional,isVeterinarian]);
   const selected = [...items].filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   const desktopItems = useMemo(() => notificationsEnabled
     ? [...items, { label: unreadNotifications ? `Notificaciones (${unreadNotifications})` : 'Notificaciones', path: notificationCenterPath, icon: 'notifications-outline' as const }]
@@ -243,9 +255,13 @@ const navigate = (path: string) => router.navigate(path as never);
   return <AdminModulesContext.Provider value={isAdmin ? adminModules : []}><AdminModulesLoadingContext.Provider value={isAdmin && adminModulesLoading}><View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.root, { backgroundColor: colors.background }]}>
     {!desktop&&<SafeAreaView edges={['top']} style={[styles.topSafe, softSurfaceShadow(colors.primary), { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.topBar}>
-        {isClient || isAdmin || isVeterinarian ? <PetCareLogo style={isClient ? styles.clientTopLogo : styles.topLogo}/> : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
+        {isClient
+          ? <View pointerEvents="none" style={styles.clientLogoCenter}><PetCareLogo style={styles.clientTopLogo}/></View>
+          : isAdmin || isVeterinarian
+            ? <PetCareLogo style={styles.topLogo}/>
+            : <AppText numberOfLines={1} style={styles.currentTitle}>{selected?.label ?? 'PetCare'}</AppText>}
         {notificationsEnabled&&<NotificationCenterButton count={unreadNotifications} onPress={()=>router.push(notificationCenterPath as never)}/>}
-        <ProfileButton size={25}/>
+        {!isClient&&<ProfileButton size={25}/>}
       </View>
     </SafeAreaView>}
     {desktop ? <View onLayout={event => setContainerWidth(current => current === event.nativeEvent.layout.width ? current : event.nativeEvent.layout.width)} style={[styles.desktopRoot,{backgroundColor:colors.background}]}>
@@ -344,7 +360,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 }, topSafe: { borderBottomWidth: 1 }, topBar: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   professionalDesktopPage:{flex:1,minWidth:0,minHeight:0},professionalTopSafe:{borderBottomWidth:1},professionalTopBar:{position:'relative',minHeight:64,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},professionalLogoCenter:{position:'absolute',left:0,right:0,top:0,bottom:0,alignItems:'center',justifyContent:'center'},professionalTopLogo:{width:132,height:38},
   adminTopBar:{minHeight:60,paddingHorizontal:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},adminTopLogo:{width:116,height:34},adminPage:{flex:1,minHeight:0},
-  currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientTopLogo:{position:'absolute',width:152,height:44,left:'50%',marginLeft:-76}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
+  currentTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '600', textAlign: 'center' }, topLogo:{width:108,height:32,flex:1,alignSelf:'center'}, clientLogoCenter:{position:'absolute',left:0,right:0,top:0,bottom:0,alignItems:'center',justifyContent:'center'},clientTopLogo:{width:152,height:44}, profileButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, notificationDot:{position:'absolute',top:7,right:7,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#fff'},
   adminPageBar:{minHeight:64,paddingHorizontal:16,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:10,borderBottomWidth:1},backButton:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center'},adminPageHeading:{flex:1,minWidth:0,gap:2},adminPageTitle:{fontSize:18,fontWeight:'600'},
   body: { flex: 1, flexDirection: 'row', minHeight: 0 }, page: { flex: 1, minWidth: 0 },
   groupHeading:{minHeight:38,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupToggle:{flex:1,minHeight:38,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},groupOpen:{width:34,minHeight:34,alignItems:'center',justifyContent:'center'},groupLabel:{textTransform:'uppercase',letterSpacing:0.8}, itemText: { flex: 1, minWidth: 0 },

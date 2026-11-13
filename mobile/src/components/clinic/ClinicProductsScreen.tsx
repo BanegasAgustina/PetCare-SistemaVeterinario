@@ -29,7 +29,7 @@ export function ClinicProductsScreen() {
   const clinic = useClinic();
   const { height } = useWindowDimensions();
   const { hasPermission, user } = useAuth();
-  const canRecommend=user?.role==='VETERINARIAN'&&hasPermission('recommendations.create')&&hasPermission('products.view')&&hasPermission('pets.view_information')&&(hasPermission('pets.view_all')||hasPermission('pets.view_assigned'));
+  const canRecommend=user?.professional?.isClinical===true&&hasPermission('recommendations.create')&&hasPermission('products.view')&&hasPermission('pets.view_information')&&(hasPermission('pets.view_all')||hasPermission('pets.view_assigned'));
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');

@@ -24,8 +24,8 @@ export function isClientAccount(user:Pick<AuthUser,'role'>|null):boolean {
 /** Elige un shell compatible con las capacidades recibidas del backend. */
 export function roleHome(user: AuthUser | null): '/login' | '/client' | '/vet' | '/admin' | '/professional' | '/workspace' {
   if (!user) return '/login';
-  if (hasAdministrativeShellCapability(user.permissions)) return '/admin';
   if (user.professional) return isClinicalProfessional(user) ? '/vet' : '/professional';
+  if (hasAdministrativeShellCapability(user.permissions)) return '/admin';
   if (hasPersonalCapabilityModule(user.permissions)) return '/client';
   return '/workspace';
 }

@@ -3,6 +3,14 @@ export type RoleNavigationItem = { label:string;path:string;icon:string;group?:s
 /** The caller supplies only authorized destinations; the first destination is the panel home. */
 export function selectPrimaryNavigation<T extends RoleNavigationItem>(_role:string,items:T[],limit=5):T[]{
   const unique=[...new Map(items.map(item=>[item.path,item])).values()];
+  const preferredPaths=unique.some(item=>item.path==='/vet')
+    ? ['/vet','/vet/agenda','/vet/patients','/vet/products']
+    : unique.some(item=>item.path==='/professional')
+      ? ['/professional','/professional/patients','/professional/agenda']
+      : unique.some(item=>item.path==='/client')
+        ? ['/client','/client/pets','/client/appointments','/client/store','/client/profile']
+        : null;
+  if(preferredPaths)return preferredPaths.flatMap(path=>unique.filter(item=>item.path===path));
   const profiles=new Set(['/account','/client/profile']);
   return unique.filter(item=>!profiles.has(item.path)).slice(0,limit);
 }
@@ -13,9 +21,17 @@ export function selectSecondaryNavigation<T extends RoleNavigationItem>(_role:st
   return [...new Map(items.filter(item=>!primaryPaths.has(item.path)&&item.path!=='/account'&&item.path!=='/client/profile'&&!item.group).map(item=>[item.path,item])).values()];
 }
 
+/** Professional home shortcuts are limited to enabled personal pets/appointments and veterinary clients. */
+export function selectProfessionalQuickAccess<T extends RoleNavigationItem>(homePath:string,items:T[],primaryItems:RoleNavigationItem[]):T[]{
+  const allowedPaths=new Set(['/client/pets','/client/appointments','/client/appointments/request',...(homePath==='/vet'?['/vet/clients']:[])]);
+  const primaryPaths=new Set(primaryItems.map(item=>item.path));
+  return [...new Map(items.filter(item=>allowedPaths.has(item.path)&&!primaryPaths.has(item.path)).map(item=>[item.path,item])).values()];
+}
+
 /** Match deep links to the nearest authorized primary section without classifying the role. */
 export function activePrimaryNavigationPath<T extends RoleNavigationItem>(_role:string,pathname:string,items:T[]):string|null{
-  const exact=items.filter(item=>pathname===item.path||pathname.startsWith(`${item.path}/`)).sort((a,b)=>b.path.length-a.path.length)[0];
+  const homePaths=new Set(['/client','/vet','/professional','/admin','/workspace']);
+  const exact=items.filter(item=>pathname===item.path||(!homePaths.has(item.path)&&pathname.startsWith(`${item.path}/`))).sort((a,b)=>b.path.length-a.path.length)[0];
   if(exact)return exact.path;
   const aliases:Record<string,string>={
     '/client/orders':'/client/profile','/client/notifications':'/client/profile','/notifications':'/workspace',
