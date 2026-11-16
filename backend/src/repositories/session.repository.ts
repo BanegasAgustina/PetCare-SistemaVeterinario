@@ -1,4 +1,8 @@
 /**
+ * Guarda y controla las sesiones de los usuarios. Almacena huellas de los tokens de renovación,
+ *  permite renovarlos y puede revocar una sesión.
+ * 
+ * 
  * ARCHIVO: session.repository.ts
  * UBICACIÓN: backend/src/repositories/session.repository.ts
  * FUNCIÓN: Persistencia y rotación de refresh tokens por familia de sesión.

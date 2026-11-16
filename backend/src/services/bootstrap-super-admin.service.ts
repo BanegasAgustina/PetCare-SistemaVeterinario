@@ -1,4 +1,7 @@
 /**
+ * Crea la primera cuenta de superadministrador desde una tarea local controlada. No es una opción disponible desde la API pública.
+ * 
+ * 
  * ARCHIVO: bootstrap-super-admin.service.ts
  * UBICACIÓN: backend/src/services/bootstrap-super-admin.service.ts
  * FUNCIÓN: Creación inicial del primer SUPER_ADMIN desde una operación local controlada.

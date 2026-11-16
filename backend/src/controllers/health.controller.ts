@@ -1,4 +1,4 @@
-/**
+/**Informa si la API está funcionando. Comprueba el estado del proceso, pero no verifica la conexión a MySQL.
  * ARCHIVO: health.controller.ts
  * UBICACIÓN: backend/src/controllers/health.controller.ts
  * FUNCIÓN: Responde la consulta pública básica de salud de la API.

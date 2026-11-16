@@ -8,7 +8,8 @@
  * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
  */
 /**
- * Define contratos de roles, usuarios y permisos enviados por /admin. Los IDs y permisos proceden de MySQL; estos tipos no autorizan acciones por sí mismos.
+ * Define contratos de roles, usuarios y permisos enviados por /admin. 
+ * Los IDs y permisos proceden de MySQL; estos tipos no autorizan acciones por sí mismos.
  */
 import type { AuthUser } from './auth';
 /** Rol disponible en administración junto con grants, delegabilidad y cantidad de cuentas asignadas. */

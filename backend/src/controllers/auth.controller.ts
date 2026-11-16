@@ -1,4 +1,4 @@
-/**
+/**Atiende el registro, el inicio de sesión, la consulta del usuario autenticado y los flujos de recuperación y cambio de contraseña.
  * ARCHIVO: auth.controller.ts
  * UBICACIÓN: backend/src/controllers/auth.controller.ts
  * FUNCIÓN: Convierte solicitudes de autenticación en llamadas a servicios y sobres de respuesta API.

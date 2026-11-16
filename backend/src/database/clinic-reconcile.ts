@@ -1,5 +1,6 @@
 /**
  * ARCHIVO: clinic-reconcile.ts
+ * Compara los índices existentes con los esperados y reconcilia diferencias de forma controlada.
  * UBICACIÓN: backend/src/database/clinic-reconcile.ts
  * FUNCIÓN: Preflight y reconciliación acotada de índices del esquema clínico.
  * RESPONSABILIDAD: Compara ledger y metadatos reales, planifica decisiones de índice y aplica reconciliación solo tras preflight.

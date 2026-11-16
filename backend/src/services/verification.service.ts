@@ -1,4 +1,9 @@
 /**
+ * Genera y comprueba los códigos para verificar el correo. Controla su vencimiento
+ *  y evita guardar el código directamente en la base.
+ * 
+ * 
+ * 
  * ARCHIVO: verification.service.ts
  * UBICACIÓN: backend/src/services/verification.service.ts
  * FUNCIÓN: Emisión, reenvío y comprobación de códigos de verificación de correo.

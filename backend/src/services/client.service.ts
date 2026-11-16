@@ -1,4 +1,8 @@
 /**
+ * Aplica las reglas para las operaciones del cliente, como gestionar mascotas, turnos y perfil. 
+ * También comprueba que el cliente pueda operar sobre esos datos.
+ * 
+ * 
  * ARCHIVO: client.service.ts
  * UBICACIÓN: backend/src/services/client.service.ts
  * FUNCIÓN: Casos de uso del área cliente: perfil, mascotas, turnos e información clínica propia.
@@ -98,6 +102,8 @@ export async function clientOperation(owner:string,operation:string,id:unknown,b
       case 'notification-hide':clientBody(body,[]);return repository.hideNotification(owner,clientId(id));
       case 'notification-read':clientBody(body,[]);return repository.readNotification(owner,clientId(id));
       case 'notification-read-all':clientBody(body,[]);return repository.readAllNotifications(owner);
+      // Valida los campos permitidos y el formato del teléfono; owner proviene de la sesión autenticada.
+      // La persistencia se delega a client.repository.ts:updateProfile().
       case 'profile-update':{const values=clientBody(body,['firstName','lastName','phone']);return repository.updateProfile(owner,readName(values.firstName,'El nombre'),readName(values.lastName,'El apellido'),readRequiredPhone(values.phone));}
       case 'password-update':{const values=clientBody(body,['currentPassword','password']);const current=readPassword(values.currentPassword,false);const password=readPassword(values.password,true);
         const user=await findUserById(owner);if(!user||!await bcrypt.compare(current,user.passwordHash))throw new AppError('CURRENT_PASSWORD_INVALID',400,'La contraseña actual no es correcta.');

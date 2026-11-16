@@ -1,6 +1,9 @@
 /**
- * ARCHIVO: proxy-trust.middleware.ts
- * UBICACIÓN: backend/src/middlewares/proxy-trust.middleware.ts
+ * Le indica a Express si puede confiar en que otro servidor, llamado proxy, le está pasando correctamente la IP del usuario. 
+ * Esto importa porque el backend 
+ * puede estar detrás de Vercel u otro intermediario; si confía en cualquier encabezado, alguien podría inventar su IP.
+ * 
+ * 
  * FUNCIÓN: Configura confianza de proxy para Express según plataforma de despliegue.
  * RESPONSABILIDAD: Asegurar que IP/protocolo derivado de cabeceras forwarding solo se confíe desde proxy esperado.
  * CONEXIONES: Importa: No importa módulos relativos del proyecto. Se utiliza desde: backend/src/app.ts

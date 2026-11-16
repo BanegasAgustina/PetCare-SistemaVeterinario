@@ -1,4 +1,8 @@
 /**
+ * Define qué datos devuelve el desafío para verificar el correo, como el token temporal, el email 
+ * parcialmente oculto, el vencimiento y el estado del envío.
+ * 
+ * 
  * ARCHIVO: verification.ts
  * UBICACIÓN: backend/src/types/verification.ts
  * FUNCIÓN: Contrato del desafío de verificación de correo.

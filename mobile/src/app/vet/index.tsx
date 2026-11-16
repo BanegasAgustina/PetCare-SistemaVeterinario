@@ -8,6 +8,7 @@
  * IMPORTANCIA: Ofrece la entrada común a agenda y módulos habilitados.
  */
 /**
- * Ruta de inicio del panel para VETERINARIAN autenticado. Reutiliza el componente compartido exportado; este consulta /clinic. El layout presenta los accesos y backend aplica los permisos definitivos.
+ * Ruta de inicio del panel para VETERINARIAN autenticado. Reutiliza el componente compartido exportado; este consulta /clinic.
+ *  El layout presenta los accesos y backend aplica los permisos definitivos.
  */
 export { StaffHome as default } from '../../components/clinic/StaffHome';

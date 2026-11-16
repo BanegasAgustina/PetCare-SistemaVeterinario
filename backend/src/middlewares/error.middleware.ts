@@ -1,13 +1,16 @@
-/**
- * ARCHIVO: error.middleware.ts
- * UBICACIÓN: backend/src/middlewares/error.middleware.ts
+/**Comprueba qué puede hacer ese usuario. Puede exigir un rol, un permiso puntual o que 
+ * tenga acceso a un paciente específico. Por ejemplo, estar identificado no significa automáticamente tener permiso para ver todos los pacientes.
  * FUNCIÓN: Normaliza rutas inexistentes y excepciones a respuestas JSON públicas.
  * RESPONSABILIDAD: Evitar que SQL, stack traces o detalles internos lleguen a clientes HTTP.
  * CONEXIONES: Importa: backend/src/types/api.ts, backend/src/utils/database-error.ts, backend/src/utils/app-error.ts Se utiliza desde: backend/src/app.ts
  * FUNCIONAMIENTO: Distingue AppError/DatabaseError, asigna status/código y sobre success=false; registra solo diagnóstico permitido.
  * IMPORTANCIA: Cierra el pipeline Express y unifica errores de todos los dominios.
  */
-/** Traduce errores internos a mensajes seguros sin revelar detalles de Node o SQL. */
+/** Traduce errores internos a mensajes seguros sin revelar detalles de Node o SQL. 
+ * 
+ * convierte errores y rutas inexistentes en respuestas seguras y uniformes para clientes HTTP, sin exponer detalles internos ni secretos.
+ * 
+*/
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { ApiFailure } from '../types/api';
 import { DatabaseError } from '../utils/database-error';

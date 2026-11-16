@@ -1,4 +1,4 @@
-/**
+/**prepara la base para guardar los códigos o tokens temporales usados al recuperar contraseñas.
  * ARCHIVO: password-reset-migrate.ts
  * UBICACIÓN: backend/src/database/password-reset-migrate.ts
  * FUNCIÓN: Crea o actualiza el esquema de pruebas de recuperación de contraseña.

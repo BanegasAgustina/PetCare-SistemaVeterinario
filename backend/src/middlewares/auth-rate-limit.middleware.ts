@@ -1,4 +1,6 @@
-/**
+/**Pone un límite de intentos por dirección IP durante un período. 
+ * Sirve para frenar intentos repetidos de adivinar contraseñas o abusar 
+ * de rutas sensibles. Si se supera el límite, responde que se espere unos minutos.
  * ARCHIVO: auth-rate-limit.middleware.ts
  * UBICACIÓN: backend/src/middlewares/auth-rate-limit.middleware.ts
  * FUNCIÓN: Crea middleware de limitación de solicitudes para rutas sensibles.

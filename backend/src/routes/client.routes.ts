@@ -1,4 +1,8 @@
 /**
+ * Define las rutas del área del cliente: mascotas, turnos, tienda, carrito, pedidos y perfil.
+ * Protege el acceso para que cada cliente opere con sus propios datos.
+ * 
+ * 
  * ARCHIVO: client.routes.ts
  * UBICACIÓN: backend/src/routes/client.routes.ts
  * FUNCIÓN: Declara endpoints de mascotas, turnos, tienda, carrito, pedidos y perfil de cliente.
@@ -16,81 +20,82 @@ import { requirePersonalAccess } from '../middlewares/permission.middleware';
 import { createAuthRateLimiter } from '../middlewares/auth-rate-limit.middleware';
 import { clientHandler as handle } from '../controllers/client.controller';
 import { legacyClientNotificationRouter } from './notification.routes';
-// Dato clientRouter: conserva un valor calculado o de configuración usado por este módulo.
+// Router de las operaciones privadas del área cliente; routes/index.ts lo monta bajo /api/client.
 export const clientRouter=Router();
-// clientRouter.use: Aplica los controles compartidos a las rutas siguientes.
+// Todas las rutas siguientes requieren token válido y pasan el control de acceso personal.
 clientRouter.use(authenticate,requirePersonalAccess);
-// clientRouter.use: Evita que se almacenen en caché las respuestas de este router.
+// Evita que respuestas con datos privados de la cuenta queden guardadas en caché.
 clientRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
-// clientRouter.use('/notifications'): Aplica los controles compartidos a las rutas siguientes.
+// Monta aquí las notificaciones antiguas bajo /api/client/notifications.
 clientRouter.use('/notifications',legacyClientNotificationRouter);
-// clientRouter.post('/home'): Devuelve el resumen del área
+// POST /api/client/home: obtiene el resumen del área personal del cliente autenticado.
 clientRouter.post('/home',handle('home'));
-// clientRouter.post('/pets/catalog'): Consulta el catálogo de mascotas
+// POST /api/client/pets/catalog: obtiene opciones de catálogo usadas al registrar o editar una mascota.
 clientRouter.post('/pets/catalog',handle('pet-catalog'));
-// clientRouter.post('/pets/query'): Consulta mascotas propias
+// POST /api/client/pets/query: lista las mascotas asociadas a la cuenta autenticada.
 clientRouter.post('/pets/query',handle('pets'));
-// clientRouter.post('/pets'): Crea una mascota
+// POST /api/client/pets: crea una mascota para el cliente autenticado; responde 201 al crearla.
 clientRouter.post('/pets',handle('create-pet',201));
-// clientRouter.post('/pets/:id'): Consulta una mascota
+// POST /api/client/pets/:id: consulta una mascota propia identificada por ID.
 clientRouter.post('/pets/:id',handle('pet'));
-// clientRouter.put('/pets/:id'): Actualiza una mascota
+// PUT /api/client/pets/:id: actualiza los datos de una mascota propia.
 clientRouter.put('/pets/:id',handle('update-pet'));
-// clientRouter.patch('/pets/:id/deactivate'): Deriva la solicitud al controlador definido en la ruta.
+// PATCH /api/client/pets/:id/deactivate: da de baja la mascota propia sin eliminar su historial.
 clientRouter.patch('/pets/:id/deactivate',handle('deactivate-pet'));
-// clientRouter.patch('/pets/:id/reactivate'): Deriva la solicitud al controlador definido en la ruta.
+// PATCH /api/client/pets/:id/reactivate: reactiva una mascota propia que estaba dada de baja.
 clientRouter.patch('/pets/:id/reactivate',handle('reactivate-pet'));
-// clientRouter.post('/appointments/catalog'): Consulta el catálogo de turnos
+// POST /api/client/appointments/catalog: obtiene opciones y datos necesarios para solicitar turnos.
 clientRouter.post('/appointments/catalog',handle('appointment-catalog'));
-// clientRouter.post('/appointments/slots'): Consulta horarios disponibles
+// POST /api/client/appointments/slots: busca horarios disponibles según los filtros enviados.
 clientRouter.post('/appointments/slots',handle('slots'));
-// clientRouter.post('/appointments/query'): Consulta los turnos propios
+// POST /api/client/appointments/query: lista los turnos asociados al cliente autenticado.
 clientRouter.post('/appointments/query',handle('appointments'));
-// clientRouter.post('/appointments/:id'): Consulta un turno
+// POST /api/client/appointments/:id: consulta el detalle de un turno propio.
 clientRouter.post('/appointments/:id',handle('appointment'));
-// clientRouter.patch('/appointments/:id/cancel'): Deriva la solicitud al controlador definido en la ruta.
+// PATCH /api/client/appointments/:id/cancel: solicita cancelar un turno propio.
 clientRouter.patch('/appointments/:id/cancel',handle('cancel-appointment'));
-// clientRouter.post('/appointments'): Crea una solicitud de turno
+// POST /api/client/appointments: solicita un turno para una mascota propia; responde 201.
 clientRouter.post('/appointments',handle('create-appointment',201));
-// clientRouter.post('/clinical/:kind'): Consulta información clínica autorizada
+// POST /api/client/clinical/:kind: consulta la sección clínica propia indicada por kind.
 clientRouter.post('/clinical/:kind',handle('clinical'));
-// clientRouter.post('/store/categories'): Consulta categorías de productos
+// POST /api/client/store/categories: consulta categorías visibles de la tienda.
 clientRouter.post('/store/categories',handle('categories'));
-// clientRouter.post('/store/fulfillment'): Consulta opciones de entrega y retiro
+// POST /api/client/store/fulfillment: consulta métodos de entrega y retiro disponibles.
 clientRouter.post('/store/fulfillment',handle('fulfillment'));
-// clientRouter.post('/store/promotions'): Consulta promociones vigentes
+// POST /api/client/store/promotions: consulta las promociones vigentes para la tienda.
 clientRouter.post('/store/promotions',handle('promotions'));
-// clientRouter.post('/store/banners'): Consulta banners disponibles
+// POST /api/client/store/banners: consulta banners visibles para el cliente.
 clientRouter.post('/store/banners',handle('banners'));
-// clientRouter.post('/store/delivery-quote'): Cotiza el envío
+// POST /api/client/store/delivery-quote: calcula una cotización de envío con los datos recibidos.
 clientRouter.post('/store/delivery-quote',handle('delivery-quote'));
-// clientRouter.post('/store/addresses/query'): Consulta direcciones propias
+// POST /api/client/store/addresses/query: lista las direcciones guardadas por el cliente.
 clientRouter.post('/store/addresses/query',handle('delivery-addresses'));
-// clientRouter.post('/store/addresses'): Guarda una dirección
+// POST /api/client/store/addresses: guarda una dirección de entrega asociada al cliente; responde 201.
 clientRouter.post('/store/addresses',handle('delivery-address-save',201));
-// clientRouter.patch('/store/addresses/:id'): Deriva la solicitud al controlador definido en la ruta.
+// PATCH /api/client/store/addresses/:id: modifica una dirección propia identificada por ID.
 clientRouter.patch('/store/addresses/:id',handle('delivery-address-update'));
-// clientRouter.post('/store/products'): Consulta o busca productos
+// POST /api/client/store/products: busca o lista productos disponibles según los filtros recibidos.
 clientRouter.post('/store/products',handle('products'));
-// clientRouter.post('/store/products/:id'): Consulta un producto
+// POST /api/client/store/products/:id: consulta el detalle de un producto.
 clientRouter.post('/store/products/:id',handle('product'));
-// clientRouter.post('/cart'): Consulta el carrito propio
+// POST /api/client/cart: consulta el carrito del cliente autenticado.
 clientRouter.post('/cart',handle('cart'));
-// clientRouter.put('/cart/:id'): Actualiza la cantidad de un producto del carrito
+// PUT /api/client/cart/:id: cambia la cantidad de un producto del carrito propio.
 clientRouter.put('/cart/:id',handle('cart-update'));
-// clientRouter.post('/orders/query'): Consulta pedidos propios
+// POST /api/client/orders/query: lista los pedidos del cliente autenticado.
 clientRouter.post('/orders/query',handle('orders'));
-// clientRouter.post('/orders'): Crea un pedido desde el checkout
+// POST /api/client/orders: crea un pedido desde el checkout; responde 201.
 clientRouter.post('/orders',handle('checkout',201));
-// clientRouter.post('/orders/bank-transfer'): Crea un pedido para pago por transferencia Controles: límite de solicitudes.
+// POST /api/client/orders/bank-transfer: crea un pedido para transferencia; limita intentos y responde 201.
 clientRouter.post('/orders/bank-transfer',createAuthRateLimiter(8),handle('bank-transfer-checkout',201));
-// clientRouter.post('/orders/:id/payment-intents'): Renueva la intención de pago Controles: límite de solicitudes.
+// POST /api/client/orders/:id/payment-intents: renueva la intención de pago de un pedido propio; limita intentos y responde 201.
 clientRouter.post('/orders/:id/payment-intents',createAuthRateLimiter(8),handle('payment-intent-renew',201));
-// clientRouter.post('/payment-intents/:id/proof'): Presenta un comprobante de pago Controles: límite de solicitudes.
+// POST /api/client/payment-intents/:id/proof: presenta comprobante para una intención propia; limita intentos y responde 201.
 clientRouter.post('/payment-intents/:id/proof',createAuthRateLimiter(8),handle('payment-proof',201));
-// clientRouter.post('/orders/:id'): Consulta un pedido propio
+// POST /api/client/orders/:id: consulta el detalle de un pedido propio.
 clientRouter.post('/orders/:id',handle('order'));
-// clientRouter.patch('/profile'): Deriva la solicitud al controlador definido en la ruta.
+// PATCH /api/client/profile: actualiza nombre, apellido y teléfono del cliente autenticado.
+// client.service.ts valida los campos; client.repository.ts modifica esas columnas en users con el ID de la sesión.
 clientRouter.patch('/profile',handle('profile-update'));
-// clientRouter.put('/profile/password'): Cambia la contraseña propia Controles: límite de solicitudes.
+// PUT /api/client/profile/password: valida la contraseña actual y guarda la nueva; limita intentos.
 clientRouter.put('/profile/password',createAuthRateLimiter(),handle('password-update'));

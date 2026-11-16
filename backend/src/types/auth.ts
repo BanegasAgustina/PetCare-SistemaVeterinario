@@ -1,4 +1,9 @@
 /**
+ * Define cómo se representan los datos de autenticación: el usuario público, 
+ * los datos internos de una cuenta, lo que se recibe al iniciar sesión y la sesión que se devuelve. Distingue 
+ * la información que se puede mostrar de la privada, como la contraseña cifrada.
+ * 
+ * 
  * ARCHIVO: auth.ts
  * UBICACIÓN: backend/src/types/auth.ts
  * FUNCIÓN: Contratos de roles, usuarios, credenciales de entrada y sesión.

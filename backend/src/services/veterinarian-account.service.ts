@@ -1,4 +1,8 @@
 /**
+ * Permite que un veterinario actualice su propio perfil o contraseña. 
+ * Si cambia la contraseña, también invalida sus sesiones anteriores.
+ * 
+ * 
  * ARCHIVO: veterinarian-account.service.ts
  * UBICACIÓN: backend/src/services/veterinarian-account.service.ts
  * FUNCIÓN: Edición del perfil propio y cambio de contraseña de una cuenta veterinaria.
@@ -15,7 +19,7 @@ import { AppError } from '../utils/app-error';
 import { readName, readPassword, readRequiredPhone } from '../validators/auth.validator';
 import { hashPassword } from './password.service';
 
-/** Valida campos propios, confirma rol y fila veterinaria, y actualiza en transacción los datos de usuario y descripción profesional. */
+/** PATCH /api/vet/profile: valida campos, confirma rol/perfil veterinario y actualiza users y veterinarians en una transacción. */
 export async function updateOwnProfile(userId:string,value:unknown) {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('VALIDATION_ERROR',400,'Revisá los datos del perfil.');
   const body=value as Record<string,unknown>;
@@ -24,7 +28,9 @@ export async function updateOwnProfile(userId:string,value:unknown) {
   if(typeof body.professionalDescription!=='string'||body.professionalDescription.trim().length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body.professionalDescription))throw new AppError('VALIDATION_ERROR',400,'La descripción profesional admite hasta 2.000 caracteres.');
   const description=body.professionalDescription.trim().normalize('NFC')||null;
   const connection=await databasePool.getConnection();
-  try {await connection.beginTransaction();const [rows]=await connection.execute<RowDataPacket[]>("SELECT r.code,v.id AS veterinarianId FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN veterinarians v ON v.user_id=u.id WHERE u.id=? FOR UPDATE",[userId]);if(rows[0]?.code!=='VETERINARIAN'||!rows[0].veterinarianId)throw new AppError('FORBIDDEN',403,'Solo el veterinario puede editar su perfil.');await connection.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=?',[firstName,lastName,phone,userId]);await connection.execute('UPDATE veterinarians SET professional_description=? WHERE user_id=?',[description,userId]);await connection.commit();return {updated:true};}
+  try {await connection.beginTransaction();const [rows]=await connection.execute<RowDataPacket[]>("SELECT r.code,v.id AS veterinarianId FROM users u JOIN roles r ON r.id=u.role_id LEFT JOIN veterinarians v ON v.user_id=u.id WHERE u.id=? FOR UPDATE",[userId]);if(rows[0]?.code!=='VETERINARIAN'||!rows[0].veterinarianId)throw new AppError('FORBIDDEN',403,'Solo el veterinario puede editar su perfil.');
+    // users guarda nombre/teléfono; veterinarians guarda la descripción profesional. Ambas escrituras se confirman juntas.
+    await connection.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=?',[firstName,lastName,phone,userId]);await connection.execute('UPDATE veterinarians SET professional_description=? WHERE user_id=?',[description,userId]);await connection.commit();return {updated:true};}
   catch(error){await connection.rollback();throw error;}finally{connection.release();}
 }
 

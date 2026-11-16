@@ -1,4 +1,4 @@
-/**
+/**agrupa algunos cambios del esquema clínico, como detalles de turnos y motivos de cancelación.
  * ARCHIVO: clinic-schema-migrate.ts
  * UBICACIÓN: backend/src/database/clinic-schema-migrate.ts
  * FUNCIÓN: Punto de entrada de migración específica del esquema clínico.

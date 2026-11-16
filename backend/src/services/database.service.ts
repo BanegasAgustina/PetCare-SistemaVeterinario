@@ -1,4 +1,6 @@
 /**
+ * Comprueba que la base de datos responda y que su versión sea compatible con el backend.
+ * 
  * ARCHIVO: database.service.ts
  * UBICACIÓN: backend/src/services/database.service.ts
  * FUNCIÓN: Comprobación de disponibilidad y versiones admitidas de MySQL/MariaDB.

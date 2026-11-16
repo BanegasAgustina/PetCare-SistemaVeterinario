@@ -1,4 +1,7 @@
 /**
+ * Guarda los comprobantes de pago y permite que el personal autorizado los revise.
+ * 
+ * 
  * ARCHIVO: store-payment.repository.ts
  * UBICACIÓN: backend/src/repositories/store-payment.repository.ts
  * FUNCIÓN: Persistencia de comprobantes y revisión de pagos de pedidos.

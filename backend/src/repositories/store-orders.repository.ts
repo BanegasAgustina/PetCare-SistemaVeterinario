@@ -1,4 +1,7 @@
 /**
+ * Busca pedidos y permite actualizar su estado o información de entrega, según los permisos de quien hace la operación.
+ * 
+ * 
  * ARCHIVO: store-orders.repository.ts
  * UBICACIÓN: backend/src/repositories/store-orders.repository.ts
  * FUNCIÓN: Lectura y administración de pedidos por usuario o personal autorizado.

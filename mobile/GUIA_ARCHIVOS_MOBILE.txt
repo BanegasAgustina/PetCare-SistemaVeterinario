@@ -1,0 +1,275 @@
+GUIA DE LA CARPETA MOBILE - PETCARE
+
+La carpeta mobile contiene el cliente multiplataforma de PetCare, construido con Expo, React Native, TypeScript y Expo Router. Incluye las rutas y pantallas para clientes, profesionales veterinarios, administracion y autenticacion; componentes compartidos; acceso a la API; validaciones; configuraciones de compilacion y recursos visuales.
+
+ORGANIZACION PRINCIPAL
+- src/app: rutas de Expo Router y pantallas organizadas por flujo y rol.
+- src/components: piezas reutilizables de interfaz, formularios, layouts y vistas de dominio.
+- src/services: solicitudes a la API, autenticacion, sesiones, OAuth y notificaciones.
+- src/contexts y src/hooks: estado compartido y logica reutilizable para pantallas.
+- src/types, src/utils y src/constants: contratos TypeScript, reglas auxiliares y valores comunes.
+- src/assets: imagenes y recursos de marca.
+- tests: pruebas automatizadas de utilidades y flujos de la app.
+
+ARCHIVOS VERSIONADOS PRESENTES
+Se enumeran los archivos propios del proyecto que estan versionados y presentes en el directorio en este momento. Las carpetas generadas (por ejemplo node_modules, .expo y builds) se omiten porque son dependencias/cache y no codigo fuente mantenido. Los archivos locales ignorados, como .env, tampoco se enumeran para no exponer configuracion privada.
+
+- mobile/.env.example — Plantilla de variables publicas de entorno para ejecutar la app en desarrollo; no debe contener secretos.
+- mobile/.gitignore — Reglas para excluir dependencias, caches, builds, claves y configuracion local del control de versiones.
+- mobile/.npmrc — Opciones de npm necesarias para instalar el conjunto de dependencias Expo del proyecto.
+- mobile/app.json — Configuracion principal de Expo: identidad, plataformas, esquema de enlaces y plugins nativos.
+- mobile/cambios-expo.patch — Parche de referencia con cambios relacionados con Expo; se aplica como diff y no admite comentarios arbitrarios.
+- mobile/eas.json — Perfiles y variables de entorno para generar builds con Expo Application Services.
+- mobile/eslint.config.js — Reglas de lint para revisar el codigo TypeScript y React Native.
+- mobile/package.json — Manifiesto npm: scripts de desarrollo, dependencias y herramientas del proyecto.
+- mobile/package-lock.json — Bloqueo de versiones exactas de dependencias para instalaciones reproducibles con npm.
+- mobile/README.md — Guia de instalacion, ejecucion, arquitectura, autenticacion, builds y problemas frecuentes.
+- mobile/src/app/_layout.tsx — Configura el layout y la navegacion del grupo de rutas.
+- mobile/src/app/account.tsx — Pantalla/ruta de la aplicacion para account.
+- mobile/src/app/activate-account.tsx — Pantalla/ruta de la aplicacion para activate account.
+- mobile/src/app/activate-vet.tsx — Pantalla/ruta de la aplicacion para activate vet.
+- mobile/src/app/admin/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/admin/administration.tsx — Pantalla/ruta de la aplicacion para administration.
+- mobile/src/app/admin/agenda.tsx — Pantalla/ruta de la aplicacion para agenda.
+- mobile/src/app/admin/appointment.tsx — Pantalla/ruta de la aplicacion para appointment.
+- mobile/src/app/admin/availability.tsx — Pantalla/ruta de la aplicacion para availability.
+- mobile/src/app/admin/catalog/[kind].tsx — Pantalla/ruta de la aplicacion para kind.
+- mobile/src/app/admin/client.tsx — Pantalla/ruta de la aplicacion para client.
+- mobile/src/app/admin/clients.tsx — Pantalla/ruta de la aplicacion para clients.
+- mobile/src/app/admin/clinic.tsx — Pantalla/ruta de la aplicacion para clinic.
+- mobile/src/app/admin/general-information.tsx — Pantalla/ruta de la aplicacion para general information.
+- mobile/src/app/admin/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/admin/patient.tsx — Pantalla/ruta de la aplicacion para patient.
+- mobile/src/app/admin/patients.tsx — Pantalla/ruta de la aplicacion para patients.
+- mobile/src/app/admin/permissions.tsx — Pantalla/ruta de la aplicacion para permissions.
+- mobile/src/app/admin/products.tsx — Pantalla/ruta de la aplicacion para products.
+- mobile/src/app/admin/professionals.tsx — Pantalla/ruta de la aplicacion para professionals.
+- mobile/src/app/admin/roles.tsx — Pantalla/ruta de la aplicacion para roles.
+- mobile/src/app/admin/specialties.tsx — Pantalla/ruta de la aplicacion para specialties.
+- mobile/src/app/admin/store.tsx — Pantalla/ruta de la aplicacion para store.
+- mobile/src/app/admin/store-banners.tsx — Pantalla/ruta de la aplicacion para store banners.
+- mobile/src/app/admin/store-orders.tsx — Pantalla/ruta de la aplicacion para store orders.
+- mobile/src/app/admin/store-settings.tsx — Pantalla/ruta de la aplicacion para store settings.
+- mobile/src/app/admin/users/[id].tsx — Pantalla/ruta de la aplicacion para id.
+- mobile/src/app/admin/users/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/admin/users/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/admin/veterinarians/[id].tsx — Pantalla/ruta de la aplicacion para id.
+- mobile/src/app/admin/veterinarians/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/admin/veterinarians/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/admin/veterinarians/specialties.tsx — Pantalla/ruta de la aplicacion para specialties.
+- mobile/src/app/change-initial-password.tsx — Pantalla/ruta de la aplicacion para change initial password.
+- mobile/src/app/client/(tabs)/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/client/(tabs)/appointments.tsx — Pantalla/ruta de la aplicacion para appointments.
+- mobile/src/app/client/(tabs)/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/client/(tabs)/pets.tsx — Pantalla/ruta de la aplicacion para pets.
+- mobile/src/app/client/(tabs)/profile.tsx — Pantalla/ruta de la aplicacion para profile.
+- mobile/src/app/client/(tabs)/store/[id].tsx — Pantalla/ruta de la aplicacion para id.
+- mobile/src/app/client/(tabs)/store/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/client/(tabs)/store/cart.tsx — Pantalla/ruta de la aplicacion para cart.
+- mobile/src/app/client/(tabs)/store/checkout.tsx — Pantalla/ruta de la aplicacion para checkout.
+- mobile/src/app/client/(tabs)/store/delivery.tsx — Pantalla/ruta de la aplicacion para delivery.
+- mobile/src/app/client/(tabs)/store/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/client/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/client/appointments/[id].tsx — Pantalla/ruta de la aplicacion para id.
+- mobile/src/app/client/appointments/request.tsx — Pantalla/ruta de la aplicacion para request.
+- mobile/src/app/client/medical-history.tsx — Pantalla/ruta de la aplicacion para medical history.
+- mobile/src/app/client/notifications.tsx — Pantalla/ruta de la aplicacion para notifications.
+- mobile/src/app/client/orders/[id].tsx — Pantalla/ruta de la aplicacion para id.
+- mobile/src/app/client/orders/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/client/payment-intents/[id].tsx — Pantalla/ruta de la aplicacion para id.
+- mobile/src/app/client/pets/[id]/edit.tsx — Pantalla/ruta de la aplicacion para edit.
+- mobile/src/app/client/pets/[id]/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/client/pets/new.tsx — Pantalla/ruta de la aplicacion para new.
+- mobile/src/app/client/prescriptions.tsx — Pantalla/ruta de la aplicacion para prescriptions.
+- mobile/src/app/client/profile/appearance.tsx — Pantalla/ruta de la aplicacion para appearance.
+- mobile/src/app/client/profile/edit.tsx — Pantalla/ruta de la aplicacion para edit.
+- mobile/src/app/client/profile/security.tsx — Pantalla/ruta de la aplicacion para security.
+- mobile/src/app/client/recommendations.tsx — Pantalla/ruta de la aplicacion para recommendations.
+- mobile/src/app/client/vaccines.tsx — Pantalla/ruta de la aplicacion para vaccines.
+- mobile/src/app/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/login.tsx — Pantalla/ruta de la aplicacion para login.
+- mobile/src/app/notifications.tsx — Pantalla/ruta de la aplicacion para notifications.
+- mobile/src/app/oauth.tsx — Pantalla/ruta de la aplicacion para oauth.
+- mobile/src/app/professional/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/professional/agenda.tsx — Pantalla/ruta de la aplicacion para agenda.
+- mobile/src/app/professional/appointment.tsx — Pantalla/ruta de la aplicacion para appointment.
+- mobile/src/app/professional/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/professional/patient.tsx — Pantalla/ruta de la aplicacion para patient.
+- mobile/src/app/professional/patients.tsx — Pantalla/ruta de la aplicacion para patients.
+- mobile/src/app/professional/services.tsx — Pantalla/ruta de la aplicacion para services.
+- mobile/src/app/register.tsx — Pantalla/ruta de la aplicacion para register.
+- mobile/src/app/reset-password.tsx — Pantalla/ruta de la aplicacion para reset password.
+- mobile/src/app/vet/[module].tsx — Pantalla/ruta de la aplicacion para module.
+- mobile/src/app/vet/_layout.tsx — Pantalla/ruta de la aplicacion para layout.
+- mobile/src/app/vet/agenda.tsx — Pantalla/ruta de la aplicacion para agenda.
+- mobile/src/app/vet/appointment.tsx — Pantalla/ruta de la aplicacion para appointment.
+- mobile/src/app/vet/client.tsx — Pantalla/ruta de la aplicacion para client.
+- mobile/src/app/vet/clients.tsx — Pantalla/ruta de la aplicacion para clients.
+- mobile/src/app/vet/index.tsx — Pantalla/ruta de la aplicacion para index.
+- mobile/src/app/vet/patient.tsx — Pantalla/ruta de la aplicacion para patient.
+- mobile/src/app/vet/patients.tsx — Pantalla/ruta de la aplicacion para patients.
+- mobile/src/app/vet/products.tsx — Pantalla/ruta de la aplicacion para products.
+- mobile/src/app/vet/profile.tsx — Pantalla/ruta de la aplicacion para profile.
+- mobile/src/app/vet/record.tsx — Pantalla/ruta de la aplicacion para record.
+- mobile/src/app/workspace.tsx — Pantalla/ruta de la aplicacion para workspace.
+- mobile/src/assets/auth-pets.png — Imagen/recurso visual auth pets utilizado por las pantallas de la aplicacion.
+- mobile/src/assets/img1.jpg — Imagen/recurso visual img1 utilizado por las pantallas de la aplicacion.
+- mobile/src/assets/login-full-pets.png — Imagen/recurso visual login full pets utilizado por las pantallas de la aplicacion.
+- mobile/src/assets/login-pets.png — Imagen/recurso visual login pets utilizado por las pantallas de la aplicacion.
+- mobile/src/assets/petcare-icon.png — Recurso grafico de marca (petcare icon) utilizado por la interfaz o el launcher.
+- mobile/src/assets/petcare-logo.png — Recurso grafico de marca (petcare logo) utilizado por la interfaz o el launcher.
+- mobile/src/assets/petcare-logo-dark.png — Recurso grafico de marca (petcare logo dark) utilizado por la interfaz o el launcher.
+- mobile/src/components/admin/AdminDataTable.tsx — Componente reutilizable Admin Data Table del area admin.
+- mobile/src/components/admin/AdminFormLayout.tsx — Componente reutilizable Admin Form Layout del area admin.
+- mobile/src/components/admin/AdminListToolbar.tsx — Componente reutilizable Admin List Toolbar del area admin.
+- mobile/src/components/admin/AdminPageHeading.tsx — Componente reutilizable Admin Page Heading del area admin.
+- mobile/src/components/admin/AdminPersonRow.tsx — Componente reutilizable Admin Person Row del area admin.
+- mobile/src/components/admin/AdminSectionHub.tsx — Componente reutilizable Admin Section Hub del area admin.
+- mobile/src/components/admin/AdminStatusBadge.tsx — Componente reutilizable Admin Status Badge del area admin.
+- mobile/src/components/admin/ConfirmNameModal.tsx — Componente reutilizable Confirm Name Modal del area admin.
+- mobile/src/components/admin/SpecialtiesScreen.tsx — Componente reutilizable Specialties Screen del area admin.
+- mobile/src/components/client/ClinicalScreen.tsx — Componente reutilizable Clinical Screen del area client.
+- mobile/src/components/client/GeneralInformationCard.tsx — Componente reutilizable General Information Card del area client.
+- mobile/src/components/client/PetBirthDate.tsx — Componente reutilizable Pet Birth Date del area client.
+- mobile/src/components/client/PetBirthDate.web.tsx — Componente reutilizable Pet Birth Date.web del area client.
+- mobile/src/components/client/PetCareDecorations.tsx — Componente reutilizable Pet Care Decorations del area client.
+- mobile/src/components/client/PetCareUI.tsx — Componente reutilizable Pet Care UI del area client.
+- mobile/src/components/client/PetEditor.tsx — Componente reutilizable Pet Editor del area client.
+- mobile/src/components/client/RecordCards.tsx — Componente reutilizable Record Cards del area client.
+- mobile/src/components/client/SlotSelectionCard.tsx — Componente reutilizable Slot Selection Card del area client.
+- mobile/src/components/client/Storefront.tsx — Componente reutilizable Storefront del area client.
+- mobile/src/components/clinic/AgendaScreen.tsx — Componente reutilizable Agenda Screen del area clinic.
+- mobile/src/components/clinic/AppointmentScreen.tsx — Componente reutilizable Appointment Screen del area clinic.
+- mobile/src/components/clinic/AvailabilityScreen.tsx — Componente reutilizable Availability Screen del area clinic.
+- mobile/src/components/clinic/CatalogScreen.tsx — Componente reutilizable Catalog Screen del area clinic.
+- mobile/src/components/clinic/ClientsScreen.tsx — Componente reutilizable Clients Screen del area clinic.
+- mobile/src/components/clinic/ClinicalScreen.tsx — Componente reutilizable Clinical Screen del area clinic.
+- mobile/src/components/clinic/ClinicProductsScreen.tsx — Componente reutilizable Clinic Products Screen del area clinic.
+- mobile/src/components/clinic/PatientDetailScreen.tsx — Componente reutilizable Patient Detail Screen del area clinic.
+- mobile/src/components/clinic/PatientLifecycleControl.tsx — Componente reutilizable Patient Lifecycle Control del area clinic.
+- mobile/src/components/clinic/PatientListCard.tsx — Componente reutilizable Patient List Card del area clinic.
+- mobile/src/components/clinic/PatientsScreen.tsx — Componente reutilizable Patients Screen del area clinic.
+- mobile/src/components/clinic/ProfessionalsScreen.tsx — Componente reutilizable Professionals Screen del area clinic.
+- mobile/src/components/clinic/StaffHome.tsx — Componente reutilizable Staff Home del area clinic.
+- mobile/src/components/clinic/VeterinarianProfileScreen.tsx — Componente reutilizable Veterinarian Profile Screen del area clinic.
+- mobile/src/components/forms/ActivationForm.tsx — Componente reutilizable Activation Form del area forms.
+- mobile/src/components/forms/AppInput.tsx — Componente reutilizable App Input del area forms.
+- mobile/src/components/forms/AppSelectField.tsx — Componente reutilizable App Select Field del area forms.
+- mobile/src/components/forms/AuthForm.tsx — Componente reutilizable Auth Form del area forms.
+- mobile/src/components/forms/CalendarDateField.tsx — Componente reutilizable Calendar Date Field del area forms.
+- mobile/src/components/forms/CalendarDateField.web.tsx — Componente reutilizable Calendar Date Field.web del area forms.
+- mobile/src/components/forms/ClinicDateTimeField.tsx — Componente reutilizable Clinic Date Time Field del area forms.
+- mobile/src/components/forms/ClinicTimeField.tsx — Componente reutilizable Clinic Time Field del area forms.
+- mobile/src/components/forms/ClinicTimeField.web.tsx — Componente reutilizable Clinic Time Field.web del area forms.
+- mobile/src/components/forms/ImageUploadField.tsx — Componente reutilizable Image Upload Field del area forms.
+- mobile/src/components/forms/OAuthRegistrationModal.tsx — Componente reutilizable OAuth Registration Modal del area forms.
+- mobile/src/components/forms/ProfilePhotoInput.tsx — Componente reutilizable Profile Photo Input del area forms.
+- mobile/src/components/forms/SearchableMultiSelect.tsx — Componente reutilizable Searchable Multi Select del area forms.
+- mobile/src/components/forms/VerificationCodeInput.tsx — Componente reutilizable Verification Code Input del area forms.
+- mobile/src/components/layout/AppBreadcrumbs.tsx — Componente reutilizable App Breadcrumbs del area layout.
+- mobile/src/components/layout/AuthHeader.tsx — Componente reutilizable Auth Header del area layout.
+- mobile/src/components/layout/BackButton.tsx — Componente reutilizable Back Button del area layout.
+- mobile/src/components/layout/EntryRedirect.tsx — Componente reutilizable Entry Redirect del area layout.
+- mobile/src/components/layout/GlobalNavigation.tsx — Componente reutilizable Global Navigation del area layout.
+- mobile/src/components/layout/LoginBrand.tsx — Componente reutilizable Login Brand del area layout.
+- mobile/src/components/layout/LoginLayout.tsx — Componente reutilizable Login Layout del area layout.
+- mobile/src/components/layout/LoginPets.tsx — Componente reutilizable Login Pets del area layout.
+- mobile/src/components/layout/PetCareLogo.tsx — Componente reutilizable Pet Care Logo del area layout.
+- mobile/src/components/layout/RoleBottomNavigation.tsx — Componente reutilizable Role Bottom Navigation del area layout.
+- mobile/src/components/layout/RoleNavigationContext.tsx — Componente reutilizable Role Navigation Context del area layout.
+- mobile/src/components/layout/RoleQuickAccess.tsx — Componente reutilizable Role Quick Access del area layout.
+- mobile/src/components/layout/ScreenContainer.tsx — Componente reutilizable Screen Container del area layout.
+- mobile/src/components/layout/WebScrollStyles.tsx — Componente reutilizable Web Scroll Styles del area layout.
+- mobile/src/components/layout/WebScrollStyles.web.tsx — Componente reutilizable Web Scroll Styles.web del area layout.
+- mobile/src/components/notifications/NotificationBridge.native.tsx — Componente reutilizable Notification Bridge.native del area notifications.
+- mobile/src/components/notifications/NotificationBridge.tsx — Componente reutilizable Notification Bridge del area notifications.
+- mobile/src/components/notifications/NotificationBridge.web.tsx — Componente reutilizable Notification Bridge.web del area notifications.
+- mobile/src/components/profile/AccountProfileScreen.tsx — Componente reutilizable Account Profile Screen del area profile.
+- mobile/src/components/ui/AppButton.tsx — Componente reutilizable App Button del area ui.
+- mobile/src/components/ui/AppModal.tsx — Componente reutilizable App Modal del area ui.
+- mobile/src/components/ui/AppText.tsx — Componente reutilizable App Text del area ui.
+- mobile/src/components/ui/CompactPagination.tsx — Componente reutilizable Compact Pagination del area ui.
+- mobile/src/components/ui/ConfirmModal.tsx — Componente reutilizable Confirm Modal del area ui.
+- mobile/src/components/ui/FilterDisclosure.tsx — Componente reutilizable Filter Disclosure del area ui.
+- mobile/src/components/ui/FormNotice.tsx — Componente reutilizable Form Notice del area ui.
+- mobile/src/components/ui/LoadingIndicator.tsx — Componente reutilizable Loading Indicator del area ui.
+- mobile/src/components/ui/OAuthLinks.tsx — Componente reutilizable OAuth Links del area ui.
+- mobile/src/components/ui/OAuthSignInOptions.tsx — Componente reutilizable OAuth Sign In Options del area ui.
+- mobile/src/components/ui/RecoveryNotice.tsx — Componente reutilizable Recovery Notice del area ui.
+- mobile/src/components/ui/SearchFilterBar.tsx — Componente reutilizable Search Filter Bar del area ui.
+- mobile/src/components/ui/SelectionRow.tsx — Componente reutilizable Selection Row del area ui.
+- mobile/src/components/ui/SocialLoginButton.tsx — Componente reutilizable Social Login Button del area ui.
+- mobile/src/components/ui/VerificationCodeModal.tsx — Componente reutilizable Verification Code Modal del area ui.
+- mobile/src/constants/responsive.ts — Constantes compartidas de responsive para la interfaz y la configuracion visual.
+- mobile/src/constants/surface.ts — Constantes compartidas de surface para la interfaz y la configuracion visual.
+- mobile/src/constants/theme.ts — Constantes compartidas de theme para la interfaz y la configuracion visual.
+- mobile/src/contexts/AuthContext.tsx — Contexto React Auth Context que comparte estado entre pantallas y componentes.
+- mobile/src/contexts/FeedbackContext.tsx — Contexto React Feedback Context que comparte estado entre pantallas y componentes.
+- mobile/src/contexts/StoreCheckoutContext.tsx — Contexto React Store Checkout Context que comparte estado entre pantallas y componentes.
+- mobile/src/contexts/ThemeContext.tsx — Contexto React Theme Context que comparte estado entre pantallas y componentes.
+- mobile/src/hooks/useAdmin.ts — Hook reutilizable use Admin para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useAsyncAction.ts — Hook reutilizable use Async Action para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useAuth.ts — Hook reutilizable use Auth para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useBackNavigation.ts — Hook reutilizable use Back Navigation para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useClient.ts — Hook reutilizable use Client para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useClientQuery.ts — Hook reutilizable use Client Query para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useClinic.ts — Hook reutilizable use Clinic para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useDebouncedValue.ts — Hook reutilizable use Debounced Value para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useTheme.ts — Hook reutilizable use Theme para encapsular estado o comportamiento de la app.
+- mobile/src/hooks/useUnsavedChangesGuard.tsx — Hook reutilizable use Unsaved Changes Guard para encapsular estado o comportamiento de la app.
+- mobile/src/services/admin.service.ts — Servicio/flujo admin.service para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/api.ts — Servicio/flujo api para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/auth.service.ts — Servicio/flujo auth.service para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/client.service.ts — Servicio/flujo client.service para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/clinic.service.ts — Servicio/flujo clinic.service para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/invitation-paths.ts — Servicio/flujo invitation paths para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/notification-events.ts — Servicio/flujo notification events para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/notification-path.ts — Servicio/flujo notification path para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/oauth.service.ts — Servicio/flujo oauth.service para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/oauth-flow.ts — Servicio/flujo oauth flow para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/session-store.ts — Servicio/flujo session store para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/verification.service.ts — Servicio/flujo verification.service para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/services/web-session-store.ts — Servicio/flujo web session store para comunicacion con la API, autenticacion o procesos de la app.
+- mobile/src/types/admin.ts — Tipos TypeScript de admin para describir datos y contratos del dominio.
+- mobile/src/types/auth.ts — Tipos TypeScript de auth para describir datos y contratos del dominio.
+- mobile/src/types/client.ts — Tipos TypeScript de client para describir datos y contratos del dominio.
+- mobile/src/types/clinic.ts — Tipos TypeScript de clinic para describir datos y contratos del dominio.
+- mobile/src/types/veterinarian.ts — Tipos TypeScript de veterinarian para describir datos y contratos del dominio.
+- mobile/src/utils/admin-permissions.ts — Funciones auxiliares de admin permissions para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/admin-route-access.ts — Funciones auxiliares de admin route access para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/agenda-screen-config.ts — Funciones auxiliares de agenda screen config para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/appointment-display.ts — Funciones auxiliares de appointment display para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/authorization.ts — Funciones auxiliares de authorization para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/auth-validation.ts — Funciones auxiliares de auth validation para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/back-navigation.ts — Funciones auxiliares de back navigation para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/capability-modules.ts — Funciones auxiliares de capability modules para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/checkout-validation.ts — Funciones auxiliares de checkout validation para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/clinic-date.ts — Funciones auxiliares de clinic date para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/display-labels.ts — Funciones auxiliares de display labels para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/exact-name-confirmation.ts — Funciones auxiliares de exact name confirmation para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/fulfillment.ts — Funciones auxiliares de fulfillment para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/invitation-label.ts — Funciones auxiliares de invitation label para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/mask-email.ts — Funciones auxiliares de mask email para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/navigation-dedupe.ts — Funciones auxiliares de navigation dedupe para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/navigation-tabs.ts — Funciones auxiliares de navigation tabs para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/oauth-availability.ts — Funciones auxiliares de oauth availability para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/password-reset-token.ts — Funciones auxiliares de password reset token para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/patient-screen-config.ts — Funciones auxiliares de patient screen config para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/personal-route-access.ts — Funciones auxiliares de personal route access para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/pet-date.ts — Funciones auxiliares de pet date para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/pet-photo.ts — Funciones auxiliares de pet photo para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/pet-status.ts — Funciones auxiliares de pet status para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/product-access.ts — Funciones auxiliares de product access para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/profile-photo.ts — Funciones auxiliares de profile photo para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/role-home.ts — Funciones auxiliares de role home para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/role-label.ts — Funciones auxiliares de role label para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/role-permission-selector.ts — Funciones auxiliares de role permission selector para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/search-normalization.ts — Funciones auxiliares de search normalization para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/single-flight.ts — Funciones auxiliares de single flight para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/store-fulfillment-validation.ts — Funciones auxiliares de store fulfillment validation para reglas, validaciones o navegacion reutilizable.
+- mobile/src/utils/submission-gate.ts — Funciones auxiliares de submission gate para reglas, validaciones o navegacion reutilizable.
+- mobile/tsconfig.json — Configuracion del compilador TypeScript y opciones de chequeo del proyecto.
+- mobile/vercel.json — Configuracion de build, cabeceras y rutas de despliegue web en Vercel.
+
+NOTA SOBRE LOS COMENTARIOS
+Los archivos TypeScript/JavaScript tienen comentarios de cabecera que explican su responsabilidad. En formatos JSON (app.json, package.json, package-lock.json, eas.json, tsconfig.json y vercel.json) no se agregan comentarios porque JSON no los admite y dejaria de ser valido; su funcion se documenta aqui. Las imagenes son binarios y tampoco permiten comentarios internos. README.md ya es la guia de uso; los archivos .gitignore, .npmrc y .env.example usan comentarios propios de su formato. El parche .patch se conserva como diff valido y su finalidad se explica en el inventario.

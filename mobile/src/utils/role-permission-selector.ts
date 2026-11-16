@@ -1,3 +1,7 @@
+/**
+ * Filtra los permisos que un administrador puede asignar a roles personalizados.
+ * Conserva permisos existentes fuera del selector y prepara ayudas legibles para la interfaz.
+ */
 import type { AdminPermission } from '../types/admin';
 
 /** Keeps the custom-role selector focused on permissions the current administrator can assign. */

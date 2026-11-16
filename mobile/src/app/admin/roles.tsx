@@ -8,7 +8,9 @@
  * IMPORTANCIA: Organiza capacidades por rol sin saltarse las reglas de privilegio del backend.
  */
 /**
- * Pantalla de roles para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ * Pantalla de roles para ADMIN/SUPER_ADMIN con los permisos exigidos. Usa los hooks y 
+ * servicios autenticados de su módulo (/admin o /clinic según la operación); no debe decidir
+ *  ownership ni privilegios a partir de parámetros locales.
  */
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';

@@ -1,4 +1,7 @@
 /**
+ * arma enlaces seguros del front para  invitaciones y recuperacion de contraseña
+ * 
+ * 
  * ARCHIVO: public-frontend.ts
  * UBICACIÓN: backend/src/config/public-frontend.ts
  * FUNCIÓN: Construye URLs públicas del frontend para invitaciones y recuperación.

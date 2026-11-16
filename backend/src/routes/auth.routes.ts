@@ -1,4 +1,9 @@
 /**
+ * Define las rutas para registrarse, iniciar sesión, verificar el correo, recuperar o cambiar la contraseña 
+ * y usar el inicio de sesión con Google, Facebook o X.
+ * 
+ * 
+ * 
  * ARCHIVO: auth.routes.ts
  * UBICACIÓN: backend/src/routes/auth.routes.ts
  * FUNCIÓN: Registra endpoints de autenticación local, verificación, OAuth y contraseñas.

@@ -9,6 +9,7 @@
  */
 /** Carga solo las especies estructurales ya versionadas, necesarias para la FK pets.species_id.
  * No agrega un seed nuevo ni datos de negocio. El runner original requiere SQL ausente del checkout.
+ * Carga datos de referencia para los formularios de clientes, como especies y razas.
  */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';

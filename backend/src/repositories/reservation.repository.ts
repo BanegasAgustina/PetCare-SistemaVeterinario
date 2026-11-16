@@ -1,4 +1,5 @@
-/**
+/**Busca reservas de compra que vencieron y libera el stock que habían apartado.
+ * 
  * ARCHIVO: reservation.repository.ts
  * UBICACIÓN: backend/src/repositories/reservation.repository.ts
  * FUNCIÓN: Vencimiento por lotes de reservas de checkout que no se confirmaron a tiempo.

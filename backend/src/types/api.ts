@@ -1,4 +1,8 @@
 /**
+ * Define el formato común de las respuestas. Si todo sale bien, la respuesta lleva success: true y los datos; 
+ * si hay un error, lleva success: false, un código y un mensaje.
+ * 
+ * 
  * ARCHIVO: api.ts
  * UBICACIÓN: backend/src/types/api.ts
  * FUNCIÓN: Contratos genéricos del sobre HTTP de éxito y error.

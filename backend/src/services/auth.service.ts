@@ -1,4 +1,8 @@
 /**
+ * Se ocupa del registro y el inicio de sesión con correo y contraseña. Coordina las validaciones, 
+ * la contraseña y la creación de la sesión.
+ * 
+ * 
  * ARCHIVO: auth.service.ts
  * UBICACIÓN: backend/src/services/auth.service.ts
  * FUNCIÓN: Registro y autenticación local de usuarios mediante correo y contraseña.

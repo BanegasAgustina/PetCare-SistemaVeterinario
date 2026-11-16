@@ -1,4 +1,8 @@
 /**
+ * Convierte las contraseñas en un formato cifrado de una sola dirección para guardarlas de manera más segura.
+ *  No busca usuarios ni guarda datos por su cuenta.
+ * 
+ * 
  * ARCHIVO: password.service.ts
  * UBICACIÓN: backend/src/services/password.service.ts
  * FUNCIÓN: Hash común de contraseñas mediante bcrypt y el costo configurado por el backend.

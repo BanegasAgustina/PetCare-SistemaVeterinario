@@ -8,6 +8,7 @@
  * IMPORTANCIA: Provee búsqueda con un componente común y acceso limitado por servidor.
  */
 /**
- * Ruta de pacientes para VETERINARIAN autenticado. Reutiliza el componente compartido exportado; este consulta /clinic. El layout presenta los accesos y backend aplica los permisos definitivos.
+ * Ruta de pacientes para VETERINARIAN autenticado. Reutiliza el componente compartido exportado; este consulta /clinic. 
+ * El layout presenta los accesos y backend aplica los permisos definitivos.
  */
 export { PatientsScreen as default } from '../../components/clinic/PatientsScreen';

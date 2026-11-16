@@ -1,4 +1,7 @@
 /**
+ * Crea el pool de conexiones MySQL compartido para el backend. configura UTF-8/UTC y BIGINT como string.--
+ * 
+ * 
  * ARCHIVO: database.ts
  * UBICACIÓN: backend/src/config/database.ts
  * FUNCIÓN: Define opciones y pool compartido para conexiones MySQL del backend.

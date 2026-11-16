@@ -1,4 +1,9 @@
 /**
+ * Busca los permisos y datos profesionales actuales de una persona. 
+ * Así el backend puede comprobar qué puede hacer usando la información guardada en la base.
+ * 
+ * 
+ * 
  * ARCHIVO: authorization.repository.ts
  * UBICACIÓN: backend/src/repositories/authorization.repository.ts
  * FUNCIÓN: Lectura de permisos efectivos y perfil profesional asociados a una identidad.

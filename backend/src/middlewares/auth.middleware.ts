@@ -1,13 +1,16 @@
 /**
- * ARCHIVO: auth.middleware.ts
- * UBICACIÓN: backend/src/middlewares/auth.middleware.ts
+ * Comprueba quién hace la solicitud. Busca el token de acceso —una credencial temporal que suele viajar en 
+ * el encabezado Bearer—, verifica que siga vigente y que la cuenta y la sesión estén activas. Si todo cierra, guarda los datos del usuario para que los pasos siguientes los puedan usar.
  * FUNCIÓN: Autentica solicitudes Bearer y carga identidad vigente desde almacenamiento.
  * RESPONSABILIDAD: Validar token, sesión y estado de cuenta antes de permitir que las rutas continúen.
  * CONEXIONES: Importa: backend/src/repositories/user.repository.ts, backend/src/services/token.service.ts, backend/src/repositories/session.repository.ts, backend/src/repositories/authorization.repository.ts, backend/src/utils/app-error.ts, backend/src/utils/account-session-guards.ts Se utiliza desde: backend/src/app.ts, backend/src/routes/admin.routes.ts, backend/src/routes/auth.routes.ts, backend/src/routes/client.routes.ts, backend/src/routes/clinic.routes.ts, backend/src/routes/media.routes.ts, backend/src/routes/notification.routes.ts, backend/src/routes/veterinarian.routes.ts
  * FUNCIONAMIENTO: Extrae access token, lo verifica, consulta usuario/sesión/versión y establece authenticatedUser/family en res.locals.
  * IMPORTANCIA: Es la frontera de identidad que usan routers protegidos.
  */
-/** Autentica JWT y revalida usuario/rol activo desde MySQL en cada solicitud protegida. */
+/** Autentica JWT y revalida usuario/rol activo desde MySQL en cada solicitud protegida.
+ * 
+ * Comprueba el token la sesion y el estado de la cuenta y adjunta la identidad autenticada a res.locals para que los pasos siguientes puedan usarla.
+ */
 import type { RequestHandler } from 'express';
 import { findUserById, publicUser } from '../repositories/user.repository';
 import { verifyAccessToken, accessTokenSessionVersion,accessTokenFamily } from '../services/token.service';

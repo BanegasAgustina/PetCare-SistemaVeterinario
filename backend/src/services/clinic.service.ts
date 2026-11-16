@@ -1,4 +1,7 @@
 /**
+ * Coordina las operaciones de la clínica, como la gestión de pacientes, servicios, productos y pedidos, aplicando los permisos necesarios.
+ * 
+ * 
  * ARCHIVO: clinic.service.ts
  * UBICACIÓN: backend/src/services/clinic.service.ts
  * FUNCIÓN: Casos de uso de clínica, administración de catálogo y operaciones del espacio veterinario.

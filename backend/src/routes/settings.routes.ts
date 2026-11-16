@@ -1,4 +1,6 @@
 /**
+ * Define una ruta pública para consultar información general de la clínica, como datos institucionales y horarios.
+ * 
  * ARCHIVO: settings.routes.ts
  * UBICACIÓN: backend/src/routes/settings.routes.ts
  * FUNCIÓN: Expone la lectura pública de información general de la clínica.

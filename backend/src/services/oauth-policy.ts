@@ -1,4 +1,8 @@
 /**
+ * Decide cómo tratar las cuentas cuando alguien inicia sesión con Google, Facebook o X: iniciar sesión, registrarse,
+ *  vincular una cuenta o informar un conflicto.
+ * 
+ * 
  * ARCHIVO: oauth-policy.ts
  * UBICACIÓN: backend/src/services/oauth-policy.ts
  * FUNCIÓN: Reglas puras para resolver acciones de OAuth y políticas de vinculación/verificación.

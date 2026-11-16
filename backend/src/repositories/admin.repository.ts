@@ -1,4 +1,7 @@
-/**
+/**Maneja tareas administrativas, como cambiar usuarios, roles, permisos y productos. 
+ * Protege las operaciones sensibles y evita devolver contraseñas cifradas.
+ * 
+ * 
  * ARCHIVO: admin.repository.ts
  * UBICACIÓN: backend/src/repositories/admin.repository.ts
  * FUNCIÓN: Consultas y mutaciones administrativas para usuarios, roles, permisos, productos y panel.
@@ -263,8 +266,7 @@ export async function updateRole(identity:AuthUser,id:string,value:unknown) {
     assertTarget(actor,{id,role:role.role});const changed=[...new Set([...role.permissions,...codes])].filter(code=>role.permissions.includes(code)!==codes.includes(code));
     const [catalog]=await c.execute<RowDataPacket[]>('SELECT id,code,is_critical FROM permissions');
     for(const code of codes)if(!catalog.some(p=>p.code===code))throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');
-    // Existing critical grants may be preserved while editing unrelated role settings,
-    // but they cannot be newly added to a custom role.
+   // No se permite quitar permisos críticos de roles del sistema ni agregar permisos críticos a roles personalizados.
     assertNoNewCriticalCustomRolePermissions(role.role,role.permissions,codes.map(code=>({code,critical:Boolean(catalog.find(item=>item.code===code)?.is_critical)})));
     assertRolePermissionDelegation(actor,changed.map(code=>{const p=catalog.find(item=>item.code===code);if(!p)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');return {code,critical:Boolean(p.is_critical)};}));
     await c.execute('UPDATE roles SET name=?,is_active=? WHERE id=?',[name,isActive?1:0,id]);await c.execute('DELETE FROM role_permissions WHERE role_id=?',[id]);
@@ -292,7 +294,7 @@ export async function createRole(identity:AuthUser,value:unknown) {
   const name=textField(body.name,'El nombre del rol',60);
   if(!Array.isArray(body.permissionCodes)||body.permissionCodes.length>1000||body.permissionCodes.some(p=>typeof p!=='string')||new Set(body.permissionCodes).size!==body.permissionCodes.length)throw new AppError('VALIDATION_ERROR',400,'Revisá los permisos del rol.');
   const codes=body.permissionCodes as string[];const code=roleCodeFromName(name);
-  // Keep the retired code reserved so it cannot be recreated as a custom role.
+  // Validación de código de rol: debe comenzar con mayúscula, contener solo mayúsculas, números o guiones bajos, y no ser un rol del sistema.
   if(!/^[A-Z][A-Z0-9_]{0,31}$/.test(code)||['CLIENT','VETERINARIAN','GROOMER','ADMIN','SUPER_ADMIN','SECRETARY'].includes(code))throw new AppError('VALIDATION_ERROR',400,'El nombre debe producir un código de rol nuevo y válido.');
   await transaction(async c=>{
     const actor=await freshAdmin(c,identity,'roles.manage','permissions.manage');
@@ -302,7 +304,7 @@ export async function createRole(identity:AuthUser,value:unknown) {
       const permission=catalog.find(item=>item.code===permissionCode);
       if(!permission)throw new AppError('INVALID_PERMISSION',400,'El permiso no existe.');
       if(permission.is_critical)forbidden('Un rol personalizado no puede recibir permisos críticos del administrador principal.');
-    }
+    }// Validación de delegación: el actor debe poder delegar todos los permisos que intenta asignar al nuevo rol.
     assertRolePermissionDelegation(actor,codes.map(permissionCode=>({code:permissionCode,critical:Boolean(catalog.find(item=>item.code===permissionCode)?.is_critical)})));
     const [existing]=await c.execute<RowDataPacket[]>('SELECT id FROM roles WHERE code=? OR name=? LIMIT 1 FOR UPDATE',[code,name]);
     if(existing.length)throw new AppError('ROLE_ALREADY_EXISTS',409,'Ya existe un rol con ese código o nombre.');

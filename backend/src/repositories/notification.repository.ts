@@ -1,4 +1,8 @@
 /**
+ * Guarda notificaciones para los clientes y evita crear duplicados si el mismo evento se procesa más de una vez.
+ * 
+ * 
+ * 
  * ARCHIVO: notification.repository.ts
  * UBICACIÓN: backend/src/repositories/notification.repository.ts
  * FUNCIÓN: Inserción idempotente de notificaciones para clientes.

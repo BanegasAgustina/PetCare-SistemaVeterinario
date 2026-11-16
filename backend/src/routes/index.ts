@@ -1,4 +1,6 @@
 /**
+ * Junta los routers y los organiza bajo la API. Si la dirección empieza con un prefijo como
+ * /client o /clinic, la deriva al archivo que corresponde. También conecta las rutas de estado del servidor.
  * ARCHIVO: index.ts
  * UBICACIÓN: backend/src/routes/index.ts
  * PROPÓSITO: Reunir los routers de cada dominio bajo un router principal de API.

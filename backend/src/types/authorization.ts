@@ -1,4 +1,8 @@
 /**
+ * Define los formatos de permisos, especialidades y perfiles veterinarios.
+ *  También incluye funciones que deciden si un permiso está habilitado, heredado del rol o reemplazado por una excepción.
+ * 
+ * 
  * ARCHIVO: authorization.ts
  * UBICACIÓN: backend/src/types/authorization.ts
  * FUNCIÓN: Contratos de permisos y perfiles profesionales más reglas de permiso efectivo.

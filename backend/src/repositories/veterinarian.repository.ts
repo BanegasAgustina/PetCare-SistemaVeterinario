@@ -1,4 +1,8 @@
 /**
+ * Guarda y consulta los perfiles de veterinarios, sus especialidades y estados. 
+ * También puede crear cuentas invitadas y actualizar perfiles.
+ * 
+ * 
  * ARCHIVO: veterinarian.repository.ts
  * UBICACIÓN: backend/src/repositories/veterinarian.repository.ts
  * FUNCIÓN: Persistencia de profesionales veterinarios, especialidades, perfiles y estados.

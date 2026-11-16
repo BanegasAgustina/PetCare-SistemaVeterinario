@@ -1,4 +1,8 @@
 /**
+ * Define las rutas para consultar, marcar como leídas u ocultar notificaciones del usuario autenticado.
+ *  También conserva algunas direcciones anteriores para mantener compatibilidad.
+ * 
+ * 
  * ARCHIVO: notification.routes.ts
  * UBICACIÓN: backend/src/routes/notification.routes.ts
  * FUNCIÓN: Declara rutas de notificaciones asociadas a una sesión.

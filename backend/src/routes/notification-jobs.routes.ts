@@ -1,4 +1,8 @@
 /**
+ * Define una ruta especial para que un proceso programado ejecute tareas de notificaciones. 
+ * Verifica que la solicitud venga autorizada, como una alarma automática del servidor.
+ * 
+ * 
  * ARCHIVO: notification-jobs.routes.ts
  * UBICACIÓN: backend/src/routes/notification-jobs.routes.ts
  * FUNCIÓN: Crea el endpoint de procesamiento de trabajos de notificación programados.

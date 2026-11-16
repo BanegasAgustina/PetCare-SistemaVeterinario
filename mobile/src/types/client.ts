@@ -8,7 +8,8 @@
  * IMPORTANCIA: Ubica el papel del módulo dentro del flujo de PetCare; las reglas específicas se describen en las funciones de este archivo y en la guía por archivos.
  */
 /**
- * Define mascotas, turnos, productos y registros reales de /client. Los valores nullable representan ausencia de un campo, sin crear entidades para completar la interfaz.
+ * Define mascotas, turnos, productos y registros reales de /client. Los valores nullable 
+ * representan ausencia de un campo, sin crear entidades para completar la interfaz.
  */
 /** Elemento identificable de un catálogo remoto. */
 export type CatalogItem={id:string;name:string};

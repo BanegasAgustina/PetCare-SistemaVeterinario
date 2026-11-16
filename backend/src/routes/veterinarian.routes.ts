@@ -1,4 +1,8 @@
 /**
+ * Define las rutas para administrar profesionales, enviar invitaciones, gestionar perfiles y especialidades, y
+ *  trabajar con funciones de veterinarios y groomers. Aplica controles de identidad, rol y permisos.
+ * 
+ * 
  * ARCHIVO: veterinarian.routes.ts
  * UBICACIÓN: backend/src/routes/veterinarian.routes.ts
  * FUNCIÓN: Declara administración veterinaria, invitaciones, especialidades, perfil profesional y fotos.
@@ -132,7 +136,8 @@ veterinarianPanelRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-
 veterinarianPanelRouter.use(authenticate,requireProfessionalIdentity(true));
 // veterinarianPanelRouter.post('/profile'): Consulta el perfil profesional autenticado
 veterinarianPanelRouter.post('/profile',handler(async(_req,res)=>{const user=res.locals.authenticatedUser as AuthUser;return {user,professional:user.professional,veterinarian:user.veterinarian};}));
-// veterinarianPanelRouter.patch('/profile'): Consulta el perfil profesional autenticado
+// PATCH /api/vet/profile: actualiza el perfil del veterinario autenticado; el ID sale de res.locals, no del body.
+// La validación y las escrituras transaccionales en users/veterinarians están en veterinarian-account.service.ts.
 veterinarianPanelRouter.patch('/profile',handler(async(req,res)=>updateOwnProfile((res.locals.authenticatedUser as AuthUser).id,req.body)));
 // veterinarianPanelRouter.put('/profile/password'): Cambia la contraseña del profesional autenticado Controles: límite de solicitudes.
 veterinarianPanelRouter.put('/profile/password',createAuthRateLimiter(5),handler(async(req,res)=>changeOwnPassword((res.locals.authenticatedUser as AuthUser).id,req.body)));

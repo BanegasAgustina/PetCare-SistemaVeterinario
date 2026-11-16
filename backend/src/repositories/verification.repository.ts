@@ -1,4 +1,8 @@
 /**
+ * Guarda y consulta los códigos de verificación de correo. 
+ * Coordina los intentos para evitar que dos solicitudes procesen el mismo código a la vez.
+ * 
+ * 
  * ARCHIVO: verification.repository.ts
  * UBICACIÓN: backend/src/repositories/verification.repository.ts
  * FUNCIÓN: Persistencia y bloqueo de desafíos de verificación de correo.

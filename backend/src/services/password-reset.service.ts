@@ -1,4 +1,8 @@
 /**
+ * Gestiona la recuperación de contraseña y el cambio obligatorio de contraseña inicial. 
+ * Cuando cambia la contraseña, también invalida sesiones anteriores.
+ * 
+ * 
  * ARCHIVO: password-reset.service.ts
  * UBICACIÓN: backend/src/services/password-reset.service.ts
  * FUNCIÓN: Solicitud y confirmación de recuperación de contraseña, además del cambio inicial obligatorio.

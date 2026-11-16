@@ -1,4 +1,4 @@
-/**
+/**Atiende la verificación del correo electrónico y el reenvío del código de verificación.
  * ARCHIVO: verification.controller.ts
  * UBICACIÓN: backend/src/controllers/verification.controller.ts
  * FUNCIÓN: Adaptar confirmación y reenvío de códigos de verificación a Express.

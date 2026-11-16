@@ -1,4 +1,8 @@
 /**
+ * Reúne consultas y cambios compartidos de la clínica, como turnos, pacientes y fichas. 
+ * También ayuda a limitar qué información puede ver cada persona.
+ * 
+ * 
  * ARCHIVO: clinic.repository.ts
  * UBICACIÓN: backend/src/repositories/clinic.repository.ts
  * FUNCIÓN: Consultas y transacciones compartidas de clínica: turnos, pacientes, clientes y registros clínicos.

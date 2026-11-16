@@ -1,4 +1,7 @@
 /**
+ * Prepara recordatorios y coordina su envío por correo. Si un envío falla, puede programar nuevos intentos sin duplicar la notificación.
+ * 
+ * 
  * ARCHIVO: notifications.service.ts
  * UBICACIÓN: backend/src/services/notifications.service.ts
  * FUNCIÓN: Generación de recordatorios de turnos y entrega reintentable de notificaciones por correo.

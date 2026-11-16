@@ -1,4 +1,8 @@
 /**
+ * Arma el pedido de la tienda y aparta el stock. Vuelve a revisar precios y disponibilidad 
+ * en el servidor para no depender de lo que mande la app.
+ * 
+ * 
  * ARCHIVO: store-checkout.repository.ts
  * UBICACIÓN: backend/src/repositories/store-checkout.repository.ts
  * FUNCIÓN: Creación transaccional de pedidos de tienda y reserva de inventario.

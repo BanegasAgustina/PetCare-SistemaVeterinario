@@ -1,4 +1,8 @@
 /**
+ * Crea y envía invitaciones para que una persona active su cuenta. 
+ * Controla que el enlace venza y se use una sola vez.
+ * 
+ * 
  * ARCHIVO: invitation.service.ts
  * UBICACIÓN: backend/src/services/invitation.service.ts
  * FUNCIÓN: Emisión, envío, renovación y aceptación de invitaciones de un solo uso.

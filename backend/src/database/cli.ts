@@ -1,4 +1,4 @@
-/**
+/**Interpreta y ejecuta desde la terminal las tareas administrativas de base de datos.
  * ARCHIVO: cli.ts
  * UBICACIÓN: backend/src/database/cli.ts
  * FUNCIÓN: Interfaz de línea de comandos para tareas administrativas de base de datos.

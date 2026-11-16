@@ -1,4 +1,9 @@
 /**
+ * Guarda y consume los datos temporales de los intentos de inicio de sesión con Google, Facebook o X. 
+ * Controla que los códigos de retorno y tickets no se usen dos veces.
+ * 
+ * 
+ * 
  * ARCHIVO: oauth.repository.ts
  * UBICACIÓN: backend/src/repositories/oauth.repository.ts
  * FUNCIÓN: Persistencia del estado temporal de intentos OAuth y su consumo seguro.

@@ -1,6 +1,6 @@
 /**
- * ARCHIVO: permission.middleware.ts
- * UBICACIÓN: backend/src/middlewares/permission.middleware.ts
+ * Es el encargado de responder cuando una ruta no existe o algo falla. Traduce los errores a un formato común y 
+ * evita mandar al cliente detalles internos de la base o del servidor.
  * FUNCIÓN: Fábricas y guards de autorización por rol, permiso, ruta personal y alcance de paciente.
  * RESPONSABILIDAD: Rechazar solicitudes fuera de rol/permisos o fuera del paciente asociado a la operación.
  * CONEXIONES: Importa: backend/src/types/auth.ts, backend/src/utils/app-error.ts, backend/src/config/database.ts, backend/src/utils/database-error.ts, backend/src/utils/personal-access.ts Se utiliza desde: backend/src/app.ts, backend/src/routes/admin.routes.ts, backend/src/routes/client.routes.ts, backend/src/routes/clinic.routes.ts, backend/src/routes/notification.routes.ts, backend/src/routes/veterinarian.routes.ts
@@ -67,7 +67,7 @@ export const requirePersonalAccess:RequestHandler=(req,res,next)=>{
   const user=res.locals.authenticatedUser as AuthUser|undefined;
   next(user&&canAccessPersonalRoute(user.role,user.permissions,req.method,req.path)?undefined:new AppError('FORBIDDEN',403,'No tenés permiso para este módulo personal.'));
 };
-/** Notification inbox access is role-scoped and never grants other personal, clinical, or administrative capabilities. */
+/** Caja de notificaciones */
 /** Autoriza acceso al centro de notificaciones para los roles permitidos. */
 export const requireNotificationAccess:RequestHandler=(_req,res,next)=>{
   const user=res.locals.authenticatedUser as AuthUser|undefined;

@@ -1,4 +1,8 @@
 /**
+ * Busca y crea cuentas de usuario. También prepara los datos que se pueden mostrar públicamente, 
+ * dejando afuera información privada como la contraseña cifrada.
+ * 
+ * 
  * ARCHIVO: user.repository.ts
  * UBICACIÓN: backend/src/repositories/user.repository.ts
  * FUNCIÓN: Acceso a cuentas de usuario para login, autenticación, sesión y registro cliente.

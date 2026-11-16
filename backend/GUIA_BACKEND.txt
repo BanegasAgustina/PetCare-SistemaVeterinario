@@ -1,0 +1,217 @@
+GUÍA DEL BACKEND DE PETCARE
+==========================
+
+Esta guía resume qué hace cada archivo de las carpetas de backend que revisamos, más app.ts y server.ts. Está escrita en lenguaje sencillo.
+
+IDEA GENERAL
+------------
+Una solicitud entra por app.ts, encuentra una ruta, pasa por los controles necesarios, llega al controlador y al servicio. El servicio aplica las reglas del sistema y suele pedirle a un repository que lea o guarde datos en MySQL.
+
+Palabras útiles:
+- Ruta o endpoint: dirección de la API a la que llama la app.
+- Middleware: puesto de control que una solicitud atraviesa antes de llegar a su destino.
+- Repository: código que consulta o modifica la base de datos.
+- Servicio: código que coordina las reglas de negocio.
+- Migración: cambio ordenado a la estructura de la base, como agregar una tabla o columna.
+- Seed: carga de datos iniciales, como catálogos o permisos.
+- Transacción: grupo de cambios que se guarda todo junto para no dejar datos a medio hacer.
+- Hash o huella: representación que permite verificar un secreto sin guardar el secreto original.
+- JWT/token: credencial temporal que identifica una sesión.
+- OAuth: inicio de sesión usando una cuenta externa, como Google.
+- Solo lectura: inspecciona o informa, pero no modifica la base.
+
+ARCHIVOS PRINCIPALES
+--------------------
+
+app.ts
+Construye la aplicación Express. Configura seguridad, CORS y lectura de solicitudes; aplica límites especiales a cargas de imágenes y comprobantes; conecta rutas de API y maneja rutas inexistentes y errores. También ofrece una ruta privada para obtener fotos de mascotas.
+
+server.ts
+Arranca el servidor HTTP en el puerto configurado. Revisa reservas vencidas al iniciar y después cada 30 segundos. Al apagar el proceso, cierra el servidor y las conexiones a la base de forma ordenada.
+
+CARPETA config
+--------------
+Guarda los ajustes compartidos del backend y valida la configuración del entorno.
+
+database.ts: crea el pool compartido de conexiones MySQL, configura UTF-8 y UTC y limita cuántas conexiones se abren.
+env.ts: lee y valida variables de entorno como puerto, base, CORS, TLS, bcrypt y JWT. Frena el arranque si algunos ajustes son inválidos.
+mail.ts: valida la configuración SMTP y el secreto usado para verificar correos.
+oauth.ts: valida los proveedores Google, Facebook y X, el origen público del backend y las URLs de retorno autorizadas.
+public-frontend.ts: arma enlaces seguros del frontend para invitaciones y recuperación de contraseña.
+
+CARPETA controllers
+-------------------
+Conecta las solicitudes HTTP con los servicios y arma la respuesta de la API.
+
+auth.controller.ts: registro, login, usuario actual, recuperación y cambio de contraseña.
+client.controller.ts: operaciones del área de clientes; pasa al servicio la identidad autenticada y presenta fotos.
+clinic.controller.ts: operaciones clínicas y administrativas, como productos y recursos de la clínica.
+database-health.controller.ts: comprueba si el backend puede conectarse a MySQL.
+health.controller.ts: informa si la API está activa, sin consultar MySQL.
+oauth.controller.ts: inicio y retorno OAuth, vinculación de cuentas, renovación y cierre de sesión.
+verification.controller.ts: confirma códigos de verificación de correo o pide que se reenvíen.
+
+CARPETA database
+----------------
+Contiene herramientas de terminal y módulos que preparan, actualizan o inspeccionan la base. No todos se ejecutan con cada solicitud HTTP.
+
+appointment-details-migrate.ts: agrega a los turnos campos para detalles y observaciones.
+auth-migrate.ts: aplica migraciones del esquema de autenticación, como usuarios y roles.
+availability-archive-migrate.ts: permite retirar horarios sin borrar sus registros.
+bootstrap.ts: coordina la preparación de la base con migraciones y cargas iniciales.
+cli.ts: interpreta tareas de base solicitadas desde la terminal.
+client-migrate.ts: revisa el historial y las huellas de migraciones de clientes, y aplica las pendientes en orden. Comprueba una migración histórica archivada y permite reanudar una migración específica si quedó incompleta.
+client-reference-seed.ts: carga datos de referencia, como especies de mascotas.
+clinic-migrate.ts: ejecuta migraciones SQL del área clínica.
+clinic-reconcile.ts: compara los índices de clínica existentes con los esperados y corrige diferencias controladas.
+clinic-schema-migrate.ts: agrupa cambios clínicos, como detalles de turnos y motivos de cancelación.
+create-database.ts: crea la base configurada si todavía no existe.
+create-super-admin.ts: asistente local de terminal para crear la primera cuenta superadministradora.
+employee-password-migrate.ts: agrega la marca para que ciertos empleados establezcan su contraseña propia.
+lock.ts: pone un candado para que dos tareas de mantenimiento no modifiquen la base a la vez.
+migration-files.ts: busca, ordena y valida archivos SQL, y comprueba que coincidan con el historial.
+migration-preflight-readonly.ts: revisa si la base está lista antes de ciertas migraciones, sin modificarla.
+migration-runner.ts: ejecuta en orden las migraciones pendientes y registra cuáles terminaron.
+oauth-callbacks.ts: muestra las URLs de retorno que hay que configurar en proveedores OAuth.
+password-reset-migrate.ts: prepara el esquema para tokens de recuperación de contraseña.
+patient-invitation-migrate.ts: prepara la relación entre pacientes y cuentas de clientes invitados.
+patient-permissions-migrate.ts: agrega o verifica permisos para que el personal gestione pacientes.
+pet-form-migrate.ts: actualiza el esquema y catálogos usados por los formularios de mascotas.
+pet-photo-migrate.ts: prepara el campo de fotos de mascotas y trata referencias antiguas.
+pet-sex-migrate.ts: ajusta los valores admitidos para el sexo de las mascotas.
+petcare-cleanup-layerbase-audit.ts: inspecciona tablas y relaciones de Layerbase sin cambiarlas.
+petcare-cleanup-preview.ts: muestra dependencias y cantidades de datos que podría afectar una limpieza futura; no borra nada.
+product-origin-migrate.ts: adapta los datos que indican el origen o responsable de productos.
+product-origin-schema.ts: compara el esquema actual de productos y arma un plan; no ejecuta SQL por sí mismo.
+profile-photo-migrate.ts: agrega o adapta el campo de referencia a la foto de perfil.
+promote-super-admin.ts: herramienta local para asignar explícitamente el rol superadministrador a una cuenta.
+reservation-reason-migrate.ts: agrega el motivo de cancelación o vencimiento de una reserva.
+role-status-migrate.ts: agrega a los roles una marca de activo/inactivo.
+seed-runner.ts: carga datos iniciales de referencia, como catálogos y permisos.
+sql-audit-readonly.ts: revisa consultas y metadatos y genera un informe sin cambiar datos.
+user-deletion-migrate.ts: agrega campos para dar de baja usuarios sin perder su historial relacionado.
+veterinarian-clinical-migrate.ts: actualiza campos clínicos vinculados a veterinarios y turnos.
+
+CARPETA middlewares
+-------------------
+Son controles que corren antes de ciertas rutas. Pueden dejar pasar una solicitud, rechazarla o agregar datos útiles.
+
+auth-diagnostics.middleware.ts: registra el inicio y resultado de login/renovación con un identificador, sin guardar secretos ni datos personales.
+auth-rate-limit.middleware.ts: limita intentos repetidos por IP en rutas sensibles.
+auth.middleware.ts: comprueba el token, la sesión y el estado de la cuenta, y deja disponible la identidad validada.
+error.middleware.ts: convierte errores y rutas inexistentes en respuestas seguras y uniformes.
+permission.middleware.ts: verifica roles, permisos y acceso al paciente o recurso solicitado.
+proxy-trust.middleware.ts: configura si Express debe confiar en la IP reenviada por el proxy de despliegue.
+
+Autenticación responde “quién sos”; autorización responde “qué podés hacer”. Si no hay una sesión válida, suele corresponder 401; si hay sesión pero falta permiso, suele corresponder 403.
+
+CARPETA repositories
+--------------------
+Son los módulos que leen o escriben información en la base de datos.
+
+admin.repository.ts: operaciones administrativas sobre usuarios, roles, permisos y productos.
+authorization.repository.ts: busca permisos efectivos y perfiles profesionales actuales.
+client.repository.ts: guarda y consulta mascotas, turnos y otros datos del cliente, limitándolos a su propietario.
+clinic-admin.repository.ts: administra catálogos, servicios, profesionales y disponibilidad.
+clinic.repository.ts: consultas y transacciones compartidas de turnos, pacientes y fichas clínicas.
+delivery-address.repository.ts: consulta y administra direcciones de entrega propias del cliente.
+general-information.repository.ts: guarda y consulta información pública y horarios de la clínica.
+notification.repository.ts: guarda notificaciones y evita duplicados del mismo evento.
+oauth.repository.ts: persiste intentos OAuth y controla que callbacks y tickets se usen una sola vez.
+reservation.repository.ts: encuentra reservas vencidas y libera el stock que habían apartado.
+session.repository.ts: guarda huellas de tokens de renovación, y permite rotar o revocar sesiones.
+store-checkout.repository.ts: crea pedidos y aparta stock en una transacción; recalcula los importes en el servidor.
+store-orders.repository.ts: consulta pedidos y gestiona estados o logística según el permiso.
+store-payment.repository.ts: guarda comprobantes de pago y permite su revisión autorizada.
+storefront.repository.ts: administra banners, promociones y opciones de entrega y retiro de la tienda.
+user.repository.ts: busca y crea usuarios, y prepara los datos públicos sin exponer campos privados.
+verification.repository.ts: guarda y consulta desafíos de verificación de correo, coordinando operaciones simultáneas.
+veterinarian.repository.ts: guarda perfiles, especialidades y estados de veterinarios y profesionales.
+
+CARPETA routes
+--------------
+Define las direcciones de la API y qué controles se aplican antes de llamar al controlador.
+
+admin.routes.ts: rutas para administrar usuarios, permisos, roles y tienda.
+auth.routes.ts: rutas de registro, login, verificación, OAuth y contraseñas.
+client.routes.ts: rutas de mascotas, turnos, tienda, pedidos y perfil del cliente.
+clinic.routes.ts: rutas de pacientes, agenda, catálogo, disponibilidad y tareas clínicas.
+index.ts: junta routers y los deriva según el prefijo de la URL; también conecta las rutas de estado.
+media.routes.ts: rutas para preparar y verificar cargas directas de imágenes.
+notification-jobs.routes.ts: ruta interna autorizada para que tareas programadas procesen notificaciones.
+notification.routes.ts: rutas para consultar y administrar notificaciones del usuario autenticado.
+settings.routes.ts: ruta pública para consultar datos generales de la clínica.
+veterinarian.routes.ts: rutas de administración de profesionales, invitaciones, perfiles y especialidades.
+
+CARPETA services
+----------------
+Coordina reglas de negocio y combina validadores, repositories y otros servicios.
+
+admin-account.service.ts: permite a administradores modificar su propia cuenta y contraseña.
+auth.service.ts: coordina registro e inicio de sesión con email y contraseña.
+bootstrap-super-admin.service.ts: crea de forma local y controlada la primera cuenta superadministradora.
+client.service.ts: aplica reglas para perfil, mascotas, turnos y operaciones del cliente.
+clinic.service.ts: coordina operaciones clínicas y administrativas de la clínica.
+database.service.ts: comprueba conexión y compatibilidad de MySQL/MariaDB.
+direct-image-upload.service.ts: prepara y verifica cargas de imágenes a Cloudinary.
+invitation.service.ts: crea, envía y acepta invitaciones de un solo uso.
+mail.service.ts: envía correos de verificación, invitación, recuperación y notificación.
+notifications.service.ts: crea recordatorios y coordina envíos y reintentos.
+oauth-policy.ts: decide si un acceso externo inicia sesión, registra, vincula o genera un conflicto.
+oauth-provider.service.ts: intercambia códigos con Google/Facebook/X y obtiene una identidad externa.
+oauth.service.ts: coordina el flujo OAuth con PetCare, incluida la vinculación o alta de la cuenta.
+password-reset.service.ts: solicita y completa recuperación de contraseña e invalida sesiones anteriores.
+password.service.ts: genera huellas bcrypt de contraseñas; no administra cuentas ni guarda datos.
+pet-photo.service.ts: valida, procesa y presenta fotos de mascotas y otros recursos visuales.
+session.service.ts: crea y renueva sesiones de PetCare comprobando el estado actual de la cuenta.
+token.service.ts: firma y verifica tokens temporales de acceso.
+verification.service.ts: genera, reenvía y valida códigos de verificación de correo.
+veterinarian-account.service.ts: permite al veterinario actualizar su propio perfil y contraseña.
+
+CARPETA types
+-------------
+Define moldes de datos para que los módulos usen los mismos campos y formatos.
+
+api.ts: define el formato estándar de respuestas exitosas y de error.
+auth.ts: define usuarios, roles, credenciales de entrada y sesiones; separa datos públicos de datos privados.
+authorization.ts: define permisos y perfiles profesionales, y resuelve cuándo un permiso queda habilitado.
+verification.ts: define los datos de respuesta de un desafío de verificación de correo.
+
+CARPETA utils
+-------------
+Reúne ayudantes reutilizables y reglas pequeñas compartidas.
+
+account-session-guards.ts: decide si una cuenta y su sesión siguen vigentes.
+admin-authorization.ts: comprueba permisos para acciones administrativas.
+admin-destructive-actions.ts: protege acciones delicadas sobre roles y cuentas, incluido que quede un superadministrador activo.
+app-error.ts: da formato común a errores esperados de la aplicación.
+appointment-cancellation.ts: valida el motivo de cancelación de un turno.
+appointment-order.ts: mantiene un criterio común para ordenar turnos.
+availability-lifecycle.ts: decide si un horario archivado puede volver a publicarse.
+catalog-presentation.ts: convierte códigos internos de roles, permisos y catálogos en nombres entendibles.
+clinic-rules.ts: define transiciones permitidas de turnos y detecta horarios superpuestos.
+clinical-presentation.ts: quita de la ficha del cliente los datos reservados para profesionales.
+cron-auth.ts: verifica la credencial de las tareas automáticas.
+database-error.ts: traduce errores de MySQL a mensajes seguros para la aplicación.
+mask-email.ts: oculta parte de un email antes de mostrarlo.
+notification-date.ts: presenta fechas y horarios de notificaciones en español argentino.
+password-reset-token.ts: comprueba el formato de los tokens para restablecer contraseñas.
+personal-access.ts: determina los permisos mínimos para una ruta personal.
+pet-lifecycle.ts: controla reglas para activar, desactivar o reactivar mascotas/pacientes.
+public-frontend-url.ts: arma enlaces autorizados de invitación y recuperación.
+register-diagnostics.ts: ayuda a investigar fallos de registro sin guardar datos sensibles.
+role-code.ts: convierte el nombre de un rol a su código interno estable.
+store-order-transitions.ts: determina qué cambios de estado permite un pedido.
+
+CARPETA validators
+------------------
+Revisa los datos que llegan al backend antes de usarlos. La validación de la app ayuda, pero el servidor también tiene que revisar porque no puede confiar en cualquier solicitud entrante.
+
+auth.validator.ts: valida y normaliza nombres, email, teléfono y contraseña para registro o login.
+client.validator.ts: valida IDs, datos de mascotas, imágenes, cantidades, direcciones y campos del cliente.
+clinic.validator.ts: valida datos de clínica, catálogos, productos, disponibilidad y fechas.
+store-checkout.validator.ts: valida dirección, pago y demás datos para finalizar una compra; ayuda a evitar pedidos duplicados por reintentos.
+verification.validator.ts: valida formato del código y token de verificación; no envía el correo ni consulta la base.
+veterinarian.validator.ts: valida perfiles, invitaciones, matrículas, especialidades y permisos profesionales.
+
+FIN DE LA GUÍA

@@ -1,4 +1,7 @@
 /**
+ * Crea y verifica los tokens temporales que permiten identificar una sesión en cada solicitud.
+ * 
+ * 
  * ARCHIVO: token.service.ts
  * UBICACIÓN: backend/src/services/token.service.ts
  * FUNCIÓN: Creación y verificación de access tokens JWT de corta duración.

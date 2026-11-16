@@ -1,4 +1,8 @@
 /**
+ * Valida, procesa y prepara las fotos de mascotas y otros recursos visuales para mostrarlos. 
+ * También controla quién puede acceder a cada imagen.
+ * 
+ * 
  * ARCHIVO: pet-photo.service.ts
  * UBICACIÓN: backend/src/services/pet-photo.service.ts
  * FUNCIÓN: Validación, optimización, almacenamiento y presentación de fotos de mascotas y otros recursos visuales.

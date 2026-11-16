@@ -1,3 +1,7 @@
+/**
+ * Selecciona las rutas principales y secundarias que se muestran en la navegacion por rol.
+ * Tambien resuelve que pestana queda activa y los accesos rapidos permitidos.
+ */
 export type RoleNavigationItem = { label:string;path:string;icon:string;group?:string };
 
 /** The caller supplies only authorized destinations; the first destination is the panel home. */

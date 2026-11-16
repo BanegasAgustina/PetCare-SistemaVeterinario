@@ -1,4 +1,9 @@
 /**
+ * Crea y renueva las sesiones de PetCare. Al renovar, 
+ * vuelve a comprobar en la base que la cuenta siga activa.
+ * 
+ * 
+ * 
  * ARCHIVO: session.service.ts
  * UBICACIÓN: backend/src/services/session.service.ts
  * FUNCIÓN: Emisión y renovación de sesiones de PetCare contra el estado actual de la cuenta.

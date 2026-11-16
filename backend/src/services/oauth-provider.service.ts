@@ -1,4 +1,7 @@
 /**
+ * Habla con Google, Facebook o X durante el inicio de sesión externo y obtiene los datos de identidad que necesita PetCare.
+ * 
+ * 
  * ARCHIVO: oauth-provider.service.ts
  * UBICACIÓN: backend/src/services/oauth-provider.service.ts
  * FUNCIÓN: Intercambio de códigos OAuth y normalización de identidades de Google, Facebook y X.

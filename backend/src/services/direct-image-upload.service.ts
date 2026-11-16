@@ -1,4 +1,8 @@
 /**
+ * Prepara y verifica la carga directa de imágenes a Cloudinary.
+ *  Revisa que la persona esté autorizada y que el archivo cumpla las condiciones esperadas.
+ * 
+ * 
  * ARCHIVO: direct-image-upload.service.ts
  * UBICACIÓN: backend/src/services/direct-image-upload.service.ts
  * FUNCIÓN: Firma y verifica cargas directas de imágenes a Cloudinary.

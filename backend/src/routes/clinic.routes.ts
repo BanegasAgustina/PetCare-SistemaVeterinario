@@ -1,4 +1,9 @@
 /**
+ * Define las rutas de la clínica, como pacientes, agenda, catálogo, disponibilidad y pedidos. 
+ * Comprueba la identidad y los permisos antes de permitir cada operación.
+ * 
+ * 
+ * 
  * ARCHIVO: clinic.routes.ts
  * UBICACIÓN: backend/src/routes/clinic.routes.ts
  * FUNCIÓN: Declara endpoints de consulta y edición clínica y administrativa de la clínica.

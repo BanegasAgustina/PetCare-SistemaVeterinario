@@ -1,4 +1,9 @@
 /**
+ * Guarda y consulta información del área de clientes, como mascotas, turnos, datos clínicos 
+ * y pedidos. Limita las consultas a los datos que corresponden al usuario.
+ * 
+ * 
+ * 
  * ARCHIVO: client.repository.ts
  * UBICACIÓN: backend/src/repositories/client.repository.ts
  * FUNCIÓN: Persistencia del área cliente: mascotas, turnos, datos clínicos, tienda, pedidos y notificaciones.
@@ -203,7 +208,7 @@ export async function readNotification(owner:string,id:string){const [rows]=awai
 export async function readAllNotifications(owner:string){await databasePool.execute('UPDATE client_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE owner_id=? AND hidden_at IS NULL AND read_at IS NULL',[owner]);return {read:true};}
 /** Oculta una notificación propia sin eliminar el registro histórico. */
 export async function hideNotification(owner:string,id:string){const [result]=await databasePool.execute<ResultSetHeader>('UPDATE client_notifications SET hidden_at=COALESCE(hidden_at,UTC_TIMESTAMP(3)) WHERE id=? AND owner_id=?',[id,owner]);if(!result.affectedRows)throw new AppError('NOT_FOUND',404,'Notificación no encontrada.');return {hidden:true};}
-/** Actualiza nombre, apellido y teléfono de la cuenta identificada. */
+/** Persistencia de PATCH /api/client/profile: firstName→first_name, lastName→last_name y phone→phone en users. owner es el ID autenticado. */
 export async function updateProfile(owner:string,firstName:string,lastName:string,phone:string|null){await databasePool.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=?',[firstName,lastName,phone,owner]);return {updated:true};}
 /** Verifica que el hash esperado siga vigente, actualiza contraseña y aumenta session_version en transacción. */
 export async function changePassword(owner:string,expectedHash:string,newHash:string){return transaction(async c=>{const [rows]=await c.execute<RowDataPacket[]>('SELECT password_hash FROM users WHERE id=? FOR UPDATE',[owner]);if(rows[0]?.password_hash!==expectedHash)throw new AppError('INVALID_CREDENTIALS',401,'Tu contraseña cambió. Iniciá sesión nuevamente.');await c.execute('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=?',[newHash,owner]);return {updated:true};});}

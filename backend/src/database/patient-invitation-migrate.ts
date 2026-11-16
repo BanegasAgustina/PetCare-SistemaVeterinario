@@ -1,4 +1,4 @@
-/**
+/**prepara la base para invitar al titular de un paciente y vincularlo con su cuenta.
  * ARCHIVO: patient-invitation-migrate.ts
  * UBICACIÓN: backend/src/database/patient-invitation-migrate.ts
  * FUNCIÓN: Actualiza el esquema necesario para invitar titulares de pacientes.

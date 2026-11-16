@@ -1,4 +1,4 @@
-/**
+/**Comprueba si el backend puede conectarse a MySQL y responde con el estado de la base de datos.
  * ARCHIVO: database-health.controller.ts
  * UBICACIÓN: backend/src/controllers/database-health.controller.ts
  * FUNCIÓN: Construye el handler de diagnóstico de conexión a la base de datos.

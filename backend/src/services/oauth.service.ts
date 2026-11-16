@@ -1,4 +1,8 @@
 /**
+ * Coordina el proceso completo de inicio de sesión externo: 
+ * desde que arranca hasta que se vincula o crea una cuenta de PetCare.
+ * 
+ * 
  * ARCHIVO: oauth.service.ts
  * UBICACIÓN: backend/src/services/oauth.service.ts
  * FUNCIÓN: Inicio, callback, intercambio, registro y vinculación de cuentas mediante OAuth.

@@ -1,4 +1,7 @@
 /**
+ * Guarda y consulta la información general de la clínica, como sus datos públicos y horarios de atención.
+ * 
+ * 
  * ARCHIVO: general-information.repository.ts
  * UBICACIÓN: backend/src/repositories/general-information.repository.ts
  * FUNCIÓN: Validación y persistencia de información pública de la clínica y horarios de atención.

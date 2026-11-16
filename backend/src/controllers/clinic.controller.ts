@@ -1,4 +1,5 @@
-/**
+/**Maneja las operaciones clínicas y administrativas, como las solicitudes relacionadas con la clínica y sus productos. Delega el trabajo al servicio clínico y prepara las imágenes de productos para la respuesta JSON. 
+ * Se asegura de que la identidad autenticada esté disponible y maneja errores de base de datos.
  * ARCHIVO: clinic.controller.ts
  * UBICACIÓN: backend/src/controllers/clinic.controller.ts
  * FUNCIÓN: Crea manejadores HTTP para operaciones del área clínica y administrativa.
@@ -8,7 +9,8 @@
  * IMPORTANCIA: Separa el protocolo HTTP de las reglas clínicas y consultas de datos.
  */
 /**
- * Adapta solicitudes de clínica al servicio y al contrato JSON. Pasa el actor autenticado y los parámetros; los permisos y el alcance se controlan antes de consultar o modificar datos.
+ * Adapta solicitudes de clínica al servicio y al contrato JSON. Pasa el actor autenticado y los parámetros; los permisos y 
+ * el alcance se controlan antes de consultar o modificar datos.
  */
 import type { RequestHandler } from 'express';
 import { clinicOperation } from '../services/clinic.service';

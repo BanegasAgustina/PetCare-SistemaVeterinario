@@ -1,4 +1,8 @@
 /**
+ * Define las rutas para preparar y verificar la carga directa de imágenes. 
+ * Pide iniciar sesión y limita los intentos; no expone claves permanentes para subir archivos.
+ * 
+ * 
  * ARCHIVO: media.routes.ts
  * UBICACIÓN: backend/src/routes/media.routes.ts
  * FUNCIÓN: Declara endpoints para obtener parámetros de carga directa de imágenes.

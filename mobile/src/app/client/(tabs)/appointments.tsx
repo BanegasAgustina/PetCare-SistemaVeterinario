@@ -8,7 +8,8 @@
  * IMPORTANCIA: Conecta solicitudes y cancelaciones del usuario con reglas de disponibilidad/propiedad del backend.
  */
 /**
- * Pantalla de turnos propios para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación); no debe decidir ownership ni privilegios a partir de parámetros locales.
+ * Pantalla de turnos propios para CLIENT autenticado. Usa los hooks y servicios autenticados de su módulo (/client o /clinic según la operación);
+ *  no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
 import { useCallback,useState } from 'react';
 import { router } from 'expo-router';

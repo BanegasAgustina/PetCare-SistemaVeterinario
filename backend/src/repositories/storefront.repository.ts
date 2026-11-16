@@ -1,4 +1,7 @@
 /**
+ * Maneja lo que se muestra en la tienda, como banners, promociones, opciones de envío y retiro. No crea pedidos ni aparta stock.
+ * 
+ * 
  * ARCHIVO: storefront.repository.ts
  * UBICACIÓN: backend/src/repositories/storefront.repository.ts
  * FUNCIÓN: Lectura pública y administración de banners, promociones y configuración de entrega de la tienda.

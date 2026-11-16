@@ -1,4 +1,7 @@
 /**
+ * Permite que un administrador edite su propia cuenta o cambie su contraseña. No le permite elegir otra cuenta para modificarla.
+ * 
+ * 
  * ARCHIVO: admin-account.service.ts
  * UBICACIÓN: backend/src/services/admin-account.service.ts
  * FUNCIÓN: Edición del perfil propio y cambio de contraseña para cuentas ADMIN y SUPER_ADMIN.
@@ -23,7 +26,7 @@ function bodyObject(value: unknown, allowed: string[]): Record<string, unknown> 
   return value as Record<string, unknown>;
 }
 
-/** Valida nombre, apellido y teléfono; confirma que la cuenta activa exista y actualiza sus datos propios. */
+/** PUT /api/admin/account: valida nombre, apellido y teléfono, confirma que la cuenta esté activa y modifica users. */
 export async function updateOwnProfile(userId: string, value: unknown) {
   const body = bodyObject(value, ['firstName', 'lastName', 'phone']);
   const firstName = readName(body.firstName, 'El nombre');
@@ -31,6 +34,7 @@ export async function updateOwnProfile(userId: string, value: unknown) {
   const phone = readRequiredPhone(body.phone);
   const [existing] = await databasePool.execute<RowDataPacket[]>('SELECT id FROM users WHERE id=? AND is_active=1', [userId]);
   if (!existing.length) throw new AppError('NOT_FOUND', 404, 'No encontramos una cuenta activa para actualizar.');
+  // Esta consulta es la escritura en MySQL; limita la modificación a la cuenta activa de la sesión.
   await databasePool.execute('UPDATE users SET first_name=?,last_name=?,phone=? WHERE id=? AND is_active=1', [firstName, lastName, phone, userId]);
   return { updated: true };
 }

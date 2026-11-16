@@ -38,7 +38,7 @@ export default function CartScreen() {
   const pendingRef = useRef(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-
+// Actualiza la cantidad de un producto en el carrito, o lo elimina si la cantidad es cero. Bloquea cambios concurrentes y muestra errores.
   const update = useCallback(async (productId: string, quantity: number) => {
     if (pendingRef.current) return;
     pendingRef.current = true;

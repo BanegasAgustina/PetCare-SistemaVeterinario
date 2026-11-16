@@ -1,4 +1,6 @@
-/**
+/**Consulta y administra las direcciones de entrega de los clientes.
+ *  Cada cliente puede operar sobre sus propias direcciones.
+ * 
  * ARCHIVO: delivery-address.repository.ts
  * UBICACIÓN: backend/src/repositories/delivery-address.repository.ts
  * FUNCIÓN: Lectura y administración de direcciones de entrega del cliente.

@@ -1,4 +1,7 @@
 /**
+ * valida los distintos provedores el origen publico, credenciales y urls de retorno permitidas.
+ * 
+ * 
  * ARCHIVO: oauth.ts
  * proceso  oauth
  * UBICACIÓN: backend/src/config/oauth.ts

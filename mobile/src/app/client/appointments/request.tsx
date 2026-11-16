@@ -33,7 +33,8 @@ const stepTitles = ['Mascota', 'Servicio', 'Profesional', 'Fecha y horario', 'Co
 /** Respuesta mínima que conserva identificador y estado real devueltos al crear solicitud. */
 type Submission = { id: string; status: 'REQUESTED' | 'CONFIRMED' };
 
-/** Asistente de cinco pasos que combina mascota, servicio, profesional y horario disponibles antes de crear la solicitud. */
+/** Asistente de cinco pasos que combina mascota, servicio, profesional y horario disponibles 
+ * antes de crear la solicitud. */
 export default function RequestAppointment() {
   const api = useClient();
   const action = useAsyncAction();

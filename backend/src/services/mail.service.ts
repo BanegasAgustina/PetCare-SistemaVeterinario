@@ -1,4 +1,8 @@
 /**
+ * Envía correos de invitación, verificación, recuperación de contraseña y 
+ * notificaciones usando el servidor de correo configurado.
+ * 
+ * 
  * ARCHIVO: mail.service.ts
  * UBICACIÓN: backend/src/services/mail.service.ts
  * FUNCIÓN: Envío SMTP de invitaciones, verificación, recuperación de contraseña y notificaciones.

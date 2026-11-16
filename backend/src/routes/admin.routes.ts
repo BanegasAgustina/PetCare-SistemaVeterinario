@@ -1,4 +1,9 @@
 /**
+ * Define las rutas para administrar usuarios, roles, permisos y partes de la tienda. 
+ * Pide iniciar sesión y tener los permisos correspondientes.
+ * 
+ * 
+ * 
  * ARCHIVO: admin.routes.ts
  * UBICACIÓN: backend/src/routes/admin.routes.ts
  * FUNCIÓN: Declara endpoints de administración de usuarios, roles, permisos y tienda.
@@ -57,7 +62,8 @@ adminRouter.post('/home',handle(async(_req,res)=>repository.adminHome(actor(res)
 adminRouter.post('/general-information',requirePermission('settings.general.manage'),handle(async(_req,res)=>generalInformation.adminGeneralInformation(actor(res))));
 // adminRouter.put('/general-information'): Consulta la información general de la clínica Controles: roles: ADMIN, SUPER_ADMIN; permisos: settings.general.manage.
 adminRouter.put('/general-information',requirePermission('settings.general.manage'),handle(async(req,res)=>generalInformation.saveGeneralInformation(actor(res),req.body)));
-// adminRouter.put('/account'): Actualiza el perfil del administrador autenticado Controles: roles: ADMIN, SUPER_ADMIN.
+// PUT /api/admin/account: actualiza el perfil propio del administrador autenticado.
+// Pasa el ID de la sesión a admin-account.service.ts, que valida y ejecuta el UPDATE de users.
 adminRouter.put('/account',handle(async(req,res)=>account.updateOwnProfile(actor(res).id,req.body)));
 // adminRouter.put('/account/password'): Cambia la contraseña del administrador autenticado Controles: roles: ADMIN, SUPER_ADMIN; límite de solicitudes.
 adminRouter.put('/account/password',createAuthRateLimiter(),handle(async(req,res)=>account.changeOwnPassword(actor(res).id,req.body)));
