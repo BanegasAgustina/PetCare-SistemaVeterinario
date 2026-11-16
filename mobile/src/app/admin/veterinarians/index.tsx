@@ -20,6 +20,7 @@ import { AppText } from "../../../components/ui/AppText";
 import { AppButton } from "../../../components/ui/AppButton";
 import { SelectionRow } from "../../../components/ui/SelectionRow";
 import { useAuth } from "../../../hooks/useAuth";
+import { useLiveQueryRefresh } from "../../../hooks/useClientQuery";
 import type {
   VetCatalog,
   VetDetail,
@@ -91,32 +92,21 @@ export default function VeterinariansScreen() {
   const [selectedVet, setSelectedVet] = useState<VetDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const detailSequence=useRef(0);
   const [statusTarget, setStatusTarget] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (!selectedVetId) return;
-    let current = true;
-    void request<VetDetail>(`/admin/veterinarians/${selectedVetId}`, {
-      method: "POST",
-      body: {},
-    })
-      .then((vet) => {
-        if (current) setSelectedVet(vet);
-      })
-      .catch((err) => {
-        if (current) setDetailError(friendlyError(err));
-      })
-      .finally(() => {
-        if (current) setDetailLoading(false);
-      });
-    return () => {
-      current = false;
-    };
-  }, [request, selectedVetId]);
-  const load = useCallback(() => {
+  const refreshSelectedVet=useCallback(async()=>{
+    if(!selectedVetId)return true;
+    const attempt=++detailSequence.current;
+    try{const vet=await request<VetDetail>(`/admin/veterinarians/${selectedVetId}`,{method:"POST",body:{}});if(attempt===detailSequence.current){setSelectedVet(vet);setDetailError(null);}return true;}
+    catch(err){if(attempt===detailSequence.current)setDetailError(friendlyError(err));return false;}
+    finally{if(attempt===detailSequence.current)setDetailLoading(false);}
+  },[request,selectedVetId]);
+  useEffect(()=>{if(!selectedVetId)return;const timer=setTimeout(()=>void refreshSelectedVet(),0);return()=>clearTimeout(timer);},[refreshSelectedVet,selectedVetId]);
+  useLiveQueryRefresh(refreshSelectedVet,{enabled:Boolean(selectedVetId)});
+  const load = useCallback((background=false):Promise<boolean> => {
     const attempt = ++sequence.current;
-    setLoading(true);
+    if(!background)setLoading(true);
     setError(null);
-    setResult(null);
     const filters = {
       search: submittedSearch,
       status,
@@ -124,7 +114,7 @@ export default function VeterinariansScreen() {
       page: String(page),
       ...(specialty ? { specialtyId: specialty } : {}),
     };
-    void Promise.all([
+    return Promise.all([
       request<VetPage>("/admin/veterinarians/query", {
         method: "POST",
         body: filters,
@@ -139,17 +129,17 @@ export default function VeterinariansScreen() {
           setResult(value);
           setCatalog(options);
         }
+        return true;
       })
       .catch((err) => {
         if (attempt === sequence.current) setError(friendlyError(err));
+        return false;
       })
       .finally(() => {
         if (attempt === sequence.current) setLoading(false);
       });
-    return () => {
-      sequence.current++;
-    };
   }, [request, submittedSearch, status, sort, page, specialty]);
+  useLiveQueryRefresh(()=>load(true),{intervalMs:30_000});
   // Actualiza un campo del borrador del nuevo veterinario.
   function changeCreate<K extends keyof VetValues>(
     key: K,
@@ -160,11 +150,13 @@ export default function VeterinariansScreen() {
   }
   // Abre la ficha del profesional seleccionado.
   function openVetDetails(id: string) {
+    detailSequence.current++;
     setSelectedVetId(id);
     setSelectedVet(null);
     setDetailError(null);
     setDetailLoading(true);
   }
+  function closeVetDetails(){detailSequence.current++;setSelectedVetId(null);}
   // Persiste el estado profesional elegido y refresca el listado.
   async function saveVetStatus() {
     if (!selectedVet || statusTarget === null) return;
@@ -341,7 +333,7 @@ export default function VeterinariansScreen() {
         />
       )}
       <FormNotice error message={error} />
-      {Boolean(error) && <AppButton label="Reintentar" onPress={load} />}
+      {Boolean(error) && <AppButton label="Reintentar" onPress={()=>void load()} />}
       {loading && <AppText muted>Consultando veterinarios…</AppText>}
       {result && <AppText muted>{result.total} profesionales</AppText>}
       {result?.items.length ? (
@@ -588,7 +580,7 @@ export default function VeterinariansScreen() {
       <AppModal
         visible={selectedVetId !== null}
         dismissible
-        onClose={() => setSelectedVetId(null)}
+        onClose={closeVetDetails}
       >
         <View
           style={{
@@ -604,7 +596,7 @@ export default function VeterinariansScreen() {
               accessibilityRole="button"
               accessibilityLabel="Editar veterinario"
               onPress={() => {
-                setSelectedVetId(null);
+                closeVetDetails();
                 router.push({
                   pathname: "/admin/veterinarians/[id]",
                   params: { id: selectedVet.id },
@@ -724,7 +716,7 @@ export default function VeterinariansScreen() {
         <AppButton
           label="Cerrar"
           variant="secondary"
-          onPress={() => setSelectedVetId(null)}
+          onPress={closeVetDetails}
         />
       </AppModal>
       <ConfirmModal

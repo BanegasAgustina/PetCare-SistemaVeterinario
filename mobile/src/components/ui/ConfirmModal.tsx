@@ -17,13 +17,13 @@ import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { isWebAtLeast, responsiveLayout } from '../../constants/responsive';
 
 // Tipo ConfirmModalProps: define la forma o las opciones válidas de los datos usados por este módulo.
-type ConfirmModalProps = { visible: boolean; title: string; message: string; confirmLabel?: string; cancelLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => Promise<void> };
+type ConfirmModalProps = { visible: boolean; title: string; message: string; confirmLabel?: string; cancelLabel?: string; destructive?: boolean; onCancel: () => void; onDismiss?:()=>void; onConfirm: () => Promise<void> };
 /** Presenta confirmación y delega ejecución y errores asíncronos al hook compartido. */
-export function ConfirmModal({ visible, title, message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, onCancel, onConfirm }: ConfirmModalProps) {
+export function ConfirmModal({ visible, title, message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive = false, onCancel, onDismiss, onConfirm }: ConfirmModalProps) {
   const action = useAsyncAction();
   const { width } = useWindowDimensions();
   const desktop = isWebAtLeast(Platform.OS,width,responsiveLayout.breakpoints.desktop);
-  return <AppModal visible={visible} dismissible={!action.loading} onClose={onCancel}>
+  return <AppModal visible={visible} dismissible={!action.loading} onClose={onDismiss??onCancel}>
     <AppText variant="subtitle" accessibilityRole="header">{title}</AppText>
     <AppText muted>{message}</AppText>
     <FormNotice message={action.error} error />

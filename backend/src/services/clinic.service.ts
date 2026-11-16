@@ -55,12 +55,13 @@ export async function clinicOperation(actor:AuthUser,operation:string,id:unknown
   const entity=admin.entity(kind!);const record=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
   if(!record||!['products','services'].includes(entity))return admin.save(actor,entity,id===undefined?undefined:v.id(id),value);
   if(entity==='services'){
-   const previousKey=(await admin.save(actor,entity,id===undefined?undefined:v.id(id),Object.fromEntries(Object.entries(record).filter(([key])=>key!=='photoBase64')))) as {previousImage?:unknown};
-   if(record.photoBase64===undefined){if(record.imageUrl!==undefined&&record.imageUrl!==previousKey.previousImage&&isServicePhotoKey(previousKey.previousImage))await removeServicePhoto(previousKey.previousImage).catch(()=>console.error('No se pudo limpiar la imagen anterior del servicio.'));return {saved:true};}
-   if(!actor.permissions?.includes('services.manage'))throw new AppError('FORBIDDEN',403,'No tenés permiso para modificar imágenes de servicios.');
-   const image=await storeServicePhoto(record.photoBase64);
-   try {await admin.save(actor,entity,id===undefined?undefined:v.id(id),{...Object.fromEntries(Object.entries(record).filter(([key])=>key!=='photoBase64')),imageUrl:image.url});if(previousKey.previousImage!==image.url&&isServicePhotoKey(previousKey.previousImage))await removeServicePhoto(previousKey.previousImage).catch(()=>console.error('No se pudo limpiar la imagen anterior del servicio.'));return {saved:true};}
-   catch(error){await image.remove().catch(()=>console.error('No se pudo limpiar una imagen de servicio sin referencia.'));throw error;}
+   const {photoBase64,...fields}=record;let image:Awaited<ReturnType<typeof storeServicePhoto>>|null=null;
+   try{
+    if(photoBase64!==undefined){if(!actor.permissions?.includes('services.manage'))throw new AppError('FORBIDDEN',403,'No tenés permiso para modificar imágenes de servicios.');image=await storeServicePhoto(photoBase64);}
+    const saved=await admin.save(actor,entity,id===undefined?undefined:v.id(id),{...fields,...(image?{imageUrl:image.url}:{})}) as {id?:string;previousImage?:unknown};
+    const nextImage=image?.url??fields.imageUrl;if(nextImage!==saved.previousImage&&isServicePhotoKey(saved.previousImage))await removeServicePhoto(saved.previousImage).catch(()=>console.error('No se pudo limpiar la imagen anterior del servicio.'));
+    return {saved:true,id:saved.id};
+   }catch(error){await image?.remove().catch(()=>console.error('No se pudo limpiar una imagen de servicio sin referencia.'));throw error;}
   }
   if(record.photoBase64===undefined){const saved=await admin.save(actor,entity,id===undefined?undefined:v.id(id),value);const previous=(saved as {previousImage?:unknown}).previousImage;if(record.imageUrl!==undefined&&record.imageUrl!==previous&&isProductPhotoKey(previous))await removeProductPhoto(previous).catch(()=>console.error('No se pudo limpiar la imagen anterior del producto.'));return {saved:true};}
   if(!actor.permissions?.includes('products.update'))throw new AppError('FORBIDDEN',403,'No tenés permiso para modificar imágenes de productos.');

@@ -13,7 +13,7 @@ import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 /** Confirma el descarte ante botón, gesto, navegación programática y retroceso de Android. */
 /** Previene salida si hay cambios, muestra ConfirmModal y permite continuar o descartar. */
-export function useUnsavedChangesGuard(hasUnsavedChanges: boolean) {
+export function useUnsavedChangesGuard(hasUnsavedChanges: boolean,options:{message?:string;confirmLabel?:string;cancelLabel?:string;confirmKeepsEditing?:boolean;destructive?:boolean}={}) {
   const [pendingExit, setPendingExit] = useState<{ action: () => void; isNavigation: boolean } | null>(null);
   const disablePrevention = usePreventRemove(hasUnsavedChanges, ({ repeat }) => setPendingExit({ action: repeat, isNavigation: true }));
   /** Cierra la confirmación y desactiva prevención antes de navegar tras un guardado exitoso. */
@@ -29,20 +29,19 @@ const allowNavigation = () => {
     }
     setPendingExit({ action, isNavigation: false });
   }, [hasUnsavedChanges]);
+  const leavePending=()=>{const exit=pendingExit;if(!exit)return;if(exit.isNavigation)disablePrevention();setPendingExit(null);exit.action();};
   const confirmation = <ConfirmModal
     visible={Boolean(pendingExit)}
     title="Cambios sin guardar"
-    message="Tenés cambios sin guardar. ¿Querés salir sin guardar?"
-    confirmLabel="Salir sin guardar"
-    cancelLabel="Seguir editando"
-    destructive
-    onCancel={() => setPendingExit(null)}
+    message={options.message??'Tenés cambios sin guardar. ¿Querés salir sin guardar?'}
+    confirmLabel={options.confirmLabel??'Salir sin guardar'}
+    cancelLabel={options.cancelLabel??'Seguir editando'}
+    destructive={options.destructive??true}
+    onCancel={() => options.confirmKeepsEditing?leavePending():setPendingExit(null)}
+    onDismiss={()=>setPendingExit(null)}
     onConfirm={async () => {
-      const exit = pendingExit;
-      if (!exit) return;
-      if (exit.isNavigation) disablePrevention();
-      setPendingExit(null);
-      exit.action();
+      if(options.confirmKeepsEditing){setPendingExit(null);return;}
+      leavePending();
     }}
   />;
   return { confirmation, allowNavigation, confirmBeforeExit };

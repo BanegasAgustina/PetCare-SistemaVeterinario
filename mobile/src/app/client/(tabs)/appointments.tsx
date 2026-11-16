@@ -25,9 +25,9 @@ import { AppInput } from '../../../components/forms/AppInput';
 import { AppText } from '../../../components/ui/AppText';
 import { FormNotice } from '../../../components/ui/FormNotice';
 /** Presenta turnos propios y permite revisar o iniciar una cancelación mediante confirmación. */
-export default function AppointmentsScreen(){
- const api=useClient();const query=useClientQuery(api.appointments);const [past,setPast]=useState(false),[selectedId,setSelectedId]=useState(''),[confirmingCancel,setConfirmingCancel]=useState(false),[reason,setReason]=useState(''),[reasonError,setReasonError]=useState('');const action=useAsyncAction();const {showToast}=useFeedback();
- const detail=useClientQuery(useCallback(()=>selectedId?api.appointment(selectedId):Promise.resolve(null),[api,selectedId]));
+export default function AppointmentsScreen(){//intervalms:10_000 para que no se vea el efecto de "parpadeo" al cancelar un turno y recargar la lista, ya que la cancelación es inmediata y la query se recarga luego de la confirmación.
+ const api=useClient();const query=useClientQuery(api.appointments,{intervalMs:10_000});const [past,setPast]=useState(false),[selectedId,setSelectedId]=useState(''),[confirmingCancel,setConfirmingCancel]=useState(false),[reason,setReason]=useState(''),[reasonError,setReasonError]=useState('');const action=useAsyncAction();const {showToast}=useFeedback();
+ const detail=useClientQuery(useCallback(()=>selectedId?api.appointment(selectedId):Promise.resolve(null),[api,selectedId]),{intervalMs:10_000});
  const items=query.data?.filter(a=>past?!a.isUpcoming:a.isUpcoming);
  /** Valida el motivo y solicita cancelar el turno seleccionado; si se confirma, limpia la selección y actualiza la lista. */
 async function cancel(){const clean=reason.trim();if(clean.length<3){setReasonError('Escribí un motivo de al menos 3 caracteres.');return;}setReasonError('');const saved=await action.run(()=>api.cancelAppointment(selectedId,clean));if(saved){setConfirmingCancel(false);setSelectedId('');setReason('');query.reload();showToast('Turno cancelado','success');}}

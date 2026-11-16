@@ -40,7 +40,7 @@ export function AppointmentScreen() {
   const api = useClinic();
   const { hasPermission,user } = useAuth();
   const patientScope=hasPermission('pets.view_all')||hasPermission('pets.view_assigned');
-  const query = useClientQuery(useCallback(() => id?api.appointment(id):Promise.resolve(null), [api, id]));
+  const query = useClientQuery(useCallback(() => id?api.appointment(id):Promise.resolve(null), [api, id]),{intervalMs:10_000});
   const groomingRecord = useClientQuery(useCallback(() => id&&user?.role==='GROOMER'&&query.data&&['IN_PROGRESS','COMPLETED'].includes(String(query.data.status))?api.groomingRecord(id):Promise.resolve(null),[api,id,user?.role,query.data]));
   const appointmentPetId=query.data?.petId?String(query.data.petId):'';
   const patient=useClientQuery(useCallback(()=>user?.role==='VETERINARIAN'&&hasPermission('pets.view_information')&&appointmentPetId?api.patient(appointmentPetId):Promise.resolve(null),[api,user?.role,appointmentPetId,hasPermission]));
@@ -60,7 +60,7 @@ export function AppointmentScreen() {
   const groomingSaveAction = useAsyncAction();
   const [coatNotes,setCoatNotes]=useState<string|null>(null),[behaviorNotes,setBehaviorNotes]=useState<string|null>(null),[careInstructions,setCareInstructions]=useState<string|null>(null);
   const cancellationAction = useAsyncAction();
-  const catalog = useClientQuery(api.catalog);
+  const catalog = useClientQuery(api.catalog,{intervalMs:10_000});
   const slots = useClientQuery(useCallback(() => query.data && hasPermission('appointments.manage') ? api.slots(String(query.data.serviceId), professional || undefined) : Promise.resolve(null), [api, query.data, professional, hasPermission]));
   const { showToast } = useFeedback();
   const observationValue = observations ?? String(query.data?.observations ?? '');

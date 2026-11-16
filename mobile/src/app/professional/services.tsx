@@ -18,7 +18,7 @@ import { useClientQuery } from '../../hooks/useClientQuery';
 // Filtra el catálogo para mostrar los servicios asignados al profesional actual.
 export default function ProfessionalServices(){
   const {user}=useAuth();const clinic=useClinic();
-  const query=useClientQuery(useCallback(()=>clinic.catalog(),[clinic]));
+  const query=useClientQuery(useCallback(()=>clinic.catalog(),[clinic]),{intervalMs:10_000});
   const services=query.data?.services.filter(service=>query.data?.assignments.some(assignment=>String(assignment.professionalId)===user?.id&&String(assignment.serviceId)===String(service.id)))??[];
   return <ScreenContainer wide>
     <PetCareHeader title="Mis servicios" subtitle="Servicios habilitados para tu perfil profesional." back/>

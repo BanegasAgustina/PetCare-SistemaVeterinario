@@ -10,6 +10,7 @@
 /** Comparte loading y error seguro y evita envíos duplicados o cambios tras desmontar. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { friendlyError } from '../services/api';
+import { publishLocalDataChange } from '../services/query-sync';
 
 /** Devuelve loading/error/run; evita concurrencia, convierte fallos a mensaje público y no actualiza estado tras desmontar. */
 export function useAsyncAction() {
@@ -21,7 +22,7 @@ export function useAsyncAction() {
   const run = useCallback(async (operation: () => Promise<unknown>): Promise<boolean> => {
     if (busy.current) return false;
     busy.current = true; setLoading(true); setError(null);
-    try { await operation(); return true; }
+    try { await operation(); publishLocalDataChange(); return true; }
     catch (failure) { if (mounted.current) setError(friendlyError(failure)); return false; }
     finally { busy.current = false; if (mounted.current) setLoading(false); }
   }, []);

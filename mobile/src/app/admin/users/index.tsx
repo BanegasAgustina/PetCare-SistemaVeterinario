@@ -12,7 +12,7 @@
  * Usa los hooks y servicios autenticados de su módulo (/admin o /clinic según la operación);
  *  no debe decidir ownership ni privilegios a partir de parámetros locales.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Platform, Pressable, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,7 +29,7 @@ import {
 import { AdminPersonRow } from "../../../components/admin/AdminPersonRow";
 import { useAdmin } from "../../../hooks/useAdmin";
 import { useAuth } from "../../../hooks/useAuth";
-import { useClientQuery } from "../../../hooks/useClientQuery";
+import { useClientQuery, useLiveQueryRefresh } from "../../../hooks/useClientQuery";
 import { roleLabel } from "../../../utils/role-label";
 import { SelectionRow } from "../../../components/ui/SelectionRow";
 import { CompactPagination } from "../../../components/ui/CompactPagination";
@@ -96,6 +96,7 @@ export default function UsersScreen() {
   );
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const detailSequence=useRef(0);
   const [statusTarget, setStatusTarget] = useState<boolean | null>(null);
   const [statusUser, setStatusUser] = useState<{
     id: string;
@@ -104,24 +105,15 @@ export default function UsersScreen() {
     phone: string | null;
     isActive: boolean;
   } | null>(null);
-  useEffect(() => {
-    if (!selectedUserId) return;
-    let current = true;
-    void api
-      .user(selectedUserId)
-      .then((user) => {
-        if (current) setSelectedUser(user);
-      })
-      .catch((error) => {
-        if (current) setDetailError(friendlyError(error));
-      })
-      .finally(() => {
-        if (current) setDetailLoading(false);
-      });
-    return () => {
-      current = false;
-    };
-  }, [api, selectedUserId]);
+  const refreshSelectedUser=useCallback(async()=>{
+    if(!selectedUserId)return true;
+    const attempt=++detailSequence.current;
+    try{const user=await api.user(selectedUserId);if(attempt===detailSequence.current){setSelectedUser(user);setDetailError(null);}return true;}
+    catch(error){if(attempt===detailSequence.current)setDetailError(friendlyError(error));return false;}
+    finally{if(attempt===detailSequence.current)setDetailLoading(false);}
+  },[api,selectedUserId]);
+  useEffect(()=>{if(!selectedUserId)return;const timer=setTimeout(()=>void refreshSelectedUser(),0);return()=>clearTimeout(timer);},[refreshSelectedUser,selectedUserId]);
+  useLiveQueryRefresh(refreshSelectedUser,{enabled:Boolean(selectedUserId)});
   const catalog = useClientQuery(api.catalog);
   const selectedRole = catalog.data?.roles.find(
     (role) => role.id === createValues.roleId,
@@ -146,11 +138,13 @@ export default function UsersScreen() {
   }
   // Navega a la ficha del usuario seleccionado.
   function openUserDetails(id: string) {
+    detailSequence.current++;
     setSelectedUserId(id);
     setSelectedUser(null);
     setDetailError(null);
     setDetailLoading(true);
   }
+  function closeUserDetails(){detailSequence.current++;setSelectedUserId(null);}
   // Aplica la activación o desactivación solicitada y actualiza el resultado paginado.
   async function saveUserStatus() {
     if (!statusUser || statusTarget === null) return;
@@ -594,7 +588,7 @@ export default function UsersScreen() {
       <AppModal
         visible={selectedUserId !== null}
         dismissible
-        onClose={() => setSelectedUserId(null)}
+        onClose={closeUserDetails}
       >
         <View
           style={{
@@ -610,7 +604,7 @@ export default function UsersScreen() {
               accessibilityRole="button"
               accessibilityLabel="Editar usuario"
               onPress={() => {
-                setSelectedUserId(null);
+                closeUserDetails();
                 router.push({
                   pathname: "/admin/users/[id]",
                   params: { id: selectedUser.id },
@@ -700,7 +694,7 @@ export default function UsersScreen() {
         <AppButton
           label="Cerrar"
           variant="secondary"
-          onPress={() => setSelectedUserId(null)}
+          onPress={closeUserDetails}
         />
       </AppModal>
       {statusTarget === false && statusUser ? (

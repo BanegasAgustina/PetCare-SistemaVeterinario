@@ -66,8 +66,8 @@ export default function AdminHome() {
   const bannersQuery=useClientQuery(loadBanners);
   const loadPending=useCallback(()=>canSeeAppointments?clinic.appointments({status:'REQUESTED',page:'1',sort:'priority'}):Promise.resolve([]),[clinic,canSeeAppointments]);
   const loadUpcoming=useCallback(()=>canSeeAppointments?clinic.appointments({upcomingOnly:'true',page:'1',sort:'date_asc'}):Promise.resolve([]),[clinic,canSeeAppointments]);
-  const pendingQuery=useClientQuery(loadPending);
-  const upcomingQuery=useClientQuery(loadUpcoming);
+  const pendingQuery=useClientQuery(loadPending,{intervalMs:10_000});
+  const upcomingQuery=useClientQuery(loadUpcoming,{intervalMs:10_000});
   const clinicMetrics:Metric[]=[];
   if(canSeeAppointments) {
     if(clinicQuery.data?.todayCount!==null&&clinicQuery.data?.todayCount!==undefined)clinicMetrics.push({label:'Turnos de hoy',value:clinicQuery.data.todayCount,icon:'calendar-outline',path:'/admin/agenda',hint:'Actividad de hoy'});

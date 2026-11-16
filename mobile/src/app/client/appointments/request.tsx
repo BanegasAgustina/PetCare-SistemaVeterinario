@@ -48,13 +48,13 @@ export default function RequestAppointment() {
   const [slotId, setSlotId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const { confirmation: unsavedChangesPrompt } = useUnsavedChangesGuard(!submission && Boolean(petId || typeId || specialtyId || serviceId || vetId || selectedDate || slotId));
+  const { confirmation: unsavedChangesPrompt } = useUnsavedChangesGuard(!submission && Boolean(petId || typeId || specialtyId || serviceId || vetId || selectedDate || slotId),{message:'¿Seguro que querés salir?',confirmLabel:'Pedir turno',cancelLabel:'Salir',confirmKeepsEditing:true,destructive:false});
 
-  const query = useClientQuery(useCallback(async () => ({ pets: await api.pets(), catalog: await api.appointmentCatalog() }), [api]));
+  const query = useClientQuery(useCallback(async () => ({ pets: await api.pets(), catalog: await api.appointmentCatalog() }), [api]),{intervalMs:10_000});
   const slots = useClientQuery(useCallback(
     () => step >= 4 && serviceId ? api.slots(serviceId, vetId || undefined) : Promise.resolve(null),
     [api, step, serviceId, vetId],
-  ));
+  ),{intervalMs:10_000});
   const data = query.data;
   const activePets = (data?.pets ?? []).filter(pet => normalizePetActiveFlag(pet.isActive) === true);
   const types = data?.catalog.types ?? [];
